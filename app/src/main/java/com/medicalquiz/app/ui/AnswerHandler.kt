@@ -24,12 +24,12 @@ class AnswerHandler {
             val cardView = radioButton.parent.parent as? MaterialCardView ?: continue
             
             when {
-                answer.answerId == correctAnswerId -> {
+                answer.answerId.toInt() == correctAnswerId -> {
                     // Correct answer - green
                     cardView.setCardBackgroundColor(android.graphics.Color.parseColor("#C8E6C9"))
                     radioButton.setTextColor(android.graphics.Color.parseColor("#1B5E20"))
                 }
-                answer.answerId == selectedAnswerId && selectedAnswerId != correctAnswerId -> {
+                answer.answerId.toInt() == selectedAnswerId && selectedAnswerId != correctAnswerId -> {
                     // Wrong selected answer - red
                     cardView.setCardBackgroundColor(android.graphics.Color.parseColor("#FFCDD2"))
                     radioButton.setTextColor(android.graphics.Color.parseColor("#B71C1C"))

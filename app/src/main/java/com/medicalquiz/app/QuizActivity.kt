@@ -75,13 +75,15 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         initializeDatabase()
         
         // Handle back button press
-        onBackPressedDispatcher.addCallback(this) {
-            if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                binding.drawerLayout.closeDrawer(GravityCompat.START)
-            } else {
-                finish()
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    binding.drawerLayout.closeDrawer(GravityCompat.START)
+                } else {
+                    finish()
+                }
             }
-        }
+        })
     }
     
     private fun setupWebViews() {
