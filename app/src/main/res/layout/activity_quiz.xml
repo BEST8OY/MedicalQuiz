@@ -111,7 +111,8 @@
                     <WebView
                         android:id="@+id/webViewQuestion"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="match_parent"
+                        android:minHeight="100dp" />
 
                 </com.google.android.material.card.MaterialCardView>        <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardAnswers"
@@ -196,7 +197,8 @@
             <WebView
                 android:id="@+id/webViewExplanation"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
+                android:minHeight="100dp"
                 android:visibility="gone" />
 
         </com.google.android.material.card.MaterialCardView>

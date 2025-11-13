@@ -19,6 +19,9 @@ import com.medicalquiz.app.data.database.DatabaseManager
 import com.medicalquiz.app.data.models.Answer
 import com.medicalquiz.app.data.models.Question
 import com.medicalquiz.app.databinding.ActivityQuizBinding
+import com.medicalquiz.app.ui.AnswerHandler
+import com.medicalquiz.app.ui.FilterDialogHandler
+import com.medicalquiz.app.ui.MediaHandler
 import com.medicalquiz.app.utils.HtmlUtils
 import com.medicalquiz.app.utils.WebViewRenderer
 import kotlinx.coroutines.launch
@@ -28,6 +31,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private lateinit var binding: ActivityQuizBinding
     private lateinit var databaseManager: DatabaseManager
     private lateinit var drawerToggle: ActionBarDrawerToggle
+    private lateinit var mediaHandler: MediaHandler
+    private lateinit var answerHandler: AnswerHandler
+    private lateinit var filterDialogHandler: FilterDialogHandler
+    
     private var questionIds: List<Long> = emptyList()
     private var currentQuestionIndex = 0
     private var currentQuestion: Question? = null
@@ -58,11 +65,23 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         
         databaseManager = DatabaseManager(dbPath)
+        mediaHandler = MediaHandler(this, lifecycleScope, databaseManager) { questionIds.getOrNull(currentQuestionIndex) }
+        answerHandler = AnswerHandler()
+        filterDialogHandler = FilterDialogHandler(this, lifecycleScope, databaseManager)
         
         setupWebViews()
         setupDrawer()
         setupListeners()
         initializeDatabase()
+        
+        // Handle back button press
+        onBackPressedDispatcher.addCallback(this) {
+            if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                binding.drawerLayout.closeDrawer(GravityCompat.START)
+            } else {
+                finish()
+            }
+        }
     }
     
     private fun setupWebViews() {
@@ -70,47 +89,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         WebViewRenderer.setupWebView(binding.webViewExplanation)
         
         // Setup click handler for images in WebViews
-        setupWebViewImageClicks(binding.webViewQuestion)
-        setupWebViewImageClicks(binding.webViewExplanation)
-    }
-    
-    private fun setupWebViewImageClicks(webView: WebView) {
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                // Check if URL is a media file
-                if (url.startsWith("file://") && url.contains("/media/")) {
-                    val fileName = url.substringAfterLast("/")
-                    openMediaViewerForFile(fileName)
-                    return true
-                }
-                return false
-            }
-        }
-        
-        // Enable JavaScript for image click handling
-        webView.settings.javaScriptEnabled = true
-        webView.webChromeClient = WebChromeClient()
-    }
-    
-    private fun openMediaViewerForFile(fileName: String) {
-        lifecycleScope.launch {
-            val currentQuestion = databaseManager?.getQuestionById(questionIds[currentQuestionIndex])
-            if (currentQuestion != null) {
-                val mediaFiles = mutableListOf<String>()
-                currentQuestion.mediaName?.let { mediaFiles.add(it) }
-                HtmlUtils.parseMediaFiles(currentQuestion.otherMedias).let { mediaFiles.addAll(it) }
-                
-                val startIndex = mediaFiles.indexOf(fileName).takeIf { it >= 0 } ?: 0
-                openMediaViewer(mediaFiles, startIndex)
-            }
-        }
-    }
-    
-    private fun openMediaViewer(mediaFiles: List<String>, startIndex: Int) {
-        val intent = Intent(this, MediaViewerActivity::class.java)
-        intent.putStringArrayListExtra("MEDIA_FILES", ArrayList(mediaFiles))
-        intent.putExtra("START_INDEX", startIndex)
-        startActivity(intent)
+        mediaHandler.setupWebViewImageClicks(binding.webViewQuestion)
+        mediaHandler.setupWebViewImageClicks(binding.webViewExplanation)
     }
     
     private fun setupDrawer() {
@@ -231,7 +211,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             
             // Make media info clickable
             binding.textViewMediaInfo.setOnClickListener {
-                openMediaViewer(mediaFiles, 0)
+                mediaHandler.openMediaViewer(mediaFiles, 0)
             }
         } else {
             binding.textViewMediaInfo.visibility = android.view.View.GONE
@@ -250,24 +230,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         binding.buttonPrevious.isEnabled = currentQuestionIndex > 0
         
         // Reset answer colors
-        resetAnswerColors()
+        answerHandler.resetAnswerColors(binding.radioGroupAnswers)
         
         // Hide explanation initially
         binding.webViewExplanation.loadData("", "text/html", "UTF-8")
-    }
-    
-    private fun resetAnswerColors() {
-        val radioButtons = listOf(
-            binding.radioAnswer1,
-            binding.radioAnswer2,
-            binding.radioAnswer3,
-            binding.radioAnswer4,
-            binding.radioAnswer5
-        )
-        radioButtons.forEach { btn ->
-            btn.setTextColor(Color.BLACK)
-            btn.setBackgroundColor(Color.TRANSPARENT)
-        }
     }
     
     private fun displayAnswers() {
@@ -322,7 +288,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 )
                 
                 // Highlight answers
-                highlightAnswers(answerId, question.corrAns)
+                answerHandler.highlightAnswers(
+                    binding.radioGroupAnswers,
+                    currentAnswers,
+                    answerId,
+                    question.corrAns
+                )
                 
                 // Get correct answer text
                 val correctAnswer = currentAnswers.getOrNull(question.corrAns - 1)
@@ -339,32 +310,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 
             } catch (e: Exception) {
                 Toast.makeText(this@QuizActivity, "Error saving answer: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-    
-    private fun highlightAnswers(selectedId: Int, correctId: Int) {
-        val radioButtons = listOf(
-            binding.radioAnswer1,
-            binding.radioAnswer2,
-            binding.radioAnswer3,
-            binding.radioAnswer4,
-            binding.radioAnswer5
-        )
-        
-        radioButtons.forEachIndexed { index, radioButton ->
-            val answerId = index + 1
-            when {
-                answerId == correctId -> {
-                    // Highlight correct answer in green
-                    radioButton.setTextColor(Color.parseColor("#1B5E20"))
-                    radioButton.setBackgroundColor(Color.parseColor("#C8E6C9"))
-                }
-                answerId == selectedId && selectedId != correctId -> {
-                    // Highlight wrong answer in red
-                    radioButton.setTextColor(Color.parseColor("#B71C1C"))
-                    radioButton.setBackgroundColor(Color.parseColor("#FFCDD2"))
-                }
             }
         }
     }
@@ -394,55 +339,20 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.nav_filter_subject -> showSubjectFilterDialog()
-            R.id.nav_filter_system -> showSystemFilterDialog()
+            R.id.nav_filter_subject -> filterDialogHandler.showSubjectFilterDialog(selectedSubjectId) { subjectId ->
+                selectedSubjectId = subjectId
+                reloadQuestionsWithFilters()
+            }
+            R.id.nav_filter_system -> filterDialogHandler.showSystemFilterDialog(selectedSystemId, selectedSubjectId) { systemId ->
+                selectedSystemId = systemId
+                reloadQuestionsWithFilters()
+            }
             R.id.nav_clear_filters -> clearFilters()
             R.id.nav_settings -> Toast.makeText(this, "Settings coming soon", Toast.LENGTH_SHORT).show()
             R.id.nav_about -> Toast.makeText(this, "About coming soon", Toast.LENGTH_SHORT).show()
         }
         binding.drawerLayout.closeDrawer(GravityCompat.START)
         return true
-    }
-    
-    private fun showSubjectFilterDialog() {
-        lifecycleScope.launch {
-            try {
-                val subjects = databaseManager.getSubjects()
-                val subjectNames = subjects.map { it.name }.toTypedArray()
-                
-                AlertDialog.Builder(this@QuizActivity)
-                    .setTitle("Filter by Subject")
-                    .setItems(subjectNames) { _, which ->
-                        selectedSubjectId = subjects[which].id
-                        reloadQuestionsWithFilters()
-                    }
-                    .setNegativeButton("Cancel", null)
-                    .show()
-            } catch (e: Exception) {
-                Toast.makeText(this@QuizActivity, "Error loading subjects: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-    
-    private fun showSystemFilterDialog() {
-        lifecycleScope.launch {
-            try {
-                val systemIds = selectedSubjectId?.let { listOf(it) }
-                val systems = databaseManager.getSystems(systemIds)
-                val systemNames = systems.map { it.name }.toTypedArray()
-                
-                AlertDialog.Builder(this@QuizActivity)
-                    .setTitle("Filter by System")
-                    .setItems(systemNames) { _, which ->
-                        selectedSystemId = systems[which].id
-                        reloadQuestionsWithFilters()
-                    }
-                    .setNegativeButton("Cancel", null)
-                    .show()
-            } catch (e: Exception) {
-                Toast.makeText(this@QuizActivity, "Error loading systems: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
     }
     
     private fun clearFilters() {
@@ -489,14 +399,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 }
             }
             supportActionBar?.subtitle = subtitle.ifEmpty { null }
-        }
-    }
-    
-    override fun onBackPressed() {
-        if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            binding.drawerLayout.closeDrawer(GravityCompat.START)
-        } else {
-            super.onBackPressed()
         }
     }
     
