@@ -6,12 +6,11 @@ import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.RadioButton
-import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -21,12 +20,10 @@ import androidx.core.view.GravityCompat
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.navigation.NavigationView
-import com.google.android.material.radiobutton.MaterialRadioButton
 import com.medicalquiz.app.data.database.DatabaseManager
 import com.medicalquiz.app.data.models.Answer
 import com.medicalquiz.app.data.models.Question
 import com.medicalquiz.app.databinding.ActivityQuizBinding
-import com.medicalquiz.app.ui.AnswerHandler
 import com.medicalquiz.app.ui.FilterDialogHandler
 import com.medicalquiz.app.ui.MediaHandler
 import com.medicalquiz.app.utils.HtmlUtils
@@ -39,8 +36,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private lateinit var databaseManager: DatabaseManager
     private lateinit var drawerToggle: ActionBarDrawerToggle
     private lateinit var mediaHandler: MediaHandler
-    private lateinit var answerHandler: AnswerHandler
     private lateinit var filterDialogHandler: FilterDialogHandler
+    private lateinit var quizWebInterface: QuizWebInterface
     
     private var questionIds: List<Long> = emptyList()
     private var currentQuestionIndex = 0
@@ -52,14 +49,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private val selectedSubjectIds = mutableSetOf<Long>()
     private val selectedSystemIds = mutableSetOf<Long>()
     private var answerSubmitted = false
-    private val answerCheckedChangeListener = RadioGroup.OnCheckedChangeListener { group, checkedId ->
-        if (answerSubmitted) return@OnCheckedChangeListener
-        val radioButton = group.findViewById<RadioButton>(checkedId) ?: return@OnCheckedChangeListener
-        val index = group.indexOfChild(radioButton)
-        val answer = currentAnswers.getOrNull(index) ?: return@OnCheckedChangeListener
-        selectedAnswerId = answer.answerId.toInt()
-        submitAnswer()
-    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,7 +70,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         
         databaseManager = DatabaseManager(dbPath)
         mediaHandler = MediaHandler(this, lifecycleScope, databaseManager) { questionIds.getOrNull(currentQuestionIndex) }
-        answerHandler = AnswerHandler()
         filterDialogHandler = FilterDialogHandler(this, lifecycleScope, databaseManager)
         
         setupWebViews()
@@ -102,8 +90,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun setupWebViews() {
+        quizWebInterface = QuizWebInterface()
         configureWebView(binding.webViewQuestion)
-        configureWebView(binding.webViewExplanation)
+        binding.webViewQuestion.addJavascriptInterface(quizWebInterface, "AndroidBridge")
     }
     
     private fun setupDrawer() {
@@ -121,8 +110,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun setupListeners() {
-        binding.radioGroupAnswers.setOnCheckedChangeListener(answerCheckedChangeListener)
-        
         binding.buttonNext.setOnClickListener {
             loadNextQuestion()
         }
@@ -182,8 +169,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         // Update question counter
         binding.textViewQuestionNumber.text = "Question ${currentQuestionIndex + 1} of ${questionIds.size}"
         
-        // Display question text with HTML support via WebView
-        WebViewRenderer.loadContent(this, binding.webViewQuestion, question.question)
+        // Render question, answers, and explanation within a single WebView
+        val quizHtml = buildQuestionHtml(question, currentAnswers)
+        WebViewRenderer.loadContent(this, binding.webViewQuestion, quizHtml)
         
         // Display title if available
         if (!question.title.isNullOrBlank()) {
@@ -220,40 +208,11 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             binding.textViewMediaInfo.setOnClickListener(null)
         }
         
-        // Display answers
-        displayAnswers()
-        
         // Reset UI state
         answerSubmitted = false
         selectedAnswerId = null
-        binding.radioGroupAnswers.clearCheck()
-        binding.webViewExplanation.visibility = android.view.View.GONE
-        binding.cardExplanation.visibility = android.view.View.GONE
         binding.buttonNext.isEnabled = currentQuestionIndex < questionIds.size - 1
         binding.buttonPrevious.isEnabled = currentQuestionIndex > 0
-        
-        // Reset answer colors
-        answerHandler.resetAnswerColors(binding.radioGroupAnswers)
-        
-        // Hide explanation initially
-        binding.webViewExplanation.loadData("", "text/html", "UTF-8")
-    }
-    
-    private fun displayAnswers() {
-        val radioGroup = binding.radioGroupAnswers
-        radioGroup.setOnCheckedChangeListener(null)
-        radioGroup.removeAllViews()
-        
-        currentAnswers.forEach { answer ->
-            val radioButton = createAnswerRadioButton()
-            HtmlUtils.setHtmlText(radioButton, answer.answerText, enableLinks = false)
-            radioButton.id = View.generateViewId()
-            radioButton.tag = answer.answerId
-            radioGroup.addView(radioButton)
-        }
-        
-        radioGroup.clearCheck()
-        radioGroup.setOnCheckedChangeListener(answerCheckedChangeListener)
     }
     
     private fun submitAnswer() {
@@ -280,59 +239,127 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     testId = testId
                 )
                 
-                // Highlight answers
-                answerHandler.highlightAnswers(
-                    binding.radioGroupAnswers,
-                    currentAnswers,
-                    answerId,
-                    question.corrAns
-                )
-                
-                // Get correct answer text
                 val correctAnswer = currentAnswers.getOrNull(question.corrAns - 1)
+                val correctAnswerId = correctAnswer?.answerId?.toInt()
                 val correctAnswerText = correctAnswer?.let { HtmlUtils.stripHtml(it.answerText) } ?: "Answer ${question.corrAns}"
-                
-                // Show explanation without Correct/Incorrect text
-                val explanationHtml = "<strong>Correct Answer: $correctAnswerText</strong><br><br>${question.explanation}"
-                
-                WebViewRenderer.loadContent(this@QuizActivity, binding.webViewExplanation, explanationHtml)
-                binding.cardExplanation.visibility = android.view.View.VISIBLE
-                binding.webViewExplanation.visibility = android.view.View.VISIBLE
-                
-                // Disable all radio buttons
-                disableAllAnswers()
-                
+                val normalizedCorrectId = correctAnswerId ?: -1
+                updateWebViewAnswerState(normalizedCorrectId, answerId, correctAnswerText)
             } catch (e: Exception) {
                 Toast.makeText(this@QuizActivity, "Error saving answer: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
-    
-    private fun disableAllAnswers() {
-        for (i in 0 until binding.radioGroupAnswers.childCount) {
-            binding.radioGroupAnswers.getChildAt(i)?.isEnabled = false
+
+    private fun buildQuestionHtml(question: Question, answers: List<Answer>): String {
+        val questionBody = HtmlUtils.sanitizeForWebView(question.question)
+        val explanationSource = question.explanation.ifBlank { "Explanation not provided." }
+        val explanation = HtmlUtils.sanitizeForWebView(explanationSource)
+
+        val answersHtml = if (answers.isEmpty()) {
+            """
+                <p class="empty-state">No answers available for this question.</p>
+            """.trimIndent()
+        } else {
+            answers.mapIndexed { index, answer ->
+                val label = ('A'.code + index).toChar()
+                val sanitizedAnswer = HtmlUtils.sanitizeForWebView(answer.answerText)
+                """
+                <button type="button"
+                        class="answer-button"
+                        id="answer-${answer.answerId}"
+                        value="${answer.answerId}">
+                    <span class="answer-label">$label.</span>
+                    <span class="answer-text">$sanitizedAnswer</span>
+                </button>
+                """.trimIndent()
+            }.joinToString("\n")
         }
+
+        val explanationBlock = """
+            <section id="explanation" class="explanation hidden">
+                <h3>Explanation</h3>
+                $explanation
+            </section>
+        """.trimIndent()
+
+        val scriptBlock = """
+            <script>
+                (function() {
+                    function bindAnswerButtons() {
+                        var buttons = document.querySelectorAll('.answer-button');
+                        buttons.forEach(function(button) {
+                            button.addEventListener('click', function() {
+                                if (button.classList.contains('locked')) { return; }
+                                var answerId = button.value || button.getAttribute('value');
+                                if (window.AndroidBridge && answerId) {
+                                    window.AndroidBridge.onAnswerSelected(String(answerId));
+                                }
+                            });
+                        });
+                    }
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', bindAnswerButtons);
+                    } else {
+                        bindAnswerButtons();
+                    }
+                })();
+
+                function applyAnswerState(correctId, selectedId) {
+                    var buttons = document.querySelectorAll('.answer-button');
+                    buttons.forEach(function(button) {
+                        var id = parseInt(button.value || button.getAttribute('value'));
+                        if (isNaN(id)) { return; }
+                        button.disabled = true;
+                        button.classList.add('locked');
+                        button.classList.remove('correct', 'incorrect');
+                        if (id === correctId) {
+                            button.classList.add('correct');
+                        }
+                        if (id === selectedId && selectedId !== correctId) {
+                            button.classList.add('incorrect');
+                        }
+                    });
+                }
+
+                function setAnswerFeedback(text) {
+                    var feedback = document.getElementById('answer-feedback');
+                    if (feedback) {
+                        feedback.textContent = text;
+                        feedback.classList.remove('hidden');
+                    }
+                }
+
+                function revealExplanation() {
+                    var section = document.getElementById('explanation');
+                    if (section) {
+                        section.classList.remove('hidden');
+                    }
+                }
+            </script>
+        """.trimIndent()
+
+        return """
+            <article class="quiz-block">
+                <section class="question-body">$questionBody</section>
+                <div id="answer-feedback" class="answer-feedback hidden"></div>
+                <section class="answers">$answersHtml</section>
+                $explanationBlock
+            </article>
+            $scriptBlock
+        """.trimIndent()
     }
 
-    private fun createAnswerRadioButton(): MaterialRadioButton {
-        val density = resources.displayMetrics.density
-        val horizontalPadding = (12 * density).toInt()
-        val verticalPadding = (6 * density).toInt()
-        val layoutParams = RadioGroup.LayoutParams(
-            RadioGroup.LayoutParams.MATCH_PARENT,
-            RadioGroup.LayoutParams.WRAP_CONTENT
-        ).apply {
-            val spacing = (4 * density).toInt()
-            topMargin = spacing
-            bottomMargin = spacing
+    private fun updateWebViewAnswerState(correctAnswerId: Int, selectedAnswerId: Int, correctAnswerText: String) {
+        val safeFeedback = jsStringLiteral("Correct Answer: $correctAnswerText")
+        val jsCommand = buildString {
+            append("applyAnswerState($correctAnswerId, $selectedAnswerId);")
+            append("setAnswerFeedback($safeFeedback);")
+            append("revealExplanation();")
         }
-        return MaterialRadioButton(this).apply {
-            this.layoutParams = layoutParams
-            minimumHeight = (40 * density).toInt()
-            setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
-            setLineSpacing(0f, 1.1f)
-        }
+        binding.webViewQuestion.evaluateJavascript(jsCommand, null)
     }
+
+    private fun jsStringLiteral(raw: String): String = org.json.JSONObject.quote(raw)
 
     private fun configureWebView(webView: WebView) {
         WebViewRenderer.setupWebView(webView)
@@ -380,6 +407,19 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 webView.updateLayoutParams<ViewGroup.LayoutParams> {
                     height = targetHeight
                 }
+            }
+        }
+    }
+
+    private inner class QuizWebInterface {
+        @JavascriptInterface
+        fun onAnswerSelected(answerId: String) {
+            val parsedId = answerId.toLongOrNull() ?: return
+            runOnUiThread {
+                if (answerSubmitted) return@runOnUiThread
+                val answer = currentAnswers.firstOrNull { it.answerId == parsedId } ?: return@runOnUiThread
+                selectedAnswerId = answer.answerId.toInt()
+                submitAnswer()
             }
         }
     }

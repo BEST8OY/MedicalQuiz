@@ -311,3 +311,84 @@
   padding-bottom: 12px;
   border-radius: 0 4px 4px 0;
 }
+
+/* Quiz layout overrides */
+.medical-content .quiz-block {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.medical-content .question-body {
+  font-size: 17px;
+  color: #111827;
+}
+
+.medical-content .answers {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.medical-content .answer-button {
+  width: 100%;
+  text-align: left;
+  background-color: #f3f4f6;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+  padding: 14px;
+  border-radius: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  box-shadow: none;
+}
+
+.medical-content .answer-button:hover:not(.locked) {
+  background-color: #e5e7eb;
+}
+
+.medical-content .answer-button .answer-label {
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.medical-content .answer-button .answer-text {
+  flex: 1;
+}
+
+.medical-content .answer-button.correct {
+  border-color: #22c55e;
+  background-color: #ecfdf5;
+  color: #065f46;
+}
+
+.medical-content .answer-button.incorrect {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+  color: #991b1b;
+}
+
+.medical-content .answer-button.locked {
+  cursor: default;
+  opacity: 0.95;
+}
+
+.medical-content .answer-feedback {
+  font-weight: 600;
+  color: #111827;
+}
+
+.medical-content .explanation {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 12px;
+}
+
+.medical-content .hidden {
+  display: none !important;
+}
+
+.medical-content .empty-state {
+  color: #6b7280;
+  font-style: italic;
+}
