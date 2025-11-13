@@ -128,12 +128,12 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-                    <RadioGroup
+                        <RadioGroup
                         android:id="@+id/radioGroupAnswers"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="16dp" />
+                        android:padding="12dp" />
 
         </com.google.android.material.card.MaterialCardView>
 

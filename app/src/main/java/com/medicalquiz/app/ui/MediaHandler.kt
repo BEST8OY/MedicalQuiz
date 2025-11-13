@@ -17,9 +17,13 @@ import kotlinx.coroutines.launch
 class MediaHandler(
     private val context: Context,
     private val lifecycleScope: LifecycleCoroutineScope,
-    private val databaseManager: DatabaseManager,
+    private var databaseManager: DatabaseManager,
     private val getCurrentQuestionId: () -> Long?
 ) {
+
+    fun updateDatabaseManager(newManager: DatabaseManager) {
+        databaseManager = newManager
+    }
     
     fun setupWebViewImageClicks(webView: WebView) {
         webView.webViewClient = object : WebViewClient() {

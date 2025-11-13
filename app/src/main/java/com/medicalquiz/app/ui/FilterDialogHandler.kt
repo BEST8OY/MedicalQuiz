@@ -14,8 +14,12 @@ import kotlinx.coroutines.launch
 class FilterDialogHandler(
     private val context: Context,
     private val lifecycleScope: LifecycleCoroutineScope,
-    private val databaseManager: DatabaseManager
+    private var databaseManager: DatabaseManager
 ) {
+
+    fun updateDatabaseManager(newManager: DatabaseManager) {
+        databaseManager = newManager
+    }
     
     fun showSubjectFilterDialog(
         currentSubjectId: Long?,

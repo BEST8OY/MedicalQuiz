@@ -84,7 +84,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         setupWebViews()
         setupDrawer()
         setupListeners()
-        initializeDatabase()
+        initializeDatabase(dbPath)
         
         // Handle back button press
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -133,13 +133,15 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
     }
     
-    private fun initializeDatabase() {
+    private fun initializeDatabase(dbPath: String) {
         binding.textViewStatus.text = "Loading database..."
         
         lifecycleScope.launch {
             try {
                 // Use global database manager to ensure proper cleanup
-                databaseManager = MedicalQuizApp.switchDatabase(intent.getStringExtra("DB_PATH")!!)
+                databaseManager = MedicalQuizApp.switchDatabase(dbPath)
+                mediaHandler.updateDatabaseManager(databaseManager)
+                filterDialogHandler.updateDatabaseManager(databaseManager)
                 questionIds = databaseManager.getQuestionIds()
                 
                 if (questionIds.isEmpty()) {
@@ -312,18 +314,22 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun createAnswerRadioButton(): MaterialRadioButton {
-        val padding = (16 * resources.displayMetrics.density).toInt()
+        val density = resources.displayMetrics.density
+        val horizontalPadding = (12 * density).toInt()
+        val verticalPadding = (6 * density).toInt()
         val layoutParams = RadioGroup.LayoutParams(
             RadioGroup.LayoutParams.MATCH_PARENT,
             RadioGroup.LayoutParams.WRAP_CONTENT
         ).apply {
-            val spacing = (8 * resources.displayMetrics.density).toInt()
+            val spacing = (4 * density).toInt()
             topMargin = spacing
             bottomMargin = spacing
         }
         return MaterialRadioButton(this).apply {
             this.layoutParams = layoutParams
-            setPadding(padding, padding, padding, padding)
+            minimumHeight = (40 * density).toInt()
+            setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
+            setLineSpacing(0f, 1.1f)
         }
     }
     
