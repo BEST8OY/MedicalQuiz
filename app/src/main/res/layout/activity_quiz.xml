@@ -100,7 +100,7 @@
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardQuestion"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="200dp"
                     android:layout_marginTop="16dp"
                     app:cardElevation="4dp"
                     app:cardCornerRadius="8dp"
@@ -151,7 +151,7 @@
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardExplanation"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="200dp"
             android:layout_marginTop="16dp"
             app:cardElevation="4dp"
             app:cardCornerRadius="8dp"
