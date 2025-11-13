@@ -15,7 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import com.medicalquiz.app.data.database.DatabaseManager
 import com.medicalquiz.app.data.models.Answer
 import com.medicalquiz.app.data.models.Subject
-import com.medicalquiz.app.data.models.System
+import com.medicalquiz.app.data.models.System as QuizSystem
 import com.medicalquiz.app.data.models.Question
 import com.medicalquiz.app.databinding.ActivityQuizBinding
 import com.medicalquiz.app.databinding.LayoutFilterDrawerBinding
@@ -39,7 +39,7 @@ class QuizActivity : AppCompatActivity() {
     private val selectedSubjectIds = mutableSetOf<Long>()
     private val selectedSystemIds = mutableSetOf<Long>()
     private var allSubjects: List<Subject> = emptyList()
-    private var currentSystems: List<System> = emptyList()
+    private var currentSystems: List<QuizSystem> = emptyList()
     private var isAnswerRevealed = false
     private var suppressAnswerChange = false
     private var defaultAnswerTextColor: Int = Color.BLACK
@@ -145,7 +145,7 @@ class QuizActivity : AppCompatActivity() {
         }
     }
 
-    private fun populateSystemChips(systems: List<System>) {
+    private fun populateSystemChips(systems: List<QuizSystem>) {
         filterBinding.chipGroupSystems.removeAllViews()
         val availableIds = systems.map { it.id }.toSet()
         selectedSystemIds.retainAll(availableIds)
