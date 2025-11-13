@@ -74,15 +74,15 @@ class QuestionRepository(private val connection: DatabaseConnection) {
     suspend fun getQuestionById(id: Long): Question? = withContext(Dispatchers.IO) {
         val db = connection.getDatabase()
         val cursor = db.rawQuery(
-            "SELECT id, question, explanation, corrAns, subId, sysId, title, mediaName, otherMedias FROM Questions WHERE id = ?",
+            "SELECT id, question, explanation, corrAns, title, mediaName, otherMedias, pplTaken, corrTaken, subId, sysId FROM Questions WHERE id = ?",
             arrayOf(id.toString())
         )
         
         cursor.use {
             if (it.moveToFirst()) {
                 // Get subject and system names if available
-                val subId = it.getString(4)
-                val sysId = it.getString(5)
+                val subId = it.getString(9)
+                val sysId = it.getString(10)
                 val subName = getSubjectName(subId)
                 val sysName = getSystemName(sysId)
                 
@@ -91,13 +91,15 @@ class QuestionRepository(private val connection: DatabaseConnection) {
                     question = it.getString(1) ?: "",
                     explanation = it.getString(2) ?: "",
                     corrAns = it.getInt(3),
+                    title = it.getString(4),
+                    mediaName = it.getString(5),
+                    otherMedias = it.getString(6),
+                    pplTaken = if (it.isNull(7)) null else it.getDouble(7),
+                    corrTaken = if (it.isNull(8)) null else it.getDouble(8),
                     subId = subId,
                     sysId = sysId,
                     subName = subName,
-                    sysName = sysName,
-                    title = it.getString(6),
-                    mediaName = it.getString(7),
-                    otherMedias = it.getString(8)
+                    sysName = sysName
                 )
             } else {
                 null
@@ -113,7 +115,7 @@ class QuestionRepository(private val connection: DatabaseConnection) {
         val answers = mutableListOf<Answer>()
         
         val cursor = db.rawQuery(
-            "SELECT answerId, answerText FROM Answers WHERE qId = ? ORDER BY answerId",
+            "SELECT answerId, answerText, correctPercentage FROM Answers WHERE qId = ? ORDER BY answerId",
             arrayOf(questionId.toString())
         )
         
@@ -121,8 +123,9 @@ class QuestionRepository(private val connection: DatabaseConnection) {
             while (it.moveToNext()) {
                 answers.add(
                     Answer(
-                        answerId = it.getInt(0),
-                        answerText = it.getString(1) ?: ""
+                        answerId = it.getLong(0),
+                        answerText = it.getString(1) ?: "",
+                        correctPercentage = if (it.isNull(2)) null else it.getInt(2)
                     )
                 )
             }

@@ -114,7 +114,9 @@
                         android:layout_height="match_parent"
                         android:minHeight="100dp" />
 
-                </com.google.android.material.card.MaterialCardView>        <com.google.android.material.card.MaterialCardView
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardAnswers"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -125,49 +127,12 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <RadioGroup
-                android:id="@+id/radioGroupAnswers"
+                    <RadioGroup
+                        android:id="@+id/radioGroupAnswers"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="16dp">
-
-                <RadioButton
-                    android:id="@+id/radioAnswer1"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Answer 1"
-                    android:padding="8dp" />
-
-                <RadioButton
-                    android:id="@+id/radioAnswer2"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Answer 2"
-                    android:padding="8dp" />
-
-                <RadioButton
-                    android:id="@+id/radioAnswer3"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Answer 3"
-                    android:padding="8dp" />
-
-                <RadioButton
-                    android:id="@+id/radioAnswer4"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Answer 4"
-                    android:padding="8dp" />
-
-                <RadioButton
-                    android:id="@+id/radioAnswer5"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Answer 5"
-                    android:padding="8dp"
-                    android:visibility="gone" />
-
-            </RadioGroup>
+                        android:orientation="vertical"
+                        android:padding="16dp" />
 
         </com.google.android.material.card.MaterialCardView>
 

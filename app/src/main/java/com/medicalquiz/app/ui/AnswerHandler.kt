@@ -1,10 +1,9 @@
 package com.medicalquiz.app.ui
 
-import android.view.View
 import android.widget.RadioButton
 import android.widget.RadioGroup
-import com.google.android.material.card.MaterialCardView
 import com.medicalquiz.app.data.models.Answer
+import android.graphics.Color
 
 /**
  * Handler for answer selection and highlighting
@@ -20,23 +19,23 @@ class AnswerHandler {
         for (i in 0 until radioGroup.childCount) {
             val radioButton = radioGroup.getChildAt(i) as? RadioButton ?: continue
             val answer = answers.getOrNull(i) ?: continue
-            
-            val cardView = radioButton.parent.parent as? MaterialCardView ?: continue
-            
             when {
                 answer.answerId.toInt() == correctAnswerId -> {
-                    // Correct answer - green
-                    cardView.setCardBackgroundColor(android.graphics.Color.parseColor("#C8E6C9"))
-                    radioButton.setTextColor(android.graphics.Color.parseColor("#1B5E20"))
+                    setAnswerState(
+                        radioButton,
+                        Color.parseColor("#C8E6C9"),
+                        Color.parseColor("#1B5E20")
+                    )
                 }
                 answer.answerId.toInt() == selectedAnswerId && selectedAnswerId != correctAnswerId -> {
-                    // Wrong selected answer - red
-                    cardView.setCardBackgroundColor(android.graphics.Color.parseColor("#FFCDD2"))
-                    radioButton.setTextColor(android.graphics.Color.parseColor("#B71C1C"))
+                    setAnswerState(
+                        radioButton,
+                        Color.parseColor("#FFCDD2"),
+                        Color.parseColor("#B71C1C")
+                    )
                 }
                 else -> {
-                    // Other answers - default
-                    resetAnswerColor(cardView, radioButton)
+                    resetAnswerColor(radioButton)
                 }
             }
         }
@@ -45,13 +44,18 @@ class AnswerHandler {
     fun resetAnswerColors(radioGroup: RadioGroup) {
         for (i in 0 until radioGroup.childCount) {
             val radioButton = radioGroup.getChildAt(i) as? RadioButton ?: continue
-            val cardView = radioButton.parent.parent as? MaterialCardView ?: continue
-            resetAnswerColor(cardView, radioButton)
+            resetAnswerColor(radioButton)
         }
     }
     
-    private fun resetAnswerColor(cardView: MaterialCardView, radioButton: RadioButton) {
-        cardView.setCardBackgroundColor(android.graphics.Color.WHITE)
-        radioButton.setTextColor(android.graphics.Color.parseColor("#212121"))
+    private fun resetAnswerColor(radioButton: RadioButton) {
+        radioButton.setBackgroundColor(Color.TRANSPARENT)
+        // Reset to theme default text color
+        radioButton.setTextColor(radioButton.context.getColor(android.R.color.darker_gray))
+    }
+
+    private fun setAnswerState(radioButton: RadioButton, backgroundColor: Int, textColor: Int) {
+        radioButton.setBackgroundColor(backgroundColor)
+        radioButton.setTextColor(textColor)
     }
 }

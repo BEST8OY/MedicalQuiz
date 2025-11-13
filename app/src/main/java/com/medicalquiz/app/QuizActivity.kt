@@ -4,17 +4,21 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.MenuItem
+import android.view.View
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.navigation.NavigationView
+import com.google.android.material.radiobutton.MaterialRadioButton
 import com.medicalquiz.app.data.database.DatabaseManager
 import com.medicalquiz.app.data.models.Answer
 import com.medicalquiz.app.data.models.Question
@@ -45,6 +49,14 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private var selectedSubjectId: Long? = null
     private var selectedSystemId: Long? = null
     private var answerSubmitted = false
+    private val answerCheckedChangeListener = RadioGroup.OnCheckedChangeListener { group, checkedId ->
+        if (answerSubmitted) return@OnCheckedChangeListener
+        val radioButton = group.findViewById<RadioButton>(checkedId) ?: return@OnCheckedChangeListener
+        val index = group.indexOfChild(radioButton)
+        val answer = currentAnswers.getOrNull(index) ?: return@OnCheckedChangeListener
+        selectedAnswerId = answer.answerId.toInt()
+        submitAnswer()
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,20 +122,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun setupListeners() {
-        binding.radioGroupAnswers.setOnCheckedChangeListener { _, checkedId ->
-            if (answerSubmitted) return@setOnCheckedChangeListener
-            
-            when (checkedId) {
-                binding.radioAnswer1.id -> selectedAnswerId = 1
-                binding.radioAnswer2.id -> selectedAnswerId = 2
-                binding.radioAnswer3.id -> selectedAnswerId = 3
-                binding.radioAnswer4.id -> selectedAnswerId = 4
-                binding.radioAnswer5.id -> selectedAnswerId = 5
-            }
-            
-            // Auto-submit when answer is selected
-            selectedAnswerId?.let { submitAnswer() }
-        }
+        binding.radioGroupAnswers.setOnCheckedChangeListener(answerCheckedChangeListener)
         
         binding.buttonNext.setOnClickListener {
             loadNextQuestion()
@@ -239,30 +238,20 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun displayAnswers() {
-        val answers = currentAnswers
+        val radioGroup = binding.radioGroupAnswers
+        radioGroup.setOnCheckedChangeListener(null)
+        radioGroup.removeAllViews()
         
-        // Show/hide radio buttons based on available answers
-        val radioButtons = listOf(
-            binding.radioAnswer1,
-            binding.radioAnswer2,
-            binding.radioAnswer3,
-            binding.radioAnswer4,
-            binding.radioAnswer5
-        )
-        
-        answers.forEachIndexed { index, answer ->
-            if (index < radioButtons.size) {
-                // Render HTML inside RadioButton without enabling link clicks
-                HtmlUtils.setHtmlText(radioButtons[index], answer.answerText, enableLinks = false)
-                radioButtons[index].visibility = android.view.View.VISIBLE
-                radioButtons[index].isEnabled = true
-            }
+        currentAnswers.forEach { answer ->
+            val radioButton = createAnswerRadioButton()
+            HtmlUtils.setHtmlText(radioButton, answer.answerText, enableLinks = false)
+            radioButton.id = View.generateViewId()
+            radioButton.tag = answer.answerId
+            radioGroup.addView(radioButton)
         }
         
-        // Hide unused radio buttons
-        for (i in answers.size until radioButtons.size) {
-            radioButtons[i].visibility = android.view.View.GONE
-        }
+        radioGroup.clearCheck()
+        radioGroup.setOnCheckedChangeListener(answerCheckedChangeListener)
     }
     
     private fun submitAnswer() {
@@ -317,14 +306,25 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun disableAllAnswers() {
-        val radioButtons = listOf(
-            binding.radioAnswer1,
-            binding.radioAnswer2,
-            binding.radioAnswer3,
-            binding.radioAnswer4,
-            binding.radioAnswer5
-        )
-        radioButtons.forEach { it.isEnabled = false }
+        for (i in 0 until binding.radioGroupAnswers.childCount) {
+            binding.radioGroupAnswers.getChildAt(i)?.isEnabled = false
+        }
+    }
+
+    private fun createAnswerRadioButton(): MaterialRadioButton {
+        val padding = (16 * resources.displayMetrics.density).toInt()
+        val layoutParams = RadioGroup.LayoutParams(
+            RadioGroup.LayoutParams.MATCH_PARENT,
+            RadioGroup.LayoutParams.WRAP_CONTENT
+        ).apply {
+            val spacing = (8 * resources.displayMetrics.density).toInt()
+            topMargin = spacing
+            bottomMargin = spacing
+        }
+        return MaterialRadioButton(this).apply {
+            this.layoutParams = layoutParams
+            setPadding(padding, padding, padding, padding)
+        }
     }
     
     private fun loadNextQuestion() {
