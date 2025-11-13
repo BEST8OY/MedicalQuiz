@@ -5,12 +5,4 @@
     <string name="no_databases_found">No databases found</string>
     <string name="storage_permission_required">Storage permission is required. Tap "Grant Storage Access" and enable "Allow management of all files".</string>
     <string name="grant_storage_access">Grant Storage Access</string>
-    <string name="filter_title">Filter Questions</string>
-    <string name="filter_subjects">Subjects</string>
-    <string name="filter_systems">Systems</string>
-    <string name="filter_apply">Apply Filters</string>
-    <string name="filter_clear">Clear Filters</string>
-    <string name="navigation_drawer_open">Open filters</string>
-    <string name="navigation_drawer_close">Close filters</string>
-    <string name="no_questions_for_filters">No questions match the selected filters.</string>
 </resources>

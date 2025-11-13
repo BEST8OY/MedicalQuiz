@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="none">
+        <item
+            android:id="@+id/nav_filter_subject"
+            android:icon="@android:drawable/ic_menu_sort_by_size"
+            android:title="Filter by Subject" />
+        <item
+            android:id="@+id/nav_filter_system"
+            android:icon="@android:drawable/ic_menu_manage"
+            android:title="Filter by System" />
+        <item
+            android:id="@+id/nav_clear_filters"
+            android:icon="@android:drawable/ic_menu_close_clear_cancel"
+            android:title="Clear Filters" />
+    </group>
+    <group android:id="@+id/group_other">
+        <item
+            android:id="@+id/nav_settings"
+            android:icon="@android:drawable/ic_menu_preferences"
+            android:title="Settings" />
+        <item
+            android:id="@+id/nav_about"
+            android:icon="@android:drawable/ic_menu_info_details"
+            android:title="About" />
+    </group>
+</menu>
