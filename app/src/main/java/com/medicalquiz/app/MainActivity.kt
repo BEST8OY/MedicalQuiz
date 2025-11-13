@@ -32,6 +32,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showPermissionDeniedDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Storage Permission Required")
+            .setMessage("This app needs storage permission to access database files. Please grant permission in app settings.")
+            .setPositiveButton("Open Settings") { _, _ ->
+                openAppSettings()
+            }
+            .setNegativeButton("Cancel") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -53,53 +66,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkPermissionsAndLoadDatabases() {
-        when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                // Android 13+: Request MANAGE_EXTERNAL_STORAGE for .db file access
-                if (Environment.isExternalStorageManager()) {
-                    loadDatabases()
-                } else {
-                    requestPermissionLauncher.launch(Manifest.permission.MANAGE_EXTERNAL_STORAGE)
-                }
+        // For Android 11+, request READ_EXTERNAL_STORAGE
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                loadDatabases()
+            } else {
+                requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
-                // Android 11-12: Request READ_EXTERNAL_STORAGE
-                if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    loadDatabases()
-                } else {
-                    requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                }
-            }
-            else -> {
-                // Android 10 and below
-                if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    loadDatabases()
-                } else {
-                    requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                }
+        } else {
+            // Android 10 and below
+            if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                loadDatabases()
+            } else {
+                requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
         }
-    }
-
-    private fun showPermissionDeniedDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("Storage Permission Required")
-            .setMessage("This app needs storage permission to access database files. Please grant permission in app settings.")
-            .setPositiveButton("Open Settings") { _, _ ->
-                openAppSettings()
-            }
-            .setNegativeButton("Cancel") { dialog, _ ->
-                dialog.dismiss()
-            }
-            .show()
     }
 
     private fun openAppSettings() {
