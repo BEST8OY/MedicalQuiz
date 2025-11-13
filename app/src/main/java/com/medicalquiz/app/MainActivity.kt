@@ -3,11 +3,14 @@ package com.medicalquiz.app
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -25,11 +28,17 @@ class MainActivity : AppCompatActivity() {
         if (isGranted) {
             loadDatabases()
         } else {
-            Toast.makeText(
-                this,
-                "Storage permission is required to access database files",
-                Toast.LENGTH_LONG
-            ).show()
+            showPermissionDeniedDialog()
+        }
+    }
+
+    private val requestMultiplePermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions.values.all { it }) {
+            loadDatabases()
+        } else {
+            showPermissionDeniedDialog()
         }
     }
 
@@ -55,21 +64,39 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkPermissionsAndLoadDatabases() {
         when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
-                // Android 11+: Check if we have all files access
-                if (Environment.isExternalStorageManager()) {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                // Android 13+: Request READ_MEDIA_IMAGES
+                val requiredPermissions = arrayOf(
+                    Manifest.permission.READ_MEDIA_IMAGES,
+                    Manifest.permission.READ_MEDIA_VIDEO,
+                    Manifest.permission.READ_MEDIA_AUDIO
+                )
+                if (requiredPermissions.all { 
+                    ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED 
+                }) {
                     loadDatabases()
                 } else {
-                    // Request permission for all files access
-                    requestStoragePermission()
+                    requestMultiplePermissionsLauncher.launch(requiredPermissions)
+                }
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+                // Android 11-12: Request READ_EXTERNAL_STORAGE
+                if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    loadDatabases()
+                } else {
+                    requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
                 }
             }
             else -> {
                 // Android 10 and below
                 if (ContextCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.READ_EXTERNAL_STORAGE
-                    ) == PackageManager.PERMISSION_GRANTED
+                    this,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
                 ) {
                     loadDatabases()
                 } else {
@@ -79,18 +106,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun requestStoragePermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // For Android 11+, we'd need to use ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
-            // For this basic implementation, we'll use scoped storage approach
-            Toast.makeText(
-                this,
-                "Please grant storage access in app settings",
-                Toast.LENGTH_LONG
-            ).show()
-        } else {
-            requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+    private fun showPermissionDeniedDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Storage Permission Required")
+            .setMessage("This app needs storage permission to access database files. Please grant permission in app settings.")
+            .setPositiveButton("Open Settings") { _, _ ->
+                openAppSettings()
+            }
+            .setNegativeButton("Cancel") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun openAppSettings() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", packageName, null)
         }
+        startActivity(intent)
     }
 
     private fun loadDatabases() {
