@@ -1,8 +1,12 @@
 package com.medicalquiz.app
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.MenuItem
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.RadioButton
 import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -16,6 +20,7 @@ import com.medicalquiz.app.data.models.Answer
 import com.medicalquiz.app.data.models.Question
 import com.medicalquiz.app.databinding.ActivityQuizBinding
 import com.medicalquiz.app.utils.HtmlUtils
+import com.medicalquiz.app.utils.WebViewRenderer
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -54,9 +59,56 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         
         databaseManager = DatabaseManager(dbPath)
         
+        setupWebViews()
         setupDrawer()
         setupListeners()
         initializeDatabase()
+    }
+    
+    private fun setupWebViews() {
+        WebViewRenderer.setupWebView(binding.webViewQuestion)
+        WebViewRenderer.setupWebView(binding.webViewExplanation)
+        
+        // Setup click handler for images in WebViews
+        setupWebViewImageClicks(binding.webViewQuestion)
+        setupWebViewImageClicks(binding.webViewExplanation)
+    }
+    
+    private fun setupWebViewImageClicks(webView: WebView) {
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                // Check if URL is a media file
+                if (url.startsWith("file://") && url.contains("/media/")) {
+                    val fileName = url.substringAfterLast("/")
+                    openMediaViewerForFile(fileName)
+                    return true
+                }
+                return false
+            }
+        }
+        
+        // Enable JavaScript for image click handling
+        webView.settings.javaScriptEnabled = true
+        webView.webChromeClient = WebChromeClient()
+    }
+    
+    private fun openMediaViewerForFile(fileName: String) {
+        val currentQuestion = databaseManager?.getQuestion(questionIds[currentQuestionIndex])
+        if (currentQuestion != null) {
+            val mediaFiles = mutableListOf<String>()
+            currentQuestion.mediaName?.let { mediaFiles.add(it) }
+            HtmlUtils.parseMediaFiles(currentQuestion.otherMedias).let { mediaFiles.addAll(it) }
+            
+            val startIndex = mediaFiles.indexOf(fileName).takeIf { it >= 0 } ?: 0
+            openMediaViewer(mediaFiles, startIndex)
+        }
+    }
+    
+    private fun openMediaViewer(mediaFiles: List<String>, startIndex: Int) {
+        val intent = Intent(this, MediaViewerActivity::class.java)
+        intent.putStringArrayListExtra("MEDIA_FILES", ArrayList(mediaFiles))
+        intent.putExtra("START_INDEX", startIndex)
+        startActivity(intent)
     }
     
     private fun setupDrawer() {
@@ -146,8 +198,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         // Update question counter
         binding.textViewQuestionNumber.text = "Question ${currentQuestionIndex + 1} of ${questionIds.size}"
         
-        // Display question text with HTML support
-        HtmlUtils.setHtmlText(binding.textViewQuestion, question.question)
+        // Display question text with HTML support via WebView
+        WebViewRenderer.loadContent(this, binding.webViewQuestion, question.question)
         
         // Display title if available
         if (!question.title.isNullOrBlank()) {
@@ -172,10 +224,16 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             val mediaFiles = mutableListOf<String>()
             question.mediaName?.let { mediaFiles.add(it) }
             HtmlUtils.parseMediaFiles(question.otherMedias).let { mediaFiles.addAll(it) }
-            binding.textViewMediaInfo.text = "📎 ${mediaFiles.size} media file(s)"
+            binding.textViewMediaInfo.text = "📎 ${mediaFiles.size} media file(s) - Click to view"
             binding.textViewMediaInfo.visibility = android.view.View.VISIBLE
+            
+            // Make media info clickable
+            binding.textViewMediaInfo.setOnClickListener {
+                openMediaViewer(mediaFiles, 0)
+            }
         } else {
             binding.textViewMediaInfo.visibility = android.view.View.GONE
+            binding.textViewMediaInfo.setOnClickListener(null)
         }
         
         // Display answers
@@ -185,7 +243,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         answerSubmitted = false
         selectedAnswerId = null
         binding.radioGroupAnswers.clearCheck()
-        binding.textViewExplanation.visibility = android.view.View.GONE
+        binding.webViewExplanation.visibility = android.view.View.GONE
         binding.buttonNext.isEnabled = currentQuestionIndex < questionIds.size - 1
         binding.buttonPrevious.isEnabled = currentQuestionIndex > 0
         
@@ -193,7 +251,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         resetAnswerColors()
         
         // Hide explanation initially
-        binding.textViewExplanation.text = ""
+        binding.webViewExplanation.loadData("", "text/html", "UTF-8")
     }
     
     private fun resetAnswerColors() {
@@ -271,8 +329,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 // Show explanation without Correct/Incorrect text
                 val explanationHtml = "<strong>Correct Answer: $correctAnswerText</strong><br><br>${question.explanation}"
                 
-                HtmlUtils.setHtmlText(binding.textViewExplanation, explanationHtml)
-                binding.textViewExplanation.visibility = android.view.View.VISIBLE
+                WebViewRenderer.loadContent(this@QuizActivity, binding.webViewExplanation, explanationHtml)
+                binding.webViewExplanation.visibility = android.view.View.VISIBLE
                 
                 // Disable all radio buttons
                 disableAllAnswers()

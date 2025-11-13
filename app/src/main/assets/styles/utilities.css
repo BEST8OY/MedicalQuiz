@@ -1,0 +1,22 @@
+/* Medical content utility styles */
+
+/* Answer choice containers */
+.answer-choice {
+  border-left: 4px solid #d1d5db;
+  padding-left: 16px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  background-color: #f9fafb;
+  border-radius: 0 8px 8px 0;
+}
+
+.answer-choice.correct {
+  border-left-color: #10b981;
+  background-color: #f0fdf4;
+}
+
+.answer-choice.incorrect {
+  border-left-color: #ef4444;
+  background-color: #fef2f2;
+}

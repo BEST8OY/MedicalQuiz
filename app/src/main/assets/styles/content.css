@@ -1,0 +1,313 @@
+/* Medical Question Bank Content Styling */
+/* Standard CSS for AMBOSS STEP3 and UWorld USMLE STEP1 question/explanation HTML content */
+/* Optimized for Android WebView */
+
+/* Base container for medical content */
+.medical-content {
+  color: #1f2937;
+  line-height: 1.625;
+  font-size: 16px;
+}
+
+/* Hide inline style tags that come from database content */
+.medical-content style {
+  display: none;
+}
+
+/* Paragraphs */
+.medical-content p {
+  margin-bottom: 16px;
+  font-size: 16px;
+  line-height: 1.75;
+  color: #374151;
+}
+
+.medical-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Headings */
+.medical-content h3 {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 16px;
+  margin-top: 32px;
+  padding-bottom: 12px;
+  color: #111827;
+  border-bottom: 2px solid #60a5fa;
+}
+
+.medical-content h4 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  margin-top: 20px;
+  color: #1f2937;
+}
+
+.medical-content h5 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  margin-top: 16px;
+  color: #374151;
+}
+
+/* Text emphasis and styling */
+.medical-content strong,
+.medical-content b {
+  font-weight: bold;
+  color: #111827;
+}
+
+.medical-content em,
+.medical-content i {
+  font-style: italic;
+}
+
+.medical-content .wichtig {
+  font-weight: bold;
+  color: #1d4ed8;
+  background-color: rgba(219, 234, 254, 0.5);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.medical-content .selected {
+  background-color: #fef08a;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.medical-content .nowrap {
+  white-space: nowrap;
+}
+
+.medical-content .scientific-name {
+  font-style: italic;
+}
+
+.medical-content .dictionary {
+  cursor: help;
+  border-bottom: 1px dotted #9ca3af;
+  color: #374151;
+}
+
+/* Superscript and subscript */
+.medical-content sup {
+  font-size: 12px;
+  vertical-align: super;
+}
+
+.medical-content sub {
+  font-size: 12px;
+  vertical-align: sub;
+}
+
+/* Links and anchors */
+.medical-content a {
+  color: #2563eb;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.medical-content a:hover {
+  color: #1d4ed8;
+}
+
+.medical-content a.autolink {
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.medical-content a.autolink:hover {
+  text-decoration: underline;
+}
+
+/* Dividers */
+.medical-content hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 24px 0;
+}
+
+/* Code/pre blocks */
+.medical-content pre {
+  background-color: #f3f4f6;
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-family: monospace;
+}
+
+.medical-content code {
+  background-color: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: monospace;
+}
+
+/* Buttons and interactive elements */
+.medical-content button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.2s;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.medical-content button:hover {
+  background-color: #1d4ed8;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.medical-content button:active {
+  transform: scale(0.95);
+}
+
+.medical-content button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5);
+}
+
+/* Abstract sections - Patient info, vital signs, etc */
+.medical-content .abstract {
+  background-color: #f9fafb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+.medical-content .abstract h3 {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 12px;
+  margin-top: 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #60a5fa;
+}
+
+.medical-content .abstract h3:first-child {
+  margin-top: 0;
+}
+
+.medical-content .abstract p {
+  margin-bottom: 8px;
+}
+
+.medical-content .abstract ul {
+  margin-bottom: 12px;
+}
+
+.medical-content .abstract li {
+  margin-bottom: 4px;
+}
+
+/* Abstract spans (used for units/conversions in vital signs) */
+.medical-content span.abstract {
+  color: #6b7280;
+  font-size: 12px;
+  display: block;
+}
+
+/* Vital signs table - remove abstract background */
+.medical-content .abstract table {
+  background-color: transparent;
+  border-collapse: collapse;
+  margin-bottom: 0;
+}
+
+.medical-content thead.abstract {
+  background-color: #2563eb;
+  color: white;
+}
+
+.medical-content thead.abstract th {
+  background-color: #2563eb;
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 8px 12px;
+  border: 1px solid #1d4ed8;
+}
+
+.medical-content .abstract tbody td {
+  text-align: center;
+  font-size: 14px;
+  vertical-align: middle;
+  background-color: white;
+}
+
+/* TD with abstract class (like BMI cell) */
+.medical-content td.abstract {
+  text-align: center;
+}
+
+/* Hint divs */
+.medical-content #hintdiv {
+  background-color: #fffbeb;
+  border-left: 4px solid #fbbf24;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+/* Image containers */
+.medical-content div[style*="text-align: center"] {
+  text-align: center;
+  margin: 24px 0;
+}
+
+/* Modal overflow scroll containers */
+.medical-content .modal-overflow-scroll {
+  overflow-x: auto;
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
+
+/* Empty div.abstract before tables (common pattern in database) */
+.medical-content .modal-overflow-scroll > .abstract:empty,
+.medical-content .modal-overflow-scroll > div.abstract:not(:has(*)) {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Indentation for nested content in tables (lab values, etc) */
+.medical-content td[style*="padding-left: 1em"],
+.medical-content td[style*="padding-left:1em"] {
+  padding-left: 24px;
+}
+
+.medical-content td[style*="padding-left: 2em"],
+.medical-content td[style*="padding-left:2em"] {
+  padding-left: 48px;
+}
+
+/* Alignment utilities */
+.medical-content p[align="center"] {
+  text-align: center;
+}
+
+.medical-content td[style*="vertical-align:middle"] {
+  vertical-align: middle;
+}
+
+/* Educational objective highlighting */
+.medical-content p:has(strong:only-child) {
+  background-color: #fffbeb;
+  border-left: 4px solid #f59e0b;
+  padding-left: 16px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border-radius: 0 4px 4px 0;
+}

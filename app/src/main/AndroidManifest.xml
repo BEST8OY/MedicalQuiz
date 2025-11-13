@@ -37,6 +37,11 @@
             android:exported="false"
             android:theme="@style/Theme.MedicalQuiz"
             android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".MediaViewerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MedicalQuiz"
+            android:parentActivityName=".QuizActivity" />
     </application>
 
 </manifest>

@@ -71,6 +71,33 @@ object HtmlUtils {
         sanitized = sanitized.replace(EMPTY_SPAN_REGEX) { match -> match.groupValues[1] }
         return sanitized to tables
     }
+    
+    /**
+     * Public sanitize method for WebViewRenderer
+     */
+    fun sanitizeForWebView(html: String): String {
+        var sanitized = html
+        // Keep tables, just remove inline styles and clean attributes
+        sanitized = sanitized.replace(STYLE_REGEX, "")
+        sanitized = sanitized.replace(DATA_ATTR_REGEX, "")
+        // Keep class attributes for CSS styling
+        // sanitized = sanitized.replace(CLASS_ATTR_REGEX, "")
+        sanitized = sanitized.replace(STYLE_ATTR_REGEX, "")
+        
+        // Replace image src attributes to use file:// URLs for clickability
+        sanitized = sanitized.replace(Regex("""<img([^>]*)\s+src=["']([^"']+)["']""")) { match ->
+            val attrs = match.groupValues[1]
+            val src = match.groupValues[2]
+            val mediaPath = getMediaPath(src)
+            if (mediaPath != null) {
+                "<img$attrs src=\"file://$mediaPath\""
+            } else {
+                match.value
+            }
+        }
+        
+        return sanitized
+    }
 
     private fun replaceSpan(html: String, transform: SpanTransform): String {
         val classPattern = Regex.escape(transform.className)

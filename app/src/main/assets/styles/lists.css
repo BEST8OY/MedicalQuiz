@@ -1,0 +1,62 @@
+/* Lists - Clean and readable */
+.medical-content ul {
+  list-style-type: disc;
+  margin-bottom: 16px;
+  margin-left: 0;
+  padding-left: 24px;
+}
+
+.medical-content ul li {
+  margin-bottom: 4px;
+}
+
+.medical-content ol {
+  list-style-type: decimal;
+  margin-bottom: 16px;
+  margin-left: 0;
+  padding-left: 24px;
+}
+
+.medical-content ol li {
+  margin-bottom: 4px;
+}
+
+.medical-content li {
+  font-size: 16px;
+  line-height: 1.75;
+  color: #374151;
+}
+
+/* Nested lists */
+.medical-content ul ul,
+.medical-content ol ul {
+  list-style-type: disc;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  margin-left: 16px;
+}
+
+.medical-content ul ol,
+.medical-content ol ol {
+  list-style-type: decimal;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  margin-left: 16px;
+}
+
+/* Circle style lists from database content */
+.medical-content ul[style*="circle"],
+.medical-content ul[style*="list-style-type:circle"] {
+  list-style-type: circle;
+}
+
+/* Lists in table cells */
+.medical-content td ul,
+.medical-content td ol {
+  margin-bottom: 8px;
+  padding-left: 20px;
+}
+
+.medical-content td li {
+  font-size: 14px;
+}
