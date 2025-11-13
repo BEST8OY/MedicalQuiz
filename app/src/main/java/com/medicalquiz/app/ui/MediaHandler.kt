@@ -2,9 +2,6 @@ package com.medicalquiz.app.ui
 
 import android.content.Context
 import android.content.Intent
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.medicalquiz.app.MediaViewerActivity
 import com.medicalquiz.app.data.database.DatabaseManager
@@ -20,26 +17,18 @@ class MediaHandler(
     private var databaseManager: DatabaseManager,
     private val getCurrentQuestionId: () -> Long?
 ) {
-
+    
     fun updateDatabaseManager(newManager: DatabaseManager) {
         databaseManager = newManager
     }
     
-    fun setupWebViewImageClicks(webView: WebView) {
-        webView.webViewClient = object : WebViewClient() {
-            @Deprecated("Deprecated in Java")
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                if (url.startsWith("file://") && url.contains("/media/")) {
-                    val fileName = url.substringAfterLast("/")
-                    openMediaViewerForFile(fileName)
-                    return true
-                }
-                return false
-            }
+    fun handleMediaLink(url: String): Boolean {
+        if (url.startsWith("file://") && url.contains("/media/")) {
+            val fileName = url.substringAfterLast("/")
+            openMediaViewerForFile(fileName)
+            return true
         }
-        
-        webView.settings.javaScriptEnabled = true
-        webView.webChromeClient = WebChromeClient()
+        return false
     }
     
     private fun openMediaViewerForFile(fileName: String) {

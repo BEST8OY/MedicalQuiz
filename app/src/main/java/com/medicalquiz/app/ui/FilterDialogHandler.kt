@@ -16,14 +16,14 @@ class FilterDialogHandler(
     private val lifecycleScope: LifecycleCoroutineScope,
     private var databaseManager: DatabaseManager
 ) {
-
+    
     fun updateDatabaseManager(newManager: DatabaseManager) {
         databaseManager = newManager
     }
     
     fun showSubjectFilterDialog(
-        currentSubjectId: Long?,
-        onSubjectSelected: (Long?) -> Unit
+        currentSubjectIds: Set<Long>,
+        onSubjectsSelected: (Set<Long>) -> Unit
     ) {
         lifecycleScope.launch {
             try {
@@ -33,7 +33,7 @@ class FilterDialogHandler(
                     return@launch
                 }
                 
-                showSubjectSelectionDialog(subjects, currentSubjectId, onSubjectSelected)
+                showSubjectSelectionDialog(subjects, currentSubjectIds, onSubjectsSelected)
             } catch (e: Exception) {
                 showErrorDialog("Error loading subjects: ${e.message}")
             }
@@ -41,14 +41,14 @@ class FilterDialogHandler(
     }
     
     fun showSystemFilterDialog(
-        currentSystemId: Long?,
-        currentSubjectId: Long?,
-        onSystemSelected: (Long?) -> Unit
+        currentSystemIds: Set<Long>,
+        currentSubjectIds: Set<Long>,
+        onSystemsSelected: (Set<Long>) -> Unit
     ) {
         lifecycleScope.launch {
             try {
                 val systems = databaseManager.getSystems(
-                    currentSubjectId?.let { listOf(it) }
+                    currentSubjectIds.takeIf { it.isNotEmpty() }?.toList()
                 )
                 
                 if (systems.isEmpty()) {
@@ -56,7 +56,7 @@ class FilterDialogHandler(
                     return@launch
                 }
                 
-                showSystemSelectionDialog(systems, currentSystemId, onSystemSelected)
+                showSystemSelectionDialog(systems, currentSystemIds, onSystemsSelected)
             } catch (e: Exception) {
                 showErrorDialog("Error loading systems: ${e.message}")
             }
@@ -65,22 +65,27 @@ class FilterDialogHandler(
     
     private fun showSubjectSelectionDialog(
         subjects: List<Subject>,
-        currentSubjectId: Long?,
-        onSubjectSelected: (Long?) -> Unit
+        currentSubjectIds: Set<Long>,
+        onSubjectsSelected: (Set<Long>) -> Unit
     ) {
-        val items = arrayOf("All Subjects") + subjects.map { it.name }.toTypedArray()
-        val checkedItem = if (currentSubjectId == null) {
-            0
-        } else {
-            subjects.indexOfFirst { it.id == currentSubjectId } + 1
+        val items = subjects.map { it.name }.toTypedArray()
+        val checkedItems = BooleanArray(subjects.size) { index ->
+            currentSubjectIds.contains(subjects[index].id)
         }
         
         AlertDialog.Builder(context)
-            .setTitle("Filter by Subject")
-            .setSingleChoiceItems(items, checkedItem) { dialog, which ->
-                val selectedSubjectId = if (which == 0) null else subjects[which - 1].id
-                onSubjectSelected(selectedSubjectId)
-                dialog.dismiss()
+            .setTitle("Select Subjects")
+            .setMultiChoiceItems(items, checkedItems) { _, which, isChecked ->
+                checkedItems[which] = isChecked
+            }
+            .setPositiveButton("Apply") { _, _ ->
+                val selected = subjects.mapIndexedNotNull { index, subject ->
+                    subject.id.takeIf { checkedItems[index] }
+                }.toSet()
+                onSubjectsSelected(selected)
+            }
+            .setNeutralButton("Clear") { _, _ ->
+                onSubjectsSelected(emptySet())
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -88,22 +93,27 @@ class FilterDialogHandler(
     
     private fun showSystemSelectionDialog(
         systems: List<System>,
-        currentSystemId: Long?,
-        onSystemSelected: (Long?) -> Unit
+        currentSystemIds: Set<Long>,
+        onSystemsSelected: (Set<Long>) -> Unit
     ) {
-        val items = arrayOf("All Systems") + systems.map { it.name }.toTypedArray()
-        val checkedItem = if (currentSystemId == null) {
-            0
-        } else {
-            systems.indexOfFirst { it.id == currentSystemId } + 1
+        val items = systems.map { it.name }.toTypedArray()
+        val checkedItems = BooleanArray(systems.size) { index ->
+            currentSystemIds.contains(systems[index].id)
         }
         
         AlertDialog.Builder(context)
-            .setTitle("Filter by System")
-            .setSingleChoiceItems(items, checkedItem) { dialog, which ->
-                val selectedSystemId = if (which == 0) null else systems[which - 1].id
-                onSystemSelected(selectedSystemId)
-                dialog.dismiss()
+            .setTitle("Select Systems")
+            .setMultiChoiceItems(items, checkedItems) { _, which, isChecked ->
+                checkedItems[which] = isChecked
+            }
+            .setPositiveButton("Apply") { _, _ ->
+                val selected = systems.mapIndexedNotNull { index, system ->
+                    system.id.takeIf { checkedItems[index] }
+                }.toSet()
+                onSystemsSelected(selected)
+            }
+            .setNeutralButton("Clear") { _, _ ->
+                onSystemsSelected(emptySet())
             }
             .setNegativeButton("Cancel", null)
             .show()

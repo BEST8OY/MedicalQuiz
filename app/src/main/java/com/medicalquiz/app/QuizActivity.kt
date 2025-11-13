@@ -1,11 +1,13 @@
 package com.medicalquiz.app
 
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
 import android.view.MenuItem
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.RadioButton
@@ -16,6 +18,7 @@ import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
+import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.navigation.NavigationView
 import com.google.android.material.radiobutton.MaterialRadioButton
@@ -46,8 +49,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private var selectedAnswerId: Int? = null
     private val testId = UUID.randomUUID().toString()
     private var startTime: Long = 0
-    private var selectedSubjectId: Long? = null
-    private var selectedSystemId: Long? = null
+    private val selectedSubjectIds = mutableSetOf<Long>()
+    private val selectedSystemIds = mutableSetOf<Long>()
     private var answerSubmitted = false
     private val answerCheckedChangeListener = RadioGroup.OnCheckedChangeListener { group, checkedId ->
         if (answerSubmitted) return@OnCheckedChangeListener
@@ -99,12 +102,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun setupWebViews() {
-        WebViewRenderer.setupWebView(binding.webViewQuestion)
-        WebViewRenderer.setupWebView(binding.webViewExplanation)
-        
-        // Setup click handler for images in WebViews
-        mediaHandler.setupWebViewImageClicks(binding.webViewQuestion)
-        mediaHandler.setupWebViewImageClicks(binding.webViewExplanation)
+        configureWebView(binding.webViewQuestion)
+        configureWebView(binding.webViewExplanation)
     }
     
     private fun setupDrawer() {
@@ -229,6 +228,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         selectedAnswerId = null
         binding.radioGroupAnswers.clearCheck()
         binding.webViewExplanation.visibility = android.view.View.GONE
+        binding.cardExplanation.visibility = android.view.View.GONE
         binding.buttonNext.isEnabled = currentQuestionIndex < questionIds.size - 1
         binding.buttonPrevious.isEnabled = currentQuestionIndex > 0
         
@@ -296,6 +296,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 val explanationHtml = "<strong>Correct Answer: $correctAnswerText</strong><br><br>${question.explanation}"
                 
                 WebViewRenderer.loadContent(this@QuizActivity, binding.webViewExplanation, explanationHtml)
+                binding.cardExplanation.visibility = android.view.View.VISIBLE
                 binding.webViewExplanation.visibility = android.view.View.VISIBLE
                 
                 // Disable all radio buttons
@@ -332,6 +333,56 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             setLineSpacing(0f, 1.1f)
         }
     }
+
+    private fun configureWebView(webView: WebView) {
+        WebViewRenderer.setupWebView(webView)
+        webView.webChromeClient = WebChromeClient()
+        webView.isVerticalScrollBarEnabled = false
+        webView.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> v.parent.requestDisallowInterceptTouchEvent(true)
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> v.parent.requestDisallowInterceptTouchEvent(false)
+            }
+            false
+        }
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                val url = request.url?.toString() ?: return false
+                return mediaHandler.handleMediaLink(url)
+            }
+
+            @Deprecated("Deprecated in Java")
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                return mediaHandler.handleMediaLink(url)
+            }
+
+            override fun onPageFinished(view: WebView, url: String?) {
+                super.onPageFinished(view, url)
+                adjustWebViewHeight(view)
+            }
+        }
+    }
+
+    private fun adjustWebViewHeight(webView: WebView) {
+        val js = """
+            (function() {
+                var body = document.body;
+                var html = document.documentElement;
+                return Math.max(body.scrollHeight, html.scrollHeight);
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(js) { result ->
+            val heightPx = result?.replace("\"", "")?.toFloatOrNull() ?: return@evaluateJavascript
+            if (heightPx <= 0f) return@evaluateJavascript
+            val density = resources.displayMetrics.density
+            val targetHeight = (heightPx * density).toInt() + webView.paddingTop + webView.paddingBottom
+            webView.post {
+                webView.updateLayoutParams<ViewGroup.LayoutParams> {
+                    height = targetHeight
+                }
+            }
+        }
+    }
     
     private fun loadNextQuestion() {
         if (currentQuestionIndex < questionIds.size - 1) {
@@ -347,12 +398,21 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.nav_filter_subject -> filterDialogHandler.showSubjectFilterDialog(selectedSubjectId) { subjectId ->
-                selectedSubjectId = subjectId
-                reloadQuestionsWithFilters()
+            R.id.nav_filter_subject -> filterDialogHandler.showSubjectFilterDialog(selectedSubjectIds.toSet()) { subjectIds ->
+                lifecycleScope.launch {
+                    selectedSubjectIds.apply {
+                        clear()
+                        addAll(subjectIds)
+                    }
+                    pruneInvalidSystems()
+                    reloadQuestionsWithFilters()
+                }
             }
-            R.id.nav_filter_system -> filterDialogHandler.showSystemFilterDialog(selectedSystemId, selectedSubjectId) { systemId ->
-                selectedSystemId = systemId
+            R.id.nav_filter_system -> filterDialogHandler.showSystemFilterDialog(selectedSystemIds.toSet(), selectedSubjectIds.toSet()) { systemIds ->
+                selectedSystemIds.apply {
+                    clear()
+                    addAll(systemIds)
+                }
                 reloadQuestionsWithFilters()
             }
             R.id.nav_clear_filters -> clearFilters()
@@ -364,8 +424,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun clearFilters() {
-        selectedSubjectId = null
-        selectedSystemId = null
+        selectedSubjectIds.clear()
+        selectedSystemIds.clear()
         reloadQuestionsWithFilters()
     }
     
@@ -373,8 +433,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         lifecycleScope.launch {
             try {
                 questionIds = databaseManager.getQuestionIds(
-                    subjectIds = selectedSubjectId?.let { listOf(it) },
-                    systemIds = selectedSystemId?.let { listOf(it) }
+                    subjectIds = selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList(),
+                    systemIds = selectedSystemIds.takeIf { it.isNotEmpty() }?.toList()
                 )
                 
                 if (questionIds.isEmpty()) {
@@ -392,21 +452,44 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     
     private fun updateToolbarSubtitle() {
         lifecycleScope.launch {
-            val subtitle = buildString {
-                selectedSubjectId?.let { subId ->
-                    val subject = databaseManager.getSubjects().find { it.id == subId }
-                    subject?.let { append("Subject: ${it.name}") }
-                }
-                selectedSystemId?.let { sysId ->
-                    val systems = databaseManager.getSystems()
-                    val system = systems.find { it.id == sysId }
-                    system?.let {
-                        if (isNotEmpty()) append(" | ")
-                        append("System: ${it.name}")
-                    }
-                }
+            val parts = mutableListOf<String>()
+            if (selectedSubjectIds.isNotEmpty()) {
+                val subjects = databaseManager.getSubjects()
+                val subjectNames = subjects.filter { selectedSubjectIds.contains(it.id) }
+                    .map { it.name }
+                val label = formatFilterLabel("Subjects", subjectNames)
+                if (label.isNotEmpty()) parts.add(label)
             }
-            supportActionBar?.subtitle = subtitle.ifEmpty { null }
+            if (selectedSystemIds.isNotEmpty()) {
+                val systems = databaseManager.getSystems(
+                    selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+                )
+                val systemNames = systems.filter { selectedSystemIds.contains(it.id) }
+                    .map { it.name }
+                val label = formatFilterLabel("Systems", systemNames)
+                if (label.isNotEmpty()) parts.add(label)
+            }
+            supportActionBar?.subtitle = parts.takeIf { it.isNotEmpty() }?.joinToString(" | ")
+        }
+    }
+
+    private fun formatFilterLabel(prefix: String, names: List<String>): String {
+        if (names.isEmpty()) return ""
+        return when {
+            names.size <= 2 -> "$prefix: ${names.joinToString(", ")}"
+            else -> "$prefix: ${names.take(2).joinToString(", ")} +${names.size - 2}"
+        }
+    }
+
+    private suspend fun pruneInvalidSystems() {
+        if (selectedSystemIds.isEmpty()) return
+        val validSystemIds = databaseManager.getSystems(
+            selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+        ).map { it.id }.toSet()
+        if (validSystemIds.isEmpty()) {
+            selectedSystemIds.clear()
+        } else {
+            selectedSystemIds.retainAll(validSystemIds)
         }
     }
     
