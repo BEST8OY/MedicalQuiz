@@ -1,6 +1,7 @@
 package com.medicalquiz.app
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -128,14 +129,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onDatabaseSelected(databaseItem: DatabaseItem) {
-        Toast.makeText(
-            this,
-            "Selected: ${databaseItem.name}",
-            Toast.LENGTH_SHORT
-        ).show()
-        
-        // TODO: Load the database and navigate to quiz screen
-        // This is where you'd implement the quiz loading logic
+        // Navigate to quiz screen with the selected database
+        val intent = Intent(this, QuizActivity::class.java).apply {
+            putExtra("DB_PATH", databaseItem.path)
+            putExtra("DB_NAME", databaseItem.name)
+        }
+        startActivity(intent)
     }
 
     private fun formatFileSize(size: Long): String {
