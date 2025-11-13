@@ -9,6 +9,7 @@ import com.medicalquiz.app.data.database.DatabaseManager
 import com.medicalquiz.app.data.models.Answer
 import com.medicalquiz.app.data.models.Question
 import com.medicalquiz.app.databinding.ActivityQuizBinding
+import com.medicalquiz.app.utils.HtmlUtils
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -118,12 +119,12 @@ class QuizActivity : AppCompatActivity() {
         // Update question counter
         binding.textViewQuestionNumber.text = "Question ${currentQuestionIndex + 1} of ${questionIds.size}"
         
-        // Display question text
-        binding.textViewQuestion.text = question.question
+        // Display question text with HTML support
+        HtmlUtils.setHtmlText(binding.textViewQuestion, question.question)
         
         // Display title if available
         if (!question.title.isNullOrBlank()) {
-            binding.textViewTitle.text = question.title
+            HtmlUtils.setHtmlText(binding.textViewTitle, question.title)
             binding.textViewTitle.visibility = android.view.View.VISIBLE
         } else {
             binding.textViewTitle.visibility = android.view.View.GONE
@@ -138,6 +139,17 @@ class QuizActivity : AppCompatActivity() {
             }
         }
         binding.textViewMetadata.text = metadata
+        
+        // Display media info if available
+        if (!question.mediaName.isNullOrBlank() || !question.otherMedias.isNullOrBlank()) {
+            val mediaFiles = mutableListOf<String>()
+            question.mediaName?.let { mediaFiles.add(it) }
+            HtmlUtils.parseMediaFiles(question.otherMedias).let { mediaFiles.addAll(it) }
+            binding.textViewMediaInfo.text = "📎 ${mediaFiles.size} media file(s)"
+            binding.textViewMediaInfo.visibility = android.view.View.VISIBLE
+        } else {
+            binding.textViewMediaInfo.visibility = android.view.View.GONE
+        }
         
         // Display answers
         displayAnswers()
@@ -168,7 +180,9 @@ class QuizActivity : AppCompatActivity() {
         
         answers.forEachIndexed { index, answer ->
             if (index < radioButtons.size) {
-                radioButtons[index].text = answer.answerText
+                // Set HTML text for answers (they may contain HTML formatting)
+                val answerText = HtmlUtils.stripHtml(answer.answerText)
+                radioButtons[index].text = answerText
                 radioButtons[index].visibility = android.view.View.VISIBLE
             }
         }
@@ -200,12 +214,12 @@ class QuizActivity : AppCompatActivity() {
                     testId = testId
                 )
                 
-                // Show explanation
+                // Show explanation with HTML support
                 val isCorrect = answerId == question.corrAns
                 val resultText = if (isCorrect) "✓ Correct!" else "✗ Incorrect"
-                val explanationText = "$resultText\n\nCorrect Answer: Answer ${question.corrAns}\n\n${question.explanation}"
+                val explanationHtml = "<strong>$resultText</strong><br><br><strong>Correct Answer: Answer ${question.corrAns}</strong><br><br>${question.explanation}"
                 
-                binding.textViewExplanation.text = explanationText
+                HtmlUtils.setHtmlText(binding.textViewExplanation, explanationHtml)
                 binding.textViewExplanation.visibility = android.view.View.VISIBLE
                 
                 // Disable submit button
