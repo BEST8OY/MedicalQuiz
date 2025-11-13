@@ -224,7 +224,7 @@ class DatabaseManager(private val dbPath: String) {
         val db = getDb()
         val systems = mutableListOf<System>()
         
-        val sql = if (subjectIds.isNullOrEmpty()) {
+        if (subjectIds.isNullOrEmpty()) {
             val cursor = db.rawQuery("SELECT id, name, count FROM Systems ORDER BY name", null)
             cursor.use {
                 while (it.moveToNext()) {

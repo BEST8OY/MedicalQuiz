@@ -1,15 +1,26 @@
 package com.medicalquiz.app
 
+import android.graphics.Color
 import android.os.Bundle
+import android.view.MenuItem
+import android.view.View
+import android.widget.RadioButton
 import android.widget.Toast
+import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.view.GravityCompat
 import androidx.lifecycle.lifecycleScope
 import com.medicalquiz.app.data.database.DatabaseManager
 import com.medicalquiz.app.data.models.Answer
+import com.medicalquiz.app.data.models.Subject
+import com.medicalquiz.app.data.models.System
 import com.medicalquiz.app.data.models.Question
 import com.medicalquiz.app.databinding.ActivityQuizBinding
+import com.medicalquiz.app.databinding.LayoutFilterDrawerBinding
 import com.medicalquiz.app.utils.HtmlUtils
+import com.google.android.material.chip.Chip
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -23,12 +34,24 @@ class QuizActivity : AppCompatActivity() {
     private var selectedAnswerId: Int? = null
     private val testId = UUID.randomUUID().toString()
     private var startTime: Long = 0
+    private lateinit var drawerToggle: ActionBarDrawerToggle
+    private lateinit var filterBinding: LayoutFilterDrawerBinding
+    private val selectedSubjectIds = mutableSetOf<Long>()
+    private val selectedSystemIds = mutableSetOf<Long>()
+    private var allSubjects: List<Subject> = emptyList()
+    private var currentSystems: List<System> = emptyList()
+    private var isAnswerRevealed = false
+    private var suppressAnswerChange = false
+    private var defaultAnswerTextColor: Int = Color.BLACK
+    private var neutralAnswerBackground: Int = Color.TRANSPARENT
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityQuizBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
+        filterBinding = LayoutFilterDrawerBinding.bind(binding.navigationFilters.getHeaderView(0))
+
         val dbPath = intent.getStringExtra("DB_PATH")
         val dbName = intent.getStringExtra("DB_NAME")
         
@@ -38,28 +61,32 @@ class QuizActivity : AppCompatActivity() {
             return
         }
         
-        supportActionBar?.title = dbName
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        setupToolbar(dbName)
+        defaultAnswerTextColor = binding.radioAnswer1.currentTextColor
+        neutralAnswerBackground = ContextCompat.getColor(this, R.color.answer_neutral_bg)
         
         databaseManager = DatabaseManager(dbPath)
         
         setupListeners()
+        setupFilterDrawer()
         initializeDatabase()
     }
     
     private fun setupListeners() {
         binding.radioGroupAnswers.setOnCheckedChangeListener { _, checkedId ->
-            when (checkedId) {
-                binding.radioAnswer1.id -> selectedAnswerId = 1
-                binding.radioAnswer2.id -> selectedAnswerId = 2
-                binding.radioAnswer3.id -> selectedAnswerId = 3
-                binding.radioAnswer4.id -> selectedAnswerId = 4
-                binding.radioAnswer5.id -> selectedAnswerId = 5
+            if (suppressAnswerChange || checkedId == -1 || isAnswerRevealed) return@setOnCheckedChangeListener
+            val answerNumber = when (checkedId) {
+                binding.radioAnswer1.id -> 1
+                binding.radioAnswer2.id -> 2
+                binding.radioAnswer3.id -> 3
+                binding.radioAnswer4.id -> 4
+                binding.radioAnswer5.id -> 5
+                else -> null
             }
-        }
-        
-        binding.buttonSubmit.setOnClickListener {
-            submitAnswer()
+            answerNumber?.let {
+                selectedAnswerId = it
+                submitAnswer()
+            }
         }
         
         binding.buttonNext.setOnClickListener {
@@ -70,15 +97,159 @@ class QuizActivity : AppCompatActivity() {
             loadPreviousQuestion()
         }
     }
+
+    private fun setupToolbar(dbName: String?) {
+        setSupportActionBar(binding.toolbar)
+        binding.toolbar.title = dbName ?: getString(R.string.app_name)
+        drawerToggle = ActionBarDrawerToggle(
+            this,
+            binding.drawerLayout,
+            binding.toolbar,
+            R.string.navigation_drawer_open,
+            R.string.navigation_drawer_close
+        )
+        binding.drawerLayout.addDrawerListener(drawerToggle)
+        drawerToggle.syncState()
+    }
+
+    private fun setupFilterDrawer() {
+        filterBinding.buttonApplyFilters.setOnClickListener {
+            applyFilters()
+        }
+        filterBinding.buttonClearFilters.setOnClickListener {
+            clearFilters()
+        }
+    }
+
+    private suspend fun loadFilterOptions() {
+        allSubjects = databaseManager.getSubjects()
+        populateSubjectChips(allSubjects)
+        currentSystems = databaseManager.getSystems()
+        populateSystemChips(currentSystems)
+    }
+
+    private fun populateSubjectChips(subjects: List<Subject>) {
+        filterBinding.chipGroupSubjects.removeAllViews()
+        subjects.forEach { subject ->
+            val chip = createFilterChip(subject.id, "${subject.name} (${subject.count})")
+            chip.isChecked = selectedSubjectIds.contains(subject.id)
+            chip.setOnCheckedChangeListener { _, isChecked ->
+                if (isChecked) {
+                    selectedSubjectIds.add(subject.id)
+                } else {
+                    selectedSubjectIds.remove(subject.id)
+                }
+                refreshSystemsForSelection()
+            }
+            filterBinding.chipGroupSubjects.addView(chip)
+        }
+    }
+
+    private fun populateSystemChips(systems: List<System>) {
+        filterBinding.chipGroupSystems.removeAllViews()
+        val availableIds = systems.map { it.id }.toSet()
+        selectedSystemIds.retainAll(availableIds)
+        systems.forEach { system ->
+            val chip = createFilterChip(system.id, "${system.name} (${system.count})")
+            chip.isChecked = selectedSystemIds.contains(system.id)
+            chip.setOnCheckedChangeListener { _, isChecked ->
+                if (isChecked) {
+                    selectedSystemIds.add(system.id)
+                } else {
+                    selectedSystemIds.remove(system.id)
+                }
+            }
+            filterBinding.chipGroupSystems.addView(chip)
+        }
+    }
+
+    private fun createFilterChip(id: Long, label: String): Chip {
+        return Chip(this).apply {
+            text = label
+            tag = id
+            isCheckable = true
+            isClickable = true
+            isCheckedIconVisible = true
+        }
+    }
+
+    private fun refreshSystemsForSelection() {
+        lifecycleScope.launch {
+            try {
+                val subjects = selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+                currentSystems = databaseManager.getSystems(subjects)
+                populateSystemChips(currentSystems)
+            } catch (e: Exception) {
+                Toast.makeText(this@QuizActivity, "Error loading systems: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun applyFilters() {
+        binding.drawerLayout.closeDrawer(GravityCompat.START)
+        lifecycleScope.launch {
+            try {
+                binding.textViewStatus.text = getString(R.string.loading_databases)
+                binding.textViewStatus.visibility = View.VISIBLE
+                val subjects = selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+                val systems = selectedSystemIds.takeIf { it.isNotEmpty() }?.toList()
+                questionIds = databaseManager.getQuestionIds(subjects, systems)
+                if (questionIds.isEmpty()) {
+                    binding.textViewStatus.text = getString(R.string.no_questions_for_filters)
+                    binding.textViewStatus.visibility = View.VISIBLE
+                    currentQuestion = null
+                    currentAnswers = emptyList()
+                    binding.textViewQuestionNumber.text = ""
+                    binding.textViewQuestion.text = ""
+                    resetAnswerViews()
+                    suppressAnswerChange = true
+                    binding.radioGroupAnswers.clearCheck()
+                    suppressAnswerChange = false
+                    binding.textViewExplanation.visibility = View.GONE
+                    binding.buttonNext.isEnabled = false
+                    binding.buttonPrevious.isEnabled = false
+                } else {
+                    binding.textViewStatus.text = "Filtered ${questionIds.size} question(s)"
+                    loadQuestion(0)
+                }
+            } catch (e: Exception) {
+                binding.textViewStatus.text = e.message
+            }
+        }
+    }
+
+    private fun clearFilters() {
+        selectedSubjectIds.clear()
+        selectedSystemIds.clear()
+        lifecycleScope.launch {
+            try {
+                populateSubjectChips(allSubjects)
+                currentSystems = databaseManager.getSystems()
+                populateSystemChips(currentSystems)
+                applyFilters()
+            } catch (e: Exception) {
+                Toast.makeText(this@QuizActivity, "Error clearing filters: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (drawerToggle.onOptionsItemSelected(item)) {
+            return true
+        }
+        return super.onOptionsItemSelected(item)
+    }
     
     private fun initializeDatabase() {
         binding.textViewStatus.text = "Loading database..."
+        binding.textViewStatus.visibility = View.VISIBLE
         
         lifecycleScope.launch {
             try {
                 // Use global database manager to ensure proper cleanup
                 databaseManager = MedicalQuizApp.switchDatabase(intent.getStringExtra("DB_PATH")!!)
                 questionIds = databaseManager.getQuestionIds()
+                loadFilterOptions()
                 
                 if (questionIds.isEmpty()) {
                     binding.textViewStatus.text = "No questions found in database"
@@ -115,6 +286,7 @@ class QuizActivity : AppCompatActivity() {
     
     private fun displayQuestion() {
         val question = currentQuestion ?: return
+        binding.textViewStatus.visibility = View.GONE
         
         // Update question counter
         binding.textViewQuestionNumber.text = "Question ${currentQuestionIndex + 1} of ${questionIds.size}"
@@ -156,14 +328,15 @@ class QuizActivity : AppCompatActivity() {
         
         // Reset UI state
         selectedAnswerId = null
+        resetAnswerViews()
+        suppressAnswerChange = true
         binding.radioGroupAnswers.clearCheck()
+        suppressAnswerChange = false
         binding.textViewExplanation.visibility = android.view.View.GONE
-        binding.buttonSubmit.isEnabled = true
+        binding.textViewExplanation.text = ""
+        isAnswerRevealed = false
         binding.buttonNext.isEnabled = currentQuestionIndex < questionIds.size - 1
         binding.buttonPrevious.isEnabled = currentQuestionIndex > 0
-        
-        // Hide explanation initially
-        binding.textViewExplanation.text = ""
     }
     
     private fun displayAnswers() {
@@ -180,16 +353,60 @@ class QuizActivity : AppCompatActivity() {
         
         answers.forEachIndexed { index, answer ->
             if (index < radioButtons.size) {
-                // Set HTML text for answers (they may contain HTML formatting)
-                val answerText = HtmlUtils.stripHtml(answer.answerText)
-                radioButtons[index].text = answerText
+                // Render HTML inside RadioButton without enabling link clicks
+                HtmlUtils.setHtmlText(radioButtons[index], answer.answerText, enableLinks = false)
                 radioButtons[index].visibility = android.view.View.VISIBLE
+                radioButtons[index].isEnabled = true
             }
         }
         
         // Hide unused radio buttons
         for (i in answers.size until radioButtons.size) {
             radioButtons[i].visibility = android.view.View.GONE
+        }
+    }
+
+    private fun getAnswerButtons(): List<RadioButton> = listOf(
+        binding.radioAnswer1,
+        binding.radioAnswer2,
+        binding.radioAnswer3,
+        binding.radioAnswer4,
+        binding.radioAnswer5
+    )
+
+    private fun resetAnswerViews() {
+        val defaultColor = defaultAnswerTextColor
+        val neutralBg = neutralAnswerBackground
+        getAnswerButtons().forEach { button ->
+            button.setBackgroundColor(neutralBg)
+            button.setTextColor(defaultColor)
+            button.isEnabled = true
+        }
+    }
+
+    private fun highlightAnswers(selectedAnswer: Int, correctAnswer: Int) {
+        val correctBg = ContextCompat.getColor(this, R.color.answer_correct_bg)
+        val correctText = ContextCompat.getColor(this, R.color.answer_correct_text)
+        val incorrectBg = ContextCompat.getColor(this, R.color.answer_incorrect_bg)
+        val incorrectText = ContextCompat.getColor(this, R.color.answer_incorrect_text)
+
+        getAnswerButtons().forEachIndexed { index, button ->
+            val answerNumber = index + 1
+            button.isEnabled = false
+            when {
+                answerNumber == correctAnswer -> {
+                    button.setBackgroundColor(correctBg)
+                    button.setTextColor(correctText)
+                }
+                answerNumber == selectedAnswer && selectedAnswer != correctAnswer -> {
+                    button.setBackgroundColor(incorrectBg)
+                    button.setTextColor(incorrectText)
+                }
+                else -> {
+                    button.setBackgroundColor(neutralAnswerBackground)
+                    button.setTextColor(defaultAnswerTextColor)
+                }
+            }
         }
     }
     
@@ -201,7 +418,13 @@ class QuizActivity : AppCompatActivity() {
         }
         
         val question = currentQuestion ?: return
+        if (isAnswerRevealed) return
         val timeTaken = System.currentTimeMillis() - startTime
+        isAnswerRevealed = true
+        highlightAnswers(answerId, question.corrAns)
+        val explanationHtml = "<strong>Answer ${question.corrAns}</strong><br><br>${question.explanation}".trim()
+        HtmlUtils.setHtmlText(binding.textViewExplanation, explanationHtml)
+        binding.textViewExplanation.visibility = View.VISIBLE
         
         lifecycleScope.launch {
             try {
@@ -213,17 +436,6 @@ class QuizActivity : AppCompatActivity() {
                     time = timeTaken,
                     testId = testId
                 )
-                
-                // Show explanation with HTML support
-                val isCorrect = answerId == question.corrAns
-                val resultText = if (isCorrect) "✓ Correct!" else "✗ Incorrect"
-                val explanationHtml = "<strong>$resultText</strong><br><br><strong>Correct Answer: Answer ${question.corrAns}</strong><br><br>${question.explanation}"
-                
-                HtmlUtils.setHtmlText(binding.textViewExplanation, explanationHtml)
-                binding.textViewExplanation.visibility = android.view.View.VISIBLE
-                
-                // Disable submit button
-                binding.buttonSubmit.isEnabled = false
                 
             } catch (e: Exception) {
                 Toast.makeText(this@QuizActivity, "Error saving answer: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -243,8 +455,25 @@ class QuizActivity : AppCompatActivity() {
         }
     }
     
+    override fun onBackPressed() {
+        if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+            return
+        }
+        if (!handlePendingLogsBeforeExit()) {
+            super.onBackPressed()
+        }
+    }
+
     override fun onSupportNavigateUp(): Boolean {
-        // Check if there are pending logs
+        return if (handlePendingLogsBeforeExit()) true else super.onSupportNavigateUp()
+    }
+
+    private fun handlePendingLogsBeforeExit(): Boolean {
+        if (!::databaseManager.isInitialized) {
+            finish()
+            return true
+        }
         val pendingLogs = databaseManager.getPendingLogCount()
         if (pendingLogs > 0) {
             AlertDialog.Builder(this)
