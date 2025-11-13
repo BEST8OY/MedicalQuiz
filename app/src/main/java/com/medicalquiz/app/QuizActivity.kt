@@ -93,14 +93,16 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun openMediaViewerForFile(fileName: String) {
-        val currentQuestion = databaseManager?.getQuestion(questionIds[currentQuestionIndex])
-        if (currentQuestion != null) {
-            val mediaFiles = mutableListOf<String>()
-            currentQuestion.mediaName?.let { mediaFiles.add(it) }
-            HtmlUtils.parseMediaFiles(currentQuestion.otherMedias).let { mediaFiles.addAll(it) }
-            
-            val startIndex = mediaFiles.indexOf(fileName).takeIf { it >= 0 } ?: 0
-            openMediaViewer(mediaFiles, startIndex)
+        lifecycleScope.launch {
+            val currentQuestion = databaseManager?.getQuestionById(questionIds[currentQuestionIndex])
+            if (currentQuestion != null) {
+                val mediaFiles = mutableListOf<String>()
+                currentQuestion.mediaName?.let { mediaFiles.add(it) }
+                HtmlUtils.parseMediaFiles(currentQuestion.otherMedias).let { mediaFiles.addAll(it) }
+                
+                val startIndex = mediaFiles.indexOf(fileName).takeIf { it >= 0 } ?: 0
+                openMediaViewer(mediaFiles, startIndex)
+            }
         }
     }
     
@@ -453,8 +455,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         lifecycleScope.launch {
             try {
                 questionIds = databaseManager.getQuestionIds(
-                    subjectId = selectedSubjectId,
-                    systemId = selectedSystemId
+                    subjectIds = selectedSubjectId?.let { listOf(it) },
+                    systemIds = selectedSystemId?.let { listOf(it) }
                 )
                 
                 if (questionIds.isEmpty()) {
