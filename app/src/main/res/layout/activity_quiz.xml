@@ -117,7 +117,7 @@
                         android:layout_height="wrap_content"
                         android:minHeight="120dp"
                         android:nestedScrollingEnabled="false"
-                        android:overScrollMode="inside"
+                        android:overScrollMode="ifContentScrolls"
                         android:padding="12dp"
                         android:scrollbarStyle="outsideOverlay" />
 
@@ -163,7 +163,7 @@
                     android:layout_height="wrap_content"
                     android:minHeight="80dp"
                     android:nestedScrollingEnabled="false"
-                    android:overScrollMode="inside"
+                    android:overScrollMode="ifContentScrolls"
                     android:padding="12dp"
                     android:scrollbarStyle="outsideOverlay"
                     android:visibility="gone" />
