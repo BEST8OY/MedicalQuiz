@@ -3,5 +3,6 @@
     <string name="select_database">Select Database</string>
     <string name="loading_databases">Loading databases...</string>
     <string name="no_databases_found">No databases found</string>
-    <string name="storage_permission_required">Storage permission is required</string>
+    <string name="storage_permission_required">Storage permission is required. Tap "Grant Storage Access" and enable "Allow management of all files".</string>
+    <string name="grant_storage_access">Grant Storage Access</string>
 </resources>

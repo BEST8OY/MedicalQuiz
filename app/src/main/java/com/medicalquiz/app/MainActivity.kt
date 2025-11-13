@@ -1,6 +1,7 @@
 package com.medicalquiz.app
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -8,7 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
-import android.widget.Toast
+import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -21,6 +22,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var databaseAdapter: DatabaseAdapter
     private val databases = mutableListOf<DatabaseItem>()
+    private var shouldRetryPermissionCheck = false
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -30,6 +32,13 @@ class MainActivity : AppCompatActivity() {
         } else {
             showPermissionDeniedDialog()
         }
+    }
+
+    private val manageStorageLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        shouldRetryPermissionCheck = false
+        checkPermissionsAndLoadDatabases()
     }
 
     private fun showPermissionDeniedDialog() {
@@ -51,7 +60,16 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setupRecyclerView()
+        setupManageStorageButton()
         checkPermissionsAndLoadDatabases()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (shouldRetryPermissionCheck) {
+            checkPermissionsAndLoadDatabases()
+            shouldRetryPermissionCheck = false
+        }
     }
 
     private fun setupRecyclerView() {
@@ -66,29 +84,44 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkPermissionsAndLoadDatabases() {
-        // For Android 11+, request READ_EXTERNAL_STORAGE
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                loadDatabases()
-            } else {
-                requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+                if (Environment.isExternalStorageManager()) {
+                    hideManageStorageButton()
+                    loadDatabases()
+                } else {
+                    showManageStoragePrompt()
+                }
             }
-        } else {
-            // Android 10 and below
-            if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                loadDatabases()
-            } else {
-                requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            else -> {
+                if (
+                    ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.READ_EXTERNAL_STORAGE
+                    ) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    loadDatabases()
+                } else {
+                    requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                }
             }
         }
+    }
+
+    private fun setupManageStorageButton() {
+        binding.buttonGrantStorage.visibility = View.GONE
+        binding.buttonGrantStorage.setOnClickListener {
+            openManageStorageSettings()
+        }
+    }
+
+    private fun hideManageStorageButton() {
+        binding.buttonGrantStorage.visibility = View.GONE
+    }
+
+    private fun showManageStoragePrompt() {
+        binding.textViewStatus.text = getString(R.string.storage_permission_required)
+        binding.buttonGrantStorage.visibility = View.VISIBLE
     }
 
     private fun openAppSettings() {
@@ -96,6 +129,21 @@ class MainActivity : AppCompatActivity() {
             data = Uri.fromParts("package", packageName, null)
         }
         startActivity(intent)
+    }
+
+    private fun openManageStorageSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+
+        shouldRetryPermissionCheck = true
+        try {
+            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            manageStorageLauncher.launch(intent)
+        } catch (_: ActivityNotFoundException) {
+            val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            manageStorageLauncher.launch(intent)
+        }
     }
 
     private fun loadDatabases() {
