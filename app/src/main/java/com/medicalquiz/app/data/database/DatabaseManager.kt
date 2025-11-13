@@ -12,6 +12,19 @@ import java.util.*
 
 class DatabaseManager(private val dbPath: String) {
     private var database: SQLiteDatabase? = null
+    private val logBuffer = mutableListOf<PendingLogEntry>()
+    
+    // Buffering configuration
+    private val autoFlushThreshold = 10 // Flush after N answers
+    
+    data class PendingLogEntry(
+        val qid: Long,
+        val selectedAnswer: Int,
+        val corrAnswer: Int,
+        val time: Long,
+        val answerDate: String,
+        val testId: String
+    )
     
     /**
      * Open the database connection
@@ -37,9 +50,12 @@ class DatabaseManager(private val dbPath: String) {
     /**
      * Close the database connection
      */
-    fun closeDatabase() {
+    suspend fun closeDatabase() {
+        // Flush any pending logs before closing
+        flushLogs()
         database?.close()
         database = null
+        logBuffer.clear()
     }
     
     private fun getDb(): SQLiteDatabase {
@@ -275,27 +291,86 @@ class DatabaseManager(private val dbPath: String) {
     }
     
     /**
-     * Log an answer
+     * Log an answer (buffered for performance)
+     * Use immediate=true for critical answers that must be persisted immediately
      */
     suspend fun logAnswer(
         qid: Long,
         selectedAnswer: Int,
         corrAnswer: Int,
         time: Long,
-        testId: String
+        testId: String,
+        immediate: Boolean = false
     ) = withContext(Dispatchers.IO) {
+        val entry = PendingLogEntry(
+            qid = qid,
+            selectedAnswer = selectedAnswer,
+            corrAnswer = corrAnswer,
+            time = time,
+            answerDate = getCurrentTimestamp(),
+            testId = testId
+        )
+        
+        if (immediate) {
+            // Write immediately without buffering
+            insertLogEntry(entry)
+        } else {
+            // Add to buffer
+            logBuffer.add(entry)
+            
+            // Auto-flush if buffer reaches threshold
+            if (logBuffer.size >= autoFlushThreshold) {
+                flushLogs()
+            }
+        }
+    }
+    
+    /**
+     * Insert a single log entry to the database
+     */
+    private fun insertLogEntry(entry: PendingLogEntry) {
         val db = getDb()
         val values = ContentValues().apply {
-            put("qid", qid)
-            put("selectedAnswer", selectedAnswer)
-            put("corrAnswer", corrAnswer)
-            put("time", time)
-            put("answerDate", getCurrentTimestamp())
-            put("testId", testId)
+            put("qid", entry.qid)
+            put("selectedAnswer", entry.selectedAnswer)
+            put("corrAnswer", entry.corrAnswer)
+            put("time", entry.time)
+            put("answerDate", entry.answerDate)
+            put("testId", entry.testId)
         }
         
         db.insert("logs", null, values)
     }
+    
+    /**
+     * Flush all buffered logs to the database
+     * Returns the number of logs flushed
+     */
+    suspend fun flushLogs(): Int = withContext(Dispatchers.IO) {
+        if (logBuffer.isEmpty()) return@withContext 0
+        
+        val db = getDb()
+        val flushedCount = logBuffer.size
+        
+        // Use transaction for batch insert (much faster)
+        db.beginTransaction()
+        try {
+            logBuffer.forEach { entry ->
+                insertLogEntry(entry)
+            }
+            db.setTransactionSuccessful()
+            logBuffer.clear()
+        } finally {
+            db.endTransaction()
+        }
+        
+        flushedCount
+    }
+    
+    /**
+     * Get number of pending logs in buffer
+     */
+    fun getPendingLogCount(): Int = logBuffer.size
     
     // ========================================================================
     // Statistics Queries
@@ -303,8 +378,20 @@ class DatabaseManager(private val dbPath: String) {
     
     /**
      * Get the status of a question (last attempt)
+     * Checks buffer first, then database
      */
     suspend fun getQuestionStatus(qid: Long): QuestionStatus = withContext(Dispatchers.IO) {
+        // Check buffer first for most recent status
+        val bufferedEntry = logBuffer.lastOrNull { it.qid == qid }
+        if (bufferedEntry != null) {
+            return@withContext if (bufferedEntry.selectedAnswer == bufferedEntry.corrAnswer) {
+                QuestionStatus.CORRECT
+            } else {
+                QuestionStatus.INCORRECT
+            }
+        }
+        
+        // Check database
         val db = getDb()
         val sql = """
             SELECT selectedAnswer, corrAnswer FROM logs
@@ -347,8 +434,10 @@ class DatabaseManager(private val dbPath: String) {
     
     /**
      * Get statistics for a question
+     * Includes both flushed logs and buffered logs
      */
     suspend fun getQuestionStats(qid: Long): QuestionStats = withContext(Dispatchers.IO) {
+        // Get database stats
         val db = getDb()
         val sql = """
             SELECT 
@@ -360,7 +449,7 @@ class DatabaseManager(private val dbPath: String) {
         """
         
         val cursor = db.rawQuery(sql, arrayOf(qid.toString()))
-        cursor.use {
+        val dbStats = cursor.use {
             if (it.moveToFirst()) {
                 QuestionStats(
                     attempts = it.getInt(0),
@@ -371,6 +460,21 @@ class DatabaseManager(private val dbPath: String) {
                 QuestionStats()
             }
         }
+        
+        // Add buffered stats
+        val bufferedEntries = logBuffer.filter { it.qid == qid }
+        val bufferedStats = QuestionStats(
+            attempts = bufferedEntries.size,
+            correct = bufferedEntries.count { it.selectedAnswer == it.corrAnswer },
+            incorrect = bufferedEntries.count { it.selectedAnswer != it.corrAnswer }
+        )
+        
+        // Combine
+        QuestionStats(
+            attempts = dbStats.attempts + bufferedStats.attempts,
+            correct = dbStats.correct + bufferedStats.correct,
+            incorrect = dbStats.incorrect + bufferedStats.incorrect
+        )
     }
     
     /**

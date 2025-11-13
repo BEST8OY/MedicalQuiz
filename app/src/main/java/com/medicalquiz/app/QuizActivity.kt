@@ -2,6 +2,7 @@ package com.medicalquiz.app
 
 import android.os.Bundle
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.medicalquiz.app.data.database.DatabaseManager
@@ -74,7 +75,8 @@ class QuizActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                databaseManager.openDatabase()
+                // Use global database manager to ensure proper cleanup
+                databaseManager = MedicalQuizApp.switchDatabase(intent.getStringExtra("DB_PATH")!!)
                 questionIds = databaseManager.getQuestionIds()
                 
                 if (questionIds.isEmpty()) {
@@ -228,12 +230,53 @@ class QuizActivity : AppCompatActivity() {
     }
     
     override fun onSupportNavigateUp(): Boolean {
-        finish()
+        // Check if there are pending logs
+        val pendingLogs = databaseManager.getPendingLogCount()
+        if (pendingLogs > 0) {
+            AlertDialog.Builder(this)
+                .setTitle("Unsaved Answers")
+                .setMessage("You have $pendingLogs unsaved answer(s). Save before leaving?")
+                .setPositiveButton("Save & Exit") { _, _ ->
+                    lifecycleScope.launch {
+                        databaseManager.flushLogs()
+                        finish()
+                    }
+                }
+                .setNegativeButton("Exit Without Saving") { _, _ ->
+                    finish()
+                }
+                .setNeutralButton("Cancel", null)
+                .show()
+        } else {
+            finish()
+        }
         return true
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        // Flush logs when app goes to background
+        lifecycleScope.launch {
+            try {
+                val flushed = databaseManager.flushLogs()
+                if (flushed > 0) {
+                    println("Flushed $flushed logs on pause")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
     
     override fun onDestroy() {
         super.onDestroy()
-        databaseManager.closeDatabase()
+        // Close database (will auto-flush remaining logs)
+        lifecycleScope.launch {
+            try {
+                databaseManager.closeDatabase()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 }
