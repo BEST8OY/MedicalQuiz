@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Medical Quiz</string>
+    <string name="select_database">Select Database</string>
+    <string name="loading_databases">Loading databases...</string>
+    <string name="no_databases_found">No databases found</string>
+    <string name="storage_permission_required">Storage permission is required</string>
+</resources>
