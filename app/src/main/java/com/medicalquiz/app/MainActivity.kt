@@ -32,16 +32,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val requestMultiplePermissionsLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        if (permissions.values.all { it }) {
-            loadDatabases()
-        } else {
-            showPermissionDeniedDialog()
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -65,18 +55,11 @@ class MainActivity : AppCompatActivity() {
     private fun checkPermissionsAndLoadDatabases() {
         when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                // Android 13+: Request READ_MEDIA_IMAGES
-                val requiredPermissions = arrayOf(
-                    Manifest.permission.READ_MEDIA_IMAGES,
-                    Manifest.permission.READ_MEDIA_VIDEO,
-                    Manifest.permission.READ_MEDIA_AUDIO
-                )
-                if (requiredPermissions.all { 
-                    ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED 
-                }) {
+                // Android 13+: Request MANAGE_EXTERNAL_STORAGE for .db file access
+                if (Environment.isExternalStorageManager()) {
                     loadDatabases()
                 } else {
-                    requestMultiplePermissionsLauncher.launch(requiredPermissions)
+                    requestPermissionLauncher.launch(Manifest.permission.MANAGE_EXTERNAL_STORAGE)
                 }
             }
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
