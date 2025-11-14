@@ -447,6 +447,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 }
                 reloadQuestionsWithFilters()
             }
+            R.id.nav_filter_performance -> showPerformanceFilterDialog()
             R.id.nav_clear_filters -> clearFilters()
             R.id.nav_settings -> showSettingsDialog()
             R.id.nav_about -> Toast.makeText(this, "About coming soon", Toast.LENGTH_SHORT).show()
@@ -552,13 +553,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val summary = performance ?: return ""
         if (summary.attempts <= 0) return ""
         val lastLabel = if (summary.lastCorrect) "Correct" else "Incorrect"
-        val everLabel = when {
-            summary.everCorrect && summary.everIncorrect -> "correct & incorrect"
-            summary.everCorrect -> "correct"
-            summary.everIncorrect -> "incorrect"
-            else -> "no history"
-        }
-        return "Attempts: ${summary.attempts} | Last: $lastLabel | Ever: $everLabel"
+        return "Attempts: ${summary.attempts} | Last: $lastLabel"
     }
 
     private fun updateLocalPerformanceCache(questionId: Long, wasCorrect: Boolean) {
