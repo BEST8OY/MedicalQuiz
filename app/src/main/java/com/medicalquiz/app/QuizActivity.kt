@@ -301,6 +301,11 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val scriptBlock = """
             <script>
                 (function() {
+                    function onReady() {
+                        bindAnswerButtons();
+                        initializeHintState();
+                    }
+
                     function bindAnswerButtons() {
                         var buttons = document.querySelectorAll('.answer-button');
                         buttons.forEach(function(button) {
@@ -313,10 +318,20 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                             });
                         });
                     }
+                    
+                    function initializeHintState() {
+                        var hints = document.querySelectorAll('#hintdiv');
+                        hints.forEach(function(hint) {
+                            if (hint.getAttribute('data-hint-initialized') === 'true') { return; }
+                            hint.style.display = 'none';
+                            hint.setAttribute('data-hint-initialized', 'true');
+                        });
+                    }
+
                     if (document.readyState === 'loading') {
-                        document.addEventListener('DOMContentLoaded', bindAnswerButtons);
+                        document.addEventListener('DOMContentLoaded', onReady);
                     } else {
-                        bindAnswerButtons();
+                        onReady();
                     }
                 })();
 

@@ -97,8 +97,9 @@
   font-style: italic;
 }
 
-.medical-content .wichtig {
-  font-weight: inherit;
+.medical-content .wichtig,
+body.medical-content .wichtig {
+  font-weight: 400;
   color: inherit;
   background-color: transparent;
   padding: 0;
@@ -106,7 +107,8 @@
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-body.answers-revealed .medical-content .wichtig {
+body.answers-revealed .medical-content .wichtig,
+body.medical-content.answers-revealed .wichtig {
   font-weight: 600;
   color: var(--md-sys-color-primary);
   background-color: var(--md-sys-color-primary-container);
