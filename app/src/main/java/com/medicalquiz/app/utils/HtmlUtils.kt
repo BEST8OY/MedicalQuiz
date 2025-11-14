@@ -120,9 +120,15 @@ object HtmlUtils {
         if (fileName.isNullOrBlank()) return null
         mediaPathCache[fileName]?.let { return it }
 
-        val mediaFolder = File(Environment.getExternalStorageDirectory(), "MedicalQuiz/media")
-        val mediaFile = File(mediaFolder, fileName)
-        val resolvedPath = if (mediaFile.exists()) mediaFile.absolutePath else null
+        val resolvedPath = runCatching {
+            val storageRoot = Environment.getExternalStorageDirectory()
+            val mediaFolder = File(storageRoot, "MedicalQuiz/media")
+            val mediaFile = File(mediaFolder, fileName)
+            if (mediaFile.exists()) mediaFile.absolutePath else null
+        }.getOrElse {
+            null
+        }
+
         mediaPathCache[fileName] = resolvedPath
         return resolvedPath
     }
