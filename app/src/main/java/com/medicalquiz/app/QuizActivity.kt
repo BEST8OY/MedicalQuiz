@@ -167,16 +167,16 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         
         lifecycleScope.launch {
             try {
-            currentPerformance = null
+                currentPerformance = null
                 currentQuestion = databaseManager.getQuestionById(questionId)
                 currentAnswers = databaseManager.getAnswersForQuestion(questionId)
-                currentPerformance = databaseManager.getQuestionPerformance(questionId)
 
                 displayQuestion()
                 startTime = System.currentTimeMillis()
             } catch (e: Exception) {
                 android.util.Log.e("QuizActivity", "Failed to load question $questionId", e)
-                Toast.makeText(this@QuizActivity, "Error loading question: ${e.message}", Toast.LENGTH_SHORT).show()
+                val errorText = e.message ?: e.javaClass.simpleName ?: "Unknown error"
+                Toast.makeText(this@QuizActivity, "Error loading question $questionId: $errorText", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -215,6 +215,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val performanceText = buildPerformanceSummary(currentPerformance)
         binding.textViewPerformance.text = performanceText
         binding.textViewPerformance.visibility = View.GONE
+        loadPerformanceForQuestion(question.id)
         
         val mediaFiles = collectMediaFiles(question)
         mediaHandler.updateMedia(question.id, mediaFiles)
@@ -657,6 +658,18 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         val hasMediaInfo = !binding.textViewMediaInfo.text.isNullOrBlank()
         binding.textViewMediaInfo.visibility = if (hasMediaInfo) View.VISIBLE else View.GONE
+    }
+
+    private fun loadPerformanceForQuestion(questionId: Long) {
+        lifecycleScope.launch {
+            try {
+                currentPerformance = databaseManager.getQuestionPerformance(questionId)
+                binding.textViewPerformance.text = buildPerformanceSummary(currentPerformance)
+            } catch (e: Exception) {
+                android.util.Log.w("QuizActivity", "Unable to load performance for question $questionId", e)
+                binding.textViewPerformance.text = ""
+            }
+        }
     }
 
     private fun showSettingsDialog() {
