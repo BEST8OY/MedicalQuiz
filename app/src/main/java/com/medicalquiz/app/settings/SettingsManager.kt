@@ -2,6 +2,7 @@ package com.medicalquiz.app.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.medicalquiz.app.data.database.PerformanceFilter
 
 class SettingsManager(context: Context) {
     private val prefs: SharedPreferences =
@@ -13,8 +14,15 @@ class SettingsManager(context: Context) {
             prefs.edit().putBoolean(KEY_LOGGING_ENABLED, value).apply()
         }
 
+    var performanceFilterValue: String
+        get() = prefs.getString(KEY_PERFORMANCE_FILTER, PerformanceFilter.ALL.storageValue) ?: PerformanceFilter.ALL.storageValue
+        set(value) {
+            prefs.edit().putString(KEY_PERFORMANCE_FILTER, value).apply()
+        }
+
     companion object {
         private const val PREFS_NAME = "medical_quiz_settings"
         private const val KEY_LOGGING_ENABLED = "log_answers_enabled"
+        private const val KEY_PERFORMANCE_FILTER = "performance_filter"
     }
 }

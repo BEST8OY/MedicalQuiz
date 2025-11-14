@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
-import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -21,6 +20,8 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.navigation.NavigationView
 import com.medicalquiz.app.data.database.DatabaseManager
+import com.medicalquiz.app.data.database.PerformanceFilter
+import com.medicalquiz.app.data.database.QuestionPerformance
 import com.medicalquiz.app.data.models.Answer
 import com.medicalquiz.app.data.models.Question
 import com.medicalquiz.app.databinding.ActivityQuizBinding
@@ -51,7 +52,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private var startTime: Long = 0
     private val selectedSubjectIds = mutableSetOf<Long>()
     private val selectedSystemIds = mutableSetOf<Long>()
+    private var performanceFilter: PerformanceFilter = PerformanceFilter.ALL
     private var answerSubmitted = false
+    private var currentPerformance: QuestionPerformance? = null
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,6 +64,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         binding.scrollViewContent.clipToPadding = false
         applyWindowInsets()
         settingsManager = SettingsManager(this)
+        performanceFilter = PerformanceFilter.values().firstOrNull {
+            it.storageValue == settingsManager.performanceFilterValue
+        } ?: PerformanceFilter.ALL
         
         val dbPath = intent.getStringExtra("DB_PATH")
         val dbName = intent.getStringExtra("DB_NAME")
@@ -135,14 +141,16 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 databaseManager = MedicalQuizApp.switchDatabase(dbPath)
                 mediaHandler.updateDatabaseManager(databaseManager)
                 filterDialogHandler.updateDatabaseManager(databaseManager)
-                questionIds = databaseManager.getQuestionIds()
-                
+                questionIds = fetchFilteredQuestionIds()
+
                 if (questionIds.isEmpty()) {
-                    binding.textViewStatus.text = "No questions found in database"
+                    binding.textViewStatus.text = "No questions found for current filters"
+                    updateToolbarSubtitle()
                     return@launch
                 }
-                
+
                 binding.textViewStatus.text = "Loaded ${questionIds.size} questions"
+                updateToolbarSubtitle()
                 loadQuestion(0)
             } catch (e: Exception) {
                 binding.textViewStatus.text = "Error: ${e.message}"
@@ -159,9 +167,11 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         
         lifecycleScope.launch {
             try {
+            currentPerformance = null
                 currentQuestion = databaseManager.getQuestionById(questionId)
                 currentAnswers = databaseManager.getAnswersForQuestion(questionId)
-                
+                currentPerformance = databaseManager.getQuestionPerformance(questionId)
+
                 displayQuestion()
                 startTime = System.currentTimeMillis()
             } catch (e: Exception) {
@@ -200,6 +210,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
         binding.textViewMetadata.text = metadata
         binding.textViewMetadata.visibility = View.GONE
+
+        val performanceText = buildPerformanceSummary(currentPerformance)
+        binding.textViewPerformance.text = performanceText
+        binding.textViewPerformance.visibility = View.GONE
         
         // Display media info if available
         if (!question.mediaName.isNullOrBlank() || !question.otherMedias.isNullOrBlank()) {
@@ -255,6 +269,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 val correctAnswerId = correctAnswer?.answerId?.toInt()
                 val correctAnswerText = correctAnswer?.let { HtmlUtils.stripHtml(it.answerText) } ?: "Answer ${question.corrAns}"
                 val normalizedCorrectId = correctAnswerId ?: -1
+                val wasCorrect = normalizedCorrectId == answerId
+                updateLocalPerformanceCache(question.id, wasCorrect)
                 updateWebViewAnswerState(normalizedCorrectId, answerId, correctAnswerText)
                 showQuestionDetails()
             } catch (e: Exception) {
@@ -442,28 +458,69 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun clearFilters() {
         selectedSubjectIds.clear()
         selectedSystemIds.clear()
+        if (performanceFilter != PerformanceFilter.ALL) {
+            performanceFilter = PerformanceFilter.ALL
+            settingsManager.performanceFilterValue = PerformanceFilter.ALL.storageValue
+        }
+        reloadQuestionsWithFilters()
+    }
+
+    private fun showPerformanceFilterDialog() {
+        val filters = PerformanceFilter.values()
+        val labels = filters.map { getPerformanceFilterLabel(it) }.toTypedArray()
+        val currentIndex = filters.indexOf(performanceFilter)
+
+        AlertDialog.Builder(this)
+            .setTitle("Performance Filter")
+            .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
+                dialog.dismiss()
+                applyPerformanceFilter(filters[which])
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun applyPerformanceFilter(filter: PerformanceFilter) {
+        if (performanceFilter == filter) return
+        performanceFilter = filter
+        settingsManager.performanceFilterValue = filter.storageValue
         reloadQuestionsWithFilters()
     }
     
     private fun reloadQuestionsWithFilters() {
         lifecycleScope.launch {
             try {
-                questionIds = databaseManager.getQuestionIds(
-                    subjectIds = selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList(),
-                    systemIds = selectedSystemIds.takeIf { it.isNotEmpty() }?.toList()
-                )
+                questionIds = fetchFilteredQuestionIds()
                 
                 if (questionIds.isEmpty()) {
                     Toast.makeText(this@QuizActivity, "No questions found with selected filters", Toast.LENGTH_SHORT).show()
+                    binding.textViewStatus.text = "No questions found for current filters"
+                    updateToolbarSubtitle()
                     return@launch
                 }
-                
+
+                binding.textViewStatus.text = "Loaded ${questionIds.size} questions"
                 updateToolbarSubtitle()
                 loadQuestion(0)
             } catch (e: Exception) {
                 Toast.makeText(this@QuizActivity, "Error reloading questions: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private suspend fun fetchFilteredQuestionIds(): List<Long> {
+        val subjectFilter = selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+        val systemFilter = selectedSystemIds.takeIf { it.isNotEmpty() }?.toList()
+        val performanceIds = if (performanceFilter == PerformanceFilter.ALL) {
+            null
+        } else {
+            databaseManager.getPerformanceFilteredIds(performanceFilter)
+        }
+        return databaseManager.getQuestionIds(
+            subjectIds = subjectFilter,
+            systemIds = systemFilter,
+            performanceIds = performanceIds
+        )
     }
     
     private fun updateToolbarSubtitle() {
@@ -497,6 +554,15 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
     }
 
+    private fun getPerformanceFilterLabel(filter: PerformanceFilter): String = when (filter) {
+        PerformanceFilter.ALL -> "All Questions"
+        PerformanceFilter.UNANSWERED -> "Not Attempted"
+        PerformanceFilter.LAST_CORRECT -> "Last Attempt Correct"
+        PerformanceFilter.LAST_INCORRECT -> "Last Attempt Incorrect"
+        PerformanceFilter.EVER_CORRECT -> "Ever Correct"
+        PerformanceFilter.EVER_INCORRECT -> "Ever Incorrect"
+    }
+
     private suspend fun pruneInvalidSystems() {
         if (selectedSystemIds.isEmpty()) return
         val validSystemIds = databaseManager.getSystems(
@@ -507,6 +573,40 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         } else {
             selectedSystemIds.retainAll(validSystemIds)
         }
+    }
+
+    private fun buildPerformanceSummary(performance: QuestionPerformance?): String {
+        val summary = performance ?: return ""
+        if (summary.attempts <= 0) return ""
+        val lastLabel = if (summary.lastCorrect) "Correct" else "Incorrect"
+        val everLabel = when {
+            summary.everCorrect && summary.everIncorrect -> "correct & incorrect"
+            summary.everCorrect -> "correct"
+            summary.everIncorrect -> "incorrect"
+            else -> "no history"
+        }
+        return "Attempts: ${summary.attempts} | Last: $lastLabel | Ever: $everLabel"
+    }
+
+    private fun updateLocalPerformanceCache(questionId: Long, wasCorrect: Boolean) {
+        val existing = currentPerformance
+        currentPerformance = if (existing == null) {
+            QuestionPerformance(
+                qid = questionId,
+                lastCorrect = wasCorrect,
+                everCorrect = wasCorrect,
+                everIncorrect = !wasCorrect,
+                attempts = 1
+            )
+        } else {
+            existing.copy(
+                lastCorrect = wasCorrect,
+                everCorrect = existing.everCorrect || wasCorrect,
+                everIncorrect = existing.everIncorrect || !wasCorrect,
+                attempts = existing.attempts + 1
+            )
+        }
+        binding.textViewPerformance.text = buildPerformanceSummary(currentPerformance)
     }
     
     override fun onSupportNavigateUp(): Boolean {
@@ -584,6 +684,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         val hasMetadata = !binding.textViewMetadata.text.isNullOrBlank()
         binding.textViewMetadata.visibility = if (hasMetadata) View.VISIBLE else View.GONE
+
+        val hasPerformance = !binding.textViewPerformance.text.isNullOrBlank()
+        binding.textViewPerformance.visibility = if (hasPerformance) View.VISIBLE else View.GONE
 
         val hasMediaInfo = !binding.textViewMediaInfo.text.isNullOrBlank()
         binding.textViewMediaInfo.visibility = if (hasMediaInfo) View.VISIBLE else View.GONE

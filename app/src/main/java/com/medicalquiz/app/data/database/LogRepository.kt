@@ -41,6 +41,17 @@ class LogRepository(private val connection: DatabaseConnection) {
             )
             """.trimIndent()
         )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS logs_summary (
+                qid INTEGER PRIMARY KEY,
+                lastCorrect INTEGER NOT NULL,
+                everCorrect INTEGER NOT NULL,
+                everIncorrect INTEGER NOT NULL,
+                attempts INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
     }
     
     /**
@@ -89,6 +100,7 @@ class LogRepository(private val connection: DatabaseConnection) {
         try {
             entriesToFlush.forEach { entry ->
                 insertLogEntry(entry)
+                updateSummary(entry)
             }
             db.setTransactionSuccessful()
             entriesToFlush.size
@@ -108,6 +120,37 @@ class LogRepository(private val connection: DatabaseConnection) {
             put("testId", entry.testId)
         }
         db.insert("logs", null, values)
+    }
+
+    private fun updateSummary(entry: PendingLogEntry) {
+        val db = connection.getDatabase()
+        val cursor = db.rawQuery(
+            "SELECT lastCorrect, everCorrect, everIncorrect, attempts FROM logs_summary WHERE qid = ?",
+            arrayOf(entry.qid.toString())
+        )
+
+        val (everCorrect, everIncorrect, attemptsPrev) = cursor.use {
+            if (it.moveToFirst()) {
+                Triple(it.getInt(1), it.getInt(2), it.getInt(3))
+            } else {
+                Triple(0, 0, 0)
+            }
+        }
+
+        val wasCorrect = if (entry.selectedAnswer == entry.corrAnswer) 1 else 0
+        val newEverCorrect = everCorrect or wasCorrect
+        val newEverIncorrect = everIncorrect or (1 - wasCorrect)
+        val newAttempts = attemptsPrev + 1
+
+        val values = ContentValues().apply {
+            put("qid", entry.qid)
+            put("lastCorrect", wasCorrect)
+            put("everCorrect", newEverCorrect)
+            put("everIncorrect", newEverIncorrect)
+            put("attempts", newAttempts)
+        }
+
+        db.insertWithOnConflict("logs_summary", null, values, android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE)
     }
     
     /**
@@ -130,6 +173,64 @@ class LogRepository(private val connection: DatabaseConnection) {
     suspend fun clearLogsTable(): Unit = withContext(Dispatchers.IO) {
         val db = connection.getDatabase()
         db.execSQL("DELETE FROM logs")
+        db.execSQL("DELETE FROM logs_summary")
         clearBuffer()
     }
+
+    suspend fun getSummaryForQuestion(qid: Long): QuestionPerformance? = withContext(Dispatchers.IO) {
+        val db = connection.getDatabase()
+        val cursor = db.rawQuery(
+            "SELECT lastCorrect, everCorrect, everIncorrect, attempts FROM logs_summary WHERE qid = ?",
+            arrayOf(qid.toString())
+        )
+        cursor.use {
+            if (it.moveToFirst()) {
+                QuestionPerformance(
+                    qid = qid,
+                    lastCorrect = it.getInt(0) == 1,
+                    everCorrect = it.getInt(1) == 1,
+                    everIncorrect = it.getInt(2) == 1,
+                    attempts = it.getInt(3)
+                )
+            } else {
+                null
+            }
+        }
+    }
+
+    suspend fun getQuestionIdsByPerformance(filter: PerformanceFilter): Set<Long> = withContext(Dispatchers.IO) {
+        val db = connection.getDatabase()
+        val sql = when (filter) {
+            PerformanceFilter.UNANSWERED -> "SELECT id FROM Questions WHERE id NOT IN (SELECT DISTINCT qid FROM logs_summary)"
+            PerformanceFilter.LAST_CORRECT -> "SELECT qid FROM logs_summary WHERE lastCorrect = 1"
+            PerformanceFilter.LAST_INCORRECT -> "SELECT qid FROM logs_summary WHERE lastCorrect = 0"
+            PerformanceFilter.EVER_CORRECT -> "SELECT qid FROM logs_summary WHERE everCorrect = 1"
+            PerformanceFilter.EVER_INCORRECT -> "SELECT qid FROM logs_summary WHERE everIncorrect = 1"
+            PerformanceFilter.ALL -> "SELECT id FROM Questions"
+        }
+        val ids = mutableSetOf<Long>()
+        db.rawQuery(sql, null).use { cursor ->
+            while (cursor.moveToNext()) {
+                ids.add(cursor.getLong(0))
+            }
+        }
+        ids
+    }
+}
+
+data class QuestionPerformance(
+    val qid: Long,
+    val lastCorrect: Boolean,
+    val everCorrect: Boolean,
+    val everIncorrect: Boolean,
+    val attempts: Int
+)
+
+enum class PerformanceFilter(val storageValue: String) {
+    ALL("all"),
+    UNANSWERED("unanswered"),
+    LAST_CORRECT("correct"),
+    LAST_INCORRECT("incorrect"),
+    EVER_CORRECT("ever-correct"),
+    EVER_INCORRECT("ever-incorrect")
 }

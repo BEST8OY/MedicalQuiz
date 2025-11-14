@@ -39,8 +39,12 @@ class DatabaseManager(dbPath: String) {
     
     suspend fun getQuestionIds(
         subjectIds: List<Long>? = null,
-        systemIds: List<Long>? = null
-    ): List<Long> = questionRepository.getQuestionIds(subjectIds, systemIds)
+        systemIds: List<Long>? = null,
+        performanceIds: Set<Long>? = null
+    ): List<Long> {
+        val base = questionRepository.getQuestionIds(subjectIds, systemIds)
+        return performanceIds?.let { ids -> base.filter { ids.contains(it) } } ?: base
+    }
     
     suspend fun getQuestionById(id: Long): Question? = 
         questionRepository.getQuestionById(id)
@@ -77,4 +81,8 @@ class DatabaseManager(dbPath: String) {
     suspend fun clearLogs() = logRepository.clearLogsTable()
 
     fun clearPendingLogsBuffer() = logRepository.clearBuffer()
+
+    suspend fun getQuestionPerformance(qid: Long) = logRepository.getSummaryForQuestion(qid)
+
+    suspend fun getPerformanceFilteredIds(filter: PerformanceFilter) = logRepository.getQuestionIdsByPerformance(filter)
 }

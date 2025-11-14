@@ -90,6 +90,19 @@
             app:layout_constraintEnd_toEndOf="parent" />
 
         <TextView
+            android:id="@+id/textViewPerformance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Attempts: 0"
+            android:textSize="12sp"
+            android:textColor="@android:color/darker_gray"
+            android:layout_marginTop="4dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/textViewMetadata"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
             android:id="@+id/textViewMediaInfo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -98,7 +111,7 @@
             android:textColor="?attr/colorPrimary"
             android:layout_marginTop="4dp"
             android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/textViewMetadata"
+            app:layout_constraintTop_toBottomOf="@id/textViewPerformance"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 

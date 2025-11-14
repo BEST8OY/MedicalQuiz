@@ -10,6 +10,10 @@
             android:icon="@android:drawable/ic_menu_manage"
             android:title="Filter by System" />
         <item
+            android:id="@+id/nav_filter_performance"
+            android:icon="@android:drawable/ic_menu_recent_history"
+            android:title="Filter by Performance" />
+        <item
             android:id="@+id/nav_clear_filters"
             android:icon="@android:drawable/ic_menu_close_clear_cancel"
             android:title="Clear Filters" />
