@@ -2,6 +2,7 @@ package com.medicalquiz.app.utils
 
 import android.content.Context
 import android.graphics.Color
+import android.view.MotionEvent
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.R as AndroidR
@@ -112,6 +113,17 @@ object WebViewRenderer {
                 setSupportZoom(false)
                 builtInZoomControls = false
                 displayZoomControls = false
+            }
+            isVerticalScrollBarEnabled = true
+            isNestedScrollingEnabled = true
+            setOnTouchListener { v, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN,
+                    MotionEvent.ACTION_MOVE -> v.parent?.requestDisallowInterceptTouchEvent(true)
+                    MotionEvent.ACTION_UP,
+                    MotionEvent.ACTION_CANCEL -> v.parent?.requestDisallowInterceptTouchEvent(false)
+                }
+                false
             }
             setBackgroundColor(Color.TRANSPARENT)
             webViewClient = WebViewClient()
