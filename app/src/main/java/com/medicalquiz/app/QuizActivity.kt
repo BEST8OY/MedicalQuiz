@@ -175,6 +175,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 displayQuestion()
                 startTime = System.currentTimeMillis()
             } catch (e: Exception) {
+                android.util.Log.e("QuizActivity", "Failed to load question $questionId", e)
                 Toast.makeText(this@QuizActivity, "Error loading question: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
