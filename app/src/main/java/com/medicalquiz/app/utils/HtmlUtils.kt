@@ -8,6 +8,7 @@ import android.os.Environment
 import android.text.Html
 import android.text.Spanned
 import android.text.method.LinkMovementMethod
+import android.util.Log
 import android.widget.TextView
 import androidx.core.text.HtmlCompat
 import java.io.File
@@ -120,12 +121,19 @@ object HtmlUtils {
         if (fileName.isNullOrBlank()) return null
         mediaPathCache[fileName]?.let { return it }
 
+        val storageRoot = runCatching { Environment.getExternalStorageDirectory() }.getOrNull()
+        if (storageRoot == null) {
+            Log.w("HtmlUtils", "External storage directory unavailable; cannot resolve media for $fileName")
+            mediaPathCache[fileName] = null
+            return null
+        }
+
         val resolvedPath = runCatching {
-            val storageRoot = Environment.getExternalStorageDirectory()
             val mediaFolder = File(storageRoot, "MedicalQuiz/media")
             val mediaFile = File(mediaFolder, fileName)
             if (mediaFile.exists()) mediaFile.absolutePath else null
         }.getOrElse {
+            Log.w("HtmlUtils", "Failed to resolve media path for $fileName", it)
             null
         }
 
