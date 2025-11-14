@@ -66,10 +66,7 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun displayMedia() {
         releaseMediaPlayer()
         val fileName = mediaFiles[currentIndex]
-        val file = getMediaFile(fileName) ?: run {
-            skipOrFinish()
-            return
-        }
+        val file = getMediaFile(fileName)
 
         binding.buttonPrevious.isEnabled = currentIndex > 0
         binding.buttonNext.isEnabled = currentIndex < mediaFiles.lastIndex
@@ -178,7 +175,7 @@ class MediaViewerActivity : AppCompatActivity() {
         )
     }
 
-    private fun getMediaFile(fileName: String): File? {
+    private fun getMediaFile(fileName: String): File {
         val mediaFolder = File(Environment.getExternalStorageDirectory(), MEDIA_FOLDER)
         return File(mediaFolder, fileName)
     }
