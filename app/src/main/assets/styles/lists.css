@@ -24,7 +24,7 @@
 .medical-content li {
   font-size: 16px;
   line-height: 1.75;
-  color: #374151;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* Nested lists */

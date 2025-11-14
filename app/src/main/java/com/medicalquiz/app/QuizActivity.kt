@@ -3,7 +3,6 @@ package com.medicalquiz.app
 import android.content.Intent
 import android.os.Bundle
 import android.view.MenuItem
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
@@ -17,6 +16,8 @@ import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.navigation.NavigationView
@@ -54,6 +55,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         super.onCreate(savedInstanceState)
         binding = ActivityQuizBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        binding.scrollViewContent.clipToPadding = false
+        applyWindowInsets()
         
         val dbPath = intent.getStringExtra("DB_PATH")
         val dbName = intent.getStringExtra("DB_NAME")
@@ -365,13 +369,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         WebViewRenderer.setupWebView(webView)
         webView.webChromeClient = WebChromeClient()
         webView.isVerticalScrollBarEnabled = false
-        webView.setOnTouchListener { v, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> v.parent.requestDisallowInterceptTouchEvent(true)
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> v.parent.requestDisallowInterceptTouchEvent(false)
-            }
-            false
-        }
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url?.toString() ?: return false
@@ -584,3 +581,17 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
     }
 }
+
+    private fun applyWindowInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.scrollViewContent) { view, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val extraBottom = resources.getDimensionPixelSize(R.dimen.quiz_scroll_bottom_padding)
+            view.setPadding(
+                view.paddingLeft,
+                view.paddingTop,
+                view.paddingRight,
+                extraBottom + systemBars.bottom
+            )
+            insets
+        }
+    }

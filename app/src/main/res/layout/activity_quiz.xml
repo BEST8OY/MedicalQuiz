@@ -30,6 +30,10 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:fillViewport="true"
+            android:clipToPadding="false"
+            android:paddingBottom="24dp"
+            android:descendantFocusability="beforeDescendants"
+            android:focusableInTouchMode="true"
             app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
             <androidx.constraintlayout.widget.ConstraintLayout
@@ -122,7 +126,9 @@
                         android:overScrollMode="ifContentScrolls"
                         android:padding="12dp"
                         android:scrollbarStyle="outsideOverlay"
-                        android:scrollbars="vertical" />
+                        android:scrollbars="vertical"
+                        android:focusable="false"
+                        android:focusableInTouchMode="false" />
 
                 </com.google.android.material.card.MaterialCardView>
 

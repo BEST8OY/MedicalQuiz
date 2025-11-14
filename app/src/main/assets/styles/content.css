@@ -334,16 +334,6 @@
   vertical-align: middle;
 }
 
-/* Educational objective highlighting */
-.medical-content p:has(strong:only-child) {
-  background-color: var(--md-sys-color-warning-container);
-  border-left: 4px solid var(--md-sys-color-warning);
-  padding-left: 16px;
-  padding-top: 12px;
-  padding-bottom: 12px;
-  border-radius: 0 4px 4px 0;
-}
-
 /* Quiz layout overrides */
 .medical-content .quiz-block {
   display: flex;
