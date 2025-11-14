@@ -374,7 +374,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun configureWebView(webView: WebView) {
         WebViewRenderer.setupWebView(webView)
         webView.webChromeClient = WebChromeClient()
-        webView.isVerticalScrollBarEnabled = false
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url?.toString() ?: return false
@@ -386,31 +385,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 return mediaHandler.handleMediaLink(url)
             }
 
-            override fun onPageFinished(view: WebView, url: String?) {
-                super.onPageFinished(view, url)
-                adjustWebViewHeight(view)
-            }
-        }
-    }
-
-    private fun adjustWebViewHeight(webView: WebView) {
-        val js = """
-            (function() {
-                var body = document.body;
-                var html = document.documentElement;
-                return Math.max(body.scrollHeight, html.scrollHeight);
-            })();
-        """.trimIndent()
-        webView.evaluateJavascript(js) { result ->
-            val heightPx = result?.replace("\"", "")?.toFloatOrNull() ?: return@evaluateJavascript
-            if (heightPx <= 0f) return@evaluateJavascript
-            val density = resources.displayMetrics.density
-            val targetHeight = (heightPx * density).toInt() + webView.paddingTop + webView.paddingBottom
-            webView.post {
-                webView.updateLayoutParams<ViewGroup.LayoutParams> {
-                    height = targetHeight
-                }
-            }
         }
     }
 
