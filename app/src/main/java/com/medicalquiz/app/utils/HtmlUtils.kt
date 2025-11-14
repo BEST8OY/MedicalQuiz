@@ -27,6 +27,10 @@ object HtmlUtils {
     private val EMPTY_SPAN_REGEX = Regex("<span[^>]*>(.*?)</span>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
     private val TABLE_REGEX = Regex("<table[\\s\\S]*?</table>", setOf(RegexOption.IGNORE_CASE))
     private val IMG_TAG_REGEX = Regex("""<img([^>]*)\\s+src=[\"']([^\"']+)[\"']""")
+    private val SINGLE_PARAGRAPH_REGEX = Regex(
+        pattern = "^\\s*<p>([\\s\\S]*)</p>\\s*$",
+        options = setOf(RegexOption.IGNORE_CASE)
+    )
     private val mediaPathCache = ConcurrentHashMap<String, String>()
     private val missingMediaCache = ConcurrentHashMap.newKeySet<String>()
 
@@ -94,6 +98,20 @@ object HtmlUtils {
             val mediaPath = getMediaPath(src)
             if (mediaPath != null) "<img$attrs src=\"file://$mediaPath\"" else match.value
         }
+
+    fun normalizeAnswerHtml(html: String): String {
+        if (html.isBlank()) return ""
+        val trimmed = html.trim()
+        val match = SINGLE_PARAGRAPH_REGEX.matchEntire(trimmed)
+        if (match != null) {
+            val inner = match.groupValues[1]
+            val containsNestedParagraph = inner.contains("<p", true) || inner.contains("</p>", true)
+            if (!containsNestedParagraph) {
+                return inner.trim()
+            }
+        }
+        return trimmed
+    }
 
     private fun replaceSpan(html: String, transform: SpanTransform): String {
         val classPattern = Regex.escape(transform.className)

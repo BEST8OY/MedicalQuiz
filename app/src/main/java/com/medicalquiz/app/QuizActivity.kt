@@ -207,6 +207,16 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             if (!question.subName.isNullOrBlank()) append(" | Subject: ${question.subName}")
             if (!question.sysName.isNullOrBlank()) append(" | System: ${question.sysName}")
         }
+
+        binding.textViewMetadata.apply {
+            text = metadata
+            isVisible = false
+        }
+
+        binding.textViewPerformance.apply {
+            text = buildPerformanceSummary(currentPerformance)
+            isVisible = false
+        }
         loadPerformanceForQuestion(question.id)
 
         val mediaFiles = collectMediaFiles(question)
@@ -278,7 +288,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         } else {
             answers.mapIndexed { index, answer ->
                 val label = ('A'.code + index).toChar()
-                    val sanitizedAnswer = sanitizeAnswerHtml(HtmlUtils.sanitizeForWebView(answer.answerText))
+                val sanitizedAnswer = HtmlUtils.normalizeAnswerHtml(
+                    HtmlUtils.sanitizeForWebView(answer.answerText)
+                )
                 """
                 <button type="button"
                         class="answer-button"
@@ -301,9 +313,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val scriptBlock = """
             <script>
                 (function() {
-                    function onReady() {
-                        bindAnswerButtons();
-                        initializeHintState();
+                    function onReady(callback) {
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', callback);
+                        } else {
+                            callback();
+                        }
                     }
 
                     function bindAnswerButtons() {
@@ -318,72 +333,89 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                             });
                         });
                     }
-                    
-                    function initializeHintState() {
-                        var hints = document.querySelectorAll('#hintdiv');
-                        hints.forEach(function(hint) {
-                            if (hint.getAttribute('data-hint-initialized') === 'true') { return; }
-                            hint.style.display = 'none';
-                            hint.setAttribute('data-hint-initialized', 'true');
+
+                    function setHintVisibility(visible, meta) {
+                        var body = document.body;
+                        if (!body) { return; }
+                        body.classList.toggle('hint-visible', !!visible);
+                        if (visible && meta && meta.auto) {
+                            body.classList.add('hint-auto');
+                        }
+                        if (!visible || (meta && meta.manual)) {
+                            body.classList.remove('hint-auto');
+                        }
+                    }
+
+                    function toggleHintVisibility() {
+                        var body = document.body;
+                        if (!body) { return; }
+                        var nextState = !body.classList.contains('hint-visible');
+                        setHintVisibility(nextState, { manual: true });
+                    }
+
+                    function initializeHintBehavior() {
+                        var body = document.body;
+                        if (!body) { return; }
+                        body.classList.remove('answer-revealed');
+                        body.classList.remove('hint-visible', 'hint-auto');
+                        var hint = document.getElementById('hintdiv');
+                        if (!hint) { return; }
+                        setHintVisibility(false, { manual: true });
+                        var buttons = document.querySelectorAll('button[onclick]');
+                        buttons.forEach(function(button) {
+                            var handler = (button.getAttribute('onclick') || '').toLowerCase();
+                            if (handler.indexOf('hintdiv') === -1) { return; }
+                            button.onclick = function(event) {
+                                event.preventDefault();
+                                toggleHintVisibility();
+                            };
                         });
                     }
 
-                    if (document.readyState === 'loading') {
-                        document.addEventListener('DOMContentLoaded', onReady);
-                    } else {
-                        onReady();
-                    }
+                    onReady(function() {
+                        bindAnswerButtons();
+                        initializeHintBehavior();
+                    });
+
+                    window.applyAnswerState = function(correctId, selectedId) {
+                        var buttons = document.querySelectorAll('.answer-button');
+                        buttons.forEach(function(button) {
+                            var id = parseInt(button.value || button.getAttribute('value'));
+                            if (isNaN(id)) { return; }
+                            button.disabled = true;
+                            button.classList.add('locked');
+                            button.classList.remove('correct', 'incorrect');
+                            if (id === correctId) {
+                                button.classList.add('correct');
+                            }
+                            if (id === selectedId && selectedId !== correctId) {
+                                button.classList.add('incorrect');
+                            }
+                        });
+                    };
+
+                    window.setAnswerFeedback = function(text) {
+                        var feedback = document.getElementById('answer-feedback');
+                        if (feedback) {
+                            feedback.textContent = text;
+                            feedback.classList.remove('hidden');
+                        }
+                    };
+
+                    window.revealExplanation = function() {
+                        var section = document.getElementById('explanation');
+                        if (section) {
+                            section.classList.remove('hidden');
+                        }
+                    };
+
+                    window.markAnswerRevealed = function() {
+                        var body = document.body;
+                        if (!body) { return; }
+                        body.classList.add('answer-revealed');
+                        setHintVisibility(true, { auto: true });
+                    };
                 })();
-
-                function applyAnswerState(correctId, selectedId) {
-                    var buttons = document.querySelectorAll('.answer-button');
-                    buttons.forEach(function(button) {
-                        var id = parseInt(button.value || button.getAttribute('value'));
-                        if (isNaN(id)) { return; }
-                        button.disabled = true;
-                        button.classList.add('locked');
-                        button.classList.remove('correct', 'incorrect');
-                        if (id === correctId) {
-                            button.classList.add('correct');
-                        }
-                        if (id === selectedId && selectedId !== correctId) {
-                            button.classList.add('incorrect');
-                        }
-                    });
-                }
-
-                function setAnswerFeedback(text) {
-                    var feedback = document.getElementById('answer-feedback');
-                    if (feedback) {
-                        feedback.textContent = text;
-                        feedback.classList.remove('hidden');
-                    }
-                }
-
-                function revealExplanation() {
-                    var section = document.getElementById('explanation');
-                    if (section) {
-                        section.classList.remove('hidden');
-                    }
-                }
-
-                function markAnswersRevealed() {
-                    if (document && document.body) {
-                        document.body.classList.add('answers-revealed');
-                    }
-                }
-
-                function revealHintSections() {
-                    var hints = document.querySelectorAll('#hintdiv');
-                    hints.forEach(function(hint) {
-                        hint.style.display = 'block';
-                    });
-                }
-
-                function handlePostAnswerState() {
-                    markAnswersRevealed();
-                    revealHintSections();
-                }
             </script>
         """.trimIndent()
 
@@ -401,7 +433,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun updateWebViewAnswerState(correctAnswerId: Int, selectedAnswerId: Int) {
         val jsCommand = buildString {
             append("applyAnswerState($correctAnswerId, $selectedAnswerId);")
-            append("handlePostAnswerState();")
+            append("markAnswerRevealed();")
             append("revealExplanation();")
         }
         binding.webViewQuestion.evaluateJavascript(jsCommand, null)
@@ -738,19 +770,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
-    private fun sanitizeAnswerHtml(answerHtml: String): String {
-        if (answerHtml.isBlank()) return answerHtml
-        var sanitized = answerHtml.trim()
-        sanitized = PARAGRAPH_BREAK_REGEX.replace(sanitized) { "<br><br>" }
-        sanitized = PARAGRAPH_TAG_REGEX.replace(sanitized, "")
-        return sanitized.trim()
-    }
-
     companion object {
         private const val TAG = "QuizActivity"
         private const val EXTRA_DB_PATH = "DB_PATH"
         private const val EXTRA_DB_NAME = "DB_NAME"
-        private val PARAGRAPH_BREAK_REGEX = Regex("(?i)</p>\\s*<p>")
-        private val PARAGRAPH_TAG_REGEX = Regex("(?i)</?p>")
     }
 }
