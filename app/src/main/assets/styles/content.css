@@ -98,7 +98,16 @@
 }
 
 .medical-content .wichtig {
-  font-weight: bold;
+  font-weight: inherit;
+  color: inherit;
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+body.answers-revealed .medical-content .wichtig {
+  font-weight: 600;
   color: var(--md-sys-color-primary);
   background-color: var(--md-sys-color-primary-container);
   padding: 2px 6px;
@@ -291,6 +300,11 @@
   border-radius: 8px;
   padding: 20px;
   margin: 20px 0;
+  display: none;
+}
+
+body.answers-revealed .medical-content #hintdiv {
+  display: block;
 }
 
 /* Image containers */

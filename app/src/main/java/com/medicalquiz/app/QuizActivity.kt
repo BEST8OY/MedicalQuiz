@@ -207,16 +207,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             if (!question.subName.isNullOrBlank()) append(" | Subject: ${question.subName}")
             if (!question.sysName.isNullOrBlank()) append(" | System: ${question.sysName}")
         }
-
-        binding.textViewMetadata.apply {
-            text = metadata
-            isVisible = false
-        }
-
-        binding.textViewPerformance.apply {
-            text = buildPerformanceSummary(currentPerformance)
-            isVisible = false
-        }
         loadPerformanceForQuestion(question.id)
 
         val mediaFiles = collectMediaFiles(question)
@@ -288,7 +278,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         } else {
             answers.mapIndexed { index, answer ->
                 val label = ('A'.code + index).toChar()
-                val sanitizedAnswer = HtmlUtils.sanitizeForWebView(answer.answerText)
+                    val sanitizedAnswer = normalizeAnswerHtml(HtmlUtils.sanitizeForWebView(answer.answerText))
                 """
                 <button type="button"
                         class="answer-button"
@@ -361,6 +351,24 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                         section.classList.remove('hidden');
                     }
                 }
+
+                function markAnswersRevealed() {
+                    if (document && document.body) {
+                        document.body.classList.add('answers-revealed');
+                    }
+                }
+
+                function revealHintSections() {
+                    var hints = document.querySelectorAll('#hintdiv');
+                    hints.forEach(function(hint) {
+                        hint.style.display = 'block';
+                    });
+                }
+
+                function handlePostAnswerState() {
+                    markAnswersRevealed();
+                    revealHintSections();
+                }
             </script>
         """.trimIndent()
 
@@ -378,6 +386,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun updateWebViewAnswerState(correctAnswerId: Int, selectedAnswerId: Int) {
         val jsCommand = buildString {
             append("applyAnswerState($correctAnswerId, $selectedAnswerId);")
+            append("handlePostAnswerState();")
             append("revealExplanation();")
         }
         binding.webViewQuestion.evaluateJavascript(jsCommand, null)
@@ -714,9 +723,19 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
+    private fun normalizeAnswerHtml(answerHtml: String): String {
+        if (answerHtml.isBlank()) return answerHtml
+        var normalized = answerHtml.trim()
+        normalized = PARAGRAPH_BREAK_REGEX.replace(normalized) { "<br><br>" }
+        normalized = PARAGRAPH_TAG_REGEX.replace(normalized, "")
+        return normalized.trim()
+    }
+
     companion object {
         private const val TAG = "QuizActivity"
         private const val EXTRA_DB_PATH = "DB_PATH"
         private const val EXTRA_DB_NAME = "DB_NAME"
+        private val PARAGRAPH_BREAK_REGEX = Regex("(?i)</p>\\s*<p>")
+        private val PARAGRAPH_TAG_REGEX = Regex("(?i)</?p>")
     }
 }
