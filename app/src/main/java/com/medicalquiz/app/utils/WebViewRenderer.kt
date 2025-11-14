@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Color
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.R as AndroidR
+import com.google.android.material.R as MaterialR
 import com.google.android.material.color.MaterialColors
 import com.medicalquiz.app.R
 
@@ -27,18 +29,18 @@ object WebViewRenderer {
         MaterialCssVar("--md-sys-color-on-tertiary", R.attr.colorOnTertiary, Color.WHITE),
         MaterialCssVar("--md-sys-color-tertiary-container", R.attr.colorTertiaryContainer, Color.parseColor("#f3e8ff")),
         MaterialCssVar("--md-sys-color-on-tertiary-container", R.attr.colorOnTertiaryContainer, Color.parseColor("#581c87")),
-        MaterialCssVar("--md-sys-color-surface", R.attr.colorSurface, Color.WHITE),
-        MaterialCssVar("--md-sys-color-on-surface", R.attr.colorOnSurface, Color.parseColor("#1f2937")),
-        MaterialCssVar("--md-sys-color-surface-variant", R.attr.colorSurfaceVariant, Color.parseColor("#f3f4f6")),
-        MaterialCssVar("--md-sys-color-on-surface-variant", R.attr.colorOnSurfaceVariant, Color.parseColor("#374151")),
-        MaterialCssVar("--md-sys-color-background", R.attr.colorBackground, Color.WHITE),
+        MaterialCssVar("--md-sys-color-surface", MaterialR.attr.colorSurface, Color.WHITE),
+        MaterialCssVar("--md-sys-color-on-surface", MaterialR.attr.colorOnSurface, Color.parseColor("#1f2937")),
+        MaterialCssVar("--md-sys-color-surface-variant", MaterialR.attr.colorSurfaceVariant, Color.parseColor("#f3f4f6")),
+        MaterialCssVar("--md-sys-color-on-surface-variant", MaterialR.attr.colorOnSurfaceVariant, Color.parseColor("#374151")),
+        MaterialCssVar("--md-sys-color-background", AndroidR.attr.colorBackground, Color.WHITE),
         MaterialCssVar("--md-sys-color-on-background", R.attr.colorOnBackground, Color.parseColor("#1f2937")),
-        MaterialCssVar("--md-sys-color-outline", R.attr.colorOutline, Color.parseColor("#d1d5db")),
-        MaterialCssVar("--md-sys-color-outline-variant", R.attr.colorOutlineVariant, Color.parseColor("#9ca3af")),
-        MaterialCssVar("--md-sys-color-error", R.attr.colorError, Color.parseColor("#dc2626")),
-        MaterialCssVar("--md-sys-color-on-error", R.attr.colorOnError, Color.WHITE),
-        MaterialCssVar("--md-sys-color-error-container", R.attr.colorError, Color.parseColor("#fee2e2")),
-        MaterialCssVar("--md-sys-color-on-error-container", R.attr.colorOnError, Color.parseColor("#7f1d1d")),
+        MaterialCssVar("--md-sys-color-outline", MaterialR.attr.colorOutline, Color.parseColor("#d1d5db")),
+        MaterialCssVar("--md-sys-color-outline-variant", MaterialR.attr.colorOutlineVariant, Color.parseColor("#9ca3af")),
+        MaterialCssVar("--md-sys-color-error", MaterialR.attr.colorError, Color.parseColor("#dc2626")),
+        MaterialCssVar("--md-sys-color-on-error", MaterialR.attr.colorOnError, Color.WHITE),
+        MaterialCssVar("--md-sys-color-error-container", MaterialR.attr.colorErrorContainer, Color.parseColor("#fee2e2")),
+        MaterialCssVar("--md-sys-color-on-error-container", MaterialR.attr.colorOnErrorContainer, Color.parseColor("#7f1d1d")),
         MaterialCssVar("--md-sys-color-success", R.attr.colorTertiary, Color.parseColor("#22c55e")),
         MaterialCssVar("--md-sys-color-on-success", R.attr.colorOnTertiary, Color.parseColor("#065f46")),
         MaterialCssVar("--md-sys-color-warning", R.attr.colorTertiary, Color.parseColor("#f59e0b")),
