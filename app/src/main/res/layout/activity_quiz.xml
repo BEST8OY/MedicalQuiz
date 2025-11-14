@@ -101,12 +101,14 @@
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardQuestion"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="0dp"
                     android:layout_marginTop="16dp"
                     android:minHeight="120dp"
                     app:cardCornerRadius="8dp"
                     app:cardElevation="4dp"
+                    app:layout_constraintBottom_toTopOf="@id/layoutNavigation"
                     app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintHeight_default="wrap"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/textViewMediaInfo"
                     app:contentPadding="0dp">

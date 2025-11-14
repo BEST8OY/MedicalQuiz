@@ -4,8 +4,46 @@ import android.content.Context
 import android.graphics.Color
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.google.android.material.color.MaterialColors
 
 object WebViewRenderer {
+    private data class MaterialCssVar(
+        val cssName: String,
+        val attrId: Int,
+        val fallback: Int
+    )
+    
+    private val materialVars = listOf(
+        MaterialCssVar("--md-sys-color-primary", com.medicalquiz.app.R.attr.colorPrimary, Color.parseColor("#2563eb")),
+        MaterialCssVar("--md-sys-color-on-primary", com.medicalquiz.app.R.attr.colorOnPrimary, Color.WHITE),
+        MaterialCssVar("--md-sys-color-primary-container", com.medicalquiz.app.R.attr.colorPrimaryContainer, Color.parseColor("#dbeafe")),
+        MaterialCssVar("--md-sys-color-on-primary-container", com.medicalquiz.app.R.attr.colorOnPrimaryContainer, Color.parseColor("#082f49")),
+        MaterialCssVar("--md-sys-color-secondary", com.medicalquiz.app.R.attr.colorSecondary, Color.parseColor("#475569")),
+        MaterialCssVar("--md-sys-color-on-secondary", com.medicalquiz.app.R.attr.colorOnSecondary, Color.WHITE),
+        MaterialCssVar("--md-sys-color-secondary-container", com.medicalquiz.app.R.attr.colorSecondaryContainer, Color.parseColor("#e2e8f0")),
+        MaterialCssVar("--md-sys-color-on-secondary-container", com.medicalquiz.app.R.attr.colorOnSecondaryContainer, Color.parseColor("#0f172a")),
+        MaterialCssVar("--md-sys-color-tertiary", com.medicalquiz.app.R.attr.colorTertiary, Color.parseColor("#9333ea")),
+        MaterialCssVar("--md-sys-color-on-tertiary", com.medicalquiz.app.R.attr.colorOnTertiary, Color.WHITE),
+        MaterialCssVar("--md-sys-color-tertiary-container", com.medicalquiz.app.R.attr.colorTertiaryContainer, Color.parseColor("#f3e8ff")),
+        MaterialCssVar("--md-sys-color-on-tertiary-container", com.medicalquiz.app.R.attr.colorOnTertiaryContainer, Color.parseColor("#581c87")),
+        MaterialCssVar("--md-sys-color-surface", com.medicalquiz.app.R.attr.colorSurface, Color.WHITE),
+        MaterialCssVar("--md-sys-color-on-surface", com.medicalquiz.app.R.attr.colorOnSurface, Color.parseColor("#1f2937")),
+        MaterialCssVar("--md-sys-color-surface-variant", com.medicalquiz.app.R.attr.colorSurfaceVariant, Color.parseColor("#f3f4f6")),
+        MaterialCssVar("--md-sys-color-on-surface-variant", com.medicalquiz.app.R.attr.colorOnSurfaceVariant, Color.parseColor("#374151")),
+        MaterialCssVar("--md-sys-color-background", com.medicalquiz.app.R.attr.colorBackground, Color.WHITE),
+        MaterialCssVar("--md-sys-color-on-background", com.medicalquiz.app.R.attr.colorOnBackground, Color.parseColor("#1f2937")),
+        MaterialCssVar("--md-sys-color-outline", com.medicalquiz.app.R.attr.colorOutline, Color.parseColor("#d1d5db")),
+        MaterialCssVar("--md-sys-color-outline-variant", com.medicalquiz.app.R.attr.colorOutlineVariant, Color.parseColor("#9ca3af")),
+        MaterialCssVar("--md-sys-color-error", com.medicalquiz.app.R.attr.colorError, Color.parseColor("#dc2626")),
+        MaterialCssVar("--md-sys-color-on-error", com.medicalquiz.app.R.attr.colorOnError, Color.WHITE),
+        MaterialCssVar("--md-sys-color-error-container", com.medicalquiz.app.R.attr.colorErrorContainer, Color.parseColor("#fee2e2")),
+        MaterialCssVar("--md-sys-color-on-error-container", com.medicalquiz.app.R.attr.colorOnErrorContainer, Color.parseColor("#7f1d1d")),
+        MaterialCssVar("--md-sys-color-success", com.medicalquiz.app.R.attr.colorTertiary, Color.parseColor("#22c55e")),
+        MaterialCssVar("--md-sys-color-on-success", com.medicalquiz.app.R.attr.colorOnTertiary, Color.parseColor("#065f46")),
+        MaterialCssVar("--md-sys-color-warning", com.medicalquiz.app.R.attr.colorTertiary, Color.parseColor("#f59e0b")),
+        MaterialCssVar("--md-sys-color-warning-container", com.medicalquiz.app.R.attr.colorTertiaryContainer, Color.parseColor("#fffbeb")),
+        MaterialCssVar("--md-sys-color-on-warning-container", com.medicalquiz.app.R.attr.colorOnTertiaryContainer, Color.parseColor("#78350f"))
+    )
     
     private const val HTML_TEMPLATE = """
         <!DOCTYPE html>
@@ -86,7 +124,7 @@ object WebViewRenderer {
             return
         }
         
-        val cssContent = loadCssFromAssets(context)
+        val cssContent = buildCssContent(context)
         val sanitizedHtml = HtmlUtils.sanitizeForWebView(htmlContent)
         
         val fullHtml = HTML_TEMPLATE
@@ -100,6 +138,14 @@ object WebViewRenderer {
             "UTF-8",
             null
         )
+    }
+
+    private fun buildCssContent(context: Context): String {
+        return buildString {
+            append(loadCssFromAssets(context))
+            append('\n')
+            append(buildThemeCss(context))
+        }
     }
     
     /**
@@ -121,5 +167,24 @@ object WebViewRenderer {
                 "/* Error loading $fileName: ${e.message} */"
             }
         }
+    }
+
+    private fun buildThemeCss(context: Context): String {
+        return buildString {
+            append(":root{")
+            materialVars.forEach { cssVar ->
+                val colorInt = MaterialColors.getColor(context, cssVar.attrId, cssVar.fallback)
+                append(cssVar.cssName)
+                append(':')
+                append(colorInt.toCssHex())
+                append(';')
+            }
+            append("}")
+        }
+    }
+
+    private fun Int.toCssHex(): String {
+        val rgb = this and 0x00FFFFFF
+        return String.format("#%06X", rgb)
     }
 }

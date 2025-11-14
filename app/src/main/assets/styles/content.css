@@ -2,9 +2,41 @@
 /* Standard CSS for AMBOSS STEP3 and UWorld USMLE STEP1 question/explanation HTML content */
 /* Optimized for Android WebView */
 
+:root {
+  --md-sys-color-primary: #2563eb;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #dbeafe;
+  --md-sys-color-on-primary-container: #082f49;
+  --md-sys-color-secondary: #475569;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #e2e8f0;
+  --md-sys-color-on-secondary-container: #0f172a;
+  --md-sys-color-tertiary: #9333ea;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #f3e8ff;
+  --md-sys-color-on-tertiary-container: #581c87;
+  --md-sys-color-surface: #ffffff;
+  --md-sys-color-on-surface: #1f2937;
+  --md-sys-color-surface-variant: #f3f4f6;
+  --md-sys-color-on-surface-variant: #374151;
+  --md-sys-color-background: #ffffff;
+  --md-sys-color-on-background: #1f2937;
+  --md-sys-color-outline: #d1d5db;
+  --md-sys-color-outline-variant: #9ca3af;
+  --md-sys-color-error: #dc2626;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #fee2e2;
+  --md-sys-color-on-error-container: #7f1d1d;
+  --md-sys-color-success: #22c55e;
+  --md-sys-color-on-success: #065f46;
+  --md-sys-color-warning: #f59e0b;
+  --md-sys-color-warning-container: #fffbeb;
+  --md-sys-color-on-warning-container: #78350f;
+}
+
 /* Base container for medical content */
 .medical-content {
-  color: #1f2937;
+  color: var(--md-sys-color-on-surface);
   line-height: 1.625;
   font-size: 16px;
 }
@@ -19,7 +51,7 @@
   margin-bottom: 16px;
   font-size: 16px;
   line-height: 1.75;
-  color: #374151;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .medical-content p:last-child {
@@ -33,8 +65,8 @@
   margin-bottom: 16px;
   margin-top: 32px;
   padding-bottom: 12px;
-  color: #111827;
-  border-bottom: 2px solid #60a5fa;
+  color: var(--md-sys-color-on-surface);
+  border-bottom: 2px solid var(--md-sys-color-primary);
 }
 
 .medical-content h4 {
@@ -42,7 +74,7 @@
   font-weight: 600;
   margin-bottom: 12px;
   margin-top: 20px;
-  color: #1f2937;
+  color: var(--md-sys-color-on-surface);
 }
 
 .medical-content h5 {
@@ -50,14 +82,14 @@
   font-weight: 600;
   margin-bottom: 8px;
   margin-top: 16px;
-  color: #374151;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* Text emphasis and styling */
 .medical-content strong,
 .medical-content b {
   font-weight: bold;
-  color: #111827;
+  color: var(--md-sys-color-on-surface);
 }
 
 .medical-content em,
@@ -67,18 +99,18 @@
 
 .medical-content .wichtig {
   font-weight: bold;
-  color: #1d4ed8;
-  background-color: rgba(219, 234, 254, 0.5);
+  color: var(--md-sys-color-primary);
+  background-color: var(--md-sys-color-primary-container);
   padding: 2px 6px;
   border-radius: 4px;
 }
 
 .medical-content .selected {
-  background-color: #fef08a;
+  background-color: var(--md-sys-color-warning-container);
   padding: 4px 8px;
   border-radius: 4px;
   font-weight: 600;
-  color: #111827;
+  color: var(--md-sys-color-on-warning-container);
 }
 
 .medical-content .nowrap {
@@ -91,8 +123,8 @@
 
 .medical-content .dictionary {
   cursor: help;
-  border-bottom: 1px dotted #9ca3af;
-  color: #374151;
+  border-bottom: 1px dotted var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* Superscript and subscript */
@@ -108,17 +140,17 @@
 
 /* Links and anchors */
 .medical-content a {
-  color: #2563eb;
+  color: var(--md-sys-color-primary);
   text-decoration: underline;
   transition: color 0.2s;
 }
 
 .medical-content a:hover {
-  color: #1d4ed8;
+  color: var(--md-sys-color-primary);
 }
 
 .medical-content a.autolink {
-  color: #2563eb;
+  color: var(--md-sys-color-primary);
   font-weight: 500;
 }
 
@@ -129,13 +161,13 @@
 /* Dividers */
 .medical-content hr {
   border: none;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--md-sys-color-outline);
   margin: 24px 0;
 }
 
 /* Code/pre blocks */
 .medical-content pre {
-  background-color: #f3f4f6;
+  background-color: var(--md-sys-color-surface-variant);
   border-radius: 8px;
   padding: 16px;
   overflow-x: auto;
@@ -145,7 +177,7 @@
 }
 
 .medical-content code {
-  background-color: #f3f4f6;
+  background-color: var(--md-sys-color-surface-variant);
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 14px;
@@ -158,14 +190,14 @@
   border-radius: 8px;
   font-weight: 600;
   transition: all 0.2s;
-  background-color: #2563eb;
-  color: white;
+  background-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
   border: none;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .medical-content button:hover {
-  background-color: #1d4ed8;
+  background-color: var(--md-sys-color-primary);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
@@ -175,16 +207,16 @@
 
 .medical-content button:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5);
+  box-shadow: 0 0 0 3px var(--md-sys-color-primary);
 }
 
 /* Abstract sections - Patient info, vital signs, etc */
 .medical-content .abstract {
-  background-color: #f9fafb;
+  background-color: var(--md-sys-color-surface-variant);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--md-sys-color-outline);
 }
 
 .medical-content .abstract h3 {
@@ -193,7 +225,7 @@
   margin-bottom: 12px;
   margin-top: 0;
   padding-bottom: 8px;
-  border-bottom: 2px solid #60a5fa;
+  border-bottom: 2px solid var(--md-sys-color-primary);
 }
 
 .medical-content .abstract h3:first-child {
@@ -214,7 +246,7 @@
 
 /* Abstract spans (used for units/conversions in vital signs) */
 .medical-content span.abstract {
-  color: #6b7280;
+  color: var(--md-sys-color-on-surface-variant);
   font-size: 12px;
   display: block;
 }
@@ -227,24 +259,24 @@
 }
 
 .medical-content thead.abstract {
-  background-color: #2563eb;
-  color: white;
+  background-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
 }
 
 .medical-content thead.abstract th {
-  background-color: #2563eb;
-  color: white;
+  background-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
   font-weight: 600;
   font-size: 12px;
   padding: 8px 12px;
-  border: 1px solid #1d4ed8;
+  border: 1px solid var(--md-sys-color-primary);
 }
 
 .medical-content .abstract tbody td {
   text-align: center;
   font-size: 14px;
   vertical-align: middle;
-  background-color: white;
+  background-color: var(--md-sys-color-surface);
 }
 
 /* TD with abstract class (like BMI cell) */
@@ -254,8 +286,8 @@
 
 /* Hint divs */
 .medical-content #hintdiv {
-  background-color: #fffbeb;
-  border-left: 4px solid #fbbf24;
+  background-color: var(--md-sys-color-warning-container);
+  border-left: 4px solid var(--md-sys-color-warning);
   border-radius: 8px;
   padding: 20px;
   margin: 20px 0;
@@ -304,8 +336,8 @@
 
 /* Educational objective highlighting */
 .medical-content p:has(strong:only-child) {
-  background-color: #fffbeb;
-  border-left: 4px solid #f59e0b;
+  background-color: var(--md-sys-color-warning-container);
+  border-left: 4px solid var(--md-sys-color-warning);
   padding-left: 16px;
   padding-top: 12px;
   padding-bottom: 12px;
@@ -321,7 +353,7 @@
 
 .medical-content .question-body {
   font-size: 17px;
-  color: #111827;
+  color: var(--md-sys-color-on-surface);
 }
 
 .medical-content .answers {
@@ -333,9 +365,9 @@
 .medical-content .answer-button {
   width: 100%;
   text-align: left;
-  background-color: #f3f4f6;
-  color: #111827;
-  border: 1px solid #e5e7eb;
+  background-color: var(--md-sys-color-surface-variant);
+  color: var(--md-sys-color-on-surface);
+  border: 1px solid var(--md-sys-color-outline);
   padding: 14px;
   border-radius: 12px;
   display: flex;
@@ -345,12 +377,12 @@
 }
 
 .medical-content .answer-button:hover:not(.locked) {
-  background-color: #e5e7eb;
+  background-color: var(--md-sys-color-secondary-container);
 }
 
 .medical-content .answer-button .answer-label {
   font-weight: 700;
-  color: #2563eb;
+  color: var(--md-sys-color-primary);
 }
 
 .medical-content .answer-button .answer-text {
@@ -358,15 +390,15 @@
 }
 
 .medical-content .answer-button.correct {
-  border-color: #22c55e;
-  background-color: #ecfdf5;
-  color: #065f46;
+  border-color: var(--md-sys-color-success);
+  background-color: var(--md-sys-color-tertiary-container);
+  color: var(--md-sys-color-on-tertiary-container);
 }
 
 .medical-content .answer-button.incorrect {
-  border-color: #ef4444;
-  background-color: #fef2f2;
-  color: #991b1b;
+  border-color: var(--md-sys-color-error);
+  background-color: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
 }
 
 .medical-content .answer-button.locked {
@@ -376,11 +408,11 @@
 
 .medical-content .answer-feedback {
   font-weight: 600;
-  color: #111827;
+  color: var(--md-sys-color-on-surface);
 }
 
 .medical-content .explanation {
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--md-sys-color-outline);
   padding-top: 12px;
 }
 
@@ -389,6 +421,6 @@
 }
 
 .medical-content .empty-state {
-  color: #6b7280;
+  color: var(--md-sys-color-on-surface-variant);
   font-style: italic;
 }
