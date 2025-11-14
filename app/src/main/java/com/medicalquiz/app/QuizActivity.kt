@@ -18,7 +18,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.navigation.NavigationView
 import com.medicalquiz.app.data.database.DatabaseManager
@@ -184,20 +183,23 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         // Display title if available
         if (!question.title.isNullOrBlank()) {
             HtmlUtils.setHtmlText(binding.textViewTitle, question.title)
-            binding.textViewTitle.visibility = android.view.View.VISIBLE
         } else {
-            binding.textViewTitle.visibility = android.view.View.GONE
+            binding.textViewTitle.text = ""
         }
+        binding.textViewTitle.visibility = View.GONE
         
         // Display subject and system
         val metadata = buildString {
-            if (!question.subName.isNullOrBlank()) append("Subject: ${question.subName}")
+            append("ID: ${question.id}")
+            if (!question.subName.isNullOrBlank()) {
+                append(" | Subject: ${question.subName}")
+            }
             if (!question.sysName.isNullOrBlank()) {
-                if (isNotEmpty()) append(" | ")
-                append("System: ${question.sysName}")
+                append(" | System: ${question.sysName}")
             }
         }
         binding.textViewMetadata.text = metadata
+        binding.textViewMetadata.visibility = View.GONE
         
         // Display media info if available
         if (!question.mediaName.isNullOrBlank() || !question.otherMedias.isNullOrBlank()) {
@@ -205,14 +207,14 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             question.mediaName?.let { mediaFiles.add(it) }
             HtmlUtils.parseMediaFiles(question.otherMedias).let { mediaFiles.addAll(it) }
             binding.textViewMediaInfo.text = "📎 ${mediaFiles.size} media file(s) - Click to view"
-            binding.textViewMediaInfo.visibility = android.view.View.VISIBLE
+            binding.textViewMediaInfo.visibility = View.GONE
             
             // Make media info clickable
             binding.textViewMediaInfo.setOnClickListener {
                 mediaHandler.openMediaViewer(mediaFiles, 0)
             }
         } else {
-            binding.textViewMediaInfo.visibility = android.view.View.GONE
+            binding.textViewMediaInfo.visibility = View.GONE
             binding.textViewMediaInfo.setOnClickListener(null)
         }
         
@@ -254,6 +256,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 val correctAnswerText = correctAnswer?.let { HtmlUtils.stripHtml(it.answerText) } ?: "Answer ${question.corrAns}"
                 val normalizedCorrectId = correctAnswerId ?: -1
                 updateWebViewAnswerState(normalizedCorrectId, answerId, correctAnswerText)
+                showQuestionDetails()
             } catch (e: Exception) {
                 Toast.makeText(this@QuizActivity, "Error saving answer: ${e.message}", Toast.LENGTH_SHORT).show()
             }
@@ -360,16 +363,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun updateWebViewAnswerState(correctAnswerId: Int, selectedAnswerId: Int, correctAnswerText: String) {
-        val safeFeedback = jsStringLiteral("Correct Answer: $correctAnswerText")
         val jsCommand = buildString {
             append("applyAnswerState($correctAnswerId, $selectedAnswerId);")
-            append("setAnswerFeedback($safeFeedback);")
             append("revealExplanation();")
         }
         binding.webViewQuestion.evaluateJavascript(jsCommand, null)
     }
-
-    private fun jsStringLiteral(raw: String): String = org.json.JSONObject.quote(raw)
 
     private fun configureWebView(webView: WebView) {
         WebViewRenderer.setupWebView(webView)
@@ -577,6 +576,17 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             )
             insets
         }
+    }
+
+    private fun showQuestionDetails() {
+        val hasTitle = !binding.textViewTitle.text.isNullOrBlank()
+        binding.textViewTitle.visibility = if (hasTitle) View.VISIBLE else View.GONE
+
+        val hasMetadata = !binding.textViewMetadata.text.isNullOrBlank()
+        binding.textViewMetadata.visibility = if (hasMetadata) View.VISIBLE else View.GONE
+
+        val hasMediaInfo = !binding.textViewMediaInfo.text.isNullOrBlank()
+        binding.textViewMediaInfo.visibility = if (hasMediaInfo) View.VISIBLE else View.GONE
     }
 
     private fun showSettingsDialog() {

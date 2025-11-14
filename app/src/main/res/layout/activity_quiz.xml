@@ -128,7 +128,8 @@
                         android:scrollbarStyle="outsideOverlay"
                         android:scrollbars="vertical"
                         android:focusable="false"
-                        android:focusableInTouchMode="false" />
+                        android:focusableInTouchMode="false"
+                        tools:ignore="WebViewLayout" />
 
                 </com.google.android.material.card.MaterialCardView>
 
