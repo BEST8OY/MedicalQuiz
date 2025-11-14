@@ -23,7 +23,8 @@ object HtmlUtils {
     private val EMPTY_SPAN_REGEX = Regex("<span[^>]*>(.*?)</span>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
     private val TABLE_REGEX = Regex("<table[\\s\\S]*?</table>", setOf(RegexOption.IGNORE_CASE))
     private val TABLE_PLACEHOLDER = "[[TABLE_PLACEHOLDER]]"
-    private val mediaPathCache = ConcurrentHashMap<String, String?>()
+    private val mediaPathCache = ConcurrentHashMap<String, String>()
+    private val missingMediaCache = ConcurrentHashMap.newKeySet<String>()
 
     private data class SpanTransform(val className: String, val replacementTag: String)
 
@@ -119,12 +120,13 @@ object HtmlUtils {
      */
     fun getMediaPath(fileName: String?): String? {
         if (fileName.isNullOrBlank()) return null
+        if (missingMediaCache.contains(fileName)) return null
         mediaPathCache[fileName]?.let { return it }
 
         val storageRoot = runCatching { Environment.getExternalStorageDirectory() }.getOrNull()
         if (storageRoot == null) {
             Log.w("HtmlUtils", "External storage directory unavailable; cannot resolve media for $fileName")
-            mediaPathCache[fileName] = null
+            missingMediaCache.add(fileName)
             return null
         }
 
@@ -135,6 +137,11 @@ object HtmlUtils {
         }.getOrElse {
             Log.w("HtmlUtils", "Failed to resolve media path for $fileName", it)
             null
+        }
+
+        if (resolvedPath == null) {
+            missingMediaCache.add(fileName)
+            return null
         }
 
         mediaPathCache[fileName] = resolvedPath
