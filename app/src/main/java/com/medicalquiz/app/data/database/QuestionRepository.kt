@@ -1,6 +1,5 @@
 package com.medicalquiz.app.data.database
 
-import android.database.Cursor
 import com.medicalquiz.app.data.models.Answer
 import com.medicalquiz.app.data.models.Question
 import kotlinx.coroutines.Dispatchers
@@ -10,61 +9,52 @@ import kotlinx.coroutines.withContext
  * Repository for question-related database operations
  */
 class QuestionRepository(private val connection: DatabaseConnection) {
+    private val subjectNameCache = mutableMapOf<Long, String?>()
+    private val systemNameCache = mutableMapOf<Long, String?>()
     
     /**
      * Get all question IDs, optionally filtered by subjects and systems
      */
     suspend fun getQuestionIds(
         subjectIds: List<Long>? = null,
-        systemIds: List<Long>? = null
+        systemIds: List<Long>? = null,
+        performanceFilter: PerformanceFilter = PerformanceFilter.ALL
     ): List<Long> = withContext(Dispatchers.IO) {
         val db = connection.getDatabase()
         val questionIds = mutableListOf<Long>()
-        
-        var sql = "SELECT id FROM Questions ORDER BY id"
         val args = mutableListOf<String>()
-        
-        // Build WHERE conditions for comma-separated IDs
-        if (!subjectIds.isNullOrEmpty() || !systemIds.isNullOrEmpty()) {
-            val conditions = mutableListOf<String>()
-            
-            if (!subjectIds.isNullOrEmpty()) {
-                val subConditions = subjectIds.joinToString(" OR ") { id ->
-                    args.add(id.toString())
-                    args.add("$id,%")
-                    args.add("%,$id,%")
-                    args.add("%,$id")
-                    "(subId = ? OR subId LIKE ? OR subId LIKE ? OR subId LIKE ?)"
-                }
-                conditions.add("($subConditions)")
-            }
-            
-            if (!systemIds.isNullOrEmpty()) {
-                val sysConditions = systemIds.joinToString(" OR ") { id ->
-                    args.add(id.toString())
-                    args.add("$id,%")
-                    args.add("%,$id,%")
-                    args.add("%,$id")
-                    "(sysId = ? OR sysId LIKE ? OR sysId LIKE ? OR sysId LIKE ?)"
-                }
-                conditions.add("($sysConditions)")
-            }
-            
-            sql = "SELECT id FROM Questions WHERE ${conditions.joinToString(" AND ")} ORDER BY id"
+        val whereClauses = mutableListOf<String>()
+
+        subjectIds?.takeIf { it.isNotEmpty() }?.let {
+            whereClauses.add(buildMultiValueCondition("q.subId", it, args))
         }
-        
-        val cursor = if (args.isEmpty()) {
-            db.rawQuery(sql, null)
-        } else {
-            db.rawQuery(sql, args.toTypedArray())
+
+        systemIds?.takeIf { it.isNotEmpty() }?.let {
+            whereClauses.add(buildMultiValueCondition("q.sysId", it, args))
         }
-        
+
+        buildPerformanceClause(performanceFilter)?.let { whereClauses.add(it) }
+
+        val sql = buildString {
+            append("SELECT q.id FROM Questions q")
+            when (performanceFilter) {
+                PerformanceFilter.ALL -> {}
+                PerformanceFilter.UNANSWERED -> append(" LEFT JOIN logs_summary ls ON ls.qid = q.id")
+                else -> append(" JOIN logs_summary ls ON ls.qid = q.id")
+            }
+            if (whereClauses.isNotEmpty()) {
+                append(" WHERE ")
+                append(whereClauses.joinToString(" AND "))
+            }
+            append(" ORDER BY q.id")
+        }
+
+        val cursor = db.rawQuery(sql, args.toTypedArray().takeIf { it.isNotEmpty() })
         cursor.use {
             while (it.moveToNext()) {
                 questionIds.add(it.getLong(0))
             }
         }
-        
         questionIds
     }
     
@@ -138,33 +128,52 @@ class QuestionRepository(private val connection: DatabaseConnection) {
         if (subId.isNullOrBlank()) return null
         val db = connection.getDatabase()
         
-        // Handle comma-separated IDs - get first one
-        val firstId = subId.split(",").firstOrNull()?.trim() ?: return null
-        
-        val cursor = db.rawQuery(
-            "SELECT name FROM Subjects WHERE id = ?",
-            arrayOf(firstId)
-        )
-        
-        return cursor.use {
-            if (it.moveToFirst()) it.getString(0) else null
-        }
+        val firstId = extractFirstId(subId) ?: return null
+        return subjectNameCache[firstId] ?: fetchSubjectName(firstId).also { subjectNameCache[firstId] = it }
     }
     
     private fun getSystemName(sysId: String?): String? {
         if (sysId.isNullOrBlank()) return null
+        val firstId = extractFirstId(sysId) ?: return null
+        return systemNameCache[firstId] ?: fetchSystemName(firstId).also { systemNameCache[firstId] = it }
+    }
+
+    private fun buildMultiValueCondition(
+        columnAlias: String,
+        ids: List<Long>,
+        args: MutableList<String>
+    ): String {
+        val normalizedIds = ids.distinct()
+        return normalizedIds.joinToString(" OR ") { id ->
+            args.add(id.toString())
+            "instr(',' || COALESCE($columnAlias, '') || ',', ',' || ? || ',') > 0"
+        }.let { "($it)" }
+    }
+
+    private fun buildPerformanceClause(filter: PerformanceFilter): String? = when (filter) {
+        PerformanceFilter.ALL -> null
+        PerformanceFilter.UNANSWERED -> "ls.qid IS NULL"
+        PerformanceFilter.LAST_CORRECT -> "ls.lastCorrect = 1"
+        PerformanceFilter.LAST_INCORRECT -> "ls.lastCorrect = 0"
+        PerformanceFilter.EVER_CORRECT -> "ls.everCorrect = 1"
+        PerformanceFilter.EVER_INCORRECT -> "ls.everIncorrect = 1"
+    }
+
+    private fun extractFirstId(rawIds: String?): Long? = rawIds
+        ?.split(",")
+        ?.firstOrNull()
+        ?.trim()
+        ?.toLongOrNull()
+
+    private fun fetchSubjectName(id: Long): String? {
         val db = connection.getDatabase()
-        
-        // Handle comma-separated IDs - get first one
-        val firstId = sysId.split(",").firstOrNull()?.trim() ?: return null
-        
-        val cursor = db.rawQuery(
-            "SELECT name FROM Systems WHERE id = ?",
-            arrayOf(firstId)
-        )
-        
-        return cursor.use {
-            if (it.moveToFirst()) it.getString(0) else null
-        }
+        val cursor = db.rawQuery("SELECT name FROM Subjects WHERE id = ?", arrayOf(id.toString()))
+        return cursor.use { if (it.moveToFirst()) it.getString(0) else null }
+    }
+
+    private fun fetchSystemName(id: Long): String? {
+        val db = connection.getDatabase()
+        val cursor = db.rawQuery("SELECT name FROM Systems WHERE id = ?", arrayOf(id.toString()))
+        return cursor.use { if (it.moveToFirst()) it.getString(0) else null }
     }
 }

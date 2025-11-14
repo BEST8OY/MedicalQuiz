@@ -66,6 +66,9 @@ dependencies {
     
     // WebView for HTML rendering (questions contain HTML)
     implementation("androidx.webkit:webkit:1.9.0")
+
+    // Media loading
+    implementation("io.coil-kt:coil:2.5.0")
     
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

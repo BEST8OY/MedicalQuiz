@@ -11,6 +11,7 @@ import android.text.method.LinkMovementMethod
 import android.widget.TextView
 import androidx.core.text.HtmlCompat
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 object HtmlUtils {
 
@@ -21,6 +22,7 @@ object HtmlUtils {
     private val EMPTY_SPAN_REGEX = Regex("<span[^>]*>(.*?)</span>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
     private val TABLE_REGEX = Regex("<table[\\s\\S]*?</table>", setOf(RegexOption.IGNORE_CASE))
     private val TABLE_PLACEHOLDER = "[[TABLE_PLACEHOLDER]]"
+    private val mediaPathCache = ConcurrentHashMap<String, String?>()
 
     private data class SpanTransform(val className: String, val replacementTag: String)
 
@@ -116,11 +118,13 @@ object HtmlUtils {
      */
     fun getMediaPath(fileName: String?): String? {
         if (fileName.isNullOrBlank()) return null
+        mediaPathCache[fileName]?.let { return it }
 
         val mediaFolder = File(Environment.getExternalStorageDirectory(), "MedicalQuiz/media")
         val mediaFile = File(mediaFolder, fileName)
-
-        return if (mediaFile.exists()) mediaFile.absolutePath else null
+        val resolvedPath = if (mediaFile.exists()) mediaFile.absolutePath else null
+        mediaPathCache[fileName] = resolvedPath
+        return resolvedPath
     }
 
     /**

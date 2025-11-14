@@ -82,7 +82,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         
         databaseManager = DatabaseManager(dbPath)
-        mediaHandler = MediaHandler(this, lifecycleScope, databaseManager) { questionIds.getOrNull(currentQuestionIndex) }
+        mediaHandler = MediaHandler(this)
         filterDialogHandler = FilterDialogHandler(this, lifecycleScope, databaseManager)
         
         setupWebViews()
@@ -139,7 +139,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             try {
                 // Use global database manager to ensure proper cleanup
                 databaseManager = MedicalQuizApp.switchDatabase(dbPath)
-                mediaHandler.updateDatabaseManager(databaseManager)
+                mediaHandler.reset()
                 filterDialogHandler.updateDatabaseManager(databaseManager)
                 questionIds = fetchFilteredQuestionIds()
 
@@ -215,17 +215,13 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         binding.textViewPerformance.text = performanceText
         binding.textViewPerformance.visibility = View.GONE
         
-        // Display media info if available
-        if (!question.mediaName.isNullOrBlank() || !question.otherMedias.isNullOrBlank()) {
-            val mediaFiles = mutableListOf<String>()
-            question.mediaName?.let { mediaFiles.add(it) }
-            HtmlUtils.parseMediaFiles(question.otherMedias).let { mediaFiles.addAll(it) }
-            binding.textViewMediaInfo.text = "📎 ${mediaFiles.size} media file(s) - Click to view"
+        val mediaFiles = collectMediaFiles(question)
+        mediaHandler.updateMedia(question.id, mediaFiles)
+        if (mediaFiles.isNotEmpty()) {
+            binding.textViewMediaInfo.text = "📎 ${mediaFiles.size} media file(s) - Tap to view"
             binding.textViewMediaInfo.visibility = View.GONE
-            
-            // Make media info clickable
             binding.textViewMediaInfo.setOnClickListener {
-                mediaHandler.openMediaViewer(mediaFiles, 0)
+                mediaHandler.showCurrentMediaGallery()
             }
         } else {
             binding.textViewMediaInfo.visibility = View.GONE
@@ -512,15 +508,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private suspend fun fetchFilteredQuestionIds(): List<Long> {
         val subjectFilter = selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
         val systemFilter = selectedSystemIds.takeIf { it.isNotEmpty() }?.toList()
-        val performanceIds = if (performanceFilter == PerformanceFilter.ALL) {
-            null
-        } else {
-            databaseManager.getPerformanceFilteredIds(performanceFilter)
-        }
         return databaseManager.getQuestionIds(
             subjectIds = subjectFilter,
             systemIds = systemFilter,
-            performanceIds = performanceIds
+            performanceFilter = performanceFilter
         )
     }
     
@@ -554,6 +545,13 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         if (summary.attempts <= 0) return ""
         val lastLabel = if (summary.lastCorrect) "Correct" else "Incorrect"
         return "Attempts: ${summary.attempts} | Last: $lastLabel"
+    }
+
+    private fun collectMediaFiles(question: Question): List<String> {
+        val mediaFiles = mutableListOf<String>()
+        question.mediaName?.takeIf { it.isNotBlank() }?.let { mediaFiles.add(it.trim()) }
+        HtmlUtils.parseMediaFiles(question.otherMedias).let { mediaFiles.addAll(it) }
+        return mediaFiles.distinct()
     }
 
     private fun updateLocalPerformanceCache(questionId: Long, wasCorrect: Boolean) {

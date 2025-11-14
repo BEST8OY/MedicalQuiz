@@ -26,7 +26,7 @@ class LogRepository(private val connection: DatabaseConnection) {
     /**
      * Ensure logs table exists
      */
-    fun ensureLogsTable() {
+    suspend fun ensureLogsTable() = withContext(Dispatchers.IO) {
         val db = connection.getDatabase()
         db.execSQL(
             """
@@ -198,24 +198,6 @@ class LogRepository(private val connection: DatabaseConnection) {
         }
     }
 
-    suspend fun getQuestionIdsByPerformance(filter: PerformanceFilter): Set<Long> = withContext(Dispatchers.IO) {
-        val db = connection.getDatabase()
-        val sql = when (filter) {
-            PerformanceFilter.UNANSWERED -> "SELECT id FROM Questions WHERE id NOT IN (SELECT DISTINCT qid FROM logs_summary)"
-            PerformanceFilter.LAST_CORRECT -> "SELECT qid FROM logs_summary WHERE lastCorrect = 1"
-            PerformanceFilter.LAST_INCORRECT -> "SELECT qid FROM logs_summary WHERE lastCorrect = 0"
-            PerformanceFilter.EVER_CORRECT -> "SELECT qid FROM logs_summary WHERE everCorrect = 1"
-            PerformanceFilter.EVER_INCORRECT -> "SELECT qid FROM logs_summary WHERE everIncorrect = 1"
-            PerformanceFilter.ALL -> "SELECT id FROM Questions"
-        }
-        val ids = mutableSetOf<Long>()
-        db.rawQuery(sql, null).use { cursor ->
-            while (cursor.moveToNext()) {
-                ids.add(cursor.getLong(0))
-            }
-        }
-        ids
-    }
 }
 
 data class QuestionPerformance(

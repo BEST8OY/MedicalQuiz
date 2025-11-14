@@ -26,7 +26,10 @@ class DatabaseConnection(private val dbPath: String) {
             dbPath,
             null,
             SQLiteDatabase.OPEN_READWRITE
-        )
+        ).also { openedDb ->
+            // WAL improves concurrent reads/writes and reduces fsync overhead
+            openedDb.enableWriteAheadLogging()
+        }
     }
     
     /**

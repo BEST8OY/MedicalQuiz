@@ -7,8 +7,13 @@ import android.os.Environment
 import android.view.View
 import android.widget.MediaController
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import coil.load
 import com.medicalquiz.app.databinding.ActivityMediaViewerBinding
 import com.medicalquiz.app.utils.WebViewRenderer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class MediaViewerActivity : AppCompatActivity() {
@@ -25,6 +30,7 @@ class MediaViewerActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "Media Viewer"
+        WebViewRenderer.setupWebView(binding.webViewHtml)
 
         // Get media files from intent
         val allMediaFiles = intent.getStringArrayListExtra("MEDIA_FILES") ?: arrayListOf()
@@ -69,6 +75,7 @@ class MediaViewerActivity : AppCompatActivity() {
     }
 
     private fun displayMedia() {
+        releaseMediaPlayer()
         val fileName = mediaFiles[currentIndex]
         val file = getMediaFile(fileName)
 
@@ -122,7 +129,9 @@ class MediaViewerActivity : AppCompatActivity() {
 
     private fun displayImage(file: File) {
         binding.imageView.visibility = View.VISIBLE
-        binding.imageView.setImageURI(Uri.fromFile(file))
+        binding.imageView.load(file) {
+            crossfade(true)
+        }
     }
 
     private fun displayVideo(file: File) {
@@ -139,16 +148,21 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun displayAudio(file: File) {
         binding.audioContainer.visibility = View.VISIBLE
         binding.textViewAudioName.text = file.name
-        
+        binding.textViewDuration.text = "--:--"
+        binding.buttonPlayPause.isEnabled = false
+        binding.buttonPlayPause.text = "▶ Play"
+
         mediaPlayer = MediaPlayer().apply {
             setDataSource(file.absolutePath)
-            prepare()
+            setOnPreparedListener { player ->
+                binding.buttonPlayPause.isEnabled = true
+                binding.textViewDuration.text = formatDuration(player.duration)
+            }
+            setOnCompletionListener {
+                binding.buttonPlayPause.text = "▶ Play"
+            }
+            prepareAsync()
         }
-
-        val duration = mediaPlayer?.duration ?: 0
-        val minutes = duration / 1000 / 60
-        val seconds = (duration / 1000) % 60
-        binding.textViewDuration.text = String.format("%d:%02d", minutes, seconds)
 
         binding.buttonPlayPause.setOnClickListener {
             mediaPlayer?.let { player ->
@@ -164,8 +178,8 @@ class MediaViewerActivity : AppCompatActivity() {
 
         binding.buttonStop.setOnClickListener {
             mediaPlayer?.let { player ->
-                player.seekTo(0)
                 player.pause()
+                player.seekTo(0)
                 binding.buttonPlayPause.text = "▶ Play"
             }
         }
@@ -173,10 +187,10 @@ class MediaViewerActivity : AppCompatActivity() {
 
     private fun displayHtml(file: File) {
         binding.webViewHtml.visibility = View.VISIBLE
-        WebViewRenderer.setupWebView(binding.webViewHtml)
-        
-        val htmlContent = file.readText()
-        WebViewRenderer.loadContent(this, binding.webViewHtml, htmlContent)
+        lifecycleScope.launch {
+            val htmlContent = withContext(Dispatchers.IO) { file.readText() }
+            WebViewRenderer.loadContent(this@MediaViewerActivity, binding.webViewHtml, htmlContent)
+        }
     }
 
     private fun getMediaFile(fileName: String): File? {
@@ -202,6 +216,13 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun releaseMediaPlayer() {
         mediaPlayer?.release()
         mediaPlayer = null
+    }
+
+    private fun formatDuration(durationMs: Int): String {
+        val totalSeconds = durationMs / 1000
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return String.format("%d:%02d", minutes, seconds)
     }
 
     override fun onDestroy() {
