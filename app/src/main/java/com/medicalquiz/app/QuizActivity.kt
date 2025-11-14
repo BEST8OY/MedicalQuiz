@@ -524,34 +524,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun updateToolbarSubtitle() {
-        lifecycleScope.launch {
-            val parts = mutableListOf<String>()
-            if (selectedSubjectIds.isNotEmpty()) {
-                val subjects = databaseManager.getSubjects()
-                val subjectNames = subjects.filter { selectedSubjectIds.contains(it.id) }
-                    .map { it.name }
-                val label = formatFilterLabel("Subjects", subjectNames)
-                if (label.isNotEmpty()) parts.add(label)
-            }
-            if (selectedSystemIds.isNotEmpty()) {
-                val systems = databaseManager.getSystems(
-                    selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-                )
-                val systemNames = systems.filter { selectedSystemIds.contains(it.id) }
-                    .map { it.name }
-                val label = formatFilterLabel("Systems", systemNames)
-                if (label.isNotEmpty()) parts.add(label)
-            }
-            supportActionBar?.subtitle = parts.takeIf { it.isNotEmpty() }?.joinToString(" | ")
-        }
-    }
-
-    private fun formatFilterLabel(prefix: String, names: List<String>): String {
-        if (names.isEmpty()) return ""
-        return when {
-            names.size <= 2 -> "$prefix: ${names.joinToString(", ")}"
-            else -> "$prefix: ${names.take(2).joinToString(", ")} +${names.size - 2}"
-        }
+        supportActionBar?.subtitle = null
     }
 
     private fun getPerformanceFilterLabel(filter: PerformanceFilter): String = when (filter) {
