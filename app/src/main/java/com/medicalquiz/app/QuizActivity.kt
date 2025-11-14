@@ -645,10 +645,16 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun showQuestionDetails() {
+        val previousScrollY = binding.scrollViewContent.scrollY
+
         binding.textViewTitle.isVisible = !binding.textViewTitle.text.isNullOrBlank()
         binding.textViewMetadata.isVisible = !binding.textViewMetadata.text.isNullOrBlank()
         binding.textViewPerformance.isVisible = !binding.textViewPerformance.text.isNullOrBlank()
         binding.textViewMediaInfo.isVisible = !binding.textViewMediaInfo.text.isNullOrBlank()
+
+        binding.scrollViewContent.post {
+            binding.scrollViewContent.scrollTo(0, previousScrollY)
+        }
     }
 
     private fun loadPerformanceForQuestion(questionId: Long) {
