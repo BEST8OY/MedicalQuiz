@@ -278,7 +278,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         } else {
             answers.mapIndexed { index, answer ->
                 val label = ('A'.code + index).toChar()
-                    val sanitizedAnswer = normalizeAnswerHtml(HtmlUtils.sanitizeForWebView(answer.answerText))
+                    val sanitizedAnswer = sanitizeAnswerHtml(HtmlUtils.sanitizeForWebView(answer.answerText))
                 """
                 <button type="button"
                         class="answer-button"
@@ -723,12 +723,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
-    private fun normalizeAnswerHtml(answerHtml: String): String {
+    private fun sanitizeAnswerHtml(answerHtml: String): String {
         if (answerHtml.isBlank()) return answerHtml
-        var normalized = answerHtml.trim()
-        normalized = PARAGRAPH_BREAK_REGEX.replace(normalized) { "<br><br>" }
-        normalized = PARAGRAPH_TAG_REGEX.replace(normalized, "")
-        return normalized.trim()
+        var sanitized = answerHtml.trim()
+        sanitized = PARAGRAPH_BREAK_REGEX.replace(sanitized) { "<br><br>" }
+        sanitized = PARAGRAPH_TAG_REGEX.replace(sanitized, "")
+        return sanitized.trim()
     }
 
     companion object {
