@@ -60,4 +60,10 @@
     <color name="md_theme_dark_onSurfaceVariant">#CAC4D0</color>
     <color name="md_theme_dark_outline">#938F99</color>
     <color name="md_theme_dark_outlineVariant">#49454F</color>
+
+    <!-- Quiz answer highlighting -->
+    <color name="quiz_answer_correct_bg">#C8E6C9</color>
+    <color name="quiz_answer_correct_text">#1B5E20</color>
+    <color name="quiz_answer_incorrect_bg">#FFCDD2</color>
+    <color name="quiz_answer_incorrect_text">#B71C1C</color>
 </resources>
