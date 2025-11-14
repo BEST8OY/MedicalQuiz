@@ -25,10 +25,12 @@ import com.medicalquiz.app.data.database.DatabaseManager
 import com.medicalquiz.app.data.models.Answer
 import com.medicalquiz.app.data.models.Question
 import com.medicalquiz.app.databinding.ActivityQuizBinding
+import com.medicalquiz.app.databinding.DialogSettingsBinding
 import com.medicalquiz.app.ui.FilterDialogHandler
 import com.medicalquiz.app.ui.MediaHandler
 import com.medicalquiz.app.utils.HtmlUtils
 import com.medicalquiz.app.utils.WebViewRenderer
+import com.medicalquiz.app.settings.SettingsManager
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -39,6 +41,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private lateinit var mediaHandler: MediaHandler
     private lateinit var filterDialogHandler: FilterDialogHandler
     private lateinit var quizWebInterface: QuizWebInterface
+    private lateinit var settingsManager: SettingsManager
     
     private var questionIds: List<Long> = emptyList()
     private var currentQuestionIndex = 0
@@ -58,6 +61,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         binding.scrollViewContent.clipToPadding = false
         applyWindowInsets()
+        settingsManager = SettingsManager(this)
         
         val dbPath = intent.getStringExtra("DB_PATH")
         val dbName = intent.getStringExtra("DB_NAME")
@@ -235,13 +239,15 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         lifecycleScope.launch {
             try {
                 // Log the answer
-                databaseManager.logAnswer(
-                    qid = question.id,
-                    selectedAnswer = answerId,
-                    corrAnswer = question.corrAns,
-                    time = timeTaken,
-                    testId = testId
-                )
+                if (settingsManager.isLoggingEnabled) {
+                    databaseManager.logAnswer(
+                        qid = question.id,
+                        selectedAnswer = answerId,
+                        corrAnswer = question.corrAns,
+                        time = timeTaken,
+                        testId = testId
+                    )
+                }
                 
                 val correctAnswer = currentAnswers.getOrNull(question.corrAns - 1)
                 val correctAnswerId = correctAnswer?.answerId?.toInt()
@@ -453,7 +459,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 reloadQuestionsWithFilters()
             }
             R.id.nav_clear_filters -> clearFilters()
-            R.id.nav_settings -> Toast.makeText(this, "Settings coming soon", Toast.LENGTH_SHORT).show()
+            R.id.nav_settings -> showSettingsDialog()
             R.id.nav_about -> Toast.makeText(this, "About coming soon", Toast.LENGTH_SHORT).show()
         }
         binding.drawerLayout.closeDrawer(GravityCompat.START)
@@ -532,7 +538,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     
     override fun onSupportNavigateUp(): Boolean {
         // Check if there are pending logs
-        val pendingLogs = databaseManager.getPendingLogCount()
+        val pendingLogs = if (settingsManager.isLoggingEnabled) databaseManager.getPendingLogCount() else 0
         if (pendingLogs > 0) {
             AlertDialog.Builder(this)
                 .setTitle("Unsaved Answers")
@@ -557,15 +563,19 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     override fun onPause() {
         super.onPause()
         // Flush logs when app goes to background
-        lifecycleScope.launch {
-            try {
-                val flushed = databaseManager.flushLogs()
-                if (flushed > 0) {
-                    println("Flushed $flushed logs on pause")
+        if (settingsManager.isLoggingEnabled) {
+            lifecycleScope.launch {
+                try {
+                    val flushed = databaseManager.flushLogs()
+                    if (flushed > 0) {
+                        println("Flushed $flushed logs on pause")
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
+        } else {
+            databaseManager.clearPendingLogsBuffer()
         }
     }
     
@@ -580,7 +590,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
         }
     }
-}
 
     private fun applyWindowInsets() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.scrollViewContent) { view, insets ->
@@ -595,3 +604,43 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             insets
         }
     }
+
+    private fun showSettingsDialog() {
+        val dialogBinding = DialogSettingsBinding.inflate(layoutInflater)
+        dialogBinding.switchLogAnswers.isChecked = settingsManager.isLoggingEnabled
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Settings")
+            .setView(dialogBinding.root)
+            .setPositiveButton("Close", null)
+            .create()
+
+        dialogBinding.switchLogAnswers.setOnCheckedChangeListener { _, isChecked ->
+            settingsManager.isLoggingEnabled = isChecked
+            if (!isChecked) {
+                databaseManager.clearPendingLogsBuffer()
+            }
+        }
+
+        dialogBinding.buttonResetLogs.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Reset log history")
+                .setMessage("This will permanently delete all stored answer logs. Continue?")
+                .setPositiveButton("Delete") { _, _ ->
+                    lifecycleScope.launch {
+                        try {
+                            databaseManager.clearLogs()
+                            Toast.makeText(this@QuizActivity, "Logs cleared", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            Toast.makeText(this@QuizActivity, "Failed to clear logs: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+
+        dialog.show()
+    }
+
+}

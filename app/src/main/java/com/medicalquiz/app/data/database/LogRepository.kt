@@ -123,4 +123,13 @@ class LogRepository(private val connection: DatabaseConnection) {
             logBuffer.clear()
         }
     }
+
+    /**
+     * Remove all persisted log entries
+     */
+    suspend fun clearLogsTable(): Unit = withContext(Dispatchers.IO) {
+        val db = connection.getDatabase()
+        db.execSQL("DELETE FROM logs")
+        clearBuffer()
+    }
 }

@@ -73,4 +73,8 @@ class DatabaseManager(dbPath: String) {
     suspend fun flushLogs(): Int = logRepository.flushLogs()
     
     fun getPendingLogCount(): Int = logRepository.getPendingLogCount()
+
+    suspend fun clearLogs() = logRepository.clearLogsTable()
+
+    fun clearPendingLogsBuffer() = logRepository.clearBuffer()
 }
