@@ -97,23 +97,24 @@
   font-style: italic;
 }
 
-.medical-content .wichtig,
-body.medical-content .wichtig {
-  font-weight: 400;
-  color: inherit;
-  background-color: transparent;
-  padding: 0;
-  border-radius: 0;
+body.medical-content:not(.answers-revealed) .wichtig,
+.medical-content:not(.answers-revealed) .wichtig {
+  font-weight: inherit !important;
+  color: inherit !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-body.answers-revealed .medical-content .wichtig,
-body.medical-content.answers-revealed .wichtig {
-  font-weight: 600;
-  color: var(--md-sys-color-primary);
-  background-color: var(--md-sys-color-primary-container);
-  padding: 2px 6px;
-  border-radius: 4px;
+body.medical-content.answers-revealed .wichtig,
+.medical-content.answers-revealed .wichtig,
+body.answers-revealed .medical-content .wichtig {
+  font-weight: 600 !important;
+  color: var(--md-sys-color-primary) !important;
+  background-color: var(--md-sys-color-primary-container) !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
 }
 
 .medical-content .selected {
