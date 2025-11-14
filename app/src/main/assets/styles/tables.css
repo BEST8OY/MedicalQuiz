@@ -3,13 +3,13 @@
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 24px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--md-sys-color-outline);
 }
 
 /* Table Headers */
 .medical-content thead {
-  background-color: #2563eb;
-  color: white;
+  background-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
 }
 
 .medical-content thead th {
@@ -17,24 +17,24 @@
   text-align: left;
   font-weight: 600;
   font-size: 14px;
-  border: 1px solid #9ca3af;
+  border: 1px solid var(--md-sys-color-outline-variant);
 }
 
 /* Table Body */
 .medical-content tbody tr {
-  border-bottom: 1px solid #d1d5db;
+  border-bottom: 1px solid var(--md-sys-color-outline);
 }
 
 .medical-content tbody tr:hover {
-  background-color: #eff6ff;
+  background-color: var(--md-sys-color-primary-container);
 }
 
 .medical-content tbody td {
   padding: 12px 16px;
   font-size: 14px;
   vertical-align: top;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  color: var(--md-sys-color-on-surface);
+  border: 1px solid var(--md-sys-color-outline);
 }
 
 /* Paragraphs inside table cells should not have extra spacing */
@@ -45,7 +45,7 @@
 /* Strong text in table cells */
 .medical-content td strong {
   font-weight: 600;
-  color: #111827;
+  color: var(--md-sys-color-on-surface);
 }
 
 /* Center-aligned content in cells */
@@ -56,34 +56,34 @@
 
 /* First row as header when no thead exists */
 .medical-content tbody tr:first-child {
-  background-color: #f3f4f6;
+  background-color: var(--md-sys-color-surface-variant);
   font-weight: 600;
 }
 
 .medical-content tbody tr:first-child td {
   font-weight: 600;
-  color: #111827;
+  color: var(--md-sys-color-on-surface);
 }
 
 /* Striped rows - start from second row */
 .medical-content tbody tr:nth-child(even):not(:first-child) {
-  background-color: #f9fafb;
+  background-color: var(--md-sys-color-surface-variant);
 }
 
 /* Special classes from databases */
 .medical-content .table-default-style,
 .medical-content .table-header-footer-style {
-  border: 2px solid #9ca3af;
+  border: 2px solid var(--md-sys-color-outline-variant);
 }
 
 /* Footer rows (typically last row with abbreviations) */
 .medical-content tbody tr:last-child {
-  background-color: #f3f4f6;
+  background-color: var(--md-sys-color-surface-variant);
   font-size: 12px;
 }
 
 .medical-content tbody tr:last-child td {
-  color: #4b5563;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* Responsive tables */
