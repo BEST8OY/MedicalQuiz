@@ -16,13 +16,17 @@ import java.util.concurrent.ConcurrentHashMap
 
 object HtmlUtils {
 
+    private const val TAG = "HtmlUtils"
+    private const val TABLE_PLACEHOLDER = "[[TABLE_PLACEHOLDER]]"
+    private const val MEDIA_FOLDER = "MedicalQuiz/media"
+
     private val STYLE_REGEX = Regex("<style[\\s\\S]*?</style>", setOf(RegexOption.IGNORE_CASE))
     private val DATA_ATTR_REGEX = Regex("\\sdata-[a-z0-9-]+=\"[^\"]*\"", setOf(RegexOption.IGNORE_CASE))
     private val CLASS_ATTR_REGEX = Regex("\\sclass=\"[^\"]*\"", setOf(RegexOption.IGNORE_CASE))
     private val STYLE_ATTR_REGEX = Regex("\\sstyle=\"[^\"]*\"", setOf(RegexOption.IGNORE_CASE))
     private val EMPTY_SPAN_REGEX = Regex("<span[^>]*>(.*?)</span>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
     private val TABLE_REGEX = Regex("<table[\\s\\S]*?</table>", setOf(RegexOption.IGNORE_CASE))
-    private val TABLE_PLACEHOLDER = "[[TABLE_PLACEHOLDER]]"
+    private val IMG_TAG_REGEX = Regex("""<img([^>]*)\\s+src=[\"']([^\"']+)[\"']""")
     private val mediaPathCache = ConcurrentHashMap<String, String>()
     private val missingMediaCache = ConcurrentHashMap.newKeySet<String>()
 
@@ -79,29 +83,17 @@ object HtmlUtils {
     /**
      * Public sanitize method for WebViewRenderer
      */
-    fun sanitizeForWebView(html: String): String {
-        var sanitized = html
-        // Keep tables, just remove inline styles and clean attributes
-        sanitized = sanitized.replace(STYLE_REGEX, "")
-        sanitized = sanitized.replace(DATA_ATTR_REGEX, "")
+    fun sanitizeForWebView(html: String): String = html
+        .replace(STYLE_REGEX, "")
+        .replace(DATA_ATTR_REGEX, "")
         // Keep class attributes for CSS styling
-        // sanitized = sanitized.replace(CLASS_ATTR_REGEX, "")
-        sanitized = sanitized.replace(STYLE_ATTR_REGEX, "")
-        
-        // Replace image src attributes to use file:// URLs for clickability
-        sanitized = sanitized.replace(Regex("""<img([^>]*)\s+src=["']([^"']+)["']""")) { match ->
+        .replace(STYLE_ATTR_REGEX, "")
+        .replace(IMG_TAG_REGEX) { match ->
             val attrs = match.groupValues[1]
             val src = match.groupValues[2]
             val mediaPath = getMediaPath(src)
-            if (mediaPath != null) {
-                "<img$attrs src=\"file://$mediaPath\""
-            } else {
-                match.value
-            }
+            if (mediaPath != null) "<img$attrs src=\"file://$mediaPath\"" else match.value
         }
-        
-        return sanitized
-    }
 
     private fun replaceSpan(html: String, transform: SpanTransform): String {
         val classPattern = Regex.escape(transform.className)
@@ -125,27 +117,24 @@ object HtmlUtils {
 
         val storageRoot = runCatching { Environment.getExternalStorageDirectory() }.getOrNull()
         if (storageRoot == null) {
-            Log.w("HtmlUtils", "External storage directory unavailable; cannot resolve media for $fileName")
+            Log.w(TAG, "External storage directory unavailable; cannot resolve media for $fileName")
             missingMediaCache.add(fileName)
             return null
         }
 
         val resolvedPath = runCatching {
-            val mediaFolder = File(storageRoot, "MedicalQuiz/media")
+            val mediaFolder = File(storageRoot, MEDIA_FOLDER)
             val mediaFile = File(mediaFolder, fileName)
             if (mediaFile.exists()) mediaFile.absolutePath else null
         }.getOrElse {
-            Log.w("HtmlUtils", "Failed to resolve media path for $fileName", it)
+            Log.w(TAG, "Failed to resolve media path for $fileName", it)
             null
         }
 
-        if (resolvedPath == null) {
+        return resolvedPath?.also { mediaPathCache[fileName] = it } ?: run {
             missingMediaCache.add(fileName)
-            return null
+            null
         }
-
-        mediaPathCache[fileName] = resolvedPath
-        return resolvedPath
     }
 
     /**
@@ -166,9 +155,9 @@ object HtmlUtils {
     fun parseMediaFiles(mediaString: String?): List<String> {
         if (mediaString.isNullOrBlank()) return emptyList()
 
-        return mediaString.split(",")
+        return mediaString.split(',')
             .map { it.trim() }
-            .filter { it.isNotBlank() }
+            .filter { it.isNotEmpty() }
     }
 
     /**
@@ -185,9 +174,8 @@ object HtmlUtils {
     }
 
     private fun restoreTables(spanned: Spanned, tables: List<String>): Spanned {
-        var htmlText = spanned.toString()
-        tables.forEachIndexed { index, table ->
-            htmlText = htmlText.replace("$TABLE_PLACEHOLDER$index$TABLE_PLACEHOLDER", table)
+        val htmlText = tables.foldIndexed(spanned.toString()) { index, acc, table ->
+            acc.replace("$TABLE_PLACEHOLDER$index$TABLE_PLACEHOLDER", table)
         }
         return HtmlCompat.fromHtml(htmlText, HtmlCompat.FROM_HTML_MODE_LEGACY)
     }

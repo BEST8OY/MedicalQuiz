@@ -8,6 +8,7 @@ import android.R as AndroidR
 import com.google.android.material.R as MaterialR
 import com.google.android.material.color.MaterialColors
 import com.medicalquiz.app.R
+import kotlin.jvm.Volatile
 
 object WebViewRenderer {
     private data class MaterialCssVar(
@@ -15,6 +16,22 @@ object WebViewRenderer {
         val attrId: Int,
         val fallback: Int
     )
+
+    private const val CSS_PLACEHOLDER = "%CSS_CONTENT%"
+    private const val CONTENT_PLACEHOLDER = "%CONTENT%"
+    private const val BASE_URL = "file:///android_asset/"
+    private const val MIME_TYPE = "text/html"
+    private const val ENCODING = "UTF-8"
+    private val cssAssetPaths = listOf(
+        "styles/content.css",
+        "styles/tables.css",
+        "styles/lists.css",
+        "styles/images.css",
+        "styles/utilities.css"
+    )
+
+    @Volatile
+    private var cachedCss: String? = null
     
     private val materialVars = listOf(
         MaterialCssVar("--md-sys-color-primary", MaterialR.attr.colorPrimary, Color.parseColor("#2563eb")),
@@ -125,7 +142,7 @@ object WebViewRenderer {
      */
     fun loadContent(context: Context, webView: WebView, htmlContent: String?) {
         if (htmlContent.isNullOrBlank()) {
-            webView.loadData("", "text/html", "UTF-8")
+            webView.loadData("", MIME_TYPE, ENCODING)
             return
         }
         
@@ -133,14 +150,14 @@ object WebViewRenderer {
         val sanitizedHtml = HtmlUtils.sanitizeForWebView(htmlContent)
         
         val fullHtml = HTML_TEMPLATE
-            .replace("%CSS_CONTENT%", cssContent)
-            .replace("%CONTENT%", sanitizedHtml)
+            .replace(CSS_PLACEHOLDER, cssContent)
+            .replace(CONTENT_PLACEHOLDER, sanitizedHtml)
         
         webView.loadDataWithBaseURL(
-            "file:///android_asset/",
+            BASE_URL,
             fullHtml,
-            "text/html",
-            "UTF-8",
+            MIME_TYPE,
+            ENCODING,
             null
         )
     }
@@ -157,22 +174,17 @@ object WebViewRenderer {
      * Load all CSS files from assets
      */
     private fun loadCssFromAssets(context: Context): String {
-        val cssFiles = listOf(
-            "styles/content.css",
-            "styles/tables.css",
-            "styles/lists.css",
-            "styles/images.css",
-            "styles/utilities.css"
-        )
-        
-        return cssFiles.joinToString("\n") { fileName ->
-            try {
-                context.assets.open(fileName).bufferedReader().use { it.readText() }
-            } catch (e: Exception) {
-                "/* Error loading $fileName: ${e.message} */"
-            }
+        cachedCss?.let { return it }
+        val combinedCss = cssAssetPaths.joinToString("\n") { fileName ->
+            context.readAssetOrComment(fileName)
         }
+        cachedCss = combinedCss
+        return combinedCss
     }
+
+    private fun Context.readAssetOrComment(fileName: String): String =
+        runCatching { assets.open(fileName).bufferedReader().use { it.readText() } }
+            .getOrElse { "/* Error loading $fileName: ${it.message} */" }
 
     private fun buildThemeCss(context: Context): String {
         return buildString {

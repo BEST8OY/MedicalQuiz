@@ -4,16 +4,14 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
-import android.view.View
 import android.widget.MediaController
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
+import androidx.core.view.isVisible
 import coil.load
 import com.medicalquiz.app.databinding.ActivityMediaViewerBinding
 import com.medicalquiz.app.utils.WebViewRenderer
+import com.medicalquiz.app.utils.launchCatching
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 
 class MediaViewerActivity : AppCompatActivity() {
@@ -32,25 +30,16 @@ class MediaViewerActivity : AppCompatActivity() {
         supportActionBar?.title = "Media Viewer"
         WebViewRenderer.setupWebView(binding.webViewHtml)
 
-        // Get media files from intent
-        val allMediaFiles = intent.getStringArrayListExtra("MEDIA_FILES") ?: arrayListOf()
-        val startIndex = intent.getIntExtra("START_INDEX", 0)
+        val allMediaFiles = intent.getStringArrayListExtra(EXTRA_MEDIA_FILES) ?: arrayListOf()
+        val startIndex = intent.getIntExtra(EXTRA_START_INDEX, 0)
 
-        // Filter to only available media files
-        mediaFiles = allMediaFiles.filter { isMediaAvailable(it) }
-        
+        mediaFiles = allMediaFiles.filter(::isMediaAvailable)
         if (mediaFiles.isEmpty()) {
             finish()
             return
         }
 
-        // Find the actual index in filtered list
-        currentIndex = if (startIndex < allMediaFiles.size) {
-            val requestedFile = allMediaFiles[startIndex]
-            mediaFiles.indexOf(requestedFile).takeIf { it >= 0 } ?: 0
-        } else {
-            0
-        }
+        currentIndex = mediaFiles.indexOf(allMediaFiles.getOrNull(startIndex)).takeIf { it != -1 } ?: 0
 
         setupListeners()
         displayMedia()
@@ -58,19 +47,19 @@ class MediaViewerActivity : AppCompatActivity() {
 
     private fun setupListeners() {
         binding.buttonPrevious.setOnClickListener {
-            if (currentIndex > 0) {
-                releaseMediaPlayer()
-                currentIndex--
-                displayMedia()
-            }
+            if (currentIndex > 0) navigateToIndex(currentIndex - 1)
         }
 
         binding.buttonNext.setOnClickListener {
-            if (currentIndex < mediaFiles.size - 1) {
-                releaseMediaPlayer()
-                currentIndex++
-                displayMedia()
-            }
+            if (currentIndex < mediaFiles.lastIndex) navigateToIndex(currentIndex + 1)
+        }
+    }
+
+    private fun navigateToIndex(index: Int) {
+        if (index in mediaFiles.indices) {
+            releaseMediaPlayer()
+            currentIndex = index
+            displayMedia()
         }
     }
 
@@ -79,31 +68,15 @@ class MediaViewerActivity : AppCompatActivity() {
         val fileName = mediaFiles[currentIndex]
         val file = getMediaFile(fileName)
 
-        // Update navigation buttons
         binding.buttonPrevious.isEnabled = currentIndex > 0
-        binding.buttonNext.isEnabled = currentIndex < mediaFiles.size - 1
-        
-        // Update counter
+        binding.buttonNext.isEnabled = currentIndex < mediaFiles.lastIndex
+
         binding.textViewCounter.text = "${currentIndex + 1} / ${mediaFiles.size}"
         supportActionBar?.subtitle = fileName
 
-        // Hide all views
-        binding.imageView.visibility = View.GONE
-        binding.videoView.visibility = View.GONE
-        binding.audioContainer.visibility = View.GONE
-        binding.webViewHtml.visibility = View.GONE
-
+        setAllContentInvisible()
         if (file == null || !file.exists()) {
-            // Skip to next available file or close if none left
-            if (currentIndex < mediaFiles.size - 1) {
-                currentIndex++
-                displayMedia()
-            } else if (currentIndex > 0) {
-                currentIndex--
-                displayMedia()
-            } else {
-                finish()
-            }
+            skipOrFinish()
             return
         }
 
@@ -112,30 +85,36 @@ class MediaViewerActivity : AppCompatActivity() {
             MediaType.VIDEO -> displayVideo(file)
             MediaType.AUDIO -> displayAudio(file)
             MediaType.HTML -> displayHtml(file)
-            MediaType.UNKNOWN -> {
-                // Skip unsupported file types
-                if (currentIndex < mediaFiles.size - 1) {
-                    currentIndex++
-                    displayMedia()
-                } else if (currentIndex > 0) {
-                    currentIndex--
-                    displayMedia()
-                } else {
-                    finish()
-                }
-            }
+            MediaType.UNKNOWN -> skipOrFinish()
+        }
+    }
+
+    private fun setAllContentInvisible() {
+        binding.imageView.isVisible = false
+        binding.videoView.isVisible = false
+        binding.audioContainer.isVisible = false
+        binding.webViewHtml.isVisible = false
+    }
+
+    private fun skipOrFinish() {
+        val hasNext = currentIndex < mediaFiles.lastIndex
+        val hasPrevious = currentIndex > 0
+        when {
+            hasNext -> navigateToIndex(currentIndex + 1)
+            hasPrevious -> navigateToIndex(currentIndex - 1)
+            else -> finish()
         }
     }
 
     private fun displayImage(file: File) {
-        binding.imageView.visibility = View.VISIBLE
+        binding.imageView.isVisible = true
         binding.imageView.load(file) {
             crossfade(true)
         }
     }
 
     private fun displayVideo(file: File) {
-        binding.videoView.visibility = View.VISIBLE
+        binding.videoView.isVisible = true
         val mediaController = MediaController(this)
         mediaController.setAnchorView(binding.videoView)
         
@@ -146,7 +125,7 @@ class MediaViewerActivity : AppCompatActivity() {
     }
 
     private fun displayAudio(file: File) {
-        binding.audioContainer.visibility = View.VISIBLE
+        binding.audioContainer.isVisible = true
         binding.textViewAudioName.text = file.name
         binding.textViewDuration.text = "--:--"
         binding.buttonPlayPause.isEnabled = false
@@ -186,22 +165,22 @@ class MediaViewerActivity : AppCompatActivity() {
     }
 
     private fun displayHtml(file: File) {
-        binding.webViewHtml.visibility = View.VISIBLE
-        lifecycleScope.launch {
-            val htmlContent = withContext(Dispatchers.IO) { file.readText() }
-            WebViewRenderer.loadContent(this@MediaViewerActivity, binding.webViewHtml, htmlContent)
-        }
+        binding.webViewHtml.isVisible = true
+        launchCatching(
+            dispatcher = Dispatchers.IO,
+            block = { file.readText() },
+            onSuccess = { html ->
+                WebViewRenderer.loadContent(this@MediaViewerActivity, binding.webViewHtml, html)
+            }
+        )
     }
 
     private fun getMediaFile(fileName: String): File? {
-        val mediaFolder = File(Environment.getExternalStorageDirectory(), "MedicalQuiz/media")
+        val mediaFolder = File(Environment.getExternalStorageDirectory(), MEDIA_FOLDER)
         return File(mediaFolder, fileName)
     }
 
-    private fun isMediaAvailable(fileName: String): Boolean {
-        val file = getMediaFile(fileName)
-        return file != null && file.exists()
-    }
+    private fun isMediaAvailable(fileName: String): Boolean = getMediaFile(fileName).exists()
 
     private fun getMediaType(fileName: String): MediaType {
         return when (fileName.substringAfterLast('.').lowercase()) {
@@ -237,5 +216,11 @@ class MediaViewerActivity : AppCompatActivity() {
 
     enum class MediaType {
         IMAGE, VIDEO, AUDIO, HTML, UNKNOWN
+    }
+
+    companion object {
+        const val EXTRA_MEDIA_FILES = "com.medicalquiz.app.extra.MEDIA_FILES"
+        const val EXTRA_START_INDEX = "com.medicalquiz.app.extra.START_INDEX"
+        private const val MEDIA_FOLDER = "MedicalQuiz/media"
     }
 }

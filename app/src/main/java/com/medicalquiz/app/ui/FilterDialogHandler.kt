@@ -6,7 +6,7 @@ import androidx.lifecycle.LifecycleCoroutineScope
 import com.medicalquiz.app.data.database.DatabaseManager
 import com.medicalquiz.app.data.models.Subject
 import com.medicalquiz.app.data.models.System
-import kotlinx.coroutines.launch
+import com.medicalquiz.app.utils.launchCatching
 
 /**
  * Handler for filter dialogs (Subject and System)
@@ -25,19 +25,19 @@ class FilterDialogHandler(
         currentSubjectIds: Set<Long>,
         onSubjectsSelected: (Set<Long>) -> Unit
     ) {
-        lifecycleScope.launch {
-            try {
-                val subjects = databaseManager.getSubjects()
+        lifecycleScope.launchCatching(
+            block = { databaseManager.getSubjects() },
+            onSuccess = { subjects ->
                 if (subjects.isEmpty()) {
                     showNoDataDialog("No subjects found")
-                    return@launch
+                } else {
+                    showSubjectSelectionDialog(subjects, currentSubjectIds, onSubjectsSelected)
                 }
-                
-                showSubjectSelectionDialog(subjects, currentSubjectIds, onSubjectsSelected)
-            } catch (e: Exception) {
-                showErrorDialog("Error loading subjects: ${e.message}")
+            },
+            onFailure = { throwable ->
+                showErrorDialog("Error loading subjects: ${throwable.message}")
             }
-        }
+        )
     }
     
     fun showSystemFilterDialog(
@@ -45,22 +45,23 @@ class FilterDialogHandler(
         currentSubjectIds: Set<Long>,
         onSystemsSelected: (Set<Long>) -> Unit
     ) {
-        lifecycleScope.launch {
-            try {
-                val systems = databaseManager.getSystems(
+        lifecycleScope.launchCatching(
+            block = {
+                databaseManager.getSystems(
                     currentSubjectIds.takeIf { it.isNotEmpty() }?.toList()
                 )
-                
+            },
+            onSuccess = { systems ->
                 if (systems.isEmpty()) {
                     showNoDataDialog("No systems found")
-                    return@launch
+                } else {
+                    showSystemSelectionDialog(systems, currentSystemIds, onSystemsSelected)
                 }
-                
-                showSystemSelectionDialog(systems, currentSystemIds, onSystemsSelected)
-            } catch (e: Exception) {
-                showErrorDialog("Error loading systems: ${e.message}")
+            },
+            onFailure = { throwable ->
+                showErrorDialog("Error loading systems: ${throwable.message}")
             }
-        }
+        )
     }
     
     private fun showSubjectSelectionDialog(
@@ -68,27 +69,14 @@ class FilterDialogHandler(
         currentSubjectIds: Set<Long>,
         onSubjectsSelected: (Set<Long>) -> Unit
     ) {
-        val items = subjects.map { it.name }.toTypedArray()
-        val checkedItems = BooleanArray(subjects.size) { index ->
-            currentSubjectIds.contains(subjects[index].id)
-        }
-        
-        AlertDialog.Builder(context)
-            .setTitle("Select Subjects")
-            .setMultiChoiceItems(items, checkedItems) { _, which, isChecked ->
-                checkedItems[which] = isChecked
-            }
-            .setPositiveButton("Apply") { _, _ ->
-                val selected = subjects.mapIndexedNotNull { index, subject ->
-                    subject.id.takeIf { checkedItems[index] }
-                }.toSet()
-                onSubjectsSelected(selected)
-            }
-            .setNeutralButton("Clear") { _, _ ->
-                onSubjectsSelected(emptySet())
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        showSelectionDialog(
+            title = "Select Subjects",
+            items = subjects,
+            isChecked = { currentSubjectIds.contains(it.id) },
+            labelProvider = { it.name },
+            idProvider = { it.id },
+            onApply = onSubjectsSelected
+        )
     }
     
     private fun showSystemSelectionDialog(
@@ -96,41 +84,52 @@ class FilterDialogHandler(
         currentSystemIds: Set<Long>,
         onSystemsSelected: (Set<Long>) -> Unit
     ) {
-        val items = systems.map { it.name }.toTypedArray()
-        val checkedItems = BooleanArray(systems.size) { index ->
-            currentSystemIds.contains(systems[index].id)
-        }
-        
+        showSelectionDialog(
+            title = "Select Systems",
+            items = systems,
+            isChecked = { currentSystemIds.contains(it.id) },
+            labelProvider = { it.name },
+            idProvider = { it.id },
+            onApply = onSystemsSelected
+        )
+    }
+    
+    private fun <T> showSelectionDialog(
+        title: String,
+        items: List<T>,
+        isChecked: (T) -> Boolean,
+        labelProvider: (T) -> String,
+        idProvider: (T) -> Long,
+        onApply: (Set<Long>) -> Unit
+    ) {
+        val labels = items.map(labelProvider).toTypedArray()
+        val checkedItems = BooleanArray(items.size) { index -> isChecked(items[index]) }
+
         AlertDialog.Builder(context)
-            .setTitle("Select Systems")
-            .setMultiChoiceItems(items, checkedItems) { _, which, isChecked ->
-                checkedItems[which] = isChecked
+            .setTitle(title)
+            .setMultiChoiceItems(labels, checkedItems) { _, which, checked ->
+                checkedItems[which] = checked
             }
             .setPositiveButton("Apply") { _, _ ->
-                val selected = systems.mapIndexedNotNull { index, system ->
-                    system.id.takeIf { checkedItems[index] }
+                val selected = items.mapIndexedNotNull { index, item ->
+                    idProvider(item).takeIf { checkedItems[index] }
                 }.toSet()
-                onSystemsSelected(selected)
+                onApply(selected)
             }
-            .setNeutralButton("Clear") { _, _ ->
-                onSystemsSelected(emptySet())
-            }
+            .setNeutralButton("Clear") { _, _ -> onApply(emptySet()) }
             .setNegativeButton("Cancel", null)
             .show()
     }
-    
-    private fun showNoDataDialog(message: String) {
-        AlertDialog.Builder(context)
-            .setMessage(message)
-            .setPositiveButton("OK", null)
-            .show()
-    }
-    
-    private fun showErrorDialog(message: String) {
-        AlertDialog.Builder(context)
-            .setTitle("Error")
-            .setMessage(message)
-            .setPositiveButton("OK", null)
-            .show()
+
+    private fun showNoDataDialog(message: String) = showMessageDialog(message = message)
+
+    private fun showErrorDialog(message: String) = showMessageDialog(title = "Error", message = message)
+
+    private fun showMessageDialog(title: String? = null, message: String) {
+        AlertDialog.Builder(context).apply {
+            title?.let { setTitle(it) }
+            setMessage(message)
+            setPositiveButton("OK", null)
+        }.show()
     }
 }

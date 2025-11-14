@@ -10,6 +10,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
@@ -17,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.navigation.NavigationView
 import com.medicalquiz.app.data.database.DatabaseManager
@@ -30,6 +32,7 @@ import com.medicalquiz.app.ui.FilterDialogHandler
 import com.medicalquiz.app.ui.MediaHandler
 import com.medicalquiz.app.utils.HtmlUtils
 import com.medicalquiz.app.utils.WebViewRenderer
+import com.medicalquiz.app.utils.launchCatching
 import com.medicalquiz.app.settings.SettingsManager
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -68,11 +71,11 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             it.storageValue == settingsManager.performanceFilterValue
         } ?: PerformanceFilter.ALL
         
-        val dbPath = intent.getStringExtra("DB_PATH")
-        val dbName = intent.getStringExtra("DB_NAME")
+        val dbPath = intent.getStringExtra(EXTRA_DB_PATH)
+        val dbName = intent.getStringExtra(EXTRA_DB_NAME)
         
         if (dbPath == null) {
-            Toast.makeText(this, "No database selected", Toast.LENGTH_SHORT).show()
+            showToast("No database selected")
             finish()
             return
         }
@@ -135,102 +138,100 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun initializeDatabase(dbPath: String) {
         binding.textViewStatus.text = "Loading database..."
         
-        lifecycleScope.launch {
-            try {
-                // Use global database manager to ensure proper cleanup
+        launchCatching(
+            block = {
                 databaseManager = MedicalQuizApp.switchDatabase(dbPath)
                 mediaHandler.reset()
                 filterDialogHandler.updateDatabaseManager(databaseManager)
-                questionIds = fetchFilteredQuestionIds()
-
+                fetchFilteredQuestionIds()
+            },
+            onSuccess = { ids ->
+                questionIds = ids
                 if (questionIds.isEmpty()) {
                     binding.textViewStatus.text = "No questions found for current filters"
                     updateToolbarSubtitle()
-                    return@launch
+                } else {
+                    binding.textViewStatus.text = "Loaded ${questionIds.size} questions"
+                    updateToolbarSubtitle()
+                    loadQuestion(0)
                 }
-
-                binding.textViewStatus.text = "Loaded ${questionIds.size} questions"
-                updateToolbarSubtitle()
-                loadQuestion(0)
-            } catch (e: Exception) {
-                binding.textViewStatus.text = "Error: ${e.message}"
-                e.printStackTrace()
+            },
+            onFailure = { throwable ->
+                binding.textViewStatus.text = "Error: ${throwable.message}"
+                Log.e(TAG, "Failed to initialize database", throwable)
             }
-        }
+        )
     }
     
     private fun loadQuestion(index: Int) {
-        if (index < 0 || index >= questionIds.size) return
-        
+        val questionId = questionIds.getOrNull(index) ?: return
         currentQuestionIndex = index
-        val questionId = questionIds[index]
-        
-        lifecycleScope.launch {
-            try {
+
+        launchCatching(
+            block = {
                 currentPerformance = null
                 currentQuestion = databaseManager.getQuestionById(questionId)
                 currentAnswers = databaseManager.getAnswersForQuestion(questionId)
-
+            },
+            onSuccess = {
                 displayQuestion()
                 startTime = System.currentTimeMillis()
-            } catch (e: Exception) {
-                android.util.Log.e("QuizActivity", "Failed to load question $questionId", e)
-                val errorText = e.message ?: e.javaClass.simpleName ?: "Unknown error"
-                Toast.makeText(this@QuizActivity, "Error loading question $questionId: $errorText", Toast.LENGTH_SHORT).show()
+            },
+            onFailure = { throwable ->
+                Log.e(TAG, "Failed to load question $questionId", throwable)
+                val errorText = throwable.message ?: throwable.javaClass.simpleName ?: "Unknown error"
+                showToast("Error loading question $questionId: $errorText")
             }
-        }
+        )
     }
     
     private fun displayQuestion() {
         val question = currentQuestion ?: return
         
-        // Update question counter
         binding.textViewQuestionNumber.text = "Question ${currentQuestionIndex + 1} of ${questionIds.size}"
         
-        // Render question, answers, and explanation within a single WebView
         val quizHtml = buildQuestionHtml(question, currentAnswers)
         WebViewRenderer.loadContent(this, binding.webViewQuestion, quizHtml)
         
-        // Display title if available
-        if (!question.title.isNullOrBlank()) {
-            HtmlUtils.setHtmlText(binding.textViewTitle, question.title)
-        } else {
-            binding.textViewTitle.text = ""
+        binding.textViewTitle.apply {
+            if (!question.title.isNullOrBlank()) {
+                HtmlUtils.setHtmlText(this, question.title)
+            } else {
+                text = ""
+            }
+            isVisible = false
         }
-        binding.textViewTitle.visibility = View.GONE
-        
-        // Display subject and system
+
         val metadata = buildString {
             append("ID: ${question.id}")
-            if (!question.subName.isNullOrBlank()) {
-                append(" | Subject: ${question.subName}")
-            }
-            if (!question.sysName.isNullOrBlank()) {
-                append(" | System: ${question.sysName}")
-            }
+            if (!question.subName.isNullOrBlank()) append(" | Subject: ${question.subName}")
+            if (!question.sysName.isNullOrBlank()) append(" | System: ${question.sysName}")
         }
-        binding.textViewMetadata.text = metadata
-        binding.textViewMetadata.visibility = View.GONE
 
-        val performanceText = buildPerformanceSummary(currentPerformance)
-        binding.textViewPerformance.text = performanceText
-        binding.textViewPerformance.visibility = View.GONE
+        binding.textViewMetadata.apply {
+            text = metadata
+            isVisible = false
+        }
+
+        binding.textViewPerformance.apply {
+            text = buildPerformanceSummary(currentPerformance)
+            isVisible = false
+        }
         loadPerformanceForQuestion(question.id)
-        
+
         val mediaFiles = collectMediaFiles(question)
         mediaHandler.updateMedia(question.id, mediaFiles)
-        if (mediaFiles.isNotEmpty()) {
-            binding.textViewMediaInfo.text = "📎 ${mediaFiles.size} media file(s) - Tap to view"
-            binding.textViewMediaInfo.visibility = View.GONE
-            binding.textViewMediaInfo.setOnClickListener {
-                mediaHandler.showCurrentMediaGallery()
+        binding.textViewMediaInfo.apply {
+            if (mediaFiles.isNotEmpty()) {
+                text = "📎 ${mediaFiles.size} media file(s) - Tap to view"
+                setOnClickListener { mediaHandler.showCurrentMediaGallery() }
+            } else {
+                text = ""
+                setOnClickListener(null)
             }
-        } else {
-            binding.textViewMediaInfo.visibility = View.GONE
-            binding.textViewMediaInfo.setOnClickListener(null)
+            isVisible = false
         }
         
-        // Reset UI state
         answerSubmitted = false
         selectedAnswerId = null
         binding.buttonNext.isEnabled = currentQuestionIndex < questionIds.size - 1
@@ -240,7 +241,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun submitAnswer() {
         val answerId = selectedAnswerId
         if (answerId == null) {
-            Toast.makeText(this, "Please select an answer", Toast.LENGTH_SHORT).show()
+            showToast("Please select an answer")
             return
         }
         
@@ -250,9 +251,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val question = currentQuestion ?: return
         val timeTaken = System.currentTimeMillis() - startTime
         
-        lifecycleScope.launch {
-            try {
-                // Log the answer
+        launchCatching(
+            block = {
                 if (settingsManager.isLoggingEnabled) {
                     databaseManager.logAnswer(
                         qid = question.id,
@@ -262,19 +262,18 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                         testId = testId
                     )
                 }
-                
+
                 val correctAnswer = currentAnswers.getOrNull(question.corrAns - 1)
-                val correctAnswerId = correctAnswer?.answerId?.toInt()
-                val correctAnswerText = correctAnswer?.let { HtmlUtils.stripHtml(it.answerText) } ?: "Answer ${question.corrAns}"
-                val normalizedCorrectId = correctAnswerId ?: -1
+                val normalizedCorrectId = correctAnswer?.answerId?.toInt() ?: -1
                 val wasCorrect = normalizedCorrectId == answerId
                 updateLocalPerformanceCache(question.id, wasCorrect)
-                updateWebViewAnswerState(normalizedCorrectId, answerId, correctAnswerText)
+                updateWebViewAnswerState(normalizedCorrectId, answerId)
                 showQuestionDetails()
-            } catch (e: Exception) {
-                Toast.makeText(this@QuizActivity, "Error saving answer: ${e.message}", Toast.LENGTH_SHORT).show()
+            },
+            onFailure = { throwable ->
+                showToast("Error saving answer: ${throwable.message}")
             }
-        }
+        )
     }
 
     private fun buildQuestionHtml(question: Question, answers: List<Answer>): String {
@@ -376,7 +375,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         """.trimIndent()
     }
 
-    private fun updateWebViewAnswerState(correctAnswerId: Int, selectedAnswerId: Int, correctAnswerText: String) {
+    private fun updateWebViewAnswerState(correctAnswerId: Int, selectedAnswerId: Int) {
         val jsCommand = buildString {
             append("applyAnswerState($correctAnswerId, $selectedAnswerId);")
             append("revealExplanation();")
@@ -415,14 +414,16 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun loadNextQuestion() {
-        if (currentQuestionIndex < questionIds.size - 1) {
-            loadQuestion(currentQuestionIndex + 1)
+        val nextIndex = currentQuestionIndex + 1
+        if (questionIds.getOrNull(nextIndex) != null) {
+            loadQuestion(nextIndex)
         }
     }
     
     private fun loadPreviousQuestion() {
-        if (currentQuestionIndex > 0) {
-            loadQuestion(currentQuestionIndex - 1)
+        val previousIndex = currentQuestionIndex - 1
+        if (questionIds.getOrNull(previousIndex) != null) {
+            loadQuestion(previousIndex)
         }
     }
     
@@ -448,7 +449,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             R.id.nav_filter_performance -> showPerformanceFilterDialog()
             R.id.nav_clear_filters -> clearFilters()
             R.id.nav_settings -> showSettingsDialog()
-            R.id.nav_about -> Toast.makeText(this, "About coming soon", Toast.LENGTH_SHORT).show()
+            R.id.nav_about -> showToast("About coming soon")
         }
         binding.drawerLayout.closeDrawer(GravityCompat.START)
         return true
@@ -487,24 +488,25 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun reloadQuestionsWithFilters() {
-        lifecycleScope.launch {
-            try {
-                questionIds = fetchFilteredQuestionIds()
-                
+        launchCatching(
+            block = { fetchFilteredQuestionIds() },
+            onSuccess = { ids ->
+                questionIds = ids
                 if (questionIds.isEmpty()) {
-                    Toast.makeText(this@QuizActivity, "No questions found with selected filters", Toast.LENGTH_SHORT).show()
+                    showToast("No questions found with selected filters")
                     binding.textViewStatus.text = "No questions found for current filters"
                     updateToolbarSubtitle()
-                    return@launch
+                } else {
+                    binding.textViewStatus.text = "Loaded ${questionIds.size} questions"
+                    updateToolbarSubtitle()
+                    loadQuestion(0)
                 }
-
-                binding.textViewStatus.text = "Loaded ${questionIds.size} questions"
-                updateToolbarSubtitle()
-                loadQuestion(0)
-            } catch (e: Exception) {
-                Toast.makeText(this@QuizActivity, "Error reloading questions: ${e.message}", Toast.LENGTH_SHORT).show()
+            },
+            onFailure = { throwable ->
+                Log.e(TAG, "Error reloading questions", throwable)
+                showToast("Error reloading questions: ${throwable.message}")
             }
-        }
+        )
     }
 
     private suspend fun fetchFilteredQuestionIds(): List<Long> {
@@ -543,37 +545,33 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun buildPerformanceSummary(performance: QuestionPerformance?): String {
-        val summary = performance ?: return ""
-        if (summary.attempts <= 0) return ""
+        val summary = performance?.takeIf { it.attempts > 0 } ?: return ""
         val lastLabel = if (summary.lastCorrect) "Correct" else "Incorrect"
         return "Attempts: ${summary.attempts} | Last: $lastLabel"
     }
 
     private fun collectMediaFiles(question: Question): List<String> {
-        val mediaFiles = mutableListOf<String>()
-        question.mediaName?.takeIf { it.isNotBlank() }?.let { mediaFiles.add(it.trim()) }
-        HtmlUtils.parseMediaFiles(question.otherMedias).let { mediaFiles.addAll(it) }
-        return mediaFiles.distinct()
+        return buildList {
+            question.mediaName?.takeIf { it.isNotBlank() }?.let { add(it.trim()) }
+            addAll(HtmlUtils.parseMediaFiles(question.otherMedias))
+        }.distinct()
     }
 
     private fun updateLocalPerformanceCache(questionId: Long, wasCorrect: Boolean) {
-        val existing = currentPerformance
-        currentPerformance = if (existing == null) {
-            QuestionPerformance(
-                qid = questionId,
-                lastCorrect = wasCorrect,
-                everCorrect = wasCorrect,
-                everIncorrect = !wasCorrect,
-                attempts = 1
-            )
-        } else {
+        currentPerformance = currentPerformance?.let { existing ->
             existing.copy(
                 lastCorrect = wasCorrect,
                 everCorrect = existing.everCorrect || wasCorrect,
                 everIncorrect = existing.everIncorrect || !wasCorrect,
                 attempts = existing.attempts + 1
             )
-        }
+        } ?: QuestionPerformance(
+            qid = questionId,
+            lastCorrect = wasCorrect,
+            everCorrect = wasCorrect,
+            everIncorrect = !wasCorrect,
+            attempts = 1
+        )
         binding.textViewPerformance.text = buildPerformanceSummary(currentPerformance)
     }
     
@@ -647,29 +645,25 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun showQuestionDetails() {
-        val hasTitle = !binding.textViewTitle.text.isNullOrBlank()
-        binding.textViewTitle.visibility = if (hasTitle) View.VISIBLE else View.GONE
-
-        val hasMetadata = !binding.textViewMetadata.text.isNullOrBlank()
-        binding.textViewMetadata.visibility = if (hasMetadata) View.VISIBLE else View.GONE
-
-        val hasPerformance = !binding.textViewPerformance.text.isNullOrBlank()
-        binding.textViewPerformance.visibility = if (hasPerformance) View.VISIBLE else View.GONE
-
-        val hasMediaInfo = !binding.textViewMediaInfo.text.isNullOrBlank()
-        binding.textViewMediaInfo.visibility = if (hasMediaInfo) View.VISIBLE else View.GONE
+        binding.textViewTitle.isVisible = !binding.textViewTitle.text.isNullOrBlank()
+        binding.textViewMetadata.isVisible = !binding.textViewMetadata.text.isNullOrBlank()
+        binding.textViewPerformance.isVisible = !binding.textViewPerformance.text.isNullOrBlank()
+        binding.textViewMediaInfo.isVisible = !binding.textViewMediaInfo.text.isNullOrBlank()
     }
 
     private fun loadPerformanceForQuestion(questionId: Long) {
-        lifecycleScope.launch {
-            try {
-                currentPerformance = databaseManager.getQuestionPerformance(questionId)
-                binding.textViewPerformance.text = buildPerformanceSummary(currentPerformance)
-            } catch (e: Exception) {
-                android.util.Log.w("QuizActivity", "Unable to load performance for question $questionId", e)
+        launchCatching(
+            block = { databaseManager.getQuestionPerformance(questionId) },
+            onSuccess = { performance ->
+                currentPerformance = performance
+                binding.textViewPerformance.text = buildPerformanceSummary(performance)
+            },
+            onFailure = { throwable ->
+                currentPerformance = null
+                Log.w(TAG, "Unable to load performance for question $questionId", throwable)
                 binding.textViewPerformance.text = ""
             }
-        }
+        )
     }
 
     private fun showSettingsDialog() {
@@ -697,9 +691,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     lifecycleScope.launch {
                         try {
                             databaseManager.clearLogs()
-                            Toast.makeText(this@QuizActivity, "Logs cleared", Toast.LENGTH_SHORT).show()
+                            showToast("Logs cleared")
                         } catch (e: Exception) {
-                            Toast.makeText(this@QuizActivity, "Failed to clear logs: ${e.message}", Toast.LENGTH_SHORT).show()
+                            showToast("Failed to clear logs: ${e.message}")
                         }
                     }
                 }
@@ -710,4 +704,13 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         dialog.show()
     }
 
+    private fun showToast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    companion object {
+        private const val TAG = "QuizActivity"
+        private const val EXTRA_DB_PATH = "DB_PATH"
+        private const val EXTRA_DB_NAME = "DB_NAME"
+    }
 }

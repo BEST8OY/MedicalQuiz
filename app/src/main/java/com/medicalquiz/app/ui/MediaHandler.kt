@@ -22,28 +22,43 @@ class MediaHandler(private val context: Context) {
     }
 
     fun handleMediaLink(url: String): Boolean {
-        if (!url.startsWith("file://") || !url.contains("/media/")) return false
-        val fileName = url.substringAfterLast("/")
+        if (!url.startsWith(FILE_SCHEME) || !url.contains(MEDIA_PATH_SEGMENT)) return false
+        val fileName = url.substringAfterLast('/')
         return openMediaFromCache(fileName)
     }
 
     fun showCurrentMediaGallery(startIndex: Int = 0): Boolean = openMediaFromCache(null, startIndex)
 
     private fun openMediaFromCache(fileName: String?, fallbackIndex: Int = 0): Boolean {
-        val questionId = currentQuestionId ?: return false
-        val mediaFiles = mediaCache[questionId].orEmpty()
+        val mediaFiles = currentQuestionId?.let { mediaCache[it] }.orEmpty()
         if (mediaFiles.isEmpty()) return false
-        val startIndex = fileName?.let {
-            mediaFiles.indexOfFirst { cached -> cached.equals(it, ignoreCase = true) }
-        }?.takeIf { it >= 0 } ?: fallbackIndex.coerceIn(0, mediaFiles.lastIndex)
+        val startIndex = resolveStartIndex(mediaFiles, fileName, fallbackIndex)
         openMediaViewer(mediaFiles, startIndex)
         return true
     }
 
+    private fun resolveStartIndex(mediaFiles: List<String>, fileName: String?, fallbackIndex: Int): Int {
+        if (mediaFiles.size == 1) return 0
+        val matchingIndex = fileName?.let { target ->
+            mediaFiles.indexOfFirst { it.equals(target, ignoreCase = true) }
+        }
+        return matchingIndex?.takeIf { it >= 0 }
+            ?: fallbackIndex.coerceIn(0, mediaFiles.lastIndex)
+    }
+
     fun openMediaViewer(mediaFiles: List<String>, startIndex: Int) {
-        val intent = Intent(context, MediaViewerActivity::class.java)
-        intent.putStringArrayListExtra("MEDIA_FILES", ArrayList(mediaFiles))
-        intent.putExtra("START_INDEX", startIndex)
+        val intent = Intent(context, MediaViewerActivity::class.java).apply {
+            putStringArrayListExtra(
+                MediaViewerActivity.EXTRA_MEDIA_FILES,
+                ArrayList(mediaFiles)
+            )
+            putExtra(MediaViewerActivity.EXTRA_START_INDEX, startIndex)
+        }
         context.startActivity(intent)
+    }
+
+    private companion object {
+        private const val FILE_SCHEME = "file://"
+        private const val MEDIA_PATH_SEGMENT = "/media/"
     }
 }

@@ -24,4 +24,7 @@ data class QuizState(
     
     val currentQuestionId: Long?
         get() = questionIds.getOrNull(currentQuestionIndex)
+
+    val totalQuestions: Int
+        get() = questionIds.size
 }

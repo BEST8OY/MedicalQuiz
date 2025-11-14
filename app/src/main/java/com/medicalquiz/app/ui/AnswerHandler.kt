@@ -1,9 +1,11 @@
 package com.medicalquiz.app.ui
 
+import android.graphics.Color
 import android.widget.RadioButton
 import android.widget.RadioGroup
+import androidx.core.content.ContextCompat
+import androidx.core.view.children
 import com.medicalquiz.app.data.models.Answer
-import android.graphics.Color
 
 /**
  * Handler for answer selection and highlighting
@@ -16,46 +18,38 @@ class AnswerHandler {
         selectedAnswerId: Int,
         correctAnswerId: Int
     ) {
-        for (i in 0 until radioGroup.childCount) {
-            val radioButton = radioGroup.getChildAt(i) as? RadioButton ?: continue
-            val answer = answers.getOrNull(i) ?: continue
-            when {
-                answer.answerId.toInt() == correctAnswerId -> {
-                    setAnswerState(
-                        radioButton,
-                        Color.parseColor("#C8E6C9"),
-                        Color.parseColor("#1B5E20")
-                    )
-                }
-                answer.answerId.toInt() == selectedAnswerId && selectedAnswerId != correctAnswerId -> {
-                    setAnswerState(
-                        radioButton,
-                        Color.parseColor("#FFCDD2"),
-                        Color.parseColor("#B71C1C")
-                    )
-                }
-                else -> {
-                    resetAnswerColor(radioButton)
-                }
+        radioGroup.children.forEachIndexed { index, view ->
+            val radioButton = view as? RadioButton ?: return@forEachIndexed
+            val answerId = answers.getOrNull(index)?.answerId?.toInt() ?: return@forEachIndexed
+            when (answerId) {
+                correctAnswerId -> radioButton.setAnswerState(CORRECT_BG, CORRECT_TEXT)
+                selectedAnswerId -> radioButton.setAnswerState(INCORRECT_BG, INCORRECT_TEXT)
+                else -> radioButton.resetAnswerColor()
             }
         }
     }
     
     fun resetAnswerColors(radioGroup: RadioGroup) {
-        for (i in 0 until radioGroup.childCount) {
-            val radioButton = radioGroup.getChildAt(i) as? RadioButton ?: continue
-            resetAnswerColor(radioButton)
-        }
+        radioGroup.children
+            .mapNotNull { it as? RadioButton }
+            .forEach { it.resetAnswerColor() }
     }
     
-    private fun resetAnswerColor(radioButton: RadioButton) {
-        radioButton.setBackgroundColor(Color.TRANSPARENT)
-        // Reset to theme default text color
-        radioButton.setTextColor(radioButton.context.getColor(android.R.color.darker_gray))
+    private fun RadioButton.resetAnswerColor() {
+        setBackgroundColor(Color.TRANSPARENT)
+        val defaultTextColor = ContextCompat.getColor(context, android.R.color.darker_gray)
+        setTextColor(defaultTextColor)
     }
 
-    private fun setAnswerState(radioButton: RadioButton, backgroundColor: Int, textColor: Int) {
-        radioButton.setBackgroundColor(backgroundColor)
-        radioButton.setTextColor(textColor)
+    private fun RadioButton.setAnswerState(backgroundColor: Int, textColor: Int) {
+        setBackgroundColor(backgroundColor)
+        setTextColor(textColor)
+    }
+
+    private companion object {
+        private val CORRECT_BG = Color.parseColor("#C8E6C9")
+        private val CORRECT_TEXT = Color.parseColor("#1B5E20")
+        private val INCORRECT_BG = Color.parseColor("#FFCDD2")
+        private val INCORRECT_TEXT = Color.parseColor("#B71C1C")
     }
 }
