@@ -66,7 +66,10 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun displayMedia() {
         releaseMediaPlayer()
         val fileName = mediaFiles[currentIndex]
-        val file = getMediaFile(fileName)
+        val file = getMediaFile(fileName) ?: run {
+            skipOrFinish()
+            return
+        }
 
         binding.buttonPrevious.isEnabled = currentIndex > 0
         binding.buttonNext.isEnabled = currentIndex < mediaFiles.lastIndex
@@ -75,7 +78,7 @@ class MediaViewerActivity : AppCompatActivity() {
         supportActionBar?.subtitle = fileName
 
         setAllContentInvisible()
-        if (file == null || !file.exists()) {
+        if (!file.exists()) {
             skipOrFinish()
             return
         }
