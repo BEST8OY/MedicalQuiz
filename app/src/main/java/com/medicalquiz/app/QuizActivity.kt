@@ -97,7 +97,13 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         setupWebViews()
         setupDrawer()
         setupListeners()
-        initializeDatabase(dbPath)
+        
+        // Restore state if available
+        if (savedInstanceState != null) {
+            restoreInstanceState(savedInstanceState)
+        } else {
+            initializeDatabase(dbPath)
+        }
         
         // Handle back button press
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -675,28 +681,63 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         // UI update moved to caller to ensure proper threading
     }
     
-    override fun onSupportNavigateUp(): Boolean {
-        // Check if there are pending logs
-        val pendingLogs = if (settingsManager.isLoggingEnabled) databaseManager.getPendingLogCount() else 0
-        if (pendingLogs > 0) {
-            AlertDialog.Builder(this)
-                .setTitle("Unsaved Answers")
-                .setMessage("You have $pendingLogs unsaved answer(s). Save before leaving?")
-                .setPositiveButton("Save & Exit") { _, _ ->
-                    lifecycleScope.launch {
-                        databaseManager.flushLogs()
-                        finish()
+    private fun restoreInstanceState(savedInstanceState: Bundle) {
+        // Restore quiz state
+        currentQuestionIndex = savedInstanceState.getInt(STATE_CURRENT_QUESTION_INDEX, 0)
+        questionIds = savedInstanceState.getLongArray(STATE_QUESTION_IDS)?.toList() ?: emptyList()
+        selectedSubjectIds.addAll(savedInstanceState.getLongArray(STATE_SELECTED_SUBJECT_IDS)?.toList() ?: emptyList())
+        selectedSystemIds.addAll(savedInstanceState.getLongArray(STATE_SELECTED_SYSTEM_IDS)?.toList() ?: emptyList())
+        performanceFilter = savedInstanceState.getString(STATE_PERFORMANCE_FILTER)?.let { 
+            PerformanceFilter.valueOf(it) 
+        } ?: PerformanceFilter.ALL
+        testId = savedInstanceState.getString(STATE_TEST_ID) ?: UUID.randomUUID().toString()
+        startTime = savedInstanceState.getLong(STATE_START_TIME, System.currentTimeMillis())
+        answerSubmitted = savedInstanceState.getBoolean(STATE_ANSWER_SUBMITTED, false)
+        selectedAnswerId = if (savedInstanceState.containsKey(STATE_SELECTED_ANSWER_ID)) {
+            savedInstanceState.getInt(STATE_SELECTED_ANSWER_ID)
+        } else null
+        
+        val dbPath = intent.getStringExtra(EXTRA_DB_PATH) ?: return
+        
+        // Initialize database and restore question state
+        binding.textViewStatus.text = "Restoring quiz state..."
+        
+        launchCatching(
+            block = {
+                databaseManager = MedicalQuizApp.switchDatabase(dbPath)
+                mediaHandler.reset()
+                filterDialogHandler.updateDatabaseManager(databaseManager)
+                
+                // Restore current question if available
+                val questionId = savedInstanceState.getLong(STATE_CURRENT_QUESTION_ID, -1)
+                if (questionId != -1L) {
+                    currentQuestion = databaseManager.getQuestionById(questionId)
+                    currentAnswers = databaseManager.getAnswersForQuestion(questionId)
+                }
+            },
+            onSuccess = {
+                if (questionIds.isEmpty()) {
+                    // If no questions were saved, fetch them
+                    fetchFilteredQuestionIds()
+                } else {
+                    // Restore the current question display
+                    if (currentQuestion != null) {
+                        displayQuestion()
+                        loadPerformanceForQuestion(currentQuestion!!.id)
+                    } else if (questionIds.isNotEmpty()) {
+                        loadQuestion(currentQuestionIndex)
                     }
+                    updateToolbarSubtitle()
+                    binding.textViewStatus.text = "Loaded ${questionIds.size} questions"
                 }
-                .setNegativeButton("Exit Without Saving") { _, _ ->
-                    finish()
-                }
-                .setNeutralButton("Cancel", null)
-                .show()
-        } else {
-            finish()
-        }
-        return true
+            },
+            onFailure = { throwable ->
+                binding.textViewStatus.text = "Error restoring state: ${throwable.message}"
+                Log.e(TAG, "Failed to restore instance state", throwable)
+                // Fall back to fresh initialization
+                initializeDatabase(dbPath)
+            }
+        )
     }
     
     override fun onPause() {
@@ -837,5 +878,17 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         private const val TAG = "QuizActivity"
         private const val EXTRA_DB_PATH = "DB_PATH"
         private const val EXTRA_DB_NAME = "DB_NAME"
+        
+        // Instance state keys
+        private const val STATE_CURRENT_QUESTION_INDEX = "current_question_index"
+        private const val STATE_QUESTION_IDS = "question_ids"
+        private const val STATE_SELECTED_SUBJECT_IDS = "selected_subject_ids"
+        private const val STATE_SELECTED_SYSTEM_IDS = "selected_system_ids"
+        private const val STATE_PERFORMANCE_FILTER = "performance_filter"
+        private const val STATE_TEST_ID = "test_id"
+        private const val STATE_START_TIME = "start_time"
+        private const val STATE_ANSWER_SUBMITTED = "answer_submitted"
+        private const val STATE_SELECTED_ANSWER_ID = "selected_answer_id"
+        private const val STATE_CURRENT_QUESTION_ID = "current_question_id"
     }
 }
