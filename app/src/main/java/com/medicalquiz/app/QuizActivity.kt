@@ -21,6 +21,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import androidx.activity.viewModels
 import com.google.android.material.navigation.NavigationView
 import com.medicalquiz.app.MedicalQuizApp
 import com.medicalquiz.app.data.database.DatabaseManager
@@ -94,17 +95,20 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         
         // initialize DB in ViewModel and keep local reference for non-ViewModel helpers
-        // Switch DB at the app level then hand it to the ViewModel
-        databaseManager = MedicalQuizApp.switchDatabase(dbPath)
-        mediaHandler = MediaHandler(this)
-        filterDialogHandler = FilterDialogHandler(this, lifecycleScope, viewModel)
-        mediaHandler.reset()
-                // FilterDialogHandler uses ViewModel for DB access; compute DB in viewModel
-        viewModel.setDatabaseManager(databaseManager)
-        
-        setupWebViews()
-        setupDrawer()
-        setupListeners()
+        // Switch DB at the app level then hand it to the ViewModel (suspend function)
+        lifecycleScope.launch {
+            databaseManager = MedicalQuizApp.switchDatabase(dbPath)
+            mediaHandler = MediaHandler(this@QuizActivity)
+            filterDialogHandler = FilterDialogHandler(this@QuizActivity, lifecycleScope, viewModel)
+            mediaHandler.reset()
+            viewModel.setDatabaseManager(databaseManager)
+
+            // setup UI now that DB is ready
+            setupWebViews()
+            setupDrawer()
+            setupListeners()
+        }
+        // Note: setupWebViews, setupDrawer, setupListeners will run after DB initialization
 
         // Observe question events from ViewModel
         viewModel.currentQuestion.observe(this) { question ->
@@ -364,7 +368,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     reloadQuestionsWithFilters()
                 }
             }
-            R.id.nav_filter_system -> filterDialogHandler.showSystemFilterDialog(viewModel.selectedSystemIds.value ?: emptySet(), viewModel.selectedSubjectIds.value ?: emptySet()) { systemIds ->
+            R.id.nav_filter_system -> filterDialogHandler.showSystemFilterDialog(this, viewModel.selectedSystemIds.value ?: emptySet(), viewModel.selectedSubjectIds.value ?: emptySet()) { systemIds ->
                 viewModel.setSelectedSystems(systemIds)
                 reloadQuestionsWithFilters()
             }

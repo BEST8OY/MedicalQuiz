@@ -11,6 +11,10 @@ import kotlinx.coroutines.launch
 import com.medicalquiz.app.data.database.PerformanceFilter
 import com.medicalquiz.app.data.models.System
 import com.medicalquiz.app.data.models.Subject
+import com.medicalquiz.app.utils.Resource
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import com.medicalquiz.app.data.models.Subject
 
 /**
  * ViewModel that holds quiz state and performs database operations.
@@ -121,6 +125,28 @@ class QuizViewModel : ViewModel() {
 
     suspend fun getSubjects(): List<Subject> {
         return databaseManager?.getSubjects() ?: emptyList()
+    }
+
+    // LiveData wrapper for system fetch state
+    private val _systemsResource = MutableLiveData<Resource<List<System>>>(Resource.Success(emptyList()))
+    val systemsResource: LiveData<Resource<List<System>>> = _systemsResource
+
+    private var lastFetchedSubjectIds: List<Long>? = null
+
+    fun fetchSystemsForSubjects(subjectIds: List<Long>?) {
+        // Prevent refetch when same subjects requested
+        if (subjectIds == lastFetchedSubjectIds) return
+        lastFetchedSubjectIds = subjectIds
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _systemsResource.postValue(Resource.Loading)
+            try {
+                val systems = databaseManager?.getSystems(subjectIds) ?: emptyList()
+                _systemsResource.postValue(Resource.Success(systems))
+            } catch (e: Exception) {
+                _systemsResource.postValue(Resource.Error(e.message ?: "Unknown error"))
+            }
+        }
     }
 
     // Expose database manager for other helpers if needed (avoid direct DB calls from Activity)

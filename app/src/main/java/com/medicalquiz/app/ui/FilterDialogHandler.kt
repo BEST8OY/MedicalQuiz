@@ -7,6 +7,7 @@ import com.medicalquiz.app.viewmodel.QuizViewModel
 import com.medicalquiz.app.data.models.System
 import com.medicalquiz.app.data.models.Subject
 import com.medicalquiz.app.utils.launchCatching
+import com.medicalquiz.app.utils.Resource
 
 /**
  * Handler for filter dialogs (Subject and System)
@@ -39,28 +40,32 @@ class FilterDialogHandler(
     }
     
     fun showSystemFilterDialog(
+        owner: androidx.lifecycle.LifecycleOwner,
         currentSystemIds: Set<Long>,
         currentSubjectIds: Set<Long>,
         onSystemsSelected: (Set<Long>) -> Unit
     ) {
-        lifecycleScope.launchCatching(
-            block = {
-                // Delegate systems retrieval to the ViewModel so UI stays decoupled from DB
-                viewModel.getSystemsForSubjects(
-                    currentSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-                )
-            },
-            onSuccess = { systems ->
-                if (systems.isEmpty()) {
-                    showNoDataDialog("No systems found")
-                } else {
-                    showSystemSelectionDialog(systems, currentSystemIds, onSystemsSelected)
+        // Trigger a fetch in the ViewModel and observe the resulting LiveData
+        viewModel.fetchSystemsForSubjects(currentSubjectIds.takeIf { it.isNotEmpty() }?.toList())
+
+        viewModel.systemsResource.observeOnce(owner, androidx.lifecycle.Observer { resource ->
+            when (resource) {
+                is Resource.Loading -> {
+                    // optionally show a loading indicator
                 }
-            },
-            onFailure = { throwable ->
-                showErrorDialog("Error loading systems: ${throwable.message}")
+                is Resource.Success -> {
+                    val systems = resource.data
+                    if (systems.isEmpty()) {
+                        showNoDataDialog("No systems found")
+                    } else {
+                        showSystemSelectionDialog(systems, currentSystemIds, onSystemsSelected)
+                    }
+                }
+                is Resource.Error -> {
+                    showErrorDialog("Error loading systems: ${resource.message}")
+                }
             }
-        )
+        }
     }
     
     private fun showSubjectSelectionDialog(
