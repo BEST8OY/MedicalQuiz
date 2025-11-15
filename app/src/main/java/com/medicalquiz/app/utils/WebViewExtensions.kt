@@ -1,3 +1,5 @@
+package com.medicalquiz.app.utils
+
 import android.os.Looper
 import android.util.Log
 import android.webkit.ValueCallback

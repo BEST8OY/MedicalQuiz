@@ -7,7 +7,6 @@ import android.webkit.WebViewClient
 import android.R as AndroidR
 import com.google.android.material.R as MaterialR
 import com.google.android.material.color.MaterialColors
-import com.medicalquiz.app.utils.safeLoadDataWithBaseURL
 
 object WebViewRenderer {
     private data class MaterialCssVar(
