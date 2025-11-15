@@ -98,11 +98,20 @@ object WebViewRenderer {
             <script>
                 function makeImagesClickable() {
                     document.querySelectorAll('img').forEach(function(img) {
-                        img.onclick = function() {
+                        img.style.cursor = 'pointer';
+                        img.onclick = function(event) {
+                            event.preventDefault();
                             var src = this.src;
                             // Extract filename from file:// URL
-                            if (src.startsWith('file://')) {
-                                window.location.href = src;
+                            if (src && src.startsWith('file://') && src.indexOf('/media/') !== -1) {
+                                try {
+                                    var filename = src.substring(src.lastIndexOf('/') + 1);
+                                    if (filename) {
+                                        window.location.href = src;
+                                    }
+                                } catch (e) {
+                                    console.error('Error handling image click:', e);
+                                }
                             }
                         };
                     });

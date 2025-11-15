@@ -54,6 +54,9 @@ dependencies {
     // RecyclerView
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     
+    // ViewPager2 for swipe navigation
+    implementation("androidx.viewpager2:viewpager2:1.0.0")
+    
     // SQLite support
     implementation("androidx.sqlite:sqlite-ktx:2.4.0")
     

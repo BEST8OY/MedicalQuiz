@@ -143,7 +143,7 @@ object HtmlUtils {
         val resolvedPath = runCatching {
             val mediaFolder = File(storageRoot, MEDIA_FOLDER)
             val mediaFile = File(mediaFolder, fileName)
-            if (mediaFile.exists()) mediaFile.absolutePath else null
+            if (mediaFile.exists() && mediaFile.canRead()) mediaFile.absolutePath else null
         }.getOrElse {
             Log.w(TAG, "Failed to resolve media path for $fileName", it)
             null
@@ -168,14 +168,16 @@ object HtmlUtils {
     }
 
     /**
-     * Parse comma-separated media files
+     * Parse comma-separated media files with better error handling
      */
     fun parseMediaFiles(mediaString: String?): List<String> {
         if (mediaString.isNullOrBlank()) return emptyList()
 
         return mediaString.split(',')
             .map { it.trim() }
-            .filter { it.isNotEmpty() }
+            .filter { it.isNotEmpty() && it.length <= 255 } // Reasonable filename length limit
+            .filter { it.matches(Regex("^[\\w\\-\\.\\s]+$")) } // Basic filename validation
+            .distinct()
     }
 
     /**
@@ -198,13 +200,10 @@ object HtmlUtils {
         return HtmlCompat.fromHtml(htmlText, HtmlCompat.FROM_HTML_MODE_LEGACY)
     }
 
-    private class MediaImageGetter(private val context: Context) : Html.ImageGetter {
-        override fun getDrawable(source: String?): Drawable? {
-            if (source.isNullOrBlank()) return null
-            val path = getMediaPath(source) ?: return null
-            val drawable = Drawable.createFromPath(path) ?: return null
-            drawable.setBounds(0, 0, drawable.intrinsicWidth, drawable.intrinsicHeight)
-            return drawable
-        }
+    /**
+     * Clear media path caches (useful when media files change)
+     */
+    fun clearMediaCaches() {
+        mediaPathCache.clear()
+        missingMediaCache.clear()
     }
-}

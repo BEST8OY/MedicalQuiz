@@ -7,6 +7,8 @@ import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -220,6 +222,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         loadPerformanceForQuestion(question.id)
 
         val mediaFiles = collectMediaFiles(question)
+        Log.d(TAG, "Question ${question.id} has media files: $mediaFiles")
         mediaHandler.updateMedia(question.id, mediaFiles)
         binding.textViewMediaInfo.apply {
             if (mediaFiles.isNotEmpty()) {
@@ -443,6 +446,35 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         WebViewRenderer.setupWebView(webView)
         webView.webChromeClient = WebChromeClient()
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                val url = request.url?.toString() ?: return null
+                if (url.startsWith("file://") && url.contains("/media/")) {
+                    // Extract filename from URL
+                    val fileName = url.substringAfterLast('/')
+                    Log.d(TAG, "Intercepting media request for: $fileName")
+                    val mediaPath = HtmlUtils.getMediaPath(fileName)
+                    if (mediaPath != null) {
+                        return try {
+                            val file = java.io.File(mediaPath)
+                            if (file.exists() && file.canRead()) {
+                                val mimeType = getMimeType(fileName)
+                                Log.d(TAG, "Serving media file: $fileName with MIME type: $mimeType")
+                                WebResourceResponse(mimeType, "UTF-8", file.inputStream())
+                            } else {
+                                Log.w(TAG, "Media file not found or not readable: $mediaPath")
+                                null
+                            }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to load media file: $fileName", e)
+                            null
+                        }
+                    } else {
+                        Log.w(TAG, "Could not resolve media path for: $fileName")
+                    }
+                }
+                return null
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url?.toString() ?: return false
                 return mediaHandler.handleMediaLink(url)
@@ -608,7 +640,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private fun collectMediaFiles(question: Question): List<String> {
         return buildList {
-            question.mediaName?.takeIf { it.isNotBlank() }?.let { add(it.trim()) }
+            // Both mediaName and otherMedias can be comma-separated
+            addAll(HtmlUtils.parseMediaFiles(question.mediaName))
             addAll(HtmlUtils.parseMediaFiles(question.otherMedias))
         }.distinct()
     }
@@ -766,8 +799,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         dialog.show()
     }
 
-    private fun showToast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    private fun getMimeType(fileName: String): String {
+        return android.webkit.MimeTypeMap.getSingleton()
+            .getMimeTypeFromExtension(fileName.substringAfterLast('.', "")) 
+            ?: "application/octet-stream"
     }
 
     companion object {
