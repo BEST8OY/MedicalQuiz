@@ -216,7 +216,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun loadQuestion(index: Int) {
         trimCachesPeriodically()
         viewModel.loadQuestion(index)
-        startTime = System.currentTimeMillis()
+        startTime = java.lang.System.currentTimeMillis()
     }
     
     private fun displayQuestion() {
@@ -272,7 +272,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         answerSubmitted = true
         
         val question = currentQuestion ?: return
-        val timeTaken = System.currentTimeMillis() - startTime
+        val timeTaken = java.lang.System.currentTimeMillis() - startTime
         
         launchCatching(
             block = {
@@ -370,7 +370,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                         is com.medicalquiz.app.utils.Resource.Loading -> {
                             // optional loading UI
                         }
-                        is com.medicalquiz.app.utils.Resource.Success<*> -> {
+                        is com.medicalquiz.app.utils.Resource.Success<List<Subject>> -> {
                             filterDialogHandler.showSubjectSelectionDialog(resource.data, viewModel.selectedSubjectIds.value ?: emptySet()) { subjectIds ->
                                 lifecycleScope.launch {
                                     viewModel.setSelectedSubjects(subjectIds)
@@ -393,7 +393,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 viewModel.systemsResource.observeOnce(this, androidx.lifecycle.Observer<Resource<List<System>>> { resource ->
                     when (resource) {
                         is com.medicalquiz.app.utils.Resource.Loading -> { /* optional loading */ }
-                        is com.medicalquiz.app.utils.Resource.Success<*> -> {
+                        is com.medicalquiz.app.utils.Resource.Success<List<System>> -> {
                             val systems = resource.data
                             filterDialogHandler.showSystemSelectionDialog(systems, viewModel.selectedSystemIds.value ?: emptySet()) { systemIds ->
                                 viewModel.setSelectedSystems(systemIds)
@@ -615,7 +615,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val perf = savedInstanceState.getString(STATE_PERFORMANCE_FILTER)?.let { PerformanceFilter.valueOf(it) } ?: PerformanceFilter.ALL
         viewModel.setPerformanceFilter(perf)
         testId = savedInstanceState.getString(STATE_TEST_ID) ?: UUID.randomUUID().toString()
-        startTime = savedInstanceState.getLong(STATE_START_TIME, System.currentTimeMillis())
+        startTime = savedInstanceState.getLong(STATE_START_TIME, java.lang.System.currentTimeMillis())
         answerSubmitted = savedInstanceState.getBoolean(STATE_ANSWER_SUBMITTED, false)
         selectedAnswerId = if (savedInstanceState.containsKey(STATE_SELECTED_ANSWER_ID)) {
             savedInstanceState.getInt(STATE_SELECTED_ANSWER_ID)
