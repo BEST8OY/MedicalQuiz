@@ -6,8 +6,9 @@ import androidx.lifecycle.Observer
 
 fun <T> LiveData<T>.observeOnce(owner: LifecycleOwner, observer: Observer<T>) {
     observe(owner, object : Observer<T> {
-        override fun onChanged(t: T) {
-            observer.onChanged(t)
+        // Use the same parameter name as the interface to avoid Kotlin warnings
+        override fun onChanged(value: T) {
+            observer.onChanged(value)
             removeObserver(this)
         }
     })
