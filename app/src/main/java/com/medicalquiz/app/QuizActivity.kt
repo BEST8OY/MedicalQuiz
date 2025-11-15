@@ -47,10 +47,11 @@ import java.util.UUID
 class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     private lateinit var binding: ActivityQuizBinding
     private lateinit var databaseManager: DatabaseManager
+    private val viewModel: com.medicalquiz.app.viewmodel.QuizViewModel by androidx.activity.viewModels()
     private lateinit var drawerToggle: ActionBarDrawerToggle
     private lateinit var mediaHandler: MediaHandler
     private lateinit var filterDialogHandler: FilterDialogHandler
-    private lateinit var quizWebInterface: QuizWebInterface
+    private lateinit var webViewController: com.medicalquiz.app.utils.WebViewController
     private lateinit var settingsManager: SettingsManager
     
     private var questionIds: List<Long> = emptyList()
@@ -60,9 +61,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private var selectedAnswerId: Int? = null
     private var testId = UUID.randomUUID().toString()
     private var startTime: Long = 0
-    private val selectedSubjectIds = mutableSetOf<Long>()
-    private val selectedSystemIds = mutableSetOf<Long>()
-    private var performanceFilter: PerformanceFilter = PerformanceFilter.ALL
+    // Selected filters are now stored in the ViewModel
+    // Performance filter moved to ViewModel
     private var answerSubmitted = false
     private val mediaFilesCache = mutableMapOf<Long, List<String>>()
     private var currentPerformance: QuestionPerformance? = null
@@ -75,9 +75,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         binding.scrollViewContent.clipToPadding = false
         applyWindowInsets()
         settingsManager = SettingsManager(this)
-        performanceFilter = PerformanceFilter.values().firstOrNull {
+        val initialPerformance = PerformanceFilter.values().firstOrNull {
             it.storageValue == settingsManager.performanceFilterValue
         } ?: PerformanceFilter.ALL
+        viewModel.setPerformanceFilter(initialPerformance)
         
         val dbPath = intent.getStringExtra(EXTRA_DB_PATH)
         val dbName = intent.getStringExtra(EXTRA_DB_NAME)
@@ -92,19 +93,43 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         supportActionBar?.title = dbName
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         
-        databaseManager = DatabaseManager(dbPath)
+        // initialize DB in ViewModel and keep local reference for non-ViewModel helpers
+        // Switch DB at the app level then hand it to the ViewModel
+        databaseManager = MedicalQuizApp.switchDatabase(dbPath)
         mediaHandler = MediaHandler(this)
-        filterDialogHandler = FilterDialogHandler(this, lifecycleScope, databaseManager)
+        filterDialogHandler = FilterDialogHandler(this, lifecycleScope, viewModel)
+        mediaHandler.reset()
+                // FilterDialogHandler uses ViewModel for DB access; compute DB in viewModel
+        viewModel.setDatabaseManager(databaseManager)
         
         setupWebViews()
         setupDrawer()
         setupListeners()
+
+        // Observe question events from ViewModel
+        viewModel.currentQuestion.observe(this) { question ->
+            currentQuestion = question
+            displayQuestion()
+        }
+        viewModel.currentAnswers.observe(this) { answers ->
+            currentAnswers = answers
+        }
+        var autoLoadFirstQuestion = savedInstanceState == null
+        viewModel.questionIds.observe(this) { ids ->
+            questionIds = ids
+            if (ids.isNotEmpty() && autoLoadFirstQuestion) {
+                viewModel.loadQuestion(0)
+                autoLoadFirstQuestion = false
+            }
+        }
+        viewModel.currentQuestionIndex.observe(this) { index ->
+            currentQuestionIndex = index
+            updateNavigationControls()
+        }
         
         // Restore state if available
         if (savedInstanceState != null) {
             restoreInstanceState(savedInstanceState)
-        } else {
-            initializeDatabase(dbPath)
         }
         
         // Handle back button press
@@ -120,9 +145,30 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun setupWebViews() {
-        quizWebInterface = QuizWebInterface()
-        configureWebView(binding.webViewQuestion)
-        binding.webViewQuestion.addJavascriptInterface(quizWebInterface, "AndroidBridge")
+        // Configure webview through controller
+        webViewController = com.medicalquiz.app.utils.WebViewController(mediaHandler)
+        webViewController.setup(binding.webViewQuestion, object : com.medicalquiz.app.utils.WebViewController.Bridge {
+            override fun onAnswerSelected(answerId: Long) {
+                runOnUiThread {
+                    if (answerSubmitted) return@runOnUiThread
+                    val answer = currentAnswers.firstOrNull { it.answerId == answerId } ?: return@runOnUiThread
+                    selectedAnswerId = answer.answerId.toInt()
+                    submitAnswer()
+                }
+            }
+
+            override fun openMedia(mediaRef: String) {
+                runOnUiThread {
+                    val ref = mediaRef.takeIf { it.isNotBlank() } ?: return@runOnUiThread
+                    val url = if (ref.startsWith("file://") || ref.startsWith("http://") || ref.startsWith("https://") || ref.startsWith("media://")) {
+                        ref
+                    } else {
+                        "file:///media/${ref.substringAfterLast('/')}"
+                    }
+                    mediaHandler.handleMediaLink(url)
+                }
+            }
+        })
     }
     
     private fun setupDrawer() {
@@ -154,81 +200,31 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun initializeDatabase(dbPath: String) {
         binding.textViewStatus.text = "Loading database..."
         clearCaches() // Clear caches when switching databases
-        
-        launchCatching(
-            block = {
-                databaseManager = MedicalQuizApp.switchDatabase(dbPath)
-                mediaHandler.reset()
-                filterDialogHandler.updateDatabaseManager(databaseManager)
-                fetchFilteredQuestionIds()
-            },
-            onSuccess = { ids ->
-                questionIds = ids
-                if (questionIds.isEmpty()) {
-                    binding.textViewStatus.text = "No questions found for current filters"
-                    updateToolbarSubtitle()
-                } else {
-                    binding.textViewStatus.text = "Loaded ${questionIds.size} questions"
-                    updateToolbarSubtitle()
-                    loadQuestion(0)
-                }
-            },
-            onFailure = { throwable ->
-                binding.textViewStatus.text = "Error: ${throwable.message}"
-                Log.e(TAG, "Failed to initialize database", throwable)
-            }
-        )
+
+        // Let ViewModel initialize DB and fetch IDs; let the Activity react to observer
+        viewModel.initializeDatabase(dbPath)
     }
     
     private fun loadQuestion(index: Int) {
-        val questionId = questionIds.getOrNull(index) ?: return
-        currentQuestionIndex = index
-
-        // Periodic cache maintenance
         trimCachesPeriodically()
-
-        launchCatching(
-            block = {
-                // Parallelize database calls for better performance
-                val questionDeferred = lifecycleScope.async { databaseManager.getQuestionById(questionId) }
-                val answersDeferred = lifecycleScope.async { databaseManager.getAnswersForQuestion(questionId) }
-
-                currentQuestion = questionDeferred.await()
-                currentAnswers = answersDeferred.await()
-            },
-            onSuccess = {
-                displayQuestion()
-                startTime = System.currentTimeMillis()
-            },
-            onFailure = { throwable ->
-                Log.e(TAG, "Failed to load question $questionId", throwable)
-                    val errorText = throwable.message ?: throwable.javaClass.simpleName ?: "Unknown error"
-                    showToast("Error loading question $questionId: $errorText")
-            }
-        )
+        viewModel.loadQuestion(index)
+        startTime = System.currentTimeMillis()
     }
     
     private fun displayQuestion() {
         val question = currentQuestion ?: return
 
-        binding.textViewQuestionNumber.text = "Question ${currentQuestionIndex + 1} of ${questionIds.size}"
+        // Question number is no longer shown in the UI
 
         // Move HTML building and media processing to background thread
         lifecycleScope.launch(Dispatchers.Default) {
-            val quizHtml = buildQuestionHtml(question, currentAnswers)
+            val quizHtml = com.medicalquiz.app.utils.QuestionHtmlBuilder.build(question, currentAnswers)
             val mediaFiles = HtmlUtils.collectMediaFiles(question)
 
             withContext(Dispatchers.Main) {
                 WebViewRenderer.loadContent(this@QuizActivity, binding.webViewQuestion, quizHtml)
 
-                binding.textViewTitle.apply {
-                    if (!question.title.isNullOrBlank()) {
-                        HtmlUtils.setHtmlText(this, question.title)
-                    } else {
-                        text = ""
-                    }
-                    isVisible = false
-                }
+                // Title label removed from UI — skip rendering
 
                 val metadata = buildString {
                     append("ID: ${question.id}")
@@ -302,250 +298,15 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         )
     }
 
-    private fun buildQuestionHtml(question: Question, answers: List<Answer>): String {
-        val questionBody = HtmlUtils.sanitizeForWebView(question.question)
-        val explanationSource = question.explanation.ifBlank { "Explanation not provided." }
-        val explanation = HtmlUtils.sanitizeForWebView(explanationSource)
-
-        val answersHtml = if (answers.isEmpty()) {
-            """
-                <p class="empty-state">No answers available for this question.</p>
-            """.trimIndent()
-        } else {
-            answers.mapIndexed { index, answer ->
-                val label = ('A'.code + index).toChar()
-                val sanitizedAnswer = HtmlUtils.normalizeAnswerHtml(
-                    HtmlUtils.sanitizeForWebView(answer.answerText)
-                )
-                """
-                <button type="button"
-                        class="answer-button"
-                        id="answer-${answer.answerId}"
-                        value="${answer.answerId}">
-                    <span class="answer-label">$label.</span>
-                    <span class="answer-text">$sanitizedAnswer</span>
-                </button>
-                """.trimIndent()
-            }.joinToString("\n")
-        }
-
-        val explanationBlock = """
-            <section id="explanation" class="explanation hidden">
-                <h3>Explanation</h3>
-                $explanation
-            </section>
-        """.trimIndent()
-
-        val scriptBlock = """
-            <script>
-                (function() {
-                    function onReady(callback) {
-                        if (document.readyState === 'loading') {
-                            document.addEventListener('DOMContentLoaded', callback);
-                        } else {
-                            callback();
-                        }
-                    }
-
-                    function bindAnswerButtons() {
-                        var buttons = document.querySelectorAll('.answer-button');
-                        buttons.forEach(function(button) {
-                            button.addEventListener('click', function() {
-                                if (button.classList.contains('locked')) { return; }
-                                var answerId = button.value || button.getAttribute('value');
-                                if (window.AndroidBridge && answerId) {
-                                    window.AndroidBridge.onAnswerSelected(String(answerId));
-                                }
-                            });
-                        });
-                    }
-
-                    function setHintVisibility(visible, meta) {
-                        var body = document.body;
-                        if (!body) { return; }
-                        body.classList.toggle('hint-visible', !!visible);
-                        if (visible && meta && meta.auto) {
-                            body.classList.add('hint-auto');
-                        }
-                        if (!visible || (meta && meta.manual)) {
-                            body.classList.remove('hint-auto');
-                        }
-                    }
-
-                    function toggleHintVisibility() {
-                        var body = document.body;
-                        if (!body) { return; }
-                        var nextState = !body.classList.contains('hint-visible');
-                        setHintVisibility(nextState, { manual: true });
-                    }
-
-                    function initializeHintBehavior() {
-                        var body = document.body;
-                        if (!body) { return; }
-                        body.classList.remove('answer-revealed');
-                        body.classList.remove('hint-visible', 'hint-auto');
-                        var hint = document.getElementById('hintdiv');
-                        if (!hint) { return; }
-                        setHintVisibility(false, { manual: true });
-                        var buttons = document.querySelectorAll('button[onclick]');
-                        buttons.forEach(function(button) {
-                            var handler = (button.getAttribute('onclick') || '').toLowerCase();
-                            if (handler.indexOf('hintdiv') === -1) { return; }
-                            button.onclick = function(event) {
-                                event.preventDefault();
-                                toggleHintVisibility();
-                            };
-                        });
-                    }
-
-                    onReady(function() {
-                        console.log('Quiz: DOM ready - binding answer handlers');
-                        try {
-                            bindAnswerButtons();
-                        } catch (e) { console.error('Quiz: bindAnswerButtons failed', e); }
-                        initializeHintBehavior();
-                    });
-
-                    window.applyAnswerState = function(correctId, selectedId) {
-                        console.log('Quiz: applyAnswerState', correctId, selectedId);
-                        var buttons = document.querySelectorAll('.answer-button');
-                        buttons.forEach(function(button) {
-                            var id = parseInt(button.value || button.getAttribute('value'));
-                            if (isNaN(id)) { return; }
-                            button.disabled = true;
-                            button.classList.add('locked');
-                            button.classList.remove('correct', 'incorrect');
-                            if (id === correctId) {
-                                button.classList.add('correct');
-                            }
-                            if (id === selectedId && selectedId !== correctId) {
-                                button.classList.add('incorrect');
-                            }
-                        });
-                    };
-
-                    window.onerror = function(message, source, lineno, colno, error) {
-                        console.error('Quiz JS error:', message, source, lineno, colno, error && error.stack);
-                    };
-
-                    window.setAnswerFeedback = function(text) {
-                        var feedback = document.getElementById('answer-feedback');
-                        if (feedback) {
-                            feedback.textContent = text;
-                            feedback.classList.remove('hidden');
-                        }
-                    };
-
-                    window.revealExplanation = function() {
-                        var section = document.getElementById('explanation');
-                        if (section) {
-                            section.classList.remove('hidden');
-                        }
-                    };
-
-                    window.markAnswerRevealed = function() {
-                        var body = document.body;
-                        if (!body) { return; }
-                        body.classList.add('answer-revealed');
-                        setHintVisibility(true, { auto: true });
-                    };
-                })();
-            </script>
-        """.trimIndent()
-
-        return """
-            <article class="quiz-block">
-                <section class="question-body">$questionBody</section>
-                <div id="answer-feedback" class="answer-feedback hidden"></div>
-                <section class="answers">$answersHtml</section>
-                $explanationBlock
-            </article>
-            $scriptBlock
-        """.trimIndent()
-    }
+    // buildQuestionHtml has been extracted to `QuestionHtmlBuilder` to improve testability
 
     private fun updateWebViewAnswerState(correctAnswerId: Int, selectedAnswerId: Int) {
-        val jsCommand = buildString {
-            append("applyAnswerState($correctAnswerId, $selectedAnswerId);")
-            append("markAnswerRevealed();")
-            append("revealExplanation();")
-        }
-        binding.webViewQuestion.safeEvaluateJavascript(jsCommand, null)
+        webViewController.applyAnswerState(binding.webViewQuestion, correctAnswerId, selectedAnswerId)
     }
 
-    private fun configureWebView(webView: WebView) {
-        WebViewRenderer.setupWebView(webView)
-        webView.webChromeClient = WebChromeClient()
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-                val url = request.url?.toString() ?: return null
-                if (url.startsWith("file://") && url.contains("/media/")) {
-                    // Extract filename from URL
-                    val fileName = url.substringAfterLast('/')
-                    Log.d(TAG, "Intercepting media request for: $fileName")
-                    val mediaPath = HtmlUtils.getMediaPath(fileName)
-                    if (mediaPath != null) {
-                        return try {
-                            val file = java.io.File(mediaPath)
-                            if (file.exists() && file.canRead()) {
-                                val mimeType = getMimeType(fileName)
-                                Log.d(TAG, "Serving media file: $fileName with MIME type: $mimeType")
-                                WebResourceResponse(mimeType, "UTF-8", file.inputStream())
-                            } else {
-                                Log.w(TAG, "Media file not found or not readable: $mediaPath")
-                                null
-                            }
-                        } catch (e: Exception) {
-                            Log.w(TAG, "Failed to load media file: $fileName", e)
-                            null
-                        }
-                    } else {
-                        Log.w(TAG, "Could not resolve media path for: $fileName")
-                    }
-                }
-                return null
-            }
+    // WebView setup is moved to WebViewController
 
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                val url = request.url?.toString() ?: return false
-                return mediaHandler.handleMediaLink(url)
-            }
-
-            @Deprecated("Deprecated in Java")
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                return mediaHandler.handleMediaLink(url)
-            }
-
-        }
-    }
-
-    private inner class QuizWebInterface {
-        @JavascriptInterface
-        fun onAnswerSelected(answerId: String) {
-            val parsedId = answerId.toLongOrNull() ?: return
-            runOnUiThread {
-                    Log.d(TAG, "onAnswerSelected bridge called with id=$parsedId, answerSubmitted=$answerSubmitted")
-                    if (answerSubmitted) return@runOnUiThread
-                val answer = currentAnswers.firstOrNull { it.answerId == parsedId } ?: return@runOnUiThread
-                selectedAnswerId = answer.answerId.toInt()
-                submitAnswer()
-            }
-
-            @JavascriptInterface
-            fun openMedia(mediaRef: String) {
-                val ref = mediaRef.takeIf { it.isNotBlank() } ?: return
-                runOnUiThread {
-                    Log.d(TAG, "openMedia bridge called with: $ref")
-                    // If only a filename is passed, convert to file:///media/<filename>
-                    val url = if (ref.startsWith("file://") || ref.startsWith("http://") || ref.startsWith("https://") || ref.startsWith("media://")) {
-                        ref
-                    } else {
-                        "file:///media/${ref.substringAfterLast('/')}"
-                    }
-                    mediaHandler.handleMediaLink(url)
-                }
-            }
-        }
+    // JS bridge is provided via WebViewController
     }
     
     private fun loadNextQuestion() {
@@ -594,21 +355,17 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.nav_filter_subject -> filterDialogHandler.showSubjectFilterDialog(selectedSubjectIds.toSet()) { subjectIds ->
+            R.id.nav_filter_subject -> filterDialogHandler.showSubjectFilterDialog(viewModel.selectedSubjectIds.value ?: emptySet()) { subjectIds ->
                 lifecycleScope.launch {
-                    selectedSubjectIds.apply {
-                        clear()
-                        addAll(subjectIds)
-                    }
-                    pruneInvalidSystems()
+                    viewModel.setSelectedSubjects(subjectIds)
+                    // Ensure system filter stays valid for the new subject set
+                    val validSystems = viewModel.pruneInvalidSystems().toSet()
+                    viewModel.setSelectedSystems(validSystems)
                     reloadQuestionsWithFilters()
                 }
             }
-            R.id.nav_filter_system -> filterDialogHandler.showSystemFilterDialog(selectedSystemIds.toSet(), selectedSubjectIds.toSet()) { systemIds ->
-                selectedSystemIds.apply {
-                    clear()
-                    addAll(systemIds)
-                }
+            R.id.nav_filter_system -> filterDialogHandler.showSystemFilterDialog(viewModel.selectedSystemIds.value ?: emptySet(), viewModel.selectedSubjectIds.value ?: emptySet()) { systemIds ->
+                viewModel.setSelectedSystems(systemIds)
                 reloadQuestionsWithFilters()
             }
             R.id.nav_filter_performance -> showPerformanceFilterDialog()
@@ -621,19 +378,17 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun clearFilters() {
-        selectedSubjectIds.clear()
-        selectedSystemIds.clear()
-        if (performanceFilter != PerformanceFilter.ALL) {
-            performanceFilter = PerformanceFilter.ALL
-            settingsManager.performanceFilterValue = PerformanceFilter.ALL.storageValue
-        }
+        viewModel.setSelectedSubjects(emptySet())
+        viewModel.setSelectedSystems(emptySet())
+        viewModel.setPerformanceFilter(PerformanceFilter.ALL)
+        settingsManager.performanceFilterValue = PerformanceFilter.ALL.storageValue
         reloadQuestionsWithFilters()
     }
 
     private fun showPerformanceFilterDialog() {
         val filters = PerformanceFilter.values()
         val labels = filters.map { getPerformanceFilterLabel(it) }.toTypedArray()
-        val currentIndex = filters.indexOf(performanceFilter)
+        val currentIndex = filters.indexOf(viewModel.performanceFilter.value ?: PerformanceFilter.ALL)
 
         AlertDialog.Builder(this)
             .setTitle("Performance Filter")
@@ -646,8 +401,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun applyPerformanceFilter(filter: PerformanceFilter) {
-        if (performanceFilter == filter) return
-        performanceFilter = filter
+        if (viewModel.performanceFilter.value == filter) return
+        viewModel.setPerformanceFilter(filter)
         settingsManager.performanceFilterValue = filter.storageValue
         reloadQuestionsWithFilters()
     }
@@ -656,15 +411,15 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         launchCatching(
             block = { fetchFilteredQuestionIds() },
             onSuccess = { ids ->
-                questionIds = ids
+                viewModel.setQuestionIds(ids)
                 if (questionIds.isEmpty()) {
                     showToast("No questions found with selected filters")
                     binding.textViewStatus.text = "No questions found for current filters"
                     updateToolbarSubtitle()
                 } else {
-                    binding.textViewStatus.text = "Loaded ${questionIds.size} questions"
+                    binding.textViewStatus.text = "Loaded ${ids.size} questions"
                     updateToolbarSubtitle()
-                    loadQuestion(0)
+                    viewModel.loadQuestion(0)
                 }
             },
             onFailure = { throwable ->
@@ -675,12 +430,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private suspend fun fetchFilteredQuestionIds(): List<Long> {
-        val subjectFilter = selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-        val systemFilter = selectedSystemIds.takeIf { it.isNotEmpty() }?.toList()
-        return databaseManager.getQuestionIds(
+        val subjectFilter = viewModel.selectedSubjectIds.value?.takeIf { it.isNotEmpty() }?.toList()
+        val systemFilter = viewModel.selectedSystemIds.value?.takeIf { it.isNotEmpty() }?.toList()
+        return viewModel.getDatabaseManager()?.getQuestionIds(
             subjectIds = subjectFilter,
             systemIds = systemFilter,
-            performanceFilter = performanceFilter
+            performanceFilter = viewModel.performanceFilter.value ?: PerformanceFilter.ALL
         )
     }
     
@@ -697,17 +452,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         PerformanceFilter.EVER_INCORRECT -> "Ever Incorrect"
     }
 
-    private suspend fun pruneInvalidSystems() {
-        if (selectedSystemIds.isEmpty()) return
-        val validSystemIds = databaseManager.getSystems(
-            selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-        ).map { it.id }.toSet()
-        if (validSystemIds.isEmpty()) {
-            selectedSystemIds.clear()
-        } else {
-            selectedSystemIds.retainAll(validSystemIds)
-        }
-    }
+    // System pruning is handled by the ViewModel now
 
     private fun buildPerformanceSummary(performance: QuestionPerformance?): String {
         val summary = performance?.takeIf { it.attempts > 0 } ?: return ""
@@ -772,7 +517,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             block = {
                 databaseManager = MedicalQuizApp.switchDatabase(dbPath)
                 mediaHandler.reset()
-                filterDialogHandler.updateDatabaseManager(databaseManager)
+                // FilterDialogHandler uses ViewModel for DB access; ensure ViewModel has DB set
+                viewModel.setDatabaseManager(databaseManager)
                 
                 // Restore current question if available
                 val questionId = savedInstanceState.getLong(STATE_CURRENT_QUESTION_ID, -1)
@@ -825,11 +571,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun restoreQuizState(savedInstanceState: Bundle) {
         currentQuestionIndex = savedInstanceState.getInt(STATE_CURRENT_QUESTION_INDEX, 0)
         questionIds = savedInstanceState.getLongArray(STATE_QUESTION_IDS)?.toList() ?: emptyList()
-        selectedSubjectIds.addAll(savedInstanceState.getLongArray(STATE_SELECTED_SUBJECT_IDS)?.toList() ?: emptyList())
-        selectedSystemIds.addAll(savedInstanceState.getLongArray(STATE_SELECTED_SYSTEM_IDS)?.toList() ?: emptyList())
-        performanceFilter = savedInstanceState.getString(STATE_PERFORMANCE_FILTER)?.let {
-            PerformanceFilter.valueOf(it)
-        } ?: PerformanceFilter.ALL
+        val subjects = savedInstanceState.getLongArray(STATE_SELECTED_SUBJECT_IDS)?.toList() ?: emptyList()
+        val systems = savedInstanceState.getLongArray(STATE_SELECTED_SYSTEM_IDS)?.toList() ?: emptyList()
+        viewModel.setSelectedSubjects(subjects.toSet())
+        viewModel.setSelectedSystems(systems.toSet())
+        val perf = savedInstanceState.getString(STATE_PERFORMANCE_FILTER)?.let { PerformanceFilter.valueOf(it) } ?: PerformanceFilter.ALL
+        viewModel.setPerformanceFilter(perf)
         testId = savedInstanceState.getString(STATE_TEST_ID) ?: UUID.randomUUID().toString()
         startTime = savedInstanceState.getLong(STATE_START_TIME, System.currentTimeMillis())
         answerSubmitted = savedInstanceState.getBoolean(STATE_ANSWER_SUBMITTED, false)
@@ -877,9 +624,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun saveQuizState(outState: android.os.Bundle) {
         outState.putInt(STATE_CURRENT_QUESTION_INDEX, currentQuestionIndex)
         outState.putLongArray(STATE_QUESTION_IDS, questionIds.toLongArray())
-        outState.putLongArray(STATE_SELECTED_SUBJECT_IDS, selectedSubjectIds.toLongArray())
-        outState.putLongArray(STATE_SELECTED_SYSTEM_IDS, selectedSystemIds.toLongArray())
-        outState.putString(STATE_PERFORMANCE_FILTER, performanceFilter.name)
+        outState.putLongArray(STATE_SELECTED_SUBJECT_IDS, viewModel.selectedSubjectIds.value?.toLongArray() ?: longArrayOf())
+        outState.putLongArray(STATE_SELECTED_SYSTEM_IDS, viewModel.selectedSystemIds.value?.toLongArray() ?: longArrayOf())
+        outState.putString(STATE_PERFORMANCE_FILTER, viewModel.performanceFilter.value?.name ?: PerformanceFilter.ALL.name)
         outState.putString(STATE_TEST_ID, testId)
         outState.putLong(STATE_START_TIME, startTime)
         outState.putBoolean(STATE_ANSWER_SUBMITTED, answerSubmitted)
@@ -904,7 +651,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun showQuestionDetails() {
         val previousScrollY = binding.scrollViewContent.scrollY
 
-        binding.textViewTitle.isVisible = !binding.textViewTitle.text.isNullOrBlank()
+        // textViewTitle removed — nothing to toggle here
         binding.textViewMetadata.isVisible = !binding.textViewMetadata.text.isNullOrBlank()
         binding.textViewPerformance.isVisible = !binding.textViewPerformance.text.isNullOrBlank() && settingsManager.isLoggingEnabled
         binding.textViewMediaInfo.isVisible = !binding.textViewMediaInfo.text.isNullOrBlank()

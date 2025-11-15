@@ -49,26 +49,7 @@
             android:visibility="gone"
             android:layout_marginTop="4dp"/>
 
-        <TextView
-            android:id="@+id/textViewQuestionNumber"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Question 1 of 100"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="?attr/colorPrimary"
-            android:layout_marginTop="8dp" />
-
-        <TextView
-            android:id="@+id/textViewTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Question Title"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginTop="8dp"
-            android:visibility="gone"
-            />
+        <!-- Question number and title removed from UI — they are not needed in this layout -->
 
         <TextView
             android:id="@+id/textViewMetadata"

@@ -3,9 +3,9 @@ package com.medicalquiz.app.ui
 import android.content.Context
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.LifecycleCoroutineScope
-import com.medicalquiz.app.data.database.DatabaseManager
-import com.medicalquiz.app.data.models.Subject
+import com.medicalquiz.app.viewmodel.QuizViewModel
 import com.medicalquiz.app.data.models.System
+import com.medicalquiz.app.data.models.Subject
 import com.medicalquiz.app.utils.launchCatching
 
 /**
@@ -14,19 +14,17 @@ import com.medicalquiz.app.utils.launchCatching
 class FilterDialogHandler(
     private val context: Context,
     private val lifecycleScope: LifecycleCoroutineScope,
-    private var databaseManager: DatabaseManager
+    private val viewModel: QuizViewModel
 ) {
     
-    fun updateDatabaseManager(newManager: DatabaseManager) {
-        databaseManager = newManager
-    }
+    // Database manager operations are provided by the ViewModel now
     
     fun showSubjectFilterDialog(
         currentSubjectIds: Set<Long>,
         onSubjectsSelected: (Set<Long>) -> Unit
     ) {
         lifecycleScope.launchCatching(
-            block = { databaseManager.getSubjects() },
+            block = { viewModel.getSubjects() },
             onSuccess = { subjects ->
                 if (subjects.isEmpty()) {
                     showNoDataDialog("No subjects found")
@@ -47,7 +45,8 @@ class FilterDialogHandler(
     ) {
         lifecycleScope.launchCatching(
             block = {
-                databaseManager.getSystems(
+                // Delegate systems retrieval to the ViewModel so UI stays decoupled from DB
+                viewModel.getSystemsForSubjects(
                     currentSubjectIds.takeIf { it.isNotEmpty() }?.toList()
                 )
             },
