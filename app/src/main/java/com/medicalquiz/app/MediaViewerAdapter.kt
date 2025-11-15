@@ -140,7 +140,7 @@ class MediaViewerAdapter(
         private fun displayHtml(file: File) {
             binding.webViewHtml.isVisible = true
             WebViewRenderer.setupWebView(binding.webViewHtml)
-            launchCatching(
+            activity.launchCatching(
                 dispatcher = Dispatchers.IO,
                 block = { file.readText() },
                 onSuccess = { html ->

@@ -207,3 +207,14 @@ object HtmlUtils {
         mediaPathCache.clear()
         missingMediaCache.clear()
     }
+
+    private class MediaImageGetter(private val context: Context) : Html.ImageGetter {
+        override fun getDrawable(source: String?): Drawable? {
+            if (source.isNullOrBlank()) return null
+            val path = getMediaPath(source) ?: return null
+            val drawable = Drawable.createFromPath(path) ?: return null
+            drawable.setBounds(0, 0, drawable.intrinsicWidth, drawable.intrinsicHeight)
+            return drawable
+        }
+    }
+}

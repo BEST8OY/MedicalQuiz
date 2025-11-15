@@ -7,7 +7,6 @@ import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
-import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -803,6 +802,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         return android.webkit.MimeTypeMap.getSingleton()
             .getMimeTypeFromExtension(fileName.substringAfterLast('.', "")) 
             ?: "application/octet-stream"
+    }
+
+    private fun showToast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     companion object {
