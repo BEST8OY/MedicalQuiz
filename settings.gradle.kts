@@ -11,6 +11,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+            // JitPack hosts libraries like PhotoView
+            maven(url = "https://jitpack.io")
     }
 }
 
