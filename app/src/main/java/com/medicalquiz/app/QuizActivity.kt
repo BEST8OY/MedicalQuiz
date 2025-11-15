@@ -33,6 +33,7 @@ import com.medicalquiz.app.databinding.DialogSettingsBinding
 import com.medicalquiz.app.ui.FilterDialogHandler
 import com.medicalquiz.app.ui.MediaHandler
 import com.medicalquiz.app.utils.HtmlUtils
+import com.medicalquiz.app.utils.WebViewRenderer
 import com.medicalquiz.app.utils.launchCatching
 import com.medicalquiz.app.utils.safeEvaluateJavascript
 import com.medicalquiz.app.utils.safeLoadDataWithBaseURL

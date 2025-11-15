@@ -1,5 +1,12 @@
 package com.medicalquiz.app.utils
 
+import android.content.Context
+import android.graphics.Color
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.R as AndroidR
+import com.google.android.material.R as MaterialR
+import com.google.android.material.color.MaterialColors
 import com.medicalquiz.app.utils.safeLoadDataWithBaseURL
 
 object WebViewRenderer {
