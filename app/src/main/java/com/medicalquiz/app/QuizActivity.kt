@@ -200,8 +200,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             },
             onFailure = { throwable ->
                 Log.e(TAG, "Failed to load question $questionId", throwable)
-                val errorText = throwable.message ?: throwable.javaClass.simpleName ?: "Unknown error"
-                showToast("Error loading question $questionId: $errorText)
+                    val errorText = throwable.message ?: throwable.javaClass.simpleName ?: "Unknown error"
+                    showToast("Error loading question $questionId: $errorText")
             }
         )
     }
@@ -736,8 +736,24 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             },
             onSuccess = {
                 if (questionIds.isEmpty()) {
-                    // If no questions were saved, fetch them
-                    fetchFilteredQuestionIds()
+                    // If no questions were saved, fetch them using launchCatching
+                    // to keep consistent error handling and logging
+                    launchCatching(
+                        block = { fetchFilteredQuestionIds() },
+                        onSuccess = { ids ->
+                            questionIds = ids
+                            if (questionIds.isNotEmpty()) {
+                                binding.textViewStatus.text = "Loaded ${questionIds.size} questions"
+                                updateToolbarSubtitle()
+                                loadQuestion(0)
+                            } else {
+                                binding.textViewStatus.text = "No questions found for current filters"
+                            }
+                        },
+                        onFailure = { e ->
+                            Log.e(TAG, "Failed to fetch questions during restore", e)
+                        }
+                    )
                 } else {
                     // Restore the current question display
                     if (currentQuestion != null) {

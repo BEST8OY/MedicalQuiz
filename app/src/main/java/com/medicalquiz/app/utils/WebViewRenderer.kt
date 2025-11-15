@@ -3,6 +3,7 @@ package com.medicalquiz.app.utils
 import android.content.Context
 import android.graphics.Color
 import android.webkit.WebView
+import android.webkit.WebChromeClient
 import android.webkit.WebViewClient
 import android.R as AndroidR
 import com.google.android.material.R as MaterialR
@@ -104,7 +105,12 @@ object WebViewRenderer {
                             event.preventDefault();
                             var filename = this.getAttribute('data-filename');
                             if (filename) {
-                                window.location.href = 'media://' + filename;
+                                // Use a file:// URL with a "/media/" path segment so the
+                                // app's WebViewClient can detect and handle media links.
+                                // Some devices/browsers may not support custom schemes like
+                                // "media://" so a file:// URL is used for maximum
+                                // compatibility and to match MediaHandler expectations.
+                                window.location.href = 'file:///media/' + filename;
                             }
                         };
                     });
@@ -187,7 +193,7 @@ object WebViewRenderer {
             // Switch back to main thread for WebView operations
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                 webView.safeLoadDataWithBaseURL(
-                    baseUrl = null,  // Don't set base URL so file:// URLs work directly
+                    baseUrl = BASE_URL, // Resolve relative links against app assets
                     data = fullHtml
                 )
             }

@@ -1,5 +1,7 @@
 package com.medicalquiz.app.utils
 
+import com.medicalquiz.app.data.models.Question
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -26,7 +28,14 @@ object HtmlUtils {
     private val STYLE_ATTR_REGEX = Regex("\\sstyle=\"[^\"]*\"", setOf(RegexOption.IGNORE_CASE))
     private val EMPTY_SPAN_REGEX = Regex("<span[^>]*>(.*?)</span>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
     private val TABLE_REGEX = Regex("<table[\\s\\S]*?</table>", setOf(RegexOption.IGNORE_CASE))
-    private val IMG_TAG_REGEX = Regex("""<img([^>]*)\\s+src=[\"']([^\"']+)[\"']""")
+    // Find <img ... src="..."> with attributes captured in group 1 and the src in group 2
+    private val IMG_TAG_REGEX = Regex("""<img([^>]*)\s+src=['\"]([^'\"]+)['\"]""", setOf(RegexOption.IGNORE_CASE))
+
+    // Anchor tag capturing: pre-href attributes, quote char, href value, post-href attributes
+    private val ANCHOR_TAG_REGEX = Regex("""<a([^>]*?)href=([\"'])([^\"']+)\2([^>]*)>""", setOf(RegexOption.IGNORE_CASE))
+
+    // Match common media file extensions on the end of a path or query-free url
+    private val MEDIA_LINK_REGEX = Regex("""(?i).*\.(jpg|jpeg|png|gif|bmp|webp|mp4|avi|mkv|mov|webm|3gp|mp3|wav|ogg|m4a|aac|flac|html|htm)(?:$|[?#]).*""")
     private val SINGLE_PARAGRAPH_REGEX = Regex(
         pattern = "^\\s*<p>([\\s\\S]*)</p>\\s*$",
         options = setOf(RegexOption.IGNORE_CASE)
@@ -99,6 +108,92 @@ object HtmlUtils {
             val dataUri = createImageDataUri(src)
             if (dataUri != null) "<img$attrs src=\"$dataUri\" data-filename=\"$src\"" else match.value
         }
+        // Rewrite anchor links that point to media so they become file:///media/<filename>
+        .replace(ANCHOR_TAG_REGEX) { match ->
+            val before = match.groupValues[1]
+            val quote = match.groupValues[2]
+            val href = match.groupValues[3]
+            val after = match.groupValues[4]
+
+            val newHref = rewriteAnchorHref(href)
+            "<a$before href=$quote$newHref$quote$after>"
+        }
+
+    /**
+     * Collect media files from question fields and HTML content.
+     * This returns distinct file names (image, audio, video, html) that appear
+     * in the question body, explanation, mediaName and otherMedias fields.
+     */
+    fun collectMediaFiles(question: Question): List<String> {
+        val media = linkedSetOf<String>()
+
+        // DB field references
+        question.mediaName?.takeIf { it.isNotBlank() }?.let { media.add(normalizeFileName(it)) }
+        parseMediaFiles(question.otherMedias).forEach { media.add(normalizeFileName(it)) }
+
+        // HTML references in question body/explanation
+        val combined = question.question + " " + question.explanation
+
+        // Helper: add if valid
+        fun addCandidate(candidate: String?) {
+            if (candidate.isNullOrBlank()) return
+            val normalized = normalizeFileName(candidate)
+            if (normalized.isNotBlank()) media.add(normalized)
+        }
+
+        // Extract img src attributes
+        IMG_TAG_REGEX.findAll(combined).forEach { match ->
+            addCandidate(match.groupValues[2])
+        }
+
+        // Extract generic src attributes (video/source/audio)
+        val srcRegex = Regex("src=\s*['\"]([^'\"]+)['\"]", setOf(RegexOption.IGNORE_CASE))
+        srcRegex.findAll(combined).forEach { match ->
+            val src = match.groupValues[1]
+            if (!isSpecialProtocol(src)) addCandidate(src)
+        }
+
+        // Extract anchors that point to media links
+        ANCHOR_TAG_REGEX.findAll(combined).forEach { match ->
+            val href = match.groupValues[3]
+            if (MEDIA_LINK_REGEX.containsMatchIn(href) && !isSpecialProtocol(href)) addCandidate(href)
+        }
+
+        return media.toList()
+    }
+
+    // Normalize file name part from URL or relative path
+    private fun normalizeFileName(urlOrName: String): String = urlOrName
+        .substringAfterLast('/')
+        .substringBefore('?')
+        .substringBefore('#')
+        .trim()
+
+    private fun isSpecialProtocol(url: String): Boolean {
+        val lower = url.lowercase()
+        return lower.startsWith("http:") || lower.startsWith("https:") || lower.startsWith("mailto:") || lower.startsWith("data:") || lower.startsWith("javascript:")
+    }
+
+    // Convert various href forms into the app's file:///media/<filename> or leave as-is
+    private fun rewriteAnchorHref(href: String): String {
+        val lower = href.lowercase()
+        if (isSpecialProtocol(href)) return href
+        // media:// scheme (legacy) => file:///media/<filename>
+        if (lower.startsWith("media://")) return "file:///media/" + normalizeFileName(href.substringAfter("media://"))
+
+        // Already an absolute file path with /media/ segment
+        if (href.contains("/media/") && !lower.startsWith("file://")) {
+            return if (href.startsWith("/")) "file://$href" else "file:///$href"
+        }
+
+        // End with known media extension: make it a media file reference
+        if (MEDIA_LINK_REGEX.containsMatchIn(href)) {
+            return "file:///media/" + normalizeFileName(href)
+        }
+
+        // Otherwise leave alone
+        return href
+    }
 
     fun normalizeAnswerHtml(html: String): String {
         if (html.isBlank()) return ""

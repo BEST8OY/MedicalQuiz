@@ -22,6 +22,12 @@ class MediaHandler(private val context: Context) {
     }
 
     fun handleMediaLink(url: String): Boolean {
+        // Support both file://.../media/... links and the legacy media://<filename> scheme
+        if (url.startsWith("media://")) {
+            val fileName = url.substringAfter("media://")
+            return openMediaFromCache(fileName)
+        }
+
         if (!url.startsWith(FILE_SCHEME) || !url.contains(MEDIA_PATH_SEGMENT)) return false
         val fileName = url.substringAfterLast('/')
         return openMediaFromCache(fileName)

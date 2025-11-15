@@ -194,13 +194,13 @@ class LogRepository(private val connection: DatabaseConnection) {
             )
             fullCursor.use {
                 if (it.moveToFirst()) {
-                    SummaryState(it.getInt(0), it.getInt(1), it.getInt(2), it.getInt(3))
+                    return SummaryState(it.getInt(0), it.getInt(1), it.getInt(2), it.getInt(3))
                 } else {
-                    SummaryState(0, 0, 0, 0)
+                    return SummaryState(0, 0, 0, 0)
                 }
             }
         } else {
-            SummaryState(0, 0, 0, 0)
+            return SummaryState(0, 0, 0, 0)
         }
     }
     
