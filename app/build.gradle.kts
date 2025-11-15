@@ -72,6 +72,8 @@ dependencies {
 
     // Media loading
     implementation("io.coil-kt:coil:2.6.0")
+    // PhotoView for pinch-to-zoom in media viewer
+    implementation("com.github.chrisbanes:PhotoView:2.3.0")
     
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

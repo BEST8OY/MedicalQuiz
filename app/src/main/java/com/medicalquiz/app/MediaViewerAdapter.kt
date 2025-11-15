@@ -115,6 +115,17 @@ class MediaViewerAdapter(
                     }
                 )
             }
+            // Allow pinch & double-tap zoom using PhotoView
+            try {
+                // PhotoView provides built-in pinch-to-zoom; set maximum scale for a pleasant UX
+                (binding.imageView as? com.github.chrisbanes.photoview.PhotoView)?.apply {
+                    maximumScale = 5.0f
+                    // optional: enable zoom by default
+                    setZoomable(true)
+                }
+            } catch (e: Exception) {
+                // Ignore if not PhotoView or if anything goes wrong
+            }
         }
 
         private fun displayVideo(file: File) {

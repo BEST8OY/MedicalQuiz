@@ -539,6 +539,21 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 selectedAnswerId = answer.answerId.toInt()
                 submitAnswer()
             }
+
+            @JavascriptInterface
+            fun openMedia(mediaRef: String) {
+                val ref = mediaRef.takeIf { it.isNotBlank() } ?: return
+                runOnUiThread {
+                    Log.d(TAG, "openMedia bridge called with: $ref")
+                    // If only a filename is passed, convert to file:///media/<filename>
+                    val url = if (ref.startsWith("file://") || ref.startsWith("http://") || ref.startsWith("https://") || ref.startsWith("media://")) {
+                        ref
+                    } else {
+                        "file:///media/${ref.substringAfterLast('/')}"
+                    }
+                    mediaHandler.handleMediaLink(url)
+                }
+            }
         }
     }
     

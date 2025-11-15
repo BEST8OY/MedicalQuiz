@@ -104,8 +104,18 @@ object WebViewRenderer {
                         img.style.cursor = 'pointer';
                         img.onclick = function(event) {
                             event.preventDefault();
-                            var filename = this.getAttribute('data-filename');
+                            var filename = this.getAttribute('data-filename') || this.getAttribute('src');
                             if (filename) {
+                                // If Android bridge is available, prefer calling it directly.
+                                try {
+                                    if (window.AndroidBridge && window.AndroidBridge.openMedia) {
+                                        window.AndroidBridge.openMedia(String(filename));
+                                        return;
+                                    }
+                                } catch (e) {
+                                    console.error('AndroidBridge.openMedia failed', e);
+                                }
+                                // Fallback: navigate to file:///media/<filename>
                                 // Use a file:// URL with a "/media/" path segment so the
                                 // app's WebViewClient can detect and handle media links.
                                 // Some devices/browsers may not support custom schemes like
