@@ -39,6 +39,8 @@ import com.medicalquiz.app.utils.safeEvaluateJavascript
 import com.medicalquiz.app.utils.safeLoadDataWithBaseURL
 import com.medicalquiz.app.settings.SettingsManager
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
@@ -272,8 +274,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 val normalizedCorrectId = correctAnswer?.answerId?.toInt() ?: -1
                 val wasCorrect = normalizedCorrectId == answerId
                 updateLocalPerformanceCache(question.id, wasCorrect)
-                updateWebViewAnswerState(normalizedCorrectId, answerId)
-                showQuestionDetails()
+                
+                // UI updates must happen on main thread
+                withContext(Dispatchers.Main) {
+                    updateWebViewAnswerState(normalizedCorrectId, answerId)
+                    showQuestionDetails()
+                }
             },
             onFailure = { throwable ->
                 showToast("Error saving answer: ${throwable.message}")
@@ -753,12 +759,16 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             block = { databaseManager.getQuestionPerformance(questionId) },
             onSuccess = { performance ->
                 currentPerformance = performance
-                binding.textViewPerformance.text = buildPerformanceSummary(performance)
+                withContext(Dispatchers.Main) {
+                    binding.textViewPerformance.text = buildPerformanceSummary(performance)
+                }
             },
             onFailure = { throwable ->
                 currentPerformance = null
                 Log.w(TAG, "Unable to load performance for question $questionId", throwable)
-                binding.textViewPerformance.text = ""
+                withContext(Dispatchers.Main) {
+                    binding.textViewPerformance.text = ""
+                }
             }
         )
     }

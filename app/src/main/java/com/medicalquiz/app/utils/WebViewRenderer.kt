@@ -134,11 +134,14 @@ object WebViewRenderer {
                 setSupportZoom(false)
                 builtInZoomControls = false
                 displayZoomControls = false
+                allowFileAccess = true  // Allow loading files from file:// URLs
+                allowFileAccessFromFileURLs = true  // Allow file:// URLs to access other file:// URLs
+                allowUniversalAccessFromFileURLs = true  // Allow file:// URLs to access http:// URLs
             }
             isVerticalScrollBarEnabled = true
             isNestedScrollingEnabled = true
             setBackgroundColor(Color.TRANSPARENT)
-            webViewClient = WebViewClient()
+            // Don't set a default WebViewClient here - let the activity set its own
         }
     }
     
@@ -159,7 +162,7 @@ object WebViewRenderer {
             .replace(CONTENT_PLACEHOLDER, sanitizedHtml)
 
         webView.safeLoadDataWithBaseURL(
-            baseUrl = BASE_URL,
+            baseUrl = null,  // Don't set base URL so file:// URLs work directly
             data = fullHtml
         )
     }    private fun buildCssContent(context: Context): String {
