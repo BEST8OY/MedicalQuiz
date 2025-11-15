@@ -140,13 +140,18 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun setupListeners() {
-        binding.buttonNext.setOnClickListener {
-            loadNextQuestion()
+        // Wire up BottomAppBar menu actions instead of buttons
+        binding.bottomAppBar.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_next -> { loadNextQuestion(); true }
+                R.id.action_previous -> { loadPreviousQuestion(); true }
+                else -> false
+            }
         }
-        
-        binding.buttonPrevious.setOnClickListener {
-            loadPreviousQuestion()
-        }
+
+        // Set content description for accessibility
+        binding.bottomAppBar.menu.findItem(R.id.action_next).actionView?.contentDescription = getString(R.string.next)
+        binding.bottomAppBar.menu.findItem(R.id.action_previous).actionView?.contentDescription = getString(R.string.previous)
     }
     
     private fun initializeDatabase(dbPath: String) {
@@ -260,8 +265,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
                 answerSubmitted = false
                 selectedAnswerId = null
-                binding.buttonNext.isEnabled = currentQuestionIndex < questionIds.size - 1
-                binding.buttonPrevious.isEnabled = currentQuestionIndex > 0
+                // Update BottomAppBar menu item enabled state
+                binding.bottomAppBar.menu.findItem(R.id.action_next).isEnabled = currentQuestionIndex < questionIds.size - 1
+                binding.bottomAppBar.menu.findItem(R.id.action_previous).isEnabled = currentQuestionIndex > 0
             }
         }
     }
