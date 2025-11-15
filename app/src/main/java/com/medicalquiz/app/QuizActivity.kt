@@ -34,6 +34,7 @@ import com.medicalquiz.app.databinding.DialogSettingsBinding
 import com.medicalquiz.app.ui.FilterDialogHandler
 import com.medicalquiz.app.ui.MediaHandler
 import com.medicalquiz.app.utils.observeOnce
+import com.medicalquiz.app.utils.observeUntil
 import com.medicalquiz.app.utils.Resource
 import com.medicalquiz.app.data.models.Subject
 import com.medicalquiz.app.data.models.System
@@ -365,7 +366,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             R.id.nav_filter_subject -> {
                 // Fetch subjects in ViewModel and observe once
                 viewModel.fetchSubjects()
-                viewModel.subjectsResource.observeOnce(this, androidx.lifecycle.Observer<Resource<List<Subject>>> { resource ->
+                viewModel.subjectsResource.observeUntil(this, { it !is com.medicalquiz.app.utils.Resource.Loading }, androidx.lifecycle.Observer<Resource<List<Subject>>> { resource ->
                     when (resource) {
                         is com.medicalquiz.app.utils.Resource.Loading -> {
                             // optional loading UI
@@ -390,7 +391,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             R.id.nav_filter_system -> {
                 // Fetch systems from ViewModel and show the dialog once loaded
                 viewModel.fetchSystemsForSubjects(viewModel.selectedSubjectIds.value?.toList())
-                viewModel.systemsResource.observeOnce(this, androidx.lifecycle.Observer<Resource<List<System>>> { resource ->
+                viewModel.systemsResource.observeUntil(this, { it !is com.medicalquiz.app.utils.Resource.Loading }, androidx.lifecycle.Observer<Resource<List<System>>> { resource ->
                     when (resource) {
                         is com.medicalquiz.app.utils.Resource.Loading -> { /* optional loading */ }
                         is com.medicalquiz.app.utils.Resource.Success<List<System>> -> {
