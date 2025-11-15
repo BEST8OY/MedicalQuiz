@@ -38,9 +38,9 @@ class DatabaseManager(dbPath: String) : DatabaseProvider {
     // ========================================================================
     
     override suspend fun getQuestionIds(
-        subjectIds: List<Long>? = null,
-        systemIds: List<Long>? = null,
-        performanceFilter: PerformanceFilter = PerformanceFilter.ALL
+        subjectIds: List<Long>?,
+        systemIds: List<Long>?,
+        performanceFilter: PerformanceFilter
     ): List<Long> = questionRepository.getQuestionIds(subjectIds, systemIds, performanceFilter)
     
     override suspend fun getQuestionById(id: Long): Question? = 
@@ -56,7 +56,7 @@ class DatabaseManager(dbPath: String) : DatabaseProvider {
     override suspend fun getSubjects(): List<Subject> = 
         metadataRepository.getSubjects()
     
-    override suspend fun getSystems(subjectIds: List<Long>? = null): List<System> = 
+    override suspend fun getSystems(subjectIds: List<Long>?): List<System> = 
         metadataRepository.getSystems(subjectIds)
     
     // ========================================================================
