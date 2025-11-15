@@ -110,7 +110,6 @@
                     android:minHeight="120dp"
                     app:cardCornerRadius="8dp"
                     app:cardElevation="4dp"
-                    <!-- constraints removed: LinearLayout manages vertical flow -->
                     app:contentPadding="0dp">
 
                     <WebView
