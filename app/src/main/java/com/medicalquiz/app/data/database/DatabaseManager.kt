@@ -6,7 +6,7 @@ import com.medicalquiz.app.data.models.*
  * Main database manager - coordinates repository operations
  * This is a facade that delegates to specialized repositories
  */
-class DatabaseManager(dbPath: String) {
+class DatabaseManager(dbPath: String) : DatabaseProvider {
     private val connection = DatabaseConnection(dbPath)
     private val questionRepository = QuestionRepository(connection)
     private val metadataRepository = MetadataRepository(connection)

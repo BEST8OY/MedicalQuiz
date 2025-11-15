@@ -14,7 +14,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // No Android instrumentation tests in this project, runner removed
     }
 
     buildTypes {
@@ -75,7 +75,8 @@ dependencies {
     // PhotoView for pinch-to-zoom in media viewer
     implementation("com.github.chrisbanes:PhotoView:2.3.0")
     
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    // junit removed as part of deleting tests
+        // core-testing removed per user request
+        // Coroutines testing removed per user request
+    // No instrumentation tests configured; these were removed to slim dependencies
 }

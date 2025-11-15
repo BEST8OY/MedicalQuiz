@@ -2,73 +2,46 @@ package com.medicalquiz.app.ui
 
 import android.content.Context
 import androidx.appcompat.app.AlertDialog
-import androidx.lifecycle.LifecycleCoroutineScope
-import com.medicalquiz.app.viewmodel.QuizViewModel
+// no longer needed — handler is UI-only
+// ViewModel not used here — UI-only handler
 import com.medicalquiz.app.data.models.System
 import com.medicalquiz.app.data.models.Subject
-import com.medicalquiz.app.utils.launchCatching
-import com.medicalquiz.app.utils.Resource
+// no longer uses ViewModel or Resource; Activity handles fetching
 
 /**
  * Handler for filter dialogs (Subject and System)
  */
 class FilterDialogHandler(
-    private val context: Context,
-    private val lifecycleScope: LifecycleCoroutineScope,
-    private val viewModel: QuizViewModel
+    private val context: Context
 ) {
     
     // Database manager operations are provided by the ViewModel now
     
-    fun showSubjectFilterDialog(
+    fun showSubjectSelectionDialog(
+        subjects: List<Subject>,
         currentSubjectIds: Set<Long>,
         onSubjectsSelected: (Set<Long>) -> Unit
     ) {
-        lifecycleScope.launchCatching(
-            block = { viewModel.getSubjects() },
-            onSuccess = { subjects ->
-                if (subjects.isEmpty()) {
-                    showNoDataDialog("No subjects found")
-                } else {
-                    showSubjectSelectionDialog(subjects, currentSubjectIds, onSubjectsSelected)
-                }
-            },
-            onFailure = { throwable ->
-                showErrorDialog("Error loading subjects: ${throwable.message}")
-            }
-        )
+        if (subjects.isEmpty()) {
+            showNoDataDialog("No subjects found")
+            return
+        }
+        showSubjectSelectionDialogInternal(subjects, currentSubjectIds, onSubjectsSelected)
     }
     
-    fun showSystemFilterDialog(
-        owner: androidx.lifecycle.LifecycleOwner,
+    fun showSystemSelectionDialog(
+        systems: List<System>,
         currentSystemIds: Set<Long>,
-        currentSubjectIds: Set<Long>,
         onSystemsSelected: (Set<Long>) -> Unit
     ) {
-        // Trigger a fetch in the ViewModel and observe the resulting LiveData
-        viewModel.fetchSystemsForSubjects(currentSubjectIds.takeIf { it.isNotEmpty() }?.toList())
-
-        viewModel.systemsResource.observeOnce(owner, androidx.lifecycle.Observer { resource ->
-            when (resource) {
-                is Resource.Loading -> {
-                    // optionally show a loading indicator
-                }
-                is Resource.Success -> {
-                    val systems = resource.data
-                    if (systems.isEmpty()) {
-                        showNoDataDialog("No systems found")
-                    } else {
-                        showSystemSelectionDialog(systems, currentSystemIds, onSystemsSelected)
-                    }
-                }
-                is Resource.Error -> {
-                    showErrorDialog("Error loading systems: ${resource.message}")
-                }
-            }
+        if (systems.isEmpty()) {
+            showNoDataDialog("No systems found")
+            return
         }
+        showSystemSelectionDialogInternal(systems, currentSystemIds, onSystemsSelected)
     }
     
-    private fun showSubjectSelectionDialog(
+    private fun showSubjectSelectionDialogInternal(
         subjects: List<Subject>,
         currentSubjectIds: Set<Long>,
         onSubjectsSelected: (Set<Long>) -> Unit
@@ -84,6 +57,7 @@ class FilterDialogHandler(
     }
     
     private fun showSystemSelectionDialog(
+    private fun showSystemSelectionDialogInternal(
         systems: List<System>,
         currentSystemIds: Set<Long>,
         onSystemsSelected: (Set<Long>) -> Unit

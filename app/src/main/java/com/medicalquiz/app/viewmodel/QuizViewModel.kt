@@ -22,7 +22,7 @@ import com.medicalquiz.app.data.models.Subject
  */
 class QuizViewModel : ViewModel() {
 
-    private var databaseManager: DatabaseManager? = null
+    private var databaseManager: com.medicalquiz.app.data.database.DatabaseProvider? = null
 
     val questionIds = MutableLiveData<List<Long>>(emptyList())
     val currentQuestionIndex = MutableLiveData(0)
@@ -42,7 +42,7 @@ class QuizViewModel : ViewModel() {
         }
     }
 
-    fun setDatabaseManager(db: DatabaseManager) {
+    fun setDatabaseManager(db: com.medicalquiz.app.data.database.DatabaseProvider) {
         databaseManager = db
         viewModelScope.launch(Dispatchers.IO) {
             val ids = databaseManager?.getQuestionIds() ?: emptyList()
@@ -145,6 +145,22 @@ class QuizViewModel : ViewModel() {
                 _systemsResource.postValue(Resource.Success(systems))
             } catch (e: Exception) {
                 _systemsResource.postValue(Resource.Error(e.message ?: "Unknown error"))
+            }
+        }
+    }
+
+    // LiveData wrapper for subject fetch state
+    private val _subjectsResource = MutableLiveData<Resource<List<Subject>>>(Resource.Success(emptyList()))
+    val subjectsResource: LiveData<Resource<List<Subject>>> = _subjectsResource
+
+    fun fetchSubjects() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _subjectsResource.postValue(Resource.Loading)
+            try {
+                val subs = databaseManager?.getSubjects() ?: emptyList()
+                _subjectsResource.postValue(Resource.Success(subs))
+            } catch (e: Exception) {
+                _subjectsResource.postValue(Resource.Error(e.message ?: "Unknown error"))
             }
         }
     }

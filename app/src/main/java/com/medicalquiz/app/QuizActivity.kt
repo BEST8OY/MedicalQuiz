@@ -99,7 +99,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         lifecycleScope.launch {
             databaseManager = MedicalQuizApp.switchDatabase(dbPath)
             mediaHandler = MediaHandler(this@QuizActivity)
-            filterDialogHandler = FilterDialogHandler(this@QuizActivity, lifecycleScope, viewModel)
+            filterDialogHandler = FilterDialogHandler(this@QuizActivity)
             mediaHandler.reset()
             viewModel.setDatabaseManager(databaseManager)
 
@@ -359,18 +359,47 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.nav_filter_subject -> filterDialogHandler.showSubjectFilterDialog(viewModel.selectedSubjectIds.value ?: emptySet()) { subjectIds ->
-                lifecycleScope.launch {
-                    viewModel.setSelectedSubjects(subjectIds)
-                    // Ensure system filter stays valid for the new subject set
-                    val validSystems = viewModel.pruneInvalidSystems().toSet()
-                    viewModel.setSelectedSystems(validSystems)
-                    reloadQuestionsWithFilters()
-                }
+            R.id.nav_filter_subject -> {
+                // Fetch subjects in ViewModel and observe once
+                viewModel.fetchSubjects()
+                viewModel.subjectsResource.observeOnce(this, androidx.lifecycle.Observer { resource ->
+                    when (resource) {
+                        is com.medicalquiz.app.utils.Resource.Loading -> {
+                            // optional loading UI
+                        }
+                        is com.medicalquiz.app.utils.Resource.Success -> {
+                            filterDialogHandler.showSubjectSelectionDialog(resource.data, viewModel.selectedSubjectIds.value ?: emptySet()) { subjectIds ->
+                                lifecycleScope.launch {
+                                    viewModel.setSelectedSubjects(subjectIds)
+                                    // Ensure system filter stays valid for the new subject set
+                                    val validSystems = viewModel.pruneInvalidSystems().toSet()
+                                    viewModel.setSelectedSystems(validSystems)
+                                    reloadQuestionsWithFilters()
+                                }
+                            }
+                        }
+                        is com.medicalquiz.app.utils.Resource.Error -> {
+                            showToast("Error fetching subjects: ${resource.message}")
+                        }
+                    }
+                })
             }
-            R.id.nav_filter_system -> filterDialogHandler.showSystemFilterDialog(this, viewModel.selectedSystemIds.value ?: emptySet(), viewModel.selectedSubjectIds.value ?: emptySet()) { systemIds ->
-                viewModel.setSelectedSystems(systemIds)
-                reloadQuestionsWithFilters()
+            R.id.nav_filter_system -> {
+                // Fetch systems from ViewModel and show the dialog once loaded
+                viewModel.fetchSystemsForSubjects(viewModel.selectedSubjectIds.value?.toList())
+                viewModel.systemsResource.observeOnce(this, androidx.lifecycle.Observer { resource ->
+                    when (resource) {
+                        is com.medicalquiz.app.utils.Resource.Loading -> { /* optional loading */ }
+                        is com.medicalquiz.app.utils.Resource.Success -> {
+                            val systems = resource.data
+                            filterDialogHandler.showSystemSelectionDialog(systems, viewModel.selectedSystemIds.value ?: emptySet()) { systemIds ->
+                                viewModel.setSelectedSystems(systemIds)
+                                reloadQuestionsWithFilters()
+                            }
+                        }
+                        is com.medicalquiz.app.utils.Resource.Error -> showToast("Error fetching systems: ${resource.message}")
+                    }
+                })
             }
             R.id.nav_filter_performance -> showPerformanceFilterDialog()
             R.id.nav_clear_filters -> clearFilters()
