@@ -120,23 +120,19 @@ class MediaViewerAdapter(
             mediaPlayers[position] = mediaPlayer
 
             binding.buttonPlayPause.setOnClickListener {
-                mediaPlayer?.let { player ->
-                    if (player.isPlaying) {
-                        player.pause()
-                        binding.buttonPlayPause.text = "▶ Play"
-                    } else {
-                        player.start()
-                        binding.buttonPlayPause.text = "⏸ Pause"
-                    }
+                if (mediaPlayer.isPlaying) {
+                    mediaPlayer.pause()
+                    binding.buttonPlayPause.text = "▶ Play"
+                } else {
+                    mediaPlayer.start()
+                    binding.buttonPlayPause.text = "⏸ Pause"
                 }
             }
 
             binding.buttonStop.setOnClickListener {
-                mediaPlayer?.let { player ->
-                    player.pause()
-                    player.seekTo(0)
-                    binding.buttonPlayPause.text = "▶ Play"
-                }
+                mediaPlayer.pause()
+                mediaPlayer.seekTo(0)
+                binding.buttonPlayPause.text = "▶ Play"
             }
         }
 
