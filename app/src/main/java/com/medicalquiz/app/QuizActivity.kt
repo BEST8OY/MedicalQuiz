@@ -268,15 +268,18 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                         time = timeTaken,
                         testId = testId
                     )
+                    
+                    // Only update performance cache when logging is enabled
+                    val correctAnswer = currentAnswers.getOrNull(question.corrAns - 1)
+                    val normalizedCorrectId = correctAnswer?.answerId?.toInt() ?: -1
+                    val wasCorrect = normalizedCorrectId == answerId
+                    updateLocalPerformanceCache(question.id, wasCorrect)
                 }
-
-                val correctAnswer = currentAnswers.getOrNull(question.corrAns - 1)
-                val normalizedCorrectId = correctAnswer?.answerId?.toInt() ?: -1
-                val wasCorrect = normalizedCorrectId == answerId
-                updateLocalPerformanceCache(question.id, wasCorrect)
                 
                 // UI updates must happen on main thread
                 withContext(Dispatchers.Main) {
+                    val correctAnswer = currentAnswers.getOrNull(question.corrAns - 1)
+                    val normalizedCorrectId = correctAnswer?.answerId?.toInt() ?: -1
                     updateWebViewAnswerState(normalizedCorrectId, answerId)
                     showQuestionDetails()
                 }
@@ -669,7 +672,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             everIncorrect = !wasCorrect,
             attempts = 1
         )
-        binding.textViewPerformance.text = buildPerformanceSummary(currentPerformance)
+        // UI update moved to caller to ensure proper threading
     }
     
     override fun onSupportNavigateUp(): Boolean {
@@ -746,7 +749,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         binding.textViewTitle.isVisible = !binding.textViewTitle.text.isNullOrBlank()
         binding.textViewMetadata.isVisible = !binding.textViewMetadata.text.isNullOrBlank()
-        binding.textViewPerformance.isVisible = !binding.textViewPerformance.text.isNullOrBlank()
+        binding.textViewPerformance.isVisible = !binding.textViewPerformance.text.isNullOrBlank() && settingsManager.isLoggingEnabled
         binding.textViewMediaInfo.isVisible = !binding.textViewMediaInfo.text.isNullOrBlank()
 
         binding.scrollViewContent.post {
@@ -755,18 +758,27 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun loadPerformanceForQuestion(questionId: Long) {
+        if (!settingsManager.isLoggingEnabled) {
+            // Don't load performance data if logging is disabled
+            currentPerformance = null
+            runOnUiThread {
+                binding.textViewPerformance.text = ""
+            }
+            return
+        }
+        
         launchCatching(
             block = { databaseManager.getQuestionPerformance(questionId) },
             onSuccess = { performance ->
                 currentPerformance = performance
-                withContext(Dispatchers.Main) {
+                runOnUiThread {
                     binding.textViewPerformance.text = buildPerformanceSummary(performance)
                 }
             },
             onFailure = { throwable ->
                 currentPerformance = null
                 Log.w(TAG, "Unable to load performance for question $questionId", throwable)
-                withContext(Dispatchers.Main) {
+                runOnUiThread {
                     binding.textViewPerformance.text = ""
                 }
             }
