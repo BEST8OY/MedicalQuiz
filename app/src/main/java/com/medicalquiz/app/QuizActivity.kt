@@ -143,35 +143,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         // Replace menu clicks with dedicated buttons in the simplified bottom bar
         binding.buttonPrevious.setOnClickListener { loadPreviousQuestion() }
         binding.buttonNext.setOnClickListener { loadNextQuestion() }
-        // Jump to a question by typing an index in the bottom counter
-        binding.editTextQuestionIndex.setOnEditorActionListener { v, actionId, event ->
-            val isDone = actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE
-            if (isDone) {
-                val raw = binding.editTextQuestionIndex.text?.toString()?.trim() ?: ""
-                val target = raw.toIntOrNull()
-                if (target == null) {
-                    showToast("Invalid question number")
-                } else {
-                    val clamped = target.coerceIn(1, questionIds.size.coerceAtLeast(1))
-                    if (clamped == target) {
-                        loadQuestion(clamped - 1)
-                    } else {
-                        showToast("Enter a number between 1 and ${questionIds.size}")
-                    }
-                }
-
-                // Hide the keyboard
-                try {
-                    val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-                    imm.hideSoftInputFromWindow(binding.editTextQuestionIndex.windowToken, 0)
-                } catch (e: Exception) { /* ignore */ }
-            }
-            isDone
-        }
-
-        binding.editTextQuestionIndex.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) binding.editTextQuestionIndex.selectAll()
-        }
+        // Open jump-to dialog when the user taps the counter
+        binding.counterContainer.setOnClickListener { showJumpToDialog() }
+        binding.counterContainer.contentDescription = "Tap to jump to question"
     }
     
     private fun initializeDatabase(dbPath: String) {
@@ -287,10 +261,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 selectedAnswerId = null
                 binding.buttonNext.isEnabled = currentQuestionIndex < questionIds.size - 1
                 binding.buttonPrevious.isEnabled = currentQuestionIndex > 0
-                // Update editable counter UI
-                binding.editTextQuestionIndex.setText((currentQuestionIndex + 1).toString())
+                // Update counter UI
+                binding.textViewQuestionIndex.text = (currentQuestionIndex + 1).toString()
                 binding.textViewTotalQuestions.text = "/ ${questionIds.size}"
-                binding.editTextQuestionIndex.isEnabled = questionIds.isNotEmpty()
+                binding.counterContainer.isEnabled = questionIds.isNotEmpty()
             }
         }
     }
@@ -598,6 +572,27 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         if (questionIds.getOrNull(previousIndex) != null) {
             loadQuestion(previousIndex)
         }
+    }
+
+    private fun showJumpToDialog() {
+        // No-op if no questions available
+        if (questionIds.isEmpty()) return
+
+        val picker = android.widget.NumberPicker(this).apply {
+            minValue = 1
+            maxValue = questionIds.size
+            value = currentQuestionIndex + 1
+            wrapSelectorWheel = false
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Jump to question")
+            .setView(picker)
+            .setPositiveButton("Go") { _, _ ->
+                loadQuestion(picker.value - 1)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
     
     override fun onNavigationItemSelected(item: MenuItem): Boolean {

@@ -168,27 +168,23 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
+                android:id="@+id/counterContainer"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:layout_marginStart="12dp"
                 android:layout_marginEnd="12dp">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/textInputQuestionIndex"
+
+                <TextView
+                    android:id="@+id/textViewQuestionIndex"
                     android:layout_width="64dp"
                     android:layout_height="wrap_content"
-                    app:endIconMode="clear_text"
-                    app:boxStrokeWidth="1dp">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/editTextQuestionIndex"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="number"
-                        android:singleLine="true"
-                        android:imeOptions="actionDone"
-                        android:textAlignment="center"
-                        android:hint="1" />
-
-                </com.google.android.material.textfield.TextInputLayout>
+                    android:gravity="center"
+                    android:text="1"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:contentDescription="Question number, tap to jump" />
 
                 <TextView
                     android:id="@+id/textViewTotalQuestions"
