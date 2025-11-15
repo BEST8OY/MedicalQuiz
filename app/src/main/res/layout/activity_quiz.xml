@@ -10,7 +10,6 @@
 
     <!-- Main Content -->
     <androidx.coordinatorlayout.widget.CoordinatorLayout
-        android:id="@+id/coordinatorLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
@@ -111,6 +110,7 @@
                     android:minHeight="120dp"
                     app:cardCornerRadius="8dp"
                     app:cardElevation="4dp"
+                    <!-- constraints removed: LinearLayout manages vertical flow -->
                     app:contentPadding="0dp">
 
                     <WebView
@@ -141,29 +141,42 @@
 
         </androidx.core.widget.NestedScrollView>
 
-        <!-- BottomAppBar for navigation (Material look) -->
-        <com.google.android.material.bottomappbar.BottomAppBar
-            android:id="@+id/bottomAppBar"
+        <!-- Fixed bottom action bar (always visible) -->
+        <LinearLayout
+            android:id="@+id/layoutNavigation"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="56dp"
+            android:orientation="horizontal"
+            android:background="?attr/colorSurface"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
             android:layout_gravity="bottom"
-            app:menu="@menu/quiz_bottom_appbar"
-            app:fabAlignmentMode="center"
-            app:hideOnScroll="false"
-            android:elevation="8dp" />
+            android:elevation="8dp"
+            android:gravity="center_vertical"
+            android:layout_margin="8dp">
 
-        <!-- Center FloatingActionButton anchored to BottomAppBar for a prominent Next action -->
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fabNext"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_margin="16dp"
-            app:layout_anchor="@id/bottomAppBar"
-            app:layout_anchorGravity="center"
-            app:srcCompat="@drawable/ic_navigate_next"
-            android:contentDescription="@string/next" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonPrevious"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Previous"
+                android:layout_marginEnd="8dp"
+                style="@style/Widget.Material3.Button.OutlinedButton" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonNext"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Next"
+                android:layout_marginStart="8dp" />
+
+        </LinearLayout>
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     <!-- Navigation Drawer -->
     <com.google.android.material.navigation.NavigationView
