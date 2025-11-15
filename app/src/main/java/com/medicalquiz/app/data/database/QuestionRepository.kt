@@ -166,14 +166,12 @@ class QuestionRepository(private val connection: DatabaseConnection) {
         ?.toLongOrNull()
 
     private fun fetchSubjectName(id: Long): String? {
-        val db = connection.getDatabase()
-        val cursor = db.rawQuery("SELECT name FROM Subjects WHERE id = ?", arrayOf(id.toString()))
+        val cursor = connection.getDatabase().rawQuery("SELECT name FROM Subjects WHERE id = ?", arrayOf(id.toString()))
         return cursor.use { if (it.moveToFirst()) it.getString(0) else null }
     }
 
     private fun fetchSystemName(id: Long): String? {
-        val db = connection.getDatabase()
-        val cursor = db.rawQuery("SELECT name FROM Systems WHERE id = ?", arrayOf(id.toString()))
+        val cursor = connection.getDatabase().rawQuery("SELECT name FROM Systems WHERE id = ?", arrayOf(id.toString()))
         return cursor.use { if (it.moveToFirst()) it.getString(0) else null }
     }
 }
