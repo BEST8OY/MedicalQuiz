@@ -49,7 +49,7 @@ class MediaViewerAdapter(
         holder.binding.videoView.stopPlayback()
     }
 
-    inner class MediaViewHolder(private val binding: ItemMediaViewerBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class MediaViewHolder(internal val binding: ItemMediaViewerBinding) : RecyclerView.ViewHolder(binding.root) {
 
         private fun hideAllContent() {
             binding.imageView.isVisible = false
