@@ -41,6 +41,7 @@ import com.medicalquiz.app.settings.SettingsManager
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
 import java.util.UUID
 
 class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
@@ -63,7 +64,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private val selectedSystemIds = mutableSetOf<Long>()
     private var performanceFilter: PerformanceFilter = PerformanceFilter.ALL
     private var answerSubmitted = false
-    private var currentPerformance: QuestionPerformance? = null
+    private val mediaFilesCache = mutableMapOf<Long, List<String>>()
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -149,6 +150,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     
     private fun initializeDatabase(dbPath: String) {
         binding.textViewStatus.text = "Loading database..."
+        clearCaches() // Clear caches when switching databases
         
         launchCatching(
             block = {
@@ -181,9 +183,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         launchCatching(
             block = {
-                currentPerformance = null
-                currentQuestion = databaseManager.getQuestionById(questionId)
-                currentAnswers = databaseManager.getAnswersForQuestion(questionId)
+                // Parallelize database calls for better performance
+                val questionDeferred = lifecycleScope.async { databaseManager.getQuestionById(questionId) }
+                val answersDeferred = lifecycleScope.async { databaseManager.getAnswersForQuestion(questionId) }
+
+                currentQuestion = questionDeferred.await()
+                currentAnswers = answersDeferred.await()
             },
             onSuccess = {
                 displayQuestion()
@@ -192,63 +197,69 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             onFailure = { throwable ->
                 Log.e(TAG, "Failed to load question $questionId", throwable)
                 val errorText = throwable.message ?: throwable.javaClass.simpleName ?: "Unknown error"
-                showToast("Error loading question $questionId: $errorText")
+                showToast("Error loading question $questionId: $errorText)
             }
         )
     }
     
     private fun displayQuestion() {
         val question = currentQuestion ?: return
-        
+
         binding.textViewQuestionNumber.text = "Question ${currentQuestionIndex + 1} of ${questionIds.size}"
-        
-        val quizHtml = buildQuestionHtml(question, currentAnswers)
-        WebViewRenderer.loadContent(this, binding.webViewQuestion, quizHtml)
-        
-        binding.textViewTitle.apply {
-            if (!question.title.isNullOrBlank()) {
-                HtmlUtils.setHtmlText(this, question.title)
-            } else {
-                text = ""
+
+        // Move HTML building and media processing to background thread
+        lifecycleScope.launch(Dispatchers.Default) {
+            val quizHtml = buildQuestionHtml(question, currentAnswers)
+            val mediaFiles = collectMediaFiles(question)
+
+            withContext(Dispatchers.Main) {
+                WebViewRenderer.loadContent(this@QuizActivity, binding.webViewQuestion, quizHtml)
+
+                binding.textViewTitle.apply {
+                    if (!question.title.isNullOrBlank()) {
+                        HtmlUtils.setHtmlText(this, question.title)
+                    } else {
+                        text = ""
+                    }
+                    isVisible = false
+                }
+
+                val metadata = buildString {
+                    append("ID: ${question.id}")
+                    if (!question.subName.isNullOrBlank()) append(" | Subject: ${question.subName}")
+                    if (!question.sysName.isNullOrBlank()) append(" | System: ${question.sysName}")
+                }
+
+                binding.textViewMetadata.apply {
+                    text = metadata
+                    isVisible = false
+                }
+
+                binding.textViewPerformance.apply {
+                    text = buildPerformanceSummary(currentPerformance)
+                    isVisible = false
+                }
+                loadPerformanceForQuestion(question.id)
+
+                Log.d(TAG, "Question ${question.id} has media files: $mediaFiles")
+                mediaHandler.updateMedia(question.id, mediaFiles)
+                binding.textViewMediaInfo.apply {
+                    if (mediaFiles.isNotEmpty()) {
+                        text = "📎 ${mediaFiles.size} media file(s) - Tap to view"
+                        setOnClickListener { mediaHandler.showCurrentMediaGallery() }
+                    } else {
+                        text = ""
+                        setOnClickListener(null)
+                    }
+                    isVisible = false
+                }
+
+                answerSubmitted = false
+                selectedAnswerId = null
+                binding.buttonNext.isEnabled = currentQuestionIndex < questionIds.size - 1
+                binding.buttonPrevious.isEnabled = currentQuestionIndex > 0
             }
-            isVisible = false
         }
-
-        val metadata = buildString {
-            append("ID: ${question.id}")
-            if (!question.subName.isNullOrBlank()) append(" | Subject: ${question.subName}")
-            if (!question.sysName.isNullOrBlank()) append(" | System: ${question.sysName}")
-        }
-
-        binding.textViewMetadata.apply {
-            text = metadata
-            isVisible = false
-        }
-
-        binding.textViewPerformance.apply {
-            text = buildPerformanceSummary(currentPerformance)
-            isVisible = false
-        }
-        loadPerformanceForQuestion(question.id)
-
-        val mediaFiles = collectMediaFiles(question)
-        Log.d(TAG, "Question ${question.id} has media files: $mediaFiles")
-        mediaHandler.updateMedia(question.id, mediaFiles)
-        binding.textViewMediaInfo.apply {
-            if (mediaFiles.isNotEmpty()) {
-                text = "📎 ${mediaFiles.size} media file(s) - Tap to view"
-                setOnClickListener { mediaHandler.showCurrentMediaGallery() }
-            } else {
-                text = ""
-                setOnClickListener(null)
-            }
-            isVisible = false
-        }
-        
-        answerSubmitted = false
-        selectedAnswerId = null
-        binding.buttonNext.isEnabled = currentQuestionIndex < questionIds.size - 1
-        binding.buttonPrevious.isEnabled = currentQuestionIndex > 0
     }
     
     private fun submitAnswer() {
@@ -655,12 +666,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         return "Attempts: ${summary.attempts} | Last: $lastLabel"
     }
 
-    private fun collectMediaFiles(question: Question): List<String> {
-        return buildList {
-            // Both mediaName and otherMedias can be comma-separated
-            addAll(HtmlUtils.parseMediaFiles(question.mediaName))
-            addAll(HtmlUtils.parseMediaFiles(question.otherMedias))
-        }.distinct()
+    private fun clearCaches() {
+        mediaFilesCache.clear()
+        HtmlUtils.clearMediaCaches()
     }
 
     private fun updateLocalPerformanceCache(questionId: Long, wasCorrect: Boolean) {
@@ -802,26 +810,20 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         if (!settingsManager.isLoggingEnabled) {
             // Don't load performance data if logging is disabled
             currentPerformance = null
-            runOnUiThread {
-                binding.textViewPerformance.text = ""
-            }
+            binding.textViewPerformance.text = ""
             return
         }
-        
+
         launchCatching(
             block = { databaseManager.getQuestionPerformance(questionId) },
             onSuccess = { performance ->
                 currentPerformance = performance
-                runOnUiThread {
-                    binding.textViewPerformance.text = buildPerformanceSummary(performance)
-                }
+                binding.textViewPerformance.text = buildPerformanceSummary(performance)
             },
             onFailure = { throwable ->
                 currentPerformance = null
                 Log.w(TAG, "Unable to load performance for question $questionId", throwable)
-                runOnUiThread {
-                    binding.textViewPerformance.text = ""
-                }
+                binding.textViewPerformance.text = ""
             }
         )
     }

@@ -33,6 +33,7 @@ object HtmlUtils {
     )
     private val mediaPathCache = ConcurrentHashMap<String, String>()
     private val missingMediaCache = ConcurrentHashMap.newKeySet<String>()
+    private val dataUriCache = ConcurrentHashMap<String, String>()
 
     private data class SpanTransform(val className: String, val replacementTag: String)
 
@@ -159,15 +160,22 @@ object HtmlUtils {
      * Create a base64 data URI for an image file
      */
     private fun createImageDataUri(fileName: String): String? {
+        // Check cache first
+        dataUriCache[fileName]?.let { return it }
+
         val path = getMediaPath(fileName) ?: return null
         return try {
             val file = File(path)
             if (!file.exists() || !file.canRead()) return null
-            
+
             val bytes = file.readBytes()
             val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
             val mimeType = getImageMimeType(fileName)
-            "data:$mimeType;base64,$base64"
+            val dataUri = "data:$mimeType;base64,$base64"
+
+            // Cache the result
+            dataUriCache[fileName] = dataUri
+            dataUri
         } catch (e: Exception) {
             Log.w(TAG, "Failed to create data URI for $fileName", e)
             null
@@ -227,6 +235,7 @@ object HtmlUtils {
     fun clearMediaCaches() {
         mediaPathCache.clear()
         missingMediaCache.clear()
+        dataUriCache.clear()
     }
 
     private class MediaImageGetter(private val context: Context) : Html.ImageGetter {

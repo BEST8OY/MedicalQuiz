@@ -14,6 +14,31 @@ class LogRepository(private val connection: DatabaseConnection) {
     private val logBuffer = mutableListOf<PendingLogEntry>()
     private val autoFlushThreshold = 10 // Flush after N answers
     
+    // Prepared statements for better performance
+    private val insertLogStmt by lazy {
+        connection.getDatabase().compileStatement(
+            "INSERT INTO logs (qid, selectedAnswer, corrAnswer, time, answerDate, testId) VALUES (?, ?, ?, ?, ?, ?)"
+        )
+    }
+    
+    private val selectSummaryStmt by lazy {
+        connection.getDatabase().compileStatement(
+            "SELECT lastCorrect, everCorrect, everIncorrect, attempts FROM logs_summary WHERE qid = ?"
+        )
+    }
+    
+    private val upsertSummaryStmt by lazy {
+        connection.getDatabase().compileStatement(
+            "INSERT OR REPLACE INTO logs_summary (qid, lastCorrect, everCorrect, everIncorrect, attempts) VALUES (?, ?, ?, ?, ?)"
+        )
+    }
+    
+    private val selectPerformanceStmt by lazy {
+        connection.getDatabase().compileStatement(
+            "SELECT lastCorrect, everCorrect, everIncorrect, attempts FROM logs_summary WHERE qid = ?"
+        )
+    }
+    
     data class PendingLogEntry(
         val qid: Long,
         val selectedAnswer: Int,
@@ -98,10 +123,18 @@ class LogRepository(private val connection: DatabaseConnection) {
         val db = connection.getDatabase()
         db.beginTransaction()
         try {
+            // Group entries by question ID for batch summary updates
+            val entriesByQuestion = entriesToFlush.groupBy { it.qid }
+            
             entriesToFlush.forEach { entry ->
                 insertLogEntry(entry)
-                updateSummary(entry)
             }
+            
+            // Batch update summaries by question
+            entriesByQuestion.forEach { (qid, questionEntries) ->
+                updateSummaryBatch(qid, questionEntries)
+            }
+            
             db.setTransactionSuccessful()
             entriesToFlush.size
         } finally {
@@ -110,47 +143,67 @@ class LogRepository(private val connection: DatabaseConnection) {
     }
     
     private fun insertLogEntry(entry: PendingLogEntry) {
-        val db = connection.getDatabase()
-        val values = ContentValues().apply {
-            put("qid", entry.qid)
-            put("selectedAnswer", entry.selectedAnswer)
-            put("corrAnswer", entry.corrAnswer)
-            put("time", entry.time)
-            put("answerDate", entry.answerDate)
-            put("testId", entry.testId)
-        }
-        db.insert("logs", null, values)
+        insertLogStmt.bindLong(1, entry.qid)
+        insertLogStmt.bindLong(2, entry.selectedAnswer.toLong())
+        insertLogStmt.bindLong(3, entry.corrAnswer.toLong())
+        insertLogStmt.bindLong(4, entry.time)
+        insertLogStmt.bindString(5, entry.answerDate)
+        insertLogStmt.bindString(6, entry.testId)
+        insertLogStmt.executeInsert()
+        insertLogStmt.clearBindings()
     }
 
-    private fun updateSummary(entry: PendingLogEntry) {
-        val db = connection.getDatabase()
-        val cursor = db.rawQuery(
-            "SELECT lastCorrect, everCorrect, everIncorrect, attempts FROM logs_summary WHERE qid = ?",
-            arrayOf(entry.qid.toString())
-        )
-
-        val (everCorrect, everIncorrect, attemptsPrev) = cursor.use {
-            if (it.moveToFirst()) {
-                Triple(it.getInt(1), it.getInt(2), it.getInt(3))
-            } else {
-                Triple(0, 0, 0)
+    private fun updateSummaryBatch(qid: Long, entries: List<PendingLogEntry>) {
+        // Get current summary state
+        val currentState = getCurrentSummary(qid)
+        
+        // Calculate new summary state from all entries
+        var everCorrect = currentState.everCorrect
+        var everIncorrect = currentState.everIncorrect
+        var attempts = currentState.attempts
+        var lastCorrect = currentState.lastCorrect
+        
+        entries.forEach { entry ->
+            val wasCorrect = entry.selectedAnswer == entry.corrAnswer
+            everCorrect = everCorrect or if (wasCorrect) 1 else 0
+            everIncorrect = everIncorrect or if (!wasCorrect) 1 else 0
+            attempts += 1
+            lastCorrect = if (wasCorrect) 1 else 0
+        }
+        
+        // Update summary with final state
+        upsertSummaryStmt.bindLong(1, qid)
+        upsertSummaryStmt.bindLong(2, lastCorrect.toLong())
+        upsertSummaryStmt.bindLong(3, everCorrect.toLong())
+        upsertSummaryStmt.bindLong(4, everIncorrect.toLong())
+        upsertSummaryStmt.bindLong(5, attempts.toLong())
+        upsertSummaryStmt.executeInsert()
+        upsertSummaryStmt.clearBindings()
+    }
+    
+    private data class SummaryState(val lastCorrect: Int, val everCorrect: Int, val everIncorrect: Int, val attempts: Int)
+    
+    private fun getCurrentSummary(qid: Long): SummaryState {
+        selectSummaryStmt.bindLong(1, qid)
+        val cursor = selectSummaryStmt.simpleQueryForOptionalLong()
+        selectSummaryStmt.clearBindings()
+        
+        return if (cursor != null) {
+            val db = connection.getDatabase()
+            val fullCursor = db.rawQuery(
+                "SELECT lastCorrect, everCorrect, everIncorrect, attempts FROM logs_summary WHERE qid = ?",
+                arrayOf(qid.toString())
+            )
+            fullCursor.use {
+                if (it.moveToFirst()) {
+                    SummaryState(it.getInt(0), it.getInt(1), it.getInt(2), it.getInt(3))
+                } else {
+                    SummaryState(0, 0, 0, 0)
+                }
             }
+        } else {
+            SummaryState(0, 0, 0, 0)
         }
-
-        val wasCorrect = if (entry.selectedAnswer == entry.corrAnswer) 1 else 0
-        val newEverCorrect = everCorrect or wasCorrect
-        val newEverIncorrect = everIncorrect or (1 - wasCorrect)
-        val newAttempts = attemptsPrev + 1
-
-        val values = ContentValues().apply {
-            put("qid", entry.qid)
-            put("lastCorrect", wasCorrect)
-            put("everCorrect", newEverCorrect)
-            put("everIncorrect", newEverIncorrect)
-            put("attempts", newAttempts)
-        }
-
-        db.insertWithOnConflict("logs_summary", null, values, android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE)
     }
     
     /**
@@ -178,23 +231,32 @@ class LogRepository(private val connection: DatabaseConnection) {
     }
 
     suspend fun getSummaryForQuestion(qid: Long): QuestionPerformance? = withContext(Dispatchers.IO) {
-        val db = connection.getDatabase()
-        val cursor = db.rawQuery(
-            "SELECT lastCorrect, everCorrect, everIncorrect, attempts FROM logs_summary WHERE qid = ?",
-            arrayOf(qid.toString())
-        )
-        cursor.use {
-            if (it.moveToFirst()) {
-                QuestionPerformance(
-                    qid = qid,
-                    lastCorrect = it.getInt(0) == 1,
-                    everCorrect = it.getInt(1) == 1,
-                    everIncorrect = it.getInt(2) == 1,
-                    attempts = it.getInt(3)
-                )
-            } else {
-                null
+        selectPerformanceStmt.bindLong(1, qid)
+        val cursor = selectPerformanceStmt.simpleQueryForOptionalLong()
+        selectPerformanceStmt.clearBindings()
+
+        if (cursor != null) {
+            // Need full row data, use rawQuery for now
+            val db = connection.getDatabase()
+            val fullCursor = db.rawQuery(
+                "SELECT lastCorrect, everCorrect, everIncorrect, attempts FROM logs_summary WHERE qid = ?",
+                arrayOf(qid.toString())
+            )
+            fullCursor.use {
+                if (it.moveToFirst()) {
+                    QuestionPerformance(
+                        qid = qid,
+                        lastCorrect = it.getInt(0) == 1,
+                        everCorrect = it.getInt(1) == 1,
+                        everIncorrect = it.getInt(2) == 1,
+                        attempts = it.getInt(3)
+                    )
+                } else {
+                    null
+                }
             }
+        } else {
+            null
         }
     }
 

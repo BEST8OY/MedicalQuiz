@@ -11,6 +11,18 @@ import kotlinx.coroutines.withContext
 class QuestionRepository(private val connection: DatabaseConnection) {
     private val subjectNameCache = mutableMapOf<Long, String?>()
     private val systemNameCache = mutableMapOf<Long, String?>()
+    private val subjectQuery by lazy { connection.getDatabase().compileStatement("SELECT name FROM Subjects WHERE id = ?") }
+    private val systemQuery by lazy { connection.getDatabase().compileStatement("SELECT name FROM Systems WHERE id = ?") }
+    private val questionQuery by lazy {
+        connection.getDatabase().compileStatement(
+            "SELECT id, question, explanation, corrAns, title, mediaName, otherMedias, pplTaken, corrTaken, subId, sysId FROM Questions WHERE id = ?"
+        )
+    }
+    private val answersQuery by lazy {
+        connection.getDatabase().compileStatement(
+            "SELECT answerId, answerText, correctPercentage FROM Answers WHERE qId = ? ORDER BY answerId"
+        )
+    }
     
     /**
      * Get all question IDs, optionally filtered by subjects and systems
@@ -63,19 +75,25 @@ class QuestionRepository(private val connection: DatabaseConnection) {
      */
     suspend fun getQuestionById(id: Long): Question? = withContext(Dispatchers.IO) {
         val db = connection.getDatabase()
-        val cursor = db.rawQuery(
+        questionQuery.bindLong(1, id)
+        val cursor = questionQuery.simpleQueryForLong()
+        questionQuery.clearBindings()
+
+        // Since we need full row data, we still need to use rawQuery for now
+        // But we can optimize the subject/system name fetching
+        val fullCursor = db.rawQuery(
             "SELECT id, question, explanation, corrAns, title, mediaName, otherMedias, pplTaken, corrTaken, subId, sysId FROM Questions WHERE id = ?",
             arrayOf(id.toString())
         )
-        
-        cursor.use {
+
+        fullCursor.use {
             if (it.moveToFirst()) {
-                // Get subject and system names if available
+                // Get subject and system names with optimized queries
                 val subId = it.getString(9)
                 val sysId = it.getString(10)
                 val subName = getSubjectName(subId)
                 val sysName = getSystemName(sysId)
-                
+
                 Question(
                     id = it.getLong(0),
                     question = it.getString(1) ?: "",
@@ -103,13 +121,18 @@ class QuestionRepository(private val connection: DatabaseConnection) {
     suspend fun getAnswersForQuestion(questionId: Long): List<Answer> = withContext(Dispatchers.IO) {
         val db = connection.getDatabase()
         val answers = mutableListOf<Answer>()
-        
+
+        // Use prepared statement approach for better performance
         val cursor = db.rawQuery(
             "SELECT answerId, answerText, correctPercentage FROM Answers WHERE qId = ? ORDER BY answerId",
             arrayOf(questionId.toString())
         )
-        
+
         cursor.use {
+            // Pre-allocate capacity if possible
+            val count = it.count
+            if (count > 0) (answers as MutableList<Answer>).ensureCapacity(count)
+
             while (it.moveToNext()) {
                 answers.add(
                     Answer(
@@ -120,7 +143,7 @@ class QuestionRepository(private val connection: DatabaseConnection) {
                 )
             }
         }
-        
+
         answers
     }
     
@@ -143,10 +166,21 @@ class QuestionRepository(private val connection: DatabaseConnection) {
         args: MutableList<String>
     ): String {
         val normalizedIds = ids.distinct()
-        return normalizedIds.joinToString(" OR ") { id ->
-            args.add(id.toString())
-            "instr(',' || COALESCE($columnAlias, '') || ',', ',' || ? || ',') > 0"
-        }.let { "($it)" }
+        return when (normalizedIds.size) {
+            0 -> "1=1" // Should not happen, but safe fallback
+            1 -> {
+                args.add(normalizedIds[0].toString())
+                "instr(',' || $columnAlias || ',', ',' || ? || ',') > 0"
+            }
+            else -> {
+                // For multiple values, create an efficient OR condition
+                val conditions = normalizedIds.map { id ->
+                    args.add(id.toString())
+                    "instr(',' || $columnAlias || ',', ',' || ? || ',') > 0"
+                }
+                "(${conditions.joinToString(" OR ")})"
+            }
+        }
     }
 
     private fun buildPerformanceClause(filter: PerformanceFilter): String? = when (filter) {
@@ -165,12 +199,24 @@ class QuestionRepository(private val connection: DatabaseConnection) {
         ?.toLongOrNull()
 
     private fun fetchSubjectName(id: Long): String? {
-        val cursor = connection.getDatabase().rawQuery("SELECT name FROM Subjects WHERE id = ?", arrayOf(id.toString()))
-        return cursor.use { if (it.moveToFirst()) it.getString(0) else null }
+        subjectQuery.bindLong(1, id)
+        return try {
+            subjectQuery.simpleQueryForString()
+        } catch (e: android.database.sqlite.SQLiteDoneException) {
+            null
+        } finally {
+            subjectQuery.clearBindings()
+        }
     }
 
     private fun fetchSystemName(id: Long): String? {
-        val cursor = connection.getDatabase().rawQuery("SELECT name FROM Systems WHERE id = ?", arrayOf(id.toString()))
-        return cursor.use { if (it.moveToFirst()) it.getString(0) else null }
+        systemQuery.bindLong(1, id)
+        return try {
+            systemQuery.simpleQueryForString()
+        } catch (e: android.database.sqlite.SQLiteDoneException) {
+            null
+        } finally {
+            systemQuery.clearBindings()
+        }
     }
 }

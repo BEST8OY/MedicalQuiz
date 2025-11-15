@@ -8,17 +8,17 @@ import com.medicalquiz.app.MediaViewerActivity
  * Handles media metadata caching and gallery launches per question.
  */
 class MediaHandler(private val context: Context) {
-    private val mediaCache = mutableMapOf<Long, List<String>>()
     private var currentQuestionId: Long? = null
+    private var currentMediaFiles: List<String> = emptyList()
 
     fun reset() {
-        mediaCache.clear()
         currentQuestionId = null
+        currentMediaFiles = emptyList()
     }
 
     fun updateMedia(questionId: Long, mediaFiles: List<String>) {
-        mediaCache[questionId] = mediaFiles
         currentQuestionId = questionId
+        currentMediaFiles = mediaFiles
     }
 
     fun handleMediaLink(url: String): Boolean {
@@ -30,10 +30,9 @@ class MediaHandler(private val context: Context) {
     fun showCurrentMediaGallery(startIndex: Int = 0): Boolean = openMediaFromCache(null, startIndex)
 
     private fun openMediaFromCache(fileName: String?, fallbackIndex: Int = 0): Boolean {
-        val mediaFiles = currentQuestionId?.let { mediaCache[it] }.orEmpty()
-        if (mediaFiles.isEmpty()) return false
-        val startIndex = resolveStartIndex(mediaFiles, fileName, fallbackIndex)
-        openMediaViewer(mediaFiles, startIndex)
+        if (currentMediaFiles.isEmpty()) return false
+        val startIndex = resolveStartIndex(currentMediaFiles, fileName, fallbackIndex)
+        openMediaViewer(currentMediaFiles, startIndex)
         return true
     }
 

@@ -28,6 +28,8 @@ object WebViewRenderer {
 
     @Volatile
     private var cachedCss: String? = null
+    @Volatile
+    private var cachedThemeCss: String? = null
     
     private val materialVars = listOf(
         MaterialCssVar("--md-sys-color-primary", MaterialR.attr.colorPrimary, Color.parseColor("#2563eb")),
@@ -144,23 +146,27 @@ object WebViewRenderer {
             return
         }
 
-        val cssContent = buildCssContent(context)
-        val sanitizedHtml = HtmlUtils.sanitizeForWebView(htmlContent)
+        // Move HTML processing to background thread
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            val cssContent = buildCssContent(context)
+            val sanitizedHtml = HtmlUtils.sanitizeForWebView(htmlContent)
 
-        val fullHtml = HTML_TEMPLATE
-            .replace(CSS_PLACEHOLDER, cssContent)
-            .replace(CONTENT_PLACEHOLDER, sanitizedHtml)
+            val fullHtml = HTML_TEMPLATE
+                .replace(CSS_PLACEHOLDER, cssContent)
+                .replace(CONTENT_PLACEHOLDER, sanitizedHtml)
 
-        webView.safeLoadDataWithBaseURL(
-            baseUrl = null,  // Don't set base URL so file:// URLs work directly
-            data = fullHtml
-        )
-    }    private fun buildCssContent(context: Context): String {
-        return buildString {
-            append(loadCssFromAssets(context))
-            append('\n')
-            append(buildThemeCss(context))
+            // Switch back to main thread for WebView operations
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                webView.safeLoadDataWithBaseURL(
+                    baseUrl = null,  // Don't set base URL so file:// URLs work directly
+                    data = fullHtml
+                )
+            }
         }
+    }    private fun buildCssContent(context: Context): String {
+        val assetCss = loadCssFromAssets(context)
+        val themeCss = cachedThemeCss ?: buildThemeCss(context).also { cachedThemeCss = it }
+        return "$assetCss\n$themeCss"
     }
     
     /**
