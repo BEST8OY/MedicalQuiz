@@ -37,26 +37,26 @@ class DatabaseManager(dbPath: String) : DatabaseProvider {
     // Question Queries - Delegated to QuestionRepository
     // ========================================================================
     
-    suspend fun getQuestionIds(
+    override suspend fun getQuestionIds(
         subjectIds: List<Long>? = null,
         systemIds: List<Long>? = null,
         performanceFilter: PerformanceFilter = PerformanceFilter.ALL
     ): List<Long> = questionRepository.getQuestionIds(subjectIds, systemIds, performanceFilter)
     
-    suspend fun getQuestionById(id: Long): Question? = 
+    override suspend fun getQuestionById(id: Long): Question? = 
         questionRepository.getQuestionById(id)
     
-    suspend fun getAnswersForQuestion(questionId: Long): List<Answer> = 
+    override suspend fun getAnswersForQuestion(questionId: Long): List<Answer> = 
         questionRepository.getAnswersForQuestion(questionId)
     
     // ========================================================================
     // Metadata Queries - Delegated to MetadataRepository
     // ========================================================================
     
-    suspend fun getSubjects(): List<Subject> = 
+    override suspend fun getSubjects(): List<Subject> = 
         metadataRepository.getSubjects()
     
-    suspend fun getSystems(subjectIds: List<Long>? = null): List<System> = 
+    override suspend fun getSystems(subjectIds: List<Long>? = null): List<System> = 
         metadataRepository.getSystems(subjectIds)
     
     // ========================================================================
@@ -79,6 +79,6 @@ class DatabaseManager(dbPath: String) : DatabaseProvider {
 
     fun clearPendingLogsBuffer() = logRepository.clearBuffer()
 
-    suspend fun getQuestionPerformance(qid: Long) = logRepository.getSummaryForQuestion(qid)
+    override suspend fun getQuestionPerformance(qid: Long) = logRepository.getSummaryForQuestion(qid)
 
 }

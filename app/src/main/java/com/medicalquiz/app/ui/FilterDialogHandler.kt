@@ -56,7 +56,6 @@ class FilterDialogHandler(
         )
     }
     
-    private fun showSystemSelectionDialog(
     private fun showSystemSelectionDialogInternal(
         systems: List<System>,
         currentSystemIds: Set<Long>,

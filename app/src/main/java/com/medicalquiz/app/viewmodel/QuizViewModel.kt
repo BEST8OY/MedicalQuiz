@@ -1,6 +1,5 @@
 package com.medicalquiz.app.viewmodel
 
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medicalquiz.app.data.database.DatabaseManager
@@ -14,7 +13,6 @@ import com.medicalquiz.app.data.models.Subject
 import com.medicalquiz.app.utils.Resource
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.medicalquiz.app.data.models.Subject
 
 /**
  * ViewModel that holds quiz state and performs database operations.
@@ -166,5 +164,5 @@ class QuizViewModel : ViewModel() {
     }
 
     // Expose database manager for other helpers if needed (avoid direct DB calls from Activity)
-    fun getDatabaseManager(): DatabaseManager? = databaseManager
+    fun getDatabaseManager(): com.medicalquiz.app.data.database.DatabaseProvider? = databaseManager
 }

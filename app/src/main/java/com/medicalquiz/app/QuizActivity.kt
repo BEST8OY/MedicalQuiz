@@ -48,7 +48,7 @@ import java.util.UUID
 class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     private lateinit var binding: ActivityQuizBinding
     private lateinit var databaseManager: DatabaseManager
-    private val viewModel: com.medicalquiz.app.viewmodel.QuizViewModel by androidx.activity.viewModels()
+    private val viewModel: com.medicalquiz.app.viewmodel.QuizViewModel by viewModels()
     private lateinit var drawerToggle: ActionBarDrawerToggle
     private lateinit var mediaHandler: MediaHandler
     private lateinit var filterDialogHandler: FilterDialogHandler
@@ -311,7 +311,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     // WebView setup is moved to WebViewController
 
     // JS bridge is provided via WebViewController
-    }
     
     private fun loadNextQuestion() {
         val nextIndex = currentQuestionIndex + 1
@@ -367,7 +366,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                         is com.medicalquiz.app.utils.Resource.Loading -> {
                             // optional loading UI
                         }
-                        is com.medicalquiz.app.utils.Resource.Success -> {
+                        is com.medicalquiz.app.utils.Resource.Success<*> -> {
                             filterDialogHandler.showSubjectSelectionDialog(resource.data, viewModel.selectedSubjectIds.value ?: emptySet()) { subjectIds ->
                                 lifecycleScope.launch {
                                     viewModel.setSelectedSubjects(subjectIds)
@@ -390,7 +389,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 viewModel.systemsResource.observeOnce(this, androidx.lifecycle.Observer { resource ->
                     when (resource) {
                         is com.medicalquiz.app.utils.Resource.Loading -> { /* optional loading */ }
-                        is com.medicalquiz.app.utils.Resource.Success -> {
+                        is com.medicalquiz.app.utils.Resource.Success<*> -> {
                             val systems = resource.data
                             filterDialogHandler.showSystemSelectionDialog(systems, viewModel.selectedSystemIds.value ?: emptySet()) { systemIds ->
                                 viewModel.setSelectedSystems(systemIds)
