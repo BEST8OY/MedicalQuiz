@@ -12,6 +12,8 @@ import kotlinx.coroutines.*
 import android.webkit.ConsoleMessage
 
 object WebViewRenderer {
+    // Use a private CoroutineScope to avoid DelicateCoroutinesApi warnings from GlobalScope
+    private val backgroundScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default)
     private data class MaterialCssVar(
         val cssName: String,
         val attrId: Int,
@@ -140,7 +142,8 @@ object WebViewRenderer {
                 allowFileAccess = true  // Allow loading files from file:// URLs
 
                 // Additional performance settings
-                setRenderPriority(android.webkit.WebSettings.RenderPriority.HIGH)
+                // `setRenderPriority` is deprecated and modern WebView implementations
+                // manage rendering priority internally; removing to avoid warnings.
                 cacheMode = android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
                 databaseEnabled = false
                 setGeolocationEnabled(false)
@@ -181,7 +184,7 @@ object WebViewRenderer {
         }
 
         // Move HTML processing to background thread
-        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+        backgroundScope.launch(kotlinx.coroutines.Dispatchers.Default) {
             val cssContent = buildCssContent(context)
             val sanitizedHtml = HtmlUtils.sanitizeForWebView(htmlContent)
 
@@ -239,7 +242,7 @@ object WebViewRenderer {
      * Preload CSS assets in background to improve first load performance
      */
     fun preloadAssets(context: Context) {
-        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        backgroundScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             // Preload CSS
             loadCssFromAssets(context)
             // Preload theme CSS

@@ -30,13 +30,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:fillViewport="true"
-            android:clipToPadding="false"
-            android:paddingBottom="24dp"
-            android:descendantFocusability="beforeDescendants"
-            android:focusableInTouchMode="true"
             android:scrollbars="vertical"
-            android:scrollbarStyle="outsideOverlay"
-            android:overScrollMode="never"
             android:nestedScrollingEnabled="true"
             app:layout_behavior="@string/appbar_scrolling_view_behavior">
 

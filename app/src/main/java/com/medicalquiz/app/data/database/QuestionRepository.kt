@@ -76,7 +76,9 @@ class QuestionRepository(private val connection: DatabaseConnection) {
     suspend fun getQuestionById(id: Long): Question? = withContext(Dispatchers.IO) {
         val db = connection.getDatabase()
         questionQuery.bindLong(1, id)
-        val cursor = questionQuery.simpleQueryForLong()
+        // Execute the compiled statement to validate or warm the statement cache.
+        // We don't use the returned value directly here.
+        questionQuery.simpleQueryForLong()
         questionQuery.clearBindings()
 
         // Since we need full row data, we still need to use rawQuery for now
