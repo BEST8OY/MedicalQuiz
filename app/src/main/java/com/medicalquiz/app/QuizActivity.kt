@@ -149,9 +149,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
         }
 
-        // Set content description for accessibility
-        binding.bottomAppBar.menu.findItem(R.id.action_next).actionView?.contentDescription = getString(R.string.next)
-        binding.bottomAppBar.menu.findItem(R.id.action_previous).actionView?.contentDescription = getString(R.string.previous)
+        // Wire FAB (prominent next button) and set content description
+        binding.fabNext.setOnClickListener { loadNextQuestion() }
+        binding.fabNext.contentDescription = getString(R.string.next)
     }
     
     private fun initializeDatabase(dbPath: String) {
@@ -268,6 +268,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 // Update BottomAppBar menu item enabled state
                 binding.bottomAppBar.menu.findItem(R.id.action_next).isEnabled = currentQuestionIndex < questionIds.size - 1
                 binding.bottomAppBar.menu.findItem(R.id.action_previous).isEnabled = currentQuestionIndex > 0
+                binding.fabNext.isEnabled = currentQuestionIndex < questionIds.size - 1
             }
         }
     }

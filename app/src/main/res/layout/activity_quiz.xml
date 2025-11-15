@@ -146,12 +146,22 @@
             android:id="@+id/bottomAppBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:layout_anchor="@id/coordinatorLayout"
-            app:layout_anchorGravity="bottom"
+            android:layout_gravity="bottom"
             app:menu="@menu/quiz_bottom_appbar"
             app:fabAlignmentMode="center"
             app:hideOnScroll="false"
             android:elevation="8dp" />
+
+        <!-- Center FloatingActionButton anchored to BottomAppBar for a prominent Next action -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fabNext"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            app:layout_anchor="@id/bottomAppBar"
+            app:layout_anchorGravity="center"
+            app:srcCompat="@drawable/ic_navigate_next"
+            android:contentDescription="@string/next" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
