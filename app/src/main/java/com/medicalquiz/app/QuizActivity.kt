@@ -140,7 +140,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun setupListeners() {
-        // Replace menu clicks with dedicated buttons in the simplified bottom bar
+        setupBottomBarListeners()
+    }
+
+    private fun setupBottomBarListeners() {
         binding.buttonPrevious.setOnClickListener { loadPreviousQuestion() }
         binding.buttonNext.setOnClickListener { loadNextQuestion() }
         // Open jump-to dialog when the user taps the counter
@@ -245,26 +248,11 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 loadPerformanceForQuestion(question.id)
 
                 Log.d(TAG, "Question ${question.id} has media files: $mediaFiles")
-                mediaHandler.updateMedia(question.id, mediaFiles)
-                binding.textViewMediaInfo.apply {
-                    if (mediaFiles.isNotEmpty()) {
-                        text = "📎 ${mediaFiles.size} media file(s) - Tap to view"
-                        setOnClickListener { mediaHandler.showCurrentMediaGallery() }
-                    } else {
-                        text = ""
-                        setOnClickListener(null)
-                    }
-                    isVisible = false
-                }
+                updateMediaInfo(question.id, mediaFiles)
 
                 answerSubmitted = false
                 selectedAnswerId = null
-                binding.buttonNext.isEnabled = currentQuestionIndex < questionIds.size - 1
-                binding.buttonPrevious.isEnabled = currentQuestionIndex > 0
-                // Update counter UI
-                binding.textViewQuestionIndex.text = (currentQuestionIndex + 1).toString()
-                binding.textViewTotalQuestions.text = "/ ${questionIds.size}"
-                binding.counterContainer.isEnabled = questionIds.isNotEmpty()
+                updateNavigationControls()
             }
         }
     }
@@ -594,6 +582,15 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
+
+    private fun updateNavigationControls() {
+        val total = questionIds.size
+        binding.buttonNext.isEnabled = currentQuestionIndex < total - 1
+        binding.buttonPrevious.isEnabled = currentQuestionIndex > 0
+        binding.textViewQuestionIndex.text = (currentQuestionIndex + 1).toString()
+        binding.textViewTotalQuestions.text = "/ $total"
+        binding.counterContainer.isEnabled = total > 0
+    }
     
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
@@ -747,22 +744,24 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         )
         // UI update moved to caller to ensure proper threading
     }
+
+    private fun updateMediaInfo(questionId: Long, mediaFiles: List<String>) {
+        mediaHandler.updateMedia(questionId, mediaFiles)
+        binding.textViewMediaInfo.apply {
+            if (mediaFiles.isNotEmpty()) {
+                text = "📎 ${mediaFiles.size} media file(s) - Tap to view"
+                setOnClickListener { mediaHandler.showCurrentMediaGallery() }
+            } else {
+                text = ""
+                setOnClickListener(null)
+            }
+            isVisible = false
+        }
+    }
     
     private fun restoreInstanceState(savedInstanceState: Bundle) {
         // Restore quiz state
-        currentQuestionIndex = savedInstanceState.getInt(STATE_CURRENT_QUESTION_INDEX, 0)
-        questionIds = savedInstanceState.getLongArray(STATE_QUESTION_IDS)?.toList() ?: emptyList()
-        selectedSubjectIds.addAll(savedInstanceState.getLongArray(STATE_SELECTED_SUBJECT_IDS)?.toList() ?: emptyList())
-        selectedSystemIds.addAll(savedInstanceState.getLongArray(STATE_SELECTED_SYSTEM_IDS)?.toList() ?: emptyList())
-        performanceFilter = savedInstanceState.getString(STATE_PERFORMANCE_FILTER)?.let { 
-            PerformanceFilter.valueOf(it) 
-        } ?: PerformanceFilter.ALL
-        testId = savedInstanceState.getString(STATE_TEST_ID) ?: UUID.randomUUID().toString()
-        startTime = savedInstanceState.getLong(STATE_START_TIME, System.currentTimeMillis())
-        answerSubmitted = savedInstanceState.getBoolean(STATE_ANSWER_SUBMITTED, false)
-        selectedAnswerId = if (savedInstanceState.containsKey(STATE_SELECTED_ANSWER_ID)) {
-            savedInstanceState.getInt(STATE_SELECTED_ANSWER_ID)
-        } else null
+        restoreQuizState(savedInstanceState)
         
         val dbPath = intent.getStringExtra(EXTRA_DB_PATH) ?: return
         
@@ -822,6 +821,22 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
         )
     }
+
+    private fun restoreQuizState(savedInstanceState: Bundle) {
+        currentQuestionIndex = savedInstanceState.getInt(STATE_CURRENT_QUESTION_INDEX, 0)
+        questionIds = savedInstanceState.getLongArray(STATE_QUESTION_IDS)?.toList() ?: emptyList()
+        selectedSubjectIds.addAll(savedInstanceState.getLongArray(STATE_SELECTED_SUBJECT_IDS)?.toList() ?: emptyList())
+        selectedSystemIds.addAll(savedInstanceState.getLongArray(STATE_SELECTED_SYSTEM_IDS)?.toList() ?: emptyList())
+        performanceFilter = savedInstanceState.getString(STATE_PERFORMANCE_FILTER)?.let {
+            PerformanceFilter.valueOf(it)
+        } ?: PerformanceFilter.ALL
+        testId = savedInstanceState.getString(STATE_TEST_ID) ?: UUID.randomUUID().toString()
+        startTime = savedInstanceState.getLong(STATE_START_TIME, System.currentTimeMillis())
+        answerSubmitted = savedInstanceState.getBoolean(STATE_ANSWER_SUBMITTED, false)
+        selectedAnswerId = if (savedInstanceState.containsKey(STATE_SELECTED_ANSWER_ID)) {
+            savedInstanceState.getInt(STATE_SELECTED_ANSWER_ID)
+        } else null
+    }
     
     override fun onPause() {
         super.onPause()
@@ -852,6 +867,24 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 e.printStackTrace()
             }
         }
+    }
+
+    override fun onSaveInstanceState(outState: android.os.Bundle) {
+        super.onSaveInstanceState(outState)
+        saveQuizState(outState)
+    }
+
+    private fun saveQuizState(outState: android.os.Bundle) {
+        outState.putInt(STATE_CURRENT_QUESTION_INDEX, currentQuestionIndex)
+        outState.putLongArray(STATE_QUESTION_IDS, questionIds.toLongArray())
+        outState.putLongArray(STATE_SELECTED_SUBJECT_IDS, selectedSubjectIds.toLongArray())
+        outState.putLongArray(STATE_SELECTED_SYSTEM_IDS, selectedSystemIds.toLongArray())
+        outState.putString(STATE_PERFORMANCE_FILTER, performanceFilter.name)
+        outState.putString(STATE_TEST_ID, testId)
+        outState.putLong(STATE_START_TIME, startTime)
+        outState.putBoolean(STATE_ANSWER_SUBMITTED, answerSubmitted)
+        selectedAnswerId?.let { outState.putInt(STATE_SELECTED_ANSWER_ID, it) }
+        outState.putLong(STATE_CURRENT_QUESTION_ID, currentQuestion?.id ?: -1L)
     }
 
     private fun applyWindowInsets() {
