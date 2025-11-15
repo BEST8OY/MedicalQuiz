@@ -65,6 +65,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private var performanceFilter: PerformanceFilter = PerformanceFilter.ALL
     private var answerSubmitted = false
     private val mediaFilesCache = mutableMapOf<Long, List<String>>()
+    private var currentPerformance: QuestionPerformance? = null
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -213,7 +214,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         // Move HTML building and media processing to background thread
         lifecycleScope.launch(Dispatchers.Default) {
             val quizHtml = buildQuestionHtml(question, currentAnswers)
-            val mediaFiles = collectMediaFiles(question)
+            val mediaFiles = HtmlUtils.collectMediaFiles(question)
 
             withContext(Dispatchers.Main) {
                 WebViewRenderer.loadContent(this@QuizActivity, binding.webViewQuestion, quizHtml)

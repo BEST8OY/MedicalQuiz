@@ -184,12 +184,10 @@ class LogRepository(private val connection: DatabaseConnection) {
     private data class SummaryState(val lastCorrect: Int, val everCorrect: Int, val everIncorrect: Int, val attempts: Int)
     
     private fun getCurrentSummary(qid: Long): SummaryState {
-        selectSummaryStmt.bindLong(1, qid)
-        val cursor = selectSummaryStmt.simpleQueryForOptionalLong()
-        selectSummaryStmt.clearBindings()
-        
-        return if (cursor != null) {
-            val db = connection.getDatabase()
+        val db = connection.getDatabase()
+        val existsCursor = db.rawQuery("SELECT 1 FROM logs_summary WHERE qid = ?", arrayOf(qid.toString()))
+        val exists = existsCursor.use { it.moveToFirst() }
+        if (exists) {
             val fullCursor = db.rawQuery(
                 "SELECT lastCorrect, everCorrect, everIncorrect, attempts FROM logs_summary WHERE qid = ?",
                 arrayOf(qid.toString())
@@ -231,13 +229,10 @@ class LogRepository(private val connection: DatabaseConnection) {
     }
 
     suspend fun getSummaryForQuestion(qid: Long): QuestionPerformance? = withContext(Dispatchers.IO) {
-        selectPerformanceStmt.bindLong(1, qid)
-        val cursor = selectPerformanceStmt.simpleQueryForOptionalLong()
-        selectPerformanceStmt.clearBindings()
-
-        if (cursor != null) {
-            // Need full row data, use rawQuery for now
-            val db = connection.getDatabase()
+        val db = connection.getDatabase()
+        val existsCursor = db.rawQuery("SELECT 1 FROM logs_summary WHERE qid = ?", arrayOf(qid.toString()))
+        val exists = existsCursor.use { it.moveToFirst() }
+        if (exists) {
             val fullCursor = db.rawQuery(
                 "SELECT lastCorrect, everCorrect, everIncorrect, attempts FROM logs_summary WHERE qid = ?",
                 arrayOf(qid.toString())

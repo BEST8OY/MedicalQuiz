@@ -27,7 +27,7 @@ data class QuizState(
         currentQuestionIndex >= 0 &&
         currentQuestionIndex < questionIds.size &&
         (currentQuestion == null || currentQuestion.id == currentQuestionId) &&
-        currentAnswers.all { it.questionId == currentQuestion?.id }
+        currentAnswers.all { it.qId == currentQuestion?.id }
     }
 
     // Memory-efficient answer lookup

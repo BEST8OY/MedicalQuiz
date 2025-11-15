@@ -8,6 +8,8 @@ import android.R as AndroidR
 import com.google.android.material.R as MaterialR
 import com.google.android.material.color.MaterialColors
 import com.medicalquiz.app.BuildConfig
+import kotlinx.coroutines.*
+import android.webkit.ConsoleMessage
 
 object WebViewRenderer {
     private data class MaterialCssVar(
@@ -136,7 +138,7 @@ object WebViewRenderer {
                 setRenderPriority(android.webkit.WebSettings.RenderPriority.HIGH)
                 cacheMode = android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
                 databaseEnabled = false
-                geolocationEnabled = false
+                setGeolocationEnabled(false)
                 javaScriptCanOpenWindowsAutomatically = false
                 mediaPlaybackRequiresUserGesture = false
                 mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
@@ -225,6 +227,8 @@ object WebViewRenderer {
             append("}")
         }
     }
+
+    private fun Int.toCssHex(): String = String.format("#%06X", 0xFFFFFF and this)
 
     /**
      * Preload CSS assets in background to improve first load performance

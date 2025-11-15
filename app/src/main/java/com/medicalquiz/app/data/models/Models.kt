@@ -19,7 +19,8 @@ data class Question(
 data class Answer(
     val answerId: Long,
     val answerText: String,
-    val correctPercentage: Int?
+    val correctPercentage: Int?,
+    val qId: Long
 )
 
 data class Subject(

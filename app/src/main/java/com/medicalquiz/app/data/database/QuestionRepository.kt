@@ -120,7 +120,7 @@ class QuestionRepository(private val connection: DatabaseConnection) {
      */
     suspend fun getAnswersForQuestion(questionId: Long): List<Answer> = withContext(Dispatchers.IO) {
         val db = connection.getDatabase()
-        val answers = mutableListOf<Answer>()
+        val answers = ArrayList<Answer>()
 
         // Use prepared statement approach for better performance
         val cursor = db.rawQuery(
@@ -131,14 +131,15 @@ class QuestionRepository(private val connection: DatabaseConnection) {
         cursor.use {
             // Pre-allocate capacity if possible
             val count = it.count
-            if (count > 0) (answers as MutableList<Answer>).ensureCapacity(count)
+            if (count > 0) answers.ensureCapacity(count)
 
             while (it.moveToNext()) {
                 answers.add(
                     Answer(
                         answerId = it.getLong(0),
                         answerText = it.getString(1) ?: "",
-                        correctPercentage = if (it.isNull(2)) null else it.getInt(2)
+                        correctPercentage = if (it.isNull(2)) null else it.getInt(2),
+                        qId = questionId
                     )
                 )
             }
