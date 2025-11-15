@@ -141,44 +141,16 @@
 
         </androidx.core.widget.NestedScrollView>
 
-        <!-- Fixed bottom action bar (always visible) -->
-        <LinearLayout
-            android:id="@+id/layoutNavigation"
+        <!-- Fixed bottom app bar -->
+        <com.google.android.material.bottomappbar.BottomAppBar
+            android:id="@+id/bottomAppBar"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:orientation="horizontal"
-            android:background="?attr/colorSurface"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
+            android:layout_height="wrap_content"
             android:layout_gravity="bottom"
-            android:elevation="8dp"
-            android:gravity="center_vertical"
-            android:layout_margin="8dp">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonPrevious"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Prev"
-                android:layout_marginEnd="8dp"
-                android:contentDescription="Go to previous question"
-                app:icon="@drawable/ic_arrow_back"
-                app:iconGravity="textStart"
-                style="@style/Widget.Material3.Button.OutlinedButton" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonNext"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Next"
-                android:layout_marginStart="8dp"
-                android:contentDescription="Go to next question"
-                app:icon="@drawable/ic_arrow_forward"
-                app:iconGravity="textStart" />
-
-        </LinearLayout>
+            android:backgroundTint="?attr/colorSurface"
+            app:menu="@menu/bottom_nav_menu"
+            app:fabAlignmentMode="center"
+            app:hideOnScroll="false" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 

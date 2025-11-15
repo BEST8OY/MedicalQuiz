@@ -140,12 +140,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun setupListeners() {
-        binding.buttonNext.setOnClickListener {
-            loadNextQuestion()
-        }
-        
-        binding.buttonPrevious.setOnClickListener {
-            loadPreviousQuestion()
+        binding.bottomAppBar.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.menu_previous -> loadPreviousQuestion()
+                R.id.menu_next -> loadNextQuestion()
+            }
+            true
         }
     }
     
@@ -260,8 +260,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
                 answerSubmitted = false
                 selectedAnswerId = null
-                binding.buttonNext.isEnabled = currentQuestionIndex < questionIds.size - 1
-                binding.buttonPrevious.isEnabled = currentQuestionIndex > 0
+                binding.bottomAppBar.menu.findItem(R.id.menu_next).isEnabled = currentQuestionIndex < questionIds.size - 1
+                binding.bottomAppBar.menu.findItem(R.id.menu_previous).isEnabled = currentQuestionIndex > 0
             }
         }
     }
