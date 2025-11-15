@@ -97,17 +97,9 @@ object WebViewRenderer {
                         img.style.cursor = 'pointer';
                         img.onclick = function(event) {
                             event.preventDefault();
-                            var src = this.src;
-                            // Extract filename from file:// URL
-                            if (src && src.startsWith('file://') && src.indexOf('/media/') !== -1) {
-                                try {
-                                    var filename = src.substring(src.lastIndexOf('/') + 1);
-                                    if (filename) {
-                                        window.location.href = src;
-                                    }
-                                } catch (e) {
-                                    console.error('Error handling image click:', e);
-                                }
+                            var filename = this.getAttribute('data-filename');
+                            if (filename) {
+                                window.location.href = 'media://' + filename;
                             }
                         };
                     });
@@ -135,8 +127,6 @@ object WebViewRenderer {
                 builtInZoomControls = false
                 displayZoomControls = false
                 allowFileAccess = true  // Allow loading files from file:// URLs
-                allowFileAccessFromFileURLs = true  // Allow file:// URLs to access other file:// URLs
-                allowUniversalAccessFromFileURLs = true  // Allow file:// URLs to access http:// URLs
             }
             isVerticalScrollBarEnabled = true
             isNestedScrollingEnabled = true

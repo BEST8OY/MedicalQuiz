@@ -95,8 +95,8 @@ object HtmlUtils {
         .replace(IMG_TAG_REGEX) { match ->
             val attrs = match.groupValues[1]
             val src = match.groupValues[2]
-            val mediaPath = getMediaPath(src)
-            if (mediaPath != null) "<img$attrs src=\"file://$mediaPath\"" else match.value
+            val dataUri = createImageDataUri(src)
+            if (dataUri != null) "<img$attrs src=\"$dataUri\" data-filename=\"$src\"" else match.value
         }
 
     fun normalizeAnswerHtml(html: String): String {
@@ -156,14 +156,35 @@ object HtmlUtils {
     }
 
     /**
-     * Load bitmap from media folder
+     * Create a base64 data URI for an image file
      */
-    fun loadMediaBitmap(fileName: String?): Bitmap? {
+    private fun createImageDataUri(fileName: String): String? {
         val path = getMediaPath(fileName) ?: return null
         return try {
-            BitmapFactory.decodeFile(path)
+            val file = File(path)
+            if (!file.exists() || !file.canRead()) return null
+            
+            val bytes = file.readBytes()
+            val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+            val mimeType = getImageMimeType(fileName)
+            "data:$mimeType;base64,$base64"
         } catch (e: Exception) {
+            Log.w(TAG, "Failed to create data URI for $fileName", e)
             null
+        }
+    }
+
+    /**
+     * Get MIME type for image files
+     */
+    private fun getImageMimeType(fileName: String): String {
+        return when (fileName.substringAfterLast('.', "").lowercase()) {
+            "jpg", "jpeg" -> "image/jpeg"
+            "png" -> "image/png"
+            "gif" -> "image/gif"
+            "bmp" -> "image/bmp"
+            "webp" -> "image/webp"
+            else -> "image/jpeg" // fallback
         }
     }
 
