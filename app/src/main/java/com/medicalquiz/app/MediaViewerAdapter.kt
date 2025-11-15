@@ -39,9 +39,12 @@ class MediaViewerAdapter(
     override fun onViewRecycled(holder: MediaViewHolder) {
         super.onViewRecycled(holder)
         // Release media player when view is recycled
-        mediaPlayers[holder.adapterPosition]?.let { player ->
-            player.release()
-            mediaPlayers.remove(holder.adapterPosition)
+        val position = holder.bindingAdapterPosition
+        if (position != RecyclerView.NO_POSITION) {
+            mediaPlayers[position]?.let { player ->
+                player.release()
+                mediaPlayers.remove(position)
+            }
         }
     }
 
