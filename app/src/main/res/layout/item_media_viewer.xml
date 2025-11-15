@@ -87,4 +87,25 @@
         android:layout_height="match_parent"
         android:visibility="gone" />
 
+    <!-- Loading Indicator -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+    <!-- Error Message -->
+    <TextView
+        android:id="@+id/textViewError"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="Unable to load media"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        android:background="@android:color/black"
+        android:padding="16dp"
+        android:visibility="gone" />
+
 </FrameLayout>

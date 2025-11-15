@@ -192,7 +192,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         binding.textViewQuestionNumber.text = "Question ${currentQuestionIndex + 1} of ${questionIds.size}"
         
         val quizHtml = buildQuestionHtml(question, currentAnswers)
-        WebViewRenderer.loadContent(this, binding.webViewQuestion, quizHtml)
+        runOnUiThread {
+            WebViewRenderer.loadContent(this, binding.webViewQuestion, quizHtml)
+        }
         
         binding.textViewTitle.apply {
             if (!question.title.isNullOrBlank()) {
@@ -438,7 +440,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             append("markAnswerRevealed();")
             append("revealExplanation();")
         }
-        binding.webViewQuestion.evaluateJavascript(jsCommand, null)
+        runOnUiThread {
+            binding.webViewQuestion.evaluateJavascript(jsCommand, null)
+        }
     }
 
     private fun configureWebView(webView: WebView) {

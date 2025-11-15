@@ -1,10 +1,8 @@
 package com.medicalquiz.app
 
-import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-import androidx.viewpager2.widget.ViewPager2
-import com.medicalquiz.app.databinding.ActivityMediaViewerBinding
-import java.io.File
+import android.os.Environment
+import android.provider.Settings
+import android.widget.Toast
 
 class MediaViewerActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMediaViewerBinding
@@ -15,6 +13,12 @@ class MediaViewerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMediaViewerBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        if (!Environment.isExternalStorageManager()) {
+            Toast.makeText(this, "Storage permission required to view media", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -63,18 +67,18 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun isMediaAvailable(fileName: String): Boolean = getMediaFile(fileName).exists()
 
     private fun getMediaFile(fileName: String): File {
-        val mediaFolder = File(android.os.Environment.getExternalStorageDirectory(), MEDIA_FOLDER)
+        val mediaFolder = File(android.os.Environment.getExternalStorageDirectory(), Constants.MEDIA_FOLDER)
         return File(mediaFolder, fileName)
     }
 
-    override fun onSupportNavigateUp(): Boolean {
-        finish()
-        return true
+    override fun onDestroy() {
+        super.onDestroy()
+        // Release any remaining media players
+        adapter.releaseAllPlayers()
     }
 
     companion object {
         const val EXTRA_MEDIA_FILES = "com.medicalquiz.app.extra.MEDIA_FILES"
         const val EXTRA_START_INDEX = "com.medicalquiz.app.extra.START_INDEX"
-        private const val MEDIA_FOLDER = "MedicalQuiz/media"
     }
 }

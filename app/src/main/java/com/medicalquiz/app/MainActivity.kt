@@ -151,7 +151,7 @@ class MainActivity : AppCompatActivity() {
         
         // Path: /storage/emulated/0/MedicalQuiz/databases
         val externalStoragePath = Environment.getExternalStorageDirectory()
-        val databasesFolder = File(externalStoragePath, "MedicalQuiz/databases")
+        val databasesFolder = File(externalStoragePath, Constants.DATABASES_FOLDER)
         
         if (!databasesFolder.exists()) {
             binding.textViewStatus.text = "No databases folder found at:\n${databasesFolder.absolutePath}"

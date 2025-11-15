@@ -14,7 +14,6 @@ import com.medicalquiz.app.databinding.ItemMediaViewerBinding
 import com.medicalquiz.app.utils.WebViewRenderer
 import com.medicalquiz.app.utils.launchCatching
 import kotlinx.coroutines.Dispatchers
-import java.io.File
 
 class MediaViewerAdapter(
     private val mediaFiles: List<String>,
@@ -46,9 +45,29 @@ class MediaViewerAdapter(
                 mediaPlayers.remove(position)
             }
         }
+        // Stop video playback
+        holder.binding.videoView.stopPlayback()
     }
 
     inner class MediaViewHolder(private val binding: ItemMediaViewerBinding) : RecyclerView.ViewHolder(binding.root) {
+
+        private fun hideAllContent() {
+            binding.imageView.isVisible = false
+            binding.videoView.isVisible = false
+            binding.audioContainer.isVisible = false
+            binding.webViewHtml.isVisible = false
+        }
+
+        private fun showError(messageResId: Int) {
+            hideAllContent()
+            binding.progressBar.isVisible = false
+            binding.textViewError.isVisible = true
+            binding.textViewError.text = activity.getString(messageResId)
+        }
+
+        private fun hideProgress() {
+            binding.progressBar.isVisible = false
+        }
 
         fun bind(fileName: String, position: Int) {
             val file = getMediaFile(fileName)
@@ -74,32 +93,52 @@ class MediaViewerAdapter(
         }
 
         private fun setAllContentInvisible() {
-            binding.imageView.isVisible = false
-            binding.videoView.isVisible = false
-            binding.audioContainer.isVisible = false
-            binding.webViewHtml.isVisible = false
+            hideAllContent()
+            binding.progressBar.isVisible = false
+            binding.textViewError.isVisible = false
         }
 
         private fun displayImage(file: File) {
             binding.imageView.isVisible = true
+            binding.progressBar.isVisible = true
             binding.imageView.load(file) {
                 crossfade(true)
+                placeholder(android.R.drawable.ic_menu_gallery)
+                error(android.R.drawable.ic_menu_close_clear_cancel)
+                listener(
+                    onSuccess = { _, _ ->
+                        hideProgress()
+                    },
+                    onError = { _, _ ->
+                        showError(R.string.image_load_error)
+                    }
+                )
             }
         }
 
         private fun displayVideo(file: File) {
             binding.videoView.isVisible = true
+            binding.progressBar.isVisible = true
             val mediaController = MediaController(activity)
             mediaController.setAnchorView(binding.videoView)
 
             binding.videoView.setMediaController(mediaController)
             binding.videoView.setVideoURI(Uri.fromFile(file))
+            binding.videoView.setOnPreparedListener {
+                hideProgress()
+                binding.videoView.start()
+            }
+            binding.videoView.setOnErrorListener { _, _, _ ->
+                binding.videoView.stopPlayback()
+                showError(R.string.video_load_error)
+                true
+            }
             binding.videoView.requestFocus()
-            binding.videoView.start()
         }
 
         private fun displayAudio(file: File, position: Int) {
             binding.audioContainer.isVisible = true
+            binding.progressBar.isVisible = true
             binding.textViewAudioName.text = file.name
             binding.textViewDuration.text = "--:--"
             binding.buttonPlayPause.isEnabled = false
@@ -108,11 +147,17 @@ class MediaViewerAdapter(
             val mediaPlayer = MediaPlayer().apply {
                 setDataSource(file.absolutePath)
                 setOnPreparedListener { player ->
+                    hideProgress()
                     binding.buttonPlayPause.isEnabled = true
                     binding.textViewDuration.text = formatDuration(player.duration)
                 }
                 setOnCompletionListener {
                     binding.buttonPlayPause.text = "▶ Play"
+                }
+                setOnErrorListener { _, _, _ ->
+                    release()
+                    showError(R.string.audio_load_error)
+                    true
                 }
                 prepareAsync()
             }
@@ -138,18 +183,27 @@ class MediaViewerAdapter(
 
         private fun displayHtml(file: File) {
             binding.webViewHtml.isVisible = true
+            binding.progressBar.isVisible = true
             WebViewRenderer.setupWebView(binding.webViewHtml)
             activity.launchCatching(
                 dispatcher = Dispatchers.IO,
                 block = { file.readText() },
                 onSuccess = { html ->
-                    WebViewRenderer.loadContent(activity, binding.webViewHtml, html)
+                    activity.runOnUiThread {
+                        WebViewRenderer.loadContent(activity, binding.webViewHtml, html)
+                        hideProgress()
+                    }
+                },
+                onFailure = {
+                    activity.runOnUiThread {
+                        showError(R.string.html_load_error)
+                    }
                 }
             )
         }
 
         private fun getMediaFile(fileName: String): File {
-            val mediaFolder = File(Environment.getExternalStorageDirectory(), MEDIA_FOLDER)
+            val mediaFolder = File(Environment.getExternalStorageDirectory(), Constants.MEDIA_FOLDER)
             return File(mediaFolder, fileName)
         }
 
@@ -171,8 +225,11 @@ class MediaViewerAdapter(
         }
     }
 
-    companion object {
-        private const val MEDIA_FOLDER = "MedicalQuiz/media"
+    fun releaseAllPlayers() {
+        mediaPlayers.values.forEach { player ->
+            player?.release()
+        }
+        mediaPlayers.clear()
     }
 }
 
