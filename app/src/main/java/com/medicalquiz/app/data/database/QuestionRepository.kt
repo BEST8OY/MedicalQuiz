@@ -126,7 +126,6 @@ class QuestionRepository(private val connection: DatabaseConnection) {
     
     private fun getSubjectName(subId: String?): String? {
         if (subId.isNullOrBlank()) return null
-        val db = connection.getDatabase()
         
         val firstId = extractFirstId(subId) ?: return null
         return subjectNameCache[firstId] ?: fetchSubjectName(firstId).also { subjectNameCache[firstId] = it }

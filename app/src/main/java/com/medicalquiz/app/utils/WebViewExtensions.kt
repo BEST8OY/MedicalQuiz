@@ -1,9 +1,8 @@
-package com.medicalquiz.app.utils
-
 import android.os.Looper
 import android.util.Log
 import android.webkit.ValueCallback
 import android.webkit.WebView
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -71,6 +70,7 @@ suspend fun WebView.loadSafely(block: WebView.() -> Unit) {
  * Fire-and-forget wrapper for WebView operations that need main thread
  * Uses GlobalScope for non-suspend contexts
  */
+@OptIn(DelicateCoroutinesApi::class)
 fun WebView.launchSafely(block: WebView.() -> Unit) {
     GlobalScope.launch(Dispatchers.Main) { block() }
 }
