@@ -1,14 +1,6 @@
 package com.medicalquiz.app.utils
 
-import android.content.Context
-import android.graphics.Color
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.R as AndroidR
-import com.google.android.material.R as MaterialR
-import com.google.android.material.color.MaterialColors
-import com.medicalquiz.app.R
-import kotlin.jvm.Volatile
+import com.medicalquiz.app.utils.safeLoadDataWithBaseURL
 
 object WebViewRenderer {
     private data class MaterialCssVar(
@@ -20,8 +12,6 @@ object WebViewRenderer {
     private const val CSS_PLACEHOLDER = "%CSS_CONTENT%"
     private const val CONTENT_PLACEHOLDER = "%CONTENT%"
     private const val BASE_URL = "file:///android_asset/"
-    private const val MIME_TYPE = "text/html"
-    private const val ENCODING = "UTF-8"
     private val cssAssetPaths = listOf(
         "styles/content.css",
         "styles/tables.css",
@@ -151,27 +141,22 @@ object WebViewRenderer {
      */
     fun loadContent(context: Context, webView: WebView, htmlContent: String?) {
         if (htmlContent.isNullOrBlank()) {
-            webView.loadData("", MIME_TYPE, ENCODING)
+            webView.safeLoadDataWithBaseURL(data = "")
             return
         }
-        
+
         val cssContent = buildCssContent(context)
         val sanitizedHtml = HtmlUtils.sanitizeForWebView(htmlContent)
-        
+
         val fullHtml = HTML_TEMPLATE
             .replace(CSS_PLACEHOLDER, cssContent)
             .replace(CONTENT_PLACEHOLDER, sanitizedHtml)
-        
-        webView.loadDataWithBaseURL(
-            BASE_URL,
-            fullHtml,
-            MIME_TYPE,
-            ENCODING,
-            null
-        )
-    }
 
-    private fun buildCssContent(context: Context): String {
+        webView.safeLoadDataWithBaseURL(
+            baseUrl = BASE_URL,
+            data = fullHtml
+        )
+    }    private fun buildCssContent(context: Context): String {
         return buildString {
             append(loadCssFromAssets(context))
             append('\n')

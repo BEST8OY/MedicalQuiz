@@ -32,9 +32,8 @@ import com.medicalquiz.app.databinding.DialogSettingsBinding
 import com.medicalquiz.app.ui.FilterDialogHandler
 import com.medicalquiz.app.ui.MediaHandler
 import com.medicalquiz.app.utils.HtmlUtils
-import com.medicalquiz.app.utils.WebViewRenderer
-import com.medicalquiz.app.utils.launchCatching
-import com.medicalquiz.app.settings.SettingsManager
+import com.medicalquiz.app.utils.safeEvaluateJavascript
+import com.medicalquiz.app.utils.safeLoadDataWithBaseURL
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -192,9 +191,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         binding.textViewQuestionNumber.text = "Question ${currentQuestionIndex + 1} of ${questionIds.size}"
         
         val quizHtml = buildQuestionHtml(question, currentAnswers)
-        runOnUiThread {
-            WebViewRenderer.loadContent(this, binding.webViewQuestion, quizHtml)
-        }
+        WebViewRenderer.loadContent(this, binding.webViewQuestion, quizHtml)
         
         binding.textViewTitle.apply {
             if (!question.title.isNullOrBlank()) {
@@ -440,9 +437,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             append("markAnswerRevealed();")
             append("revealExplanation();")
         }
-        runOnUiThread {
-            binding.webViewQuestion.evaluateJavascript(jsCommand, null)
-        }
+        binding.webViewQuestion.safeEvaluateJavascript(jsCommand, null)
     }
 
     private fun configureWebView(webView: WebView) {
