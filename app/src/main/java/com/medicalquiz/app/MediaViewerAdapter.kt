@@ -11,9 +11,9 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.medicalquiz.app.databinding.ItemMediaViewerBinding
-import com.medicalquiz.app.utils.WebViewRenderer
 import com.medicalquiz.app.utils.launchCatching
 import kotlinx.coroutines.Dispatchers
+import java.io.File
 
 class MediaViewerAdapter(
     private val mediaFiles: List<String>,

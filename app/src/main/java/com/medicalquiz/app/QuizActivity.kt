@@ -22,6 +22,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.navigation.NavigationView
+import com.medicalquiz.app.MedicalQuizApp
 import com.medicalquiz.app.data.database.DatabaseManager
 import com.medicalquiz.app.data.database.PerformanceFilter
 import com.medicalquiz.app.data.database.QuestionPerformance
@@ -32,8 +33,10 @@ import com.medicalquiz.app.databinding.DialogSettingsBinding
 import com.medicalquiz.app.ui.FilterDialogHandler
 import com.medicalquiz.app.ui.MediaHandler
 import com.medicalquiz.app.utils.HtmlUtils
+import com.medicalquiz.app.utils.launchCatching
 import com.medicalquiz.app.utils.safeEvaluateJavascript
 import com.medicalquiz.app.utils.safeLoadDataWithBaseURL
+import com.medicalquiz.app.settings.SettingsManager
 import kotlinx.coroutines.launch
 import java.util.UUID
 

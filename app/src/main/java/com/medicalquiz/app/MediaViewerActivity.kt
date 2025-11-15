@@ -1,8 +1,13 @@
 package com.medicalquiz.app
 
+import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.viewpager2.widget.ViewPager2
+import com.medicalquiz.app.databinding.ActivityMediaViewerBinding
+import java.io.File
 
 class MediaViewerActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMediaViewerBinding
