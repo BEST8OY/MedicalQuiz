@@ -58,7 +58,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private var currentQuestion: Question? = null
     private var currentAnswers: List<Answer> = emptyList()
     private var selectedAnswerId: Int? = null
-    private val testId = UUID.randomUUID().toString()
+    private var testId = UUID.randomUUID().toString()
     private var startTime: Long = 0
     private val selectedSubjectIds = mutableSetOf<Long>()
     private val selectedSystemIds = mutableSetOf<Long>()

@@ -147,7 +147,7 @@ object HtmlUtils {
         }
 
         // Extract generic src attributes (video/source/audio)
-        val srcRegex = Regex("src=\s*['\"]([^'\"]+)['\"]", setOf(RegexOption.IGNORE_CASE))
+            val srcRegex = Regex("""src=\s*['\"]([^'\"]+)['\"]""", setOf(RegexOption.IGNORE_CASE))
         srcRegex.findAll(combined).forEach { match ->
             val src = match.groupValues[1]
             if (!isSpecialProtocol(src)) addCandidate(src)

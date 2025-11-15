@@ -8,7 +8,6 @@ import android.webkit.WebViewClient
 import android.R as AndroidR
 import com.google.android.material.R as MaterialR
 import com.google.android.material.color.MaterialColors
-import com.medicalquiz.app.BuildConfig
 import kotlinx.coroutines.*
 import android.webkit.ConsoleMessage
 
@@ -160,8 +159,8 @@ object WebViewRenderer {
             // Set WebChromeClient for better performance monitoring
             webChromeClient = object : WebChromeClient() {
                 override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
-                    // Log WebView console messages in debug builds only
-                    if (BuildConfig.DEBUG && consoleMessage != null) {
+                    // Log WebView console messages at debug log level if enabled
+                    if (consoleMessage != null && android.util.Log.isLoggable("WebView", android.util.Log.DEBUG)) {
                         android.util.Log.d("WebView", "${consoleMessage.messageLevel()}: ${consoleMessage.message()}")
                     }
                     return true
