@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.medicalquiz.app"
-        minSdk = 24
+        minSdk = 30
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
