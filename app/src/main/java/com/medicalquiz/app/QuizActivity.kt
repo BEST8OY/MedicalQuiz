@@ -140,12 +140,37 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     
     private fun setupListeners() {
-        binding.bottomAppBar.setOnMenuItemClickListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.menu_previous -> loadPreviousQuestion()
-                R.id.menu_next -> loadNextQuestion()
+        // Replace menu clicks with dedicated buttons in the simplified bottom bar
+        binding.buttonPrevious.setOnClickListener { loadPreviousQuestion() }
+        binding.buttonNext.setOnClickListener { loadNextQuestion() }
+        // Jump to a question by typing an index in the bottom counter
+        binding.editTextQuestionIndex.setOnEditorActionListener { v, actionId, event ->
+            val isDone = actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+            if (isDone) {
+                val raw = binding.editTextQuestionIndex.text?.toString()?.trim() ?: ""
+                val target = raw.toIntOrNull()
+                if (target == null) {
+                    showToast("Invalid question number")
+                } else {
+                    val clamped = target.coerceIn(1, questionIds.size.coerceAtLeast(1))
+                    if (clamped == target) {
+                        loadQuestion(clamped - 1)
+                    } else {
+                        showToast("Enter a number between 1 and ${questionIds.size}")
+                    }
+                }
+
+                // Hide the keyboard
+                try {
+                    val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                    imm.hideSoftInputFromWindow(binding.editTextQuestionIndex.windowToken, 0)
+                } catch (e: Exception) { /* ignore */ }
             }
-            true
+            isDone
+        }
+
+        binding.editTextQuestionIndex.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) binding.editTextQuestionIndex.selectAll()
         }
     }
     
@@ -260,8 +285,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
                 answerSubmitted = false
                 selectedAnswerId = null
-                binding.bottomAppBar.menu.findItem(R.id.menu_next).isEnabled = currentQuestionIndex < questionIds.size - 1
-                binding.bottomAppBar.menu.findItem(R.id.menu_previous).isEnabled = currentQuestionIndex > 0
+                binding.buttonNext.isEnabled = currentQuestionIndex < questionIds.size - 1
+                binding.buttonPrevious.isEnabled = currentQuestionIndex > 0
+                // Update editable counter UI
+                binding.editTextQuestionIndex.setText((currentQuestionIndex + 1).toString())
+                binding.textViewTotalQuestions.text = "/ ${questionIds.size}"
+                binding.editTextQuestionIndex.isEnabled = questionIds.isNotEmpty()
             }
         }
     }

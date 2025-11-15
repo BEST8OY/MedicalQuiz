@@ -141,15 +141,76 @@
         </androidx.core.widget.NestedScrollView>
 
         <!-- Fixed bottom app bar -->
-        <com.google.android.material.bottomappbar.BottomAppBar
-            android:id="@+id/bottomAppBar"
+        <!-- Simplified bottom bar with only Previous and Next. -->
+        <LinearLayout
+            android:id="@+id/bottomBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
-            android:backgroundTint="?attr/colorSurface"
-            app:menu="@menu/bottom_nav_menu"
-            app:fabAlignmentMode="center"
-            app:hideOnScroll="false" />
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:gravity="center"
+            android:background="?attr/colorSurface">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonPrevious"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:icon="@drawable/ic_arrow_back"
+                android:text="Previous"
+                android:contentDescription="Previous question" />
+
+            <!-- Counter in the middle - editable number input followed by total -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/textInputQuestionIndex"
+                    android:layout_width="64dp"
+                    android:layout_height="wrap_content"
+                    app:endIconMode="clear_text"
+                    app:boxStrokeWidth="1dp">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/editTextQuestionIndex"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number"
+                        android:singleLine="true"
+                        android:imeOptions="actionDone"
+                        android:textAlignment="center"
+                        android:hint="1" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <TextView
+                    android:id="@+id/textViewTotalQuestions"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="/ 0"
+                    android:layout_marginStart="8dp"
+                    android:textSize="16sp" />
+
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonNext"
+                style="@style/Widget.Material3.Button" 
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:icon="@drawable/ic_arrow_forward"
+                android:text="Next"
+                android:contentDescription="Next question" />
+
+        </LinearLayout>
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 

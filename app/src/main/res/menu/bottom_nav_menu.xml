@@ -1,14 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <item
-        android:id="@+id/menu_previous"
-        android:title="Prev"
-        android:icon="@drawable/ic_arrow_back"
-        app:showAsAction="always" />
-    <item
-        android:id="@+id/menu_next"
-        android:title="Next"
-        android:icon="@drawable/ic_arrow_forward"
-        app:showAsAction="always" />
+    <!-- Menu removed; navigation is handled with dedicated buttons in layout -->
 </menu>
