@@ -408,11 +408,15 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     }
 
                     onReady(function() {
-                        bindAnswerButtons();
+                        console.log('Quiz: DOM ready - binding answer handlers');
+                        try {
+                            bindAnswerButtons();
+                        } catch (e) { console.error('Quiz: bindAnswerButtons failed', e); }
                         initializeHintBehavior();
                     });
 
                     window.applyAnswerState = function(correctId, selectedId) {
+                        console.log('Quiz: applyAnswerState', correctId, selectedId);
                         var buttons = document.querySelectorAll('.answer-button');
                         buttons.forEach(function(button) {
                             var id = parseInt(button.value || button.getAttribute('value'));
@@ -427,6 +431,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                                 button.classList.add('incorrect');
                             }
                         });
+                    };
+
+                    window.onerror = function(message, source, lineno, colno, error) {
+                        console.error('Quiz JS error:', message, source, lineno, colno, error && error.stack);
                     };
 
                     window.setAnswerFeedback = function(text) {
@@ -525,7 +533,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         fun onAnswerSelected(answerId: String) {
             val parsedId = answerId.toLongOrNull() ?: return
             runOnUiThread {
-                if (answerSubmitted) return@runOnUiThread
+                    Log.d(TAG, "onAnswerSelected bridge called with id=$parsedId, answerSubmitted=$answerSubmitted")
+                    if (answerSubmitted) return@runOnUiThread
                 val answer = currentAnswers.firstOrNull { it.answerId == parsedId } ?: return@runOnUiThread
                 selectedAnswerId = answer.answerId.toInt()
                 submitAnswer()

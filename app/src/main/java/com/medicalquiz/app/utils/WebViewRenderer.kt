@@ -152,8 +152,21 @@ object WebViewRenderer {
                 mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
             }
 
-            // Disable hardware acceleration for WebView to prevent crashes on some devices
-            setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+            // Avoid disabling hardware acceleration on newer platforms — doing so can
+            // cause dynamic renders (JS updates) to disappear on some devices. Only
+            // force software rendering on older Android releases where hardware
+            // issues are known.
+            try {
+                if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.O_MR1) {
+                    setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+                } else {
+                    // Use default hardware layer for better JS-rendering stability
+                    setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
+                }
+            } catch (e: Exception) {
+                // If anything goes wrong, fall back gracefully and keep current layer type
+                android.util.Log.w("WebViewRenderer", "Failed to set layer type for WebView", e)
+            }
 
             isVerticalScrollBarEnabled = true
             isNestedScrollingEnabled = false  // Disable nested scrolling for better performance
@@ -162,8 +175,8 @@ object WebViewRenderer {
             // Set WebChromeClient for better performance monitoring
             webChromeClient = object : WebChromeClient() {
                 override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
-                    // Log WebView console messages at debug log level if enabled
-                    if (consoleMessage != null && android.util.Log.isLoggable("WebView", android.util.Log.DEBUG)) {
+                    // Always log console messages so debugging JS is easier during development
+                    if (consoleMessage != null) {
                         android.util.Log.d("WebView", "${consoleMessage.messageLevel()}: ${consoleMessage.message()}")
                     }
                     return true
