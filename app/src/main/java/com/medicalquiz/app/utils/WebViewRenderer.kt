@@ -7,6 +7,7 @@ import android.webkit.WebViewClient
 import android.R as AndroidR
 import com.google.android.material.R as MaterialR
 import com.google.android.material.color.MaterialColors
+import com.medicalquiz.app.BuildConfig
 
 object WebViewRenderer {
     private data class MaterialCssVar(
@@ -120,6 +121,7 @@ object WebViewRenderer {
      */
     fun setupWebView(webView: WebView) {
         webView.apply {
+            // Performance optimizations
             settings.apply {
                 javaScriptEnabled = true  // Enable for image click handling
                 domStorageEnabled = false
@@ -129,10 +131,35 @@ object WebViewRenderer {
                 builtInZoomControls = false
                 displayZoomControls = false
                 allowFileAccess = true  // Allow loading files from file:// URLs
+
+                // Additional performance settings
+                setRenderPriority(android.webkit.WebSettings.RenderPriority.HIGH)
+                cacheMode = android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
+                databaseEnabled = false
+                geolocationEnabled = false
+                javaScriptCanOpenWindowsAutomatically = false
+                mediaPlaybackRequiresUserGesture = false
+                mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
             }
+
+            // Disable hardware acceleration for WebView to prevent crashes on some devices
+            setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+
             isVerticalScrollBarEnabled = true
-            isNestedScrollingEnabled = true
+            isNestedScrollingEnabled = false  // Disable nested scrolling for better performance
             setBackgroundColor(Color.TRANSPARENT)
+
+            // Set WebChromeClient for better performance monitoring
+            webChromeClient = object : WebChromeClient() {
+                override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
+                    // Log WebView console messages in debug builds only
+                    if (BuildConfig.DEBUG && consoleMessage != null) {
+                        android.util.Log.d("WebView", "${consoleMessage.messageLevel()}: ${consoleMessage.message()}")
+                    }
+                    return true
+                }
+            }
+
             // Don't set a default WebViewClient here - let the activity set its own
         }
     }
@@ -199,8 +226,15 @@ object WebViewRenderer {
         }
     }
 
-    private fun Int.toCssHex(): String {
-        val rgb = this and 0x00FFFFFF
-        return String.format("#%06X", rgb)
+    /**
+     * Preload CSS assets in background to improve first load performance
+     */
+    fun preloadAssets(context: Context) {
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            // Preload CSS
+            loadCssFromAssets(context)
+            // Preload theme CSS
+            buildThemeCss(context)
+        }
     }
 }

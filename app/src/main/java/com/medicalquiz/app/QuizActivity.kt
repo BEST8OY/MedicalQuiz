@@ -181,6 +181,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val questionId = questionIds.getOrNull(index) ?: return
         currentQuestionIndex = index
 
+        // Periodic cache maintenance
+        trimCachesPeriodically()
+
         launchCatching(
             block = {
                 // Parallelize database calls for better performance
@@ -669,6 +672,13 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun clearCaches() {
         mediaFilesCache.clear()
         HtmlUtils.clearMediaCaches()
+    }
+
+    private fun trimCachesPeriodically() {
+        // Trim caches every 50 questions to prevent memory bloat
+        if (currentQuestionIndex > 0 && currentQuestionIndex % 50 == 0) {
+            HtmlUtils.trimCaches()
+        }
     }
 
     private fun updateLocalPerformanceCache(questionId: Long, wasCorrect: Boolean) {

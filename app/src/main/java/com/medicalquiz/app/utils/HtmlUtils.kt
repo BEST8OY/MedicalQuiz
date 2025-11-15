@@ -231,11 +231,43 @@ object HtmlUtils {
 
     /**
      * Clear media path caches (useful when media files change)
+     * Includes size limits to prevent unbounded memory growth
      */
     fun clearMediaCaches() {
         mediaPathCache.clear()
         missingMediaCache.clear()
         dataUriCache.clear()
+    }
+
+    /**
+     * Get cache statistics for monitoring
+     */
+    fun getCacheStats(): Map<String, Int> = mapOf(
+        "mediaPathCache" to mediaPathCache.size,
+        "missingMediaCache" to missingMediaCache.size,
+        "dataUriCache" to dataUriCache.size
+    )
+
+    /**
+     * Trim caches if they exceed reasonable limits (call periodically)
+     */
+    fun trimCaches(maxSize: Int = 1000) {
+        if (mediaPathCache.size > maxSize) {
+            // Keep most recently used items (simple LRU approximation)
+            val entries = mediaPathCache.entries.toList()
+            mediaPathCache.clear()
+            entries.takeLast(maxSize).forEach { mediaPathCache[it.key] = it.value }
+        }
+
+        if (dataUriCache.size > maxSize) {
+            val entries = dataUriCache.entries.toList()
+            dataUriCache.clear()
+            entries.takeLast(maxSize).forEach { dataUriCache[it.key] = it.value }
+        }
+
+        if (missingMediaCache.size > maxSize / 10) { // Smaller limit for missing cache
+            missingMediaCache.clear()
+        }
     }
 
     private class MediaImageGetter(private val context: Context) : Html.ImageGetter {
