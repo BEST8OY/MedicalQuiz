@@ -186,6 +186,7 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(this, QuizActivity::class.java).apply {
             putExtra("DB_PATH", databaseItem.path)
             putExtra("DB_NAME", databaseItem.name)
+            putExtra(QuizActivity.EXTRA_OPEN_FILTERS_FULLSCREEN, true)
         }
         startActivity(intent)
     }

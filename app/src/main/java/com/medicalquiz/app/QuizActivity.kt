@@ -14,6 +14,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import android.view.View
 import androidx.lifecycle.Lifecycle
+import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.navigation.NavigationView
@@ -126,6 +127,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun validateAndSetupDatabase() {
         val dbPath = intent.getStringExtra(EXTRA_DB_PATH)
         val dbName = intent.getStringExtra(EXTRA_DB_NAME)
+        filtersOnlyMode = intent.getBooleanExtra(EXTRA_OPEN_FILTERS_FULLSCREEN, false)
 
         if (dbPath.isNullOrEmpty()) {
             showToast("No database selected")
@@ -134,6 +136,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
 
         setupToolbar(dbName)
+        if (filtersOnlyMode) hideUiForFiltersOnlyMode()
         initializeDatabaseAsync(dbPath)
     }
 
@@ -407,8 +410,25 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun showStartFiltersPanel() {
         // Use bound included layout access rather than manual findViewById
         binding.startFiltersPanel.root.visibility = View.VISIBLE
+        // Hide cancel button for filters-only mode
+        if (filtersOnlyMode) {
+            binding.startFiltersPanel.buttonCancelPanel.visibility = View.GONE
+        }
         setupFilterPanelListeners()
         updateAllFilterLabels()
+    }
+
+    private fun hideUiForFiltersOnlyMode() {
+        // Hide the main UI elements so only the filter panel is visible full-screen
+        binding.toolbar.visibility = View.GONE
+        binding.cardQuestion.visibility = View.GONE
+        binding.bottomBar.visibility = View.GONE
+        binding.navigationView.visibility = View.GONE
+
+        // Expand the start filters panel to full-screen height
+        val params = binding.startFiltersPanel.root.layoutParams
+        params.height = ViewGroup.LayoutParams.MATCH_PARENT
+        binding.startFiltersPanel.root.layoutParams = params
     }
 
     private fun setupFilterPanelListeners() {
@@ -518,6 +538,14 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 showToast("Failed to start: ${e.message}")
             } finally {
                 binding.startFiltersPanel.root.visibility = View.GONE
+                if (filtersOnlyMode) {
+                    // Restore UI to normal once the quiz starts
+                    binding.toolbar.visibility = View.VISIBLE
+                    binding.cardQuestion.visibility = View.VISIBLE
+                    binding.bottomBar.visibility = View.VISIBLE
+                    binding.navigationView.visibility = View.VISIBLE
+                    filtersOnlyMode = false
+                }
             }
         }
     }
@@ -985,6 +1013,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         // Intent extras
         const val EXTRA_DB_PATH = "DB_PATH"
         const val EXTRA_DB_NAME = "DB_NAME"
+        const val EXTRA_OPEN_FILTERS_FULLSCREEN = "OPEN_FILTERS_FULLSCREEN"
+        const val EXTRA_OPEN_FILTERS_FULLSCREEN = "OPEN_FILTERS_FULLSCREEN"
         
         // Instance state keys
         private const val STATE_CURRENT_QUESTION_INDEX = "current_question_index"
@@ -998,4 +1028,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         private const val STATE_SELECTED_ANSWER_ID = "selected_answer_id"
         private const val STATE_CURRENT_QUESTION_ID = "current_question_id"
     }
+
+    // Flag set when activity should present only the full-screen filters UI
+    private var filtersOnlyMode: Boolean = false
+
+    // Flag set when activity should present only the full-screen filters UI
+    private var filtersOnlyMode: Boolean = false
 }
