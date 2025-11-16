@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import android.util.Log
 import java.util.UUID
 
 /**
@@ -32,7 +33,9 @@ class QuizViewModel : ViewModel() {
     // Constants
     // ============================================================================
 
-    private const val UI_EVENTS_BUFFER_CAPACITY = 4
+    // NOTE: 'const val' cannot be declared inside a class body in Kotlin unless it
+    // is inside a 'companion object' — we declare this value in the companion
+    // object below to allow the compiler to treat it as a compile-time constant.
 
     // ============================================================================
     // Dependencies
@@ -65,6 +68,10 @@ class QuizViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             initializeAfterDatabaseSwitch()
         }
+    }
+
+    companion object {
+        private const val UI_EVENTS_BUFFER_CAPACITY = 4
     }
 
     fun setSettingsRepository(repo: SettingsRepository) {
