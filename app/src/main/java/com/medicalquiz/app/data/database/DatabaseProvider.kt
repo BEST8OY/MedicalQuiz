@@ -16,4 +16,11 @@ interface DatabaseProvider {
     suspend fun getSubjects(): List<Subject>
     suspend fun getSystems(subjectIds: List<Long>? = null): List<System>
     suspend fun getQuestionPerformance(qid: Long): com.medicalquiz.app.data.database.QuestionPerformance?
+    // Logging support
+    suspend fun logAnswer(qid: Long, selectedAnswer: Int, corrAnswer: Int, time: Long, testId: String)
+    suspend fun flushLogs(): Int
+    suspend fun clearLogs()
+    fun clearPendingLogsBuffer()
+    // Lifecycle management
+    suspend fun closeDatabase()
 }

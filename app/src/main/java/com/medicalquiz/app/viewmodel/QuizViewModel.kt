@@ -2,7 +2,6 @@ package com.medicalquiz.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.medicalquiz.app.data.database.DatabaseManager
 import com.medicalquiz.app.data.models.Answer
 import com.medicalquiz.app.data.models.Question
 import kotlinx.coroutines.Dispatchers
@@ -139,9 +138,7 @@ class QuizViewModel : ViewModel() {
     fun closeDatabase() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                if (databaseManager is com.medicalquiz.app.data.database.DatabaseManager) {
-                    (databaseManager as com.medicalquiz.app.data.database.DatabaseManager).closeDatabase()
-                }
+                databaseManager?.closeDatabase()
             } catch (e: Exception) {
                 _uiEvents.emit(com.medicalquiz.app.viewmodel.UiEvent.ShowToast("Error closing database: ${e.message}"))
             }

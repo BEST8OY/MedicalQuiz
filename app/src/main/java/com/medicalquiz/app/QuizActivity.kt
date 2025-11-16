@@ -200,9 +200,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             override fun handleOnBackPressed() {
                 if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
                     binding.drawerLayout.closeDrawer(GravityCompat.START)
-                } else {
+                    } else {
                     finish()
-                }
+                    }
             }
         })
     }
@@ -394,10 +394,11 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
             R.id.nav_filter_system -> {
                 // Fetch systems from ViewModel and show the dialog once loaded
+                lifecycleScope.launch {
                     val ss = viewModel.state.firstMatching()
                     viewModel.fetchSystemsForSubjects(ss.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList())
-                lifecycleScope.launch {
                     val resource = viewModel.state.first { it.systemsResource !is com.medicalquiz.app.utils.Resource.Loading }.systemsResource
+                    // resource is filled above after fetch
                     when (resource) {
                         is com.medicalquiz.app.utils.Resource.Loading -> { /* optional loading */ }
                         is com.medicalquiz.app.utils.Resource.Success<List<System>> -> {
@@ -434,7 +435,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             val s = viewModel.state.firstMatching()
             val currentIndex = filters.indexOf(s.performanceFilter)
 
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(this@QuizActivity)
             .setTitle("Performance Filter")
                 .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
                     dialog.dismiss()
@@ -547,8 +548,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to fetch questions during restore", e)
                         }
-                    }
-                } else {
+                    } else {
                     // Restore the current question display from VM state
                     val s = viewModel.state.firstMatching()
                     if (s.currentQuestion != null) {
@@ -560,6 +560,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     }
                     updateToolbarSubtitle()
                     binding.textViewStatus.text = "Loaded ${s.questionIds.size} questions"
+                }
                 }
             },
             onFailure = { throwable ->
@@ -677,7 +678,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
 
                 dialogBinding.buttonResetLogs.setOnClickListener {
-            AlertDialog.Builder(this)
+            AlertDialog.Builder(this@QuizActivity)
                 .setTitle("Reset log history")
                 .setMessage("This will permanently delete all stored answer logs. Continue?")
                 .setPositiveButton("Delete") { _, _ ->

@@ -27,7 +27,7 @@ class DatabaseManager(dbPath: String) : DatabaseProvider {
     /**
      * Close the database connection
      */
-    suspend fun closeDatabase() {
+    override suspend fun closeDatabase() {
         logRepository.flushLogs()
         connection.close()
         logRepository.clearBuffer()
@@ -63,7 +63,7 @@ class DatabaseManager(dbPath: String) : DatabaseProvider {
     // Logging - Delegated to LogRepository
     // ========================================================================
     
-    suspend fun logAnswer(
+    override suspend fun logAnswer(
         qid: Long,
         selectedAnswer: Int,
         corrAnswer: Int,
@@ -71,13 +71,15 @@ class DatabaseManager(dbPath: String) : DatabaseProvider {
         testId: String
     ) = logRepository.logAnswer(qid, selectedAnswer, corrAnswer, time, testId)
     
-    suspend fun flushLogs(): Int = logRepository.flushLogs()
+    override suspend fun flushLogs(): Int = logRepository.flushLogs()
     
     fun getPendingLogCount(): Int = logRepository.getPendingLogCount()
 
-    suspend fun clearLogs() = logRepository.clearLogsTable()
+    override suspend fun clearLogs() = logRepository.clearLogsTable()
 
-    fun clearPendingLogsBuffer() = logRepository.clearBuffer()
+    override fun clearPendingLogsBuffer() = logRepository.clearBuffer()
+
+    
 
     override suspend fun getQuestionPerformance(qid: Long) = logRepository.getSummaryForQuestion(qid)
 

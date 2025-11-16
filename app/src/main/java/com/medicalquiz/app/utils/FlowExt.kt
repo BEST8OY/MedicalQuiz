@@ -2,6 +2,7 @@ package com.medicalquiz.app.utils
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
 
 /**
  * Returns the first value that satisfies [predicate]. This mirrors the familiar `first` operator, but
@@ -25,6 +26,6 @@ suspend fun <T> Flow<T>.firstValue(predicate: (T) -> Boolean = { true }): T = fi
 suspend fun <T> Flow<T>.collectUntil(stopPredicate: (T) -> Boolean, collector: suspend (T) -> Unit) {
     collect { value ->
         collector(value)
-        if (stopPredicate(value)) return
+        if (stopPredicate(value)) return@collect
     }
 }
