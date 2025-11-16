@@ -1014,7 +1014,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         const val EXTRA_DB_PATH = "DB_PATH"
         const val EXTRA_DB_NAME = "DB_NAME"
         const val EXTRA_OPEN_FILTERS_FULLSCREEN = "OPEN_FILTERS_FULLSCREEN"
-        const val EXTRA_OPEN_FILTERS_FULLSCREEN = "OPEN_FILTERS_FULLSCREEN"
         
         // Instance state keys
         private const val STATE_CURRENT_QUESTION_INDEX = "current_question_index"
@@ -1028,9 +1027,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         private const val STATE_SELECTED_ANSWER_ID = "selected_answer_id"
         private const val STATE_CURRENT_QUESTION_ID = "current_question_id"
     }
-
-    // Flag set when activity should present only the full-screen filters UI
-    private var filtersOnlyMode: Boolean = false
 
     // Flag set when activity should present only the full-screen filters UI
     private var filtersOnlyMode: Boolean = false

@@ -201,15 +201,11 @@ class MediaViewerAdapter(
                 dispatcher = Dispatchers.IO,
                 block = { file.readText() },
                 onSuccess = { html ->
-                    activity.runOnUiThread {
-                        WebViewRenderer.loadContent(activity, binding.webViewHtml, html)
-                        hideProgress()
-                    }
+                    WebViewRenderer.loadContent(activity, binding.webViewHtml, html)
+                    hideProgress()
                 },
                 onFailure = {
-                    activity.runOnUiThread {
-                        showError(R.string.html_load_error)
-                    }
+                    showError(R.string.html_load_error)
                 }
             )
         }
