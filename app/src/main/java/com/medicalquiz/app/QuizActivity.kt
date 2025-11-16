@@ -456,23 +456,21 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private fun setupFilterPanelListeners() {
         // Listeners on start filters panel
-        {
-            // Use activity root to resolve view IDs reliably
-            binding.startFiltersPanel.buttonSelectSubjectsPanel
-                .setOnClickListener { handleSubjectSelection() }
-            
-            binding.startFiltersPanel.buttonSelectSystemsPanel
-                .setOnClickListener { handleSystemSelection() }
-            
-            binding.startFiltersPanel.buttonSelectPerformancePanel
-                .setOnClickListener { handlePerformanceSelection() }
-            
-            binding.startFiltersPanel.buttonCancelPanel
-                .setOnClickListener { hideFilterPanel() }
-            
-            binding.startFiltersPanel.buttonStartPanel
-                .setOnClickListener { startQuiz() }
-        }
+        // Use activity root to resolve view IDs reliably
+        binding.startFiltersPanel.buttonSelectSubjectsPanel
+            .setOnClickListener { handleSubjectSelection() }
+        
+        binding.startFiltersPanel.buttonSelectSystemsPanel
+            .setOnClickListener { handleSystemSelection() }
+        
+        binding.startFiltersPanel.buttonSelectPerformancePanel
+            .setOnClickListener { handlePerformanceSelection() }
+        
+        binding.startFiltersPanel.buttonCancelPanel
+            .setOnClickListener { hideFilterPanel() }
+        
+        binding.startFiltersPanel.buttonStartPanel
+            .setOnClickListener { startQuiz() }
     }
 
     private fun handleSubjectSelection() {
