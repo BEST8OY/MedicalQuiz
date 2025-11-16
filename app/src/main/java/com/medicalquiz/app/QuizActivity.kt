@@ -136,8 +136,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
 
         setupToolbar(dbName)
-        if (filtersOnlyMode) hideUiForFiltersOnlyMode()
-            initializeDatabaseAsync(dbPath)
+        if (filtersOnlyMode) {
+            hideUiForFiltersOnlyMode()
+        }
+        initializeDatabaseAsync(dbPath)
     }
 
     private fun setupToolbar(dbName: String?) {
