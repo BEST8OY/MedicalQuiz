@@ -158,7 +158,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     viewModel.switchDatabase(dbPath)
                     try {
                         viewModel.state.first { it.subjectsResource !is Resource.Loading }
-                    } catch (_: Exception) { /* ignore */ }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Exception waiting for subjects resource to load", e)
+                    }
                 },
                 onSuccess = {
                     mediaHandler = MediaHandler(this@QuizActivity)
@@ -294,6 +296,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
         } else {
             showQuestionsLoaded(state.questionIds.size)
+            if (!filtersOnlyMode) {
+                binding.startFiltersPanel.root.visibility = View.GONE
+            }
             if (autoLoadFirstQuestion) {
                 viewModel.loadQuestion(0)
                 autoLoadFirstQuestion = false
@@ -473,7 +478,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             .setOnClickListener { startQuiz() }
     }
 
-    private fun handleSubjectSelection() {
+    private fun performSubjectSelection(silently: Boolean, onAfterApply: (() -> Unit)? = null) {
         viewModel.fetchSubjects()
         launchCatching(
             dispatcher = Dispatchers.IO,
@@ -485,16 +490,22 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             onSuccess = { resource ->
                 when (resource) {
                     is Resource.Success<List<Subject>> -> {
-                        // `firstMatching()` is a suspend function; call it from a coroutine
                         lifecycleScope.launch {
                             val state = viewModel.state.firstMatching()
-                            filterDialogHandler.showSubjectSelectionDialogSilently(
-                                resource.data,
-                                state.selectedSubjectIds,
-                                viewModel
-                            ) {
-                                viewModel.fetchSystemsForSubjects(viewModel.state.value.selectedSubjectIds.toList())
-                                updateAllFilterLabels()
+                            if (silently) {
+                                filterDialogHandler.showSubjectSelectionDialogSilently(
+                                    resource.data,
+                                    state.selectedSubjectIds,
+                                    viewModel
+                                ) {
+                                    onAfterApply?.invoke()
+                                }
+                            } else {
+                                filterDialogHandler.showSubjectSelectionDialog(
+                                    resource.data,
+                                    state.selectedSubjectIds,
+                                    viewModel
+                                )
                             }
                         }
                     }
@@ -506,7 +517,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         )
     }
 
-    private fun handleSystemSelection() {
+    private fun performSystemSelection(silently: Boolean, onAfterApply: (() -> Unit)? = null) {
         val state = viewModel.state.value
         viewModel.fetchSystemsForSubjects(state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList())
         
@@ -520,12 +531,23 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             onSuccess = { resource ->
                 when (resource) {
                     is Resource.Success<List<System>> -> {
-                        filterDialogHandler.showSystemSelectionDialogSilently(
-                            resource.data,
-                            viewModel.state.value.selectedSystemIds,
-                            viewModel
-                        ) {
-                            updateAllFilterLabels()
+                        if (silently) {
+                            filterDialogHandler.showSystemSelectionDialogSilently(
+                                resource.data,
+                                viewModel.state.value.selectedSystemIds,
+                                viewModel
+                            ) {
+                                onAfterApply?.invoke()
+                            }
+                        } else {
+                            lifecycleScope.launch {
+                                val currentState = viewModel.state.firstMatching()
+                                filterDialogHandler.showSystemSelectionDialog(
+                                    resource.data,
+                                    currentState.selectedSystemIds,
+                                    viewModel
+                                )
+                            }
                         }
                     }
                     is Resource.Error -> showToast("Error fetching systems: ${resource.message}")
@@ -534,6 +556,17 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             },
             onFailure = { showToast("Failed to fetch systems: ${it.message}") }
         )
+    }
+
+    private fun handleSubjectSelection() {
+        performSubjectSelection(true) {
+            viewModel.fetchSystemsForSubjects(viewModel.state.value.selectedSubjectIds.toList())
+            updateAllFilterLabels()
+        }
+    }
+
+    private fun handleSystemSelection() {
+        performSystemSelection(true) { updateAllFilterLabels() }
     }
 
     private fun handlePerformanceSelection() {
@@ -566,6 +599,16 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 ids
             },
             onSuccess = { ids ->
+                // Hide filter panel first to ensure WebView is visible
+                binding.startFiltersPanel.root.visibility = View.GONE
+                if (filtersOnlyMode) {
+                    binding.toolbar.visibility = View.VISIBLE
+                    binding.cardQuestion.visibility = View.VISIBLE
+                    binding.bottomBar.visibility = View.VISIBLE
+                    binding.navigationView.visibility = View.VISIBLE
+                    filtersOnlyMode = false
+                }
+                
                 if (ids.isNotEmpty()) {
                     viewModel.loadQuestion(0)
                 } else {
@@ -574,15 +617,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             },
             onFailure = { showToast("Failed to start: ${it.message}") }
         )
-        // Always hide filter panel and restore UI if needed
-        binding.startFiltersPanel.root.visibility = View.GONE
-        if (filtersOnlyMode) {
-            binding.toolbar.visibility = View.VISIBLE
-            binding.cardQuestion.visibility = View.VISIBLE
-            binding.bottomBar.visibility = View.VISIBLE
-            binding.navigationView.visibility = View.VISIBLE
-            filtersOnlyMode = false
-        }
     }
 
     private fun updateAllFilterLabels() {
@@ -651,66 +685,11 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun showSubjectFilterDialog() {
-        viewModel.fetchSubjects()
-        launchCatching(
-            dispatcher = Dispatchers.IO,
-            block = {
-                viewModel.state
-                    .first { it.subjectsResource !is Resource.Loading }
-                    .subjectsResource
-            },
-            onSuccess = { resource ->
-                when (resource) {
-                    is Resource.Success<List<Subject>> -> {
-                        // `firstMatching()` is suspend; launch a coroutine on the main
-                        // thread to get state and show the dialog
-                        lifecycleScope.launch {
-                            val state = viewModel.state.firstMatching()
-                            filterDialogHandler.showSubjectSelectionDialog(
-                                resource.data,
-                                state.selectedSubjectIds,
-                                viewModel
-                            )
-                        }
-                    }
-                    is Resource.Error -> showToast("Error fetching subjects: ${resource.message}")
-                    else -> { /* ignore */ }
-                }
-            },
-            onFailure = { showToast("Failed to fetch subjects: ${it.message}") }
-        )
+        performSubjectSelection(false)
     }
 
     private fun showSystemFilterDialog() {
-        val state = viewModel.state.value
-        viewModel.fetchSystemsForSubjects(state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList())
-        
-        launchCatching(
-            dispatcher = Dispatchers.IO,
-            block = {
-                viewModel.state
-                    .first { it.systemsResource !is Resource.Loading }
-                    .systemsResource
-            },
-            onSuccess = { resource ->
-                when (resource) {
-                    is Resource.Success<List<System>> -> {
-                        // `firstMatching()` is suspend; do it inside a coroutine
-                        lifecycleScope.launch {
-                            val currentState = viewModel.state.firstMatching()
-                            filterDialogHandler.showSystemSelectionDialog(
-                                resource.data,
-                                currentState.selectedSystemIds,
-                                viewModel
-                            )
-                        }
-                    }
-                    is Resource.Error -> showToast("Error fetching systems: ${resource.message}")
-                    else -> { /* ignore */ }
-                }
-            },
-            onFailure = { showToast("Failed to fetch systems: ${it.message}") }
-        )
+        performSystemSelection(false)
     }
 
     private fun showPerformanceFilterDialog() {
@@ -995,7 +974,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 text = ""
                 setOnClickListener(null)
             }
-            isVisible = false
+            isVisible = mediaFiles.isNotEmpty()
         }
         
         Log.d(TAG, "Question $questionId has media files: $mediaFiles")

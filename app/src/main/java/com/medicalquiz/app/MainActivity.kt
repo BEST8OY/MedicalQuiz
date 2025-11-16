@@ -149,6 +149,11 @@ class MainActivity : AppCompatActivity() {
     private fun loadDatabases() {
         databases.clear()
         
+        if (Environment.getExternalStorageState() != Environment.MEDIA_MOUNTED) {
+            binding.textViewStatus.text = "External storage not available"
+            return
+        }
+        
         // Path: /storage/emulated/0/MedicalQuiz/databases
         val externalStoragePath = Environment.getExternalStorageDirectory()
         val databasesFolder = File(externalStoragePath, Constants.DATABASES_FOLDER)
@@ -158,8 +163,13 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val dbFiles = databasesFolder.listFiles { file ->
-            file.isFile && file.extension == "db"
+        val dbFiles = try {
+            databasesFolder.listFiles { file ->
+                file.isFile && file.extension == "db"
+            }
+        } catch (e: Exception) {
+            binding.textViewStatus.text = "Error accessing databases folder: ${e.message}"
+            return
         }
 
         if (dbFiles.isNullOrEmpty()) {
@@ -194,8 +204,8 @@ class MainActivity : AppCompatActivity() {
     private fun formatFileSize(size: Long): String {
         return when {
             size < 1024 -> "$size B"
-            size < 1024 * 1024 -> "${size / 1024} KB"
-            else -> "${size / (1024 * 1024)} MB"
+            size < 1024 * 1024 -> String.format("%.1f KB", size / 1024.0)
+            else -> String.format("%.1f MB", size / (1024.0 * 1024.0))
         }
     }
 }

@@ -29,6 +29,12 @@ import java.util.UUID
 class QuizViewModel : ViewModel() {
 
     // ============================================================================
+    // Constants
+    // ============================================================================
+
+    private const val UI_EVENTS_BUFFER_CAPACITY = 4
+
+    // ============================================================================
     // Dependencies
     // ============================================================================
 
@@ -45,7 +51,7 @@ class QuizViewModel : ViewModel() {
     private val _state = MutableStateFlow(QuizState.EMPTY)
     val state: StateFlow<QuizState> = _state.asStateFlow()
 
-    private val _uiEvents = MutableSharedFlow<UiEvent>(extraBufferCapacity = 4)
+    private val _uiEvents = MutableSharedFlow<UiEvent>(extraBufferCapacity = UI_EVENTS_BUFFER_CAPACITY)
     val uiEvents = _uiEvents.asSharedFlow()
 
     private var lastFetchedSubjectIds: List<Long>? = null
@@ -151,6 +157,9 @@ class QuizViewModel : ViewModel() {
                 val question = databaseManager?.getQuestionById(questionId)
                 val answers = databaseManager?.getAnswersForQuestion(questionId) ?: emptyList()
                 _state.update { it.copyWithQuestion(question, answers) }
+            } catch (e: Exception) {
+                Log.e("QuizViewModel", "Error loading question $questionId", e)
+                emitToast("Failed to load question: ${e.message}")
             } finally {
                 _state.update { it.copy(isLoading = false) }
                 cacheManager?.trimCachesIfNeeded(index)
@@ -329,16 +338,6 @@ class QuizViewModel : ViewModel() {
         )
     }
 
-    fun fetchFilteredQuestionIdsToState() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val currentState = state.value
-            val subjectFilter = currentState.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-            val systemFilter = currentState.selectedSystemIds.takeIf { it.isNotEmpty() }?.toList()
-            val ids = fetchQuestionIdsWithFilters(subjectFilter, systemFilter, currentState.performanceFilter)
-            _state.update { it.copy(questionIds = ids) }
-        }
-    }
-
     private suspend fun fetchQuestionIdsWithFilters(
         subjectIds: List<Long>?,
         systemIds: List<Long>?,
@@ -408,7 +407,8 @@ class QuizViewModel : ViewModel() {
     }
 
     private suspend fun pruneInvalidSubjects(): List<Long> {
-        val available = databaseManager?.getSubjects()?.map { it.id } ?: emptyList()
+        val db = databaseManager ?: return emptyList()
+        val available = db.getSubjects().map { it.id }
         return state.value.selectedSubjectIds.filter { it in available }
     }
 
@@ -459,9 +459,10 @@ class QuizViewModel : ViewModel() {
     }
 
     private suspend fun pruneInvalidSystems(): List<Long> {
+        val db = databaseManager ?: return emptyList()
         val subjects = state.value.selectedSubjectIds.toList()
         if (subjects.isEmpty()) return emptyList()
-        return databaseManager?.getSystems(subjects)?.map { it.id } ?: emptyList()
+        return db.getSystems(subjects).map { it.id }
     }
 
     // ============================================================================
