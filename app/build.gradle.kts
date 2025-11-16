@@ -49,7 +49,8 @@ dependencies {
     
     // Lifecycle components
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.0")
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.0")
+    // Switched from LiveData to StateFlow/SharedFlow — use lifecycle runtime for repeatOnLifecycle
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.0")
     
     // RecyclerView
     implementation("androidx.recyclerview:recyclerview:1.3.2")

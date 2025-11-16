@@ -1,6 +1,13 @@
 package com.medicalquiz.app.ui
 
 import com.medicalquiz.app.data.models.Answer
+import com.medicalquiz.app.data.models.System
+import com.medicalquiz.app.data.models.Subject
+import com.medicalquiz.app.data.database.PerformanceFilter
+import com.medicalquiz.app.utils.Resource
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import com.medicalquiz.app.data.models.Question
 
 /**
@@ -11,10 +18,16 @@ data class QuizState(
     val currentQuestionIndex: Int = 0,
     val currentQuestion: Question? = null,
     val currentAnswers: List<Answer> = emptyList(),
+    val isLoading: Boolean = false,
     val selectedAnswerId: Int? = null,
     val answerSubmitted: Boolean = false,
-    val selectedSubjectId: Long? = null,
-    val selectedSystemId: Long? = null
+    val currentPerformance: com.medicalquiz.app.data.database.QuestionPerformance? = null,
+    val selectedSubjectIds: Set<Long> = emptySet(),
+    val selectedSystemIds: Set<Long> = emptySet(),
+    val performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
+    val isLoggingEnabled: Boolean = true,
+    val subjectsResource: Resource<List<Subject>> = Resource.Success(emptyList()),
+    val systemsResource: Resource<List<System>> = Resource.Success(emptyList())
 ) {
     // Cached computed properties to avoid repeated calculations
     val hasNextQuestion: Boolean by lazy { currentQuestionIndex < questionIds.size - 1 }
