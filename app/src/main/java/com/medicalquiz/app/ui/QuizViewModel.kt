@@ -26,8 +26,8 @@ data class QuizState(
     val selectedSystemIds: Set<Long> = emptySet(),
     val performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
     val isLoggingEnabled: Boolean = true,
-    val subjectsResource: Resource<List<Subject>> = Resource.Success(emptyList()),
-    val systemsResource: Resource<List<System>> = Resource.Success(emptyList())
+    val subjectsResource: Resource<List<Subject>> = Resource.Loading,
+    val systemsResource: Resource<List<System>> = Resource.Loading
 ) {
     // Cached computed properties to avoid repeated calculations
     val hasNextQuestion: Boolean by lazy { currentQuestionIndex < questionIds.size - 1 }

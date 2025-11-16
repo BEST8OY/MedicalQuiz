@@ -120,7 +120,21 @@ class QuizViewModel : ViewModel() {
         databaseManager = db
         viewModelScope.launch(Dispatchers.IO) {
             val ids = databaseManager?.getQuestionIds() ?: emptyList()
-            _state.update { it.copy(questionIds = ids) }
+            // When switching DB, prune previously selected filters to those valid in the new DB
+            val validSubjects = pruneInvalidSubjects().toSet()
+            val validSystems = pruneInvalidSystems().toSet()
+            _state.update { it.copy(questionIds = ids, selectedSubjectIds = validSubjects, selectedSystemIds = validSystems) }
+
+            // Clear system-cache so systems are re-fetched for the new DB
+            lastFetchedSubjectIds = null
+
+            // Prefetch subjects + systems for the new DB to make filter dropdowns snappy for users
+            fetchSubjects()
+            // If we have selected subjects, fetch for them, otherwise fetch all systems
+            fetchSystemsForSubjects(validSubjects.ifEmpty { null }.toList())
+
+            // update the filtered question ids according to the (pruned) filters that now apply to this DB
+            loadFilteredQuestionIds()
         }
     }
 
@@ -212,7 +226,7 @@ class QuizViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             // Update selected subjects, prune systems and then request filtered IDs
             _state.update { it.copy(selectedSubjectIds = newSubjectIds) }
-            val valid = pruneInvalidSystems().toSet()
+            val valid = if (newSubjectIds.isEmpty()) emptySet<Long>() else pruneInvalidSystems().toSet()
             _state.update { it.copy(selectedSystemIds = valid) }
             loadFilteredQuestionIds()
         }
@@ -245,6 +259,15 @@ class QuizViewModel : ViewModel() {
         return databaseManager?.getSystems(subjects)?.map { it.id } ?: emptyList()
     }
 
+    /**
+     * Remove selected subject ids that are not present in the currently open database.
+     * Called after a DB switch to keep filters consistent.
+     */
+    suspend fun pruneInvalidSubjects(): List<Long> {
+        val available = databaseManager?.getSubjects()?.map { it.id } ?: emptyList()
+        return state.value.selectedSubjectIds.filter { available.contains(it) }
+    }
+
     suspend fun fetchFilteredQuestionIds(): List<Long> {
         val s = state.value.selectedSubjectIds.toList()
         val sys = state.value.selectedSystemIds.toList()
@@ -266,8 +289,9 @@ class QuizViewModel : ViewModel() {
 
     fun fetchSystemsForSubjects(subjectIds: List<Long>?) {
         // Prevent refetch when same subjects requested
-        if (subjectIds == lastFetchedSubjectIds) return
-        lastFetchedSubjectIds = subjectIds
+        // Only skip fetch if we have fetched before and the requested subjects are identical
+        if (lastFetchedSubjectIds != null && subjectIds == lastFetchedSubjectIds) return
+        lastFetchedSubjectIds = subjectIds?.toList()
 
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(systemsResource = Resource.Loading) }
