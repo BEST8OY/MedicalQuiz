@@ -215,8 +215,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 runOnUiThread {
                     // Delegate selection + submission to ViewModel (business logic kept outside Activity)
                     viewModel.onAnswerSelected(answerId)
-                    val timeTaken = java.lang.System.currentTimeMillis() - startTime
-                            viewModel.submitAnswer(timeTaken)
+                        val timeTaken = java.lang.System.currentTimeMillis() - startTime
+                        viewModel.submitAnswer(timeTaken)
                 }
             }
 
