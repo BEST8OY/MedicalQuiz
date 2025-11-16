@@ -126,13 +126,9 @@ class QuizViewModel : ViewModel() {
 
             // Compute filtered question ids up front so the UI doesn't show an
             // unfiltered question list briefly before filters are applied.
-            val filteredIds = databaseManager?.getQuestionIds(
-                subjectIds = validSubjects.toList().takeIf { it.isNotEmpty() },
-                systemIds = validSystems.toList().takeIf { it.isNotEmpty() },
-                performanceFilter = state.value.performanceFilter
-            ) ?: emptyList()
-
-            _state.update { it.copy(questionIds = filteredIds, selectedSubjectIds = validSubjects, selectedSystemIds = validSystems) }
+            // Do not auto-load any question list while opening a database — the
+            // user should choose filters and press Start on the main screen.
+            _state.update { it.copy(questionIds = emptyList(), selectedSubjectIds = validSubjects, selectedSystemIds = validSystems) }
 
             // Clear system-cache so systems are re-fetched for the new DB
             lastFetchedSubjectIds = null
@@ -142,8 +138,8 @@ class QuizViewModel : ViewModel() {
             // If we have selected subjects, fetch for them, otherwise fetch all systems
             fetchSystemsForSubjects(validSubjects.takeIf { it.isNotEmpty() }?.toList())
 
-            // update the filtered question ids according to the (pruned) filters that now apply to this DB
-            loadFilteredQuestionIds()
+            // Do not update question list on DB open — wait until the user
+            // chooses filters and triggers loading (inline Start button).
         }
     }
 

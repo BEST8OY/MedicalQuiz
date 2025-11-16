@@ -123,9 +123,14 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             setupWebViews()
             setupDrawer()
             setupListeners()
-                // Show initial filter setup dialog so user can set filters before
+                // Show the inline filter panel so user can set filters before
                 // starting the quiz. This is shown every time a new DB is opened.
-                showStartFiltersDialog()
+                binding.filterPanel.isVisible = true
+                // Prefetch subjects/systems for quick UI response
+                viewModel.fetchSubjects()
+                viewModel.fetchSystemsForSubjects(null)
+                // Configure the inline filter panel (listeners/preview)
+                setupFilterPanel()
         }
         // Note: setupWebViews, setupDrawer, setupListeners will run after DB initialization
 
@@ -162,10 +167,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                             }
                             updateToolbarSubtitle()
                             // New list available — do not auto-load. Let the user
-                            // filter and choose when to load. We give a hint in
-                            // the status that the user can tap the counter or
-                            // use Next to begin.
-                            binding.textViewStatus.append(" — tap Next or tap counter to start")
+                            // filter and choose when to load. The Start UI is now
+                            // on the main screen, so no additional hint is required.
                         }
                     }
 
@@ -386,30 +389,25 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
     }
 
-    private fun showStartFiltersDialog() {
-        // Build dialog from layout
-        val dialogBinding = com.medicalquiz.app.databinding.DialogStartFiltersBinding.inflate(layoutInflater)
-        val dialog = AlertDialog.Builder(this@QuizActivity)
-            .setView(dialogBinding.root)
-            .setCancelable(false)
-            .create()
+    private fun setupFilterPanel() {
+        // Inline panel is built in XML and available via `binding`
 
         // Update labels with current selection counts
         fun updateSubjectLabel() {
             val s = viewModel.state.value
             val count = s.selectedSubjectIds.size
-            dialogBinding.buttonSelectSubjects.text = if (count == 0) "Select Subjects" else "Subjects: $count"
+            binding.buttonSelectSubjects.text = if (count == 0) "Select Subjects" else "Subjects: $count"
         }
 
         fun updateSystemLabel() {
             val s = viewModel.state.value
             val count = s.selectedSystemIds.size
-            dialogBinding.buttonSelectSystems.text = if (count == 0) "Select Systems" else "Systems: $count"
+            binding.buttonSelectSystems.text = if (count == 0) "Select Systems" else "Systems: $count"
         }
 
         fun updatePerformanceLabel() {
             val pf = viewModel.state.value.performanceFilter
-            dialogBinding.buttonSelectPerformance.text = getPerformanceFilterLabel(pf)
+            binding.buttonSelectPerformance.text = getPerformanceFilterLabel(pf)
         }
 
         // Update preview of how many questions match the current filters
@@ -417,16 +415,16 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             lifecycleScope.launch {
                 try {
                     val count = viewModel.fetchFilteredQuestionIds().size
-                    dialogBinding.textViewPreviewCount.text = if (count == 1) "1 question matches" else "$count questions match"
-                    dialogBinding.buttonStartQuiz.isEnabled = count > 0
+                    binding.textViewPreviewCount.text = if (count == 1) "1 question matches" else "$count questions match"
+                    binding.buttonStartQuiz.isEnabled = count > 0
                 } catch (e: Exception) {
-                    dialogBinding.textViewPreviewCount.text = "Preview unavailable"
-                    dialogBinding.buttonStartQuiz.isEnabled = true
+                    binding.textViewPreviewCount.text = "Preview unavailable"
+                    binding.buttonStartQuiz.isEnabled = true
                 }
             }
         }
 
-        dialogBinding.buttonSelectSubjects.setOnClickListener {
+        binding.buttonSelectSubjects.setOnClickListener {
             viewModel.fetchSubjects()
             lifecycleScope.launch {
                 val resource = viewModel.state.first { it.subjectsResource !is com.medicalquiz.app.utils.Resource.Loading }.subjectsResource
@@ -447,7 +445,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
         }
 
-        dialogBinding.buttonSelectSystems.setOnClickListener {
+        binding.buttonSelectSystems.setOnClickListener {
             val ss = viewModel.state.value
             // Fetch systems for currently selected subjects
             viewModel.fetchSystemsForSubjects(ss.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList())
@@ -466,7 +464,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
         }
 
-        dialogBinding.buttonSelectPerformance.setOnClickListener {
+        binding.buttonSelectPerformance.setOnClickListener {
             // Use existing performance dialog
             val filters = PerformanceFilter.values()
             val labels = filters.map { getPerformanceFilterLabel(it) }.toTypedArray()
@@ -482,28 +480,24 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 .show()
         }
 
-        dialogBinding.buttonCancelStart.setOnClickListener {
-            dialog.dismiss()
+        // No cancel button in inline panel (user can hide the panel via drawer or Start)
         }
 
-        dialogBinding.buttonStartQuiz.setOnClickListener {
-            // Start quiz — load first question and close dialog
-            if (viewModel.state.value.questionIds.isNotEmpty()) {
-                viewModel.loadQuestion(0)
-            }
-            autoLoadFirstQuestion = false
-            dialog.dismiss()
+        binding.buttonStartQuiz.setOnClickListener {
+            // Trigger loading of filtered question IDs and auto-load first
+            // question when available.
+            autoLoadFirstQuestion = true
+            binding.filterPanel.isVisible = false
+            viewModel.loadFilteredQuestionIds()
         }
 
         // compute initial preview
         updatePreviewCount()
 
-        // Ensure labels are correct when dialog is opened
+        // Ensure labels are correct when panel is shown
         updateSubjectLabel()
         updateSystemLabel()
         updatePerformanceLabel()
-
-        dialog.show()
     }
 
     private fun updateNavigationControls(state: com.medicalquiz.app.ui.QuizState) {
