@@ -76,10 +76,19 @@ class QuestionRepository(private val connection: DatabaseConnection) {
     suspend fun getQuestionById(id: Long): Question? = withContext(Dispatchers.IO) {
         val db = connection.getDatabase()
         questionQuery.bindLong(1, id)
-        // Execute the compiled statement to validate or warm the statement cache.
-        // We don't use the returned value directly here.
-        questionQuery.simpleQueryForLong()
-        questionQuery.clearBindings()
+        // Execute the compiled statement to validate / warm the statement cache.
+        // If there is no row for this id, `simpleQueryForLong()` will throw
+        // SQLiteDoneException — catch it and continue; we'll still use the
+        // rawQuery below to safely read the whole row (which returns null if
+        // it does not exist).
+        try {
+            questionQuery.simpleQueryForLong()
+        } catch (e: android.database.sqlite.SQLiteDoneException) {
+            // No op — item not found, move on to rawQuery below which will
+            // return an empty cursor and thus null.
+        } finally {
+            questionQuery.clearBindings()
+        }
 
         // Since we need full row data, we still need to use rawQuery for now
         // But we can optimize the subject/system name fetching

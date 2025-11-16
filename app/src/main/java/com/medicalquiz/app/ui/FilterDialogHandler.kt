@@ -21,30 +21,33 @@ class FilterDialogHandler(
         subjects: List<Subject>,
         currentSubjectIds: Set<Long>,
         viewModel: com.medicalquiz.app.viewmodel.QuizViewModel
+        , onApply: (() -> Unit)? = null
     ) {
         if (subjects.isEmpty()) {
             showNoDataDialog("No subjects found")
             return
         }
-        showSubjectSelectionDialogInternal(subjects, currentSubjectIds, viewModel)
+        showSubjectSelectionDialogInternal(subjects, currentSubjectIds, viewModel, onApply)
     }
     
     fun showSystemSelectionDialog(
         systems: List<System>,
         currentSystemIds: Set<Long>,
         viewModel: com.medicalquiz.app.viewmodel.QuizViewModel
+        , onApply: (() -> Unit)? = null
     ) {
         if (systems.isEmpty()) {
             showNoDataDialog("No systems found")
             return
         }
-        showSystemSelectionDialogInternal(systems, currentSystemIds, viewModel)
+        showSystemSelectionDialogInternal(systems, currentSystemIds, viewModel, onApply)
     }
     
     private fun showSubjectSelectionDialogInternal(
         subjects: List<Subject>,
         currentSubjectIds: Set<Long>,
         viewModel: com.medicalquiz.app.viewmodel.QuizViewModel
+        , onApply: (() -> Unit)? = null
     ) {
         showSelectionDialog(
             title = "Select Subjects",
@@ -52,7 +55,10 @@ class FilterDialogHandler(
             isChecked = { currentSubjectIds.contains(it.id) },
             labelProvider = { it.name },
             idProvider = { it.id },
-            onApply = { selected -> viewModel.applySelectedSubjects(selected) }
+            onApply = { selected -> 
+                viewModel.applySelectedSubjects(selected)
+                onApply?.let { it.invoke() }
+            }
         )
     }
     
@@ -60,6 +66,7 @@ class FilterDialogHandler(
         systems: List<System>,
         currentSystemIds: Set<Long>,
         viewModel: com.medicalquiz.app.viewmodel.QuizViewModel
+        , onApply: (() -> Unit)? = null
     ) {
         showSelectionDialog(
             title = "Select Systems",
@@ -67,7 +74,10 @@ class FilterDialogHandler(
             isChecked = { currentSystemIds.contains(it.id) },
             labelProvider = { it.name },
             idProvider = { it.id },
-            onApply = { selected -> viewModel.applySelectedSystems(selected) }
+            onApply = { selected -> 
+                viewModel.applySelectedSystems(selected)
+                onApply?.let { it.invoke() }
+            }
         )
     }
     

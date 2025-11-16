@@ -65,6 +65,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     
     // UI state is driven by ViewModel.state — avoid duplicating it in Activity
     private var startTime: Long = 0
+    // When true, the first question will load automatically when a new 
+    // filtered question list arrives. Set by the UI after the user applies a filter.
+    private var autoLoadFirstQuestion: Boolean = false
     // Selected filters are now stored in the ViewModel
     // Performance filter moved to ViewModel
     // Answer submission tracked by `viewModel.state.answerSubmitted` — keep Activity stateless
@@ -103,6 +106,14 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         // Switch DB at the app level then hand it to the ViewModel (suspend function)
         lifecycleScope.launch {
                 viewModel.switchDatabase(dbPath)
+                // Wait until subjects are loaded (or an error occurs) so that the
+                // start dialog shows ready-to-use subject/system lists. This avoids
+                // showing the dialog when the DB hasn't finished initialization.
+                try {
+                    viewModel.state.first { it.subjectsResource !is com.medicalquiz.app.utils.Resource.Loading }
+                } catch (_: Exception) {
+                    // ignore — proceed to show dialog anyway so user can try selecting
+                }
                 mediaHandler = MediaHandler(this@QuizActivity)
             filterDialogHandler = FilterDialogHandler(this@QuizActivity)
             mediaHandler.reset()
@@ -112,11 +123,16 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             setupWebViews()
             setupDrawer()
             setupListeners()
+                // Show initial filter setup dialog so user can set filters before
+                // starting the quiz. This is shown every time a new DB is opened.
+                showStartFiltersDialog()
         }
         // Note: setupWebViews, setupDrawer, setupListeners will run after DB initialization
 
         // Observe unified view state from ViewModel
-        var autoLoadFirstQuestion = savedInstanceState == null
+        // `autoLoadFirstQuestion` controls whether the first question should be
+        // loaded when a new filtered list arrives. We default to `false` so
+        // DB open does not perform an automatic load (user will filter first).
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 var previousState: com.medicalquiz.app.ui.QuizState? = null
@@ -134,13 +150,22 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     if (previousState?.questionIds != state.questionIds) {
                         if (state.questionIds.isEmpty()) {
                             showToast("No questions found with selected filters")
-                            binding.textViewStatus.text = "No questions found for current filters"
+                            binding.textViewStatus.apply {
+                                text = "No questions found for current filters"
+                                isVisible = true
+                            }
                             updateToolbarSubtitle()
                         } else {
-                            binding.textViewStatus.text = "Loaded ${state.questionIds.size} questions"
+                            binding.textViewStatus.apply {
+                                text = "Loaded ${state.questionIds.size} questions"
+                                isVisible = true
+                            }
                             updateToolbarSubtitle()
-                            // When new list arrives, load the first question
-                            viewModel.loadQuestion(0)
+                            // New list available — do not auto-load. Let the user
+                            // filter and choose when to load. We give a hint in
+                            // the status that the user can tap the counter or
+                            // use Next to begin.
+                            binding.textViewStatus.append(" — tap Next or tap counter to start")
                         }
                     }
 
@@ -361,6 +386,126 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
     }
 
+    private fun showStartFiltersDialog() {
+        // Build dialog from layout
+        val dialogBinding = com.medicalquiz.app.databinding.DialogStartFiltersBinding.inflate(layoutInflater)
+        val dialog = AlertDialog.Builder(this@QuizActivity)
+            .setView(dialogBinding.root)
+            .setCancelable(false)
+            .create()
+
+        // Update labels with current selection counts
+        fun updateSubjectLabel() {
+            val s = viewModel.state.value
+            val count = s.selectedSubjectIds.size
+            dialogBinding.buttonSelectSubjects.text = if (count == 0) "Select Subjects" else "Subjects: $count"
+        }
+
+        fun updateSystemLabel() {
+            val s = viewModel.state.value
+            val count = s.selectedSystemIds.size
+            dialogBinding.buttonSelectSystems.text = if (count == 0) "Select Systems" else "Systems: $count"
+        }
+
+        fun updatePerformanceLabel() {
+            val pf = viewModel.state.value.performanceFilter
+            dialogBinding.buttonSelectPerformance.text = getPerformanceFilterLabel(pf)
+        }
+
+        // Update preview of how many questions match the current filters
+        fun updatePreviewCount() {
+            lifecycleScope.launch {
+                try {
+                    val count = viewModel.fetchFilteredQuestionIds().size
+                    dialogBinding.textViewPreviewCount.text = if (count == 1) "1 question matches" else "$count questions match"
+                    dialogBinding.buttonStartQuiz.isEnabled = count > 0
+                } catch (e: Exception) {
+                    dialogBinding.textViewPreviewCount.text = "Preview unavailable"
+                    dialogBinding.buttonStartQuiz.isEnabled = true
+                }
+            }
+        }
+
+        dialogBinding.buttonSelectSubjects.setOnClickListener {
+            viewModel.fetchSubjects()
+            lifecycleScope.launch {
+                val resource = viewModel.state.first { it.subjectsResource !is com.medicalquiz.app.utils.Resource.Loading }.subjectsResource
+                when (resource) {
+                    is com.medicalquiz.app.utils.Resource.Success<List<Subject>> -> {
+                        val ss = viewModel.state.firstMatching()
+                        filterDialogHandler.showSubjectSelectionDialog(resource.data, ss.selectedSubjectIds, viewModel) {
+                            // When subjects are applied, systems list may change — prefetch
+                            viewModel.fetchSystemsForSubjects(viewModel.state.value.selectedSubjectIds.toList())
+                            updateSubjectLabel()
+                            updateSystemLabel()
+                            updatePreviewCount()
+                        }
+                    }
+                    is com.medicalquiz.app.utils.Resource.Error -> showToast("Error fetching subjects: ${resource.message}")
+                    else -> { /* ignore loading */ }
+                }
+            }
+        }
+
+        dialogBinding.buttonSelectSystems.setOnClickListener {
+            val ss = viewModel.state.value
+            // Fetch systems for currently selected subjects
+            viewModel.fetchSystemsForSubjects(ss.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList())
+            lifecycleScope.launch {
+                val resource = viewModel.state.first { it.systemsResource !is com.medicalquiz.app.utils.Resource.Loading }.systemsResource
+                when (resource) {
+                    is com.medicalquiz.app.utils.Resource.Success<List<System>> -> {
+                        filterDialogHandler.showSystemSelectionDialog(resource.data, viewModel.state.value.selectedSystemIds, viewModel) {
+                            updateSystemLabel()
+                            updatePreviewCount()
+                        }
+                    }
+                    is com.medicalquiz.app.utils.Resource.Error -> showToast("Error fetching systems: ${resource.message}")
+                    else -> { }
+                }
+            }
+        }
+
+        dialogBinding.buttonSelectPerformance.setOnClickListener {
+            // Use existing performance dialog
+            val filters = PerformanceFilter.values()
+            val labels = filters.map { getPerformanceFilterLabel(it) }.toTypedArray()
+            val currentIndex = filters.indexOf(viewModel.state.value.performanceFilter)
+            AlertDialog.Builder(this@QuizActivity)
+                .setTitle("Performance Filter")
+                .setSingleChoiceItems(labels, currentIndex) { d, which ->
+                    d.dismiss()
+                    viewModel.setPerformanceFilter(filters[which])
+                    updatePerformanceLabel()
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+
+        dialogBinding.buttonCancelStart.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialogBinding.buttonStartQuiz.setOnClickListener {
+            // Start quiz — load first question and close dialog
+            if (viewModel.state.value.questionIds.isNotEmpty()) {
+                viewModel.loadQuestion(0)
+            }
+            autoLoadFirstQuestion = false
+            dialog.dismiss()
+        }
+
+        // compute initial preview
+        updatePreviewCount()
+
+        // Ensure labels are correct when dialog is opened
+        updateSubjectLabel()
+        updateSystemLabel()
+        updatePerformanceLabel()
+
+        dialog.show()
+    }
+
     private fun updateNavigationControls(state: com.medicalquiz.app.ui.QuizState) {
         val total = state.questionIds.size
         binding.buttonNext.isEnabled = state.currentQuestionIndex < total - 1
@@ -425,6 +570,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         viewModel.setSelectedSystems(emptySet())
         viewModel.setPerformanceFilter(PerformanceFilter.ALL)
         settingsRepository.setPerformanceFilter(PerformanceFilter.ALL)
+        // Clearing filters should not auto-start the quiz from drawer.
         reloadQuestionsWithFilters()
     }
 
@@ -539,11 +685,17 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                             // questionIds stored in ViewModel state
                             val s2 = viewModel.state.firstMatching()
                             if (s2.questionIds.isNotEmpty()) {
-                                binding.textViewStatus.text = "Loaded ${s2.questionIds.size} questions"
+                                binding.textViewStatus.apply {
+                                    text = "Loaded ${s2.questionIds.size} questions"
+                                    isVisible = true
+                                }
                                 updateToolbarSubtitle()
                                 loadQuestion(0)
                             } else {
-                                binding.textViewStatus.text = "No questions found for current filters"
+                                binding.textViewStatus.apply {
+                                    text = "No questions found for current filters"
+                                    isVisible = true
+                                }
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to fetch questions during restore", e)
@@ -559,7 +711,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                         if (s3.questionIds.isNotEmpty()) loadQuestion(s3.currentQuestionIndex)
                     }
                     updateToolbarSubtitle()
-                    binding.textViewStatus.text = "Loaded ${s.questionIds.size} questions"
+                    binding.textViewStatus.apply {
+                        text = "Loaded ${s.questionIds.size} questions"
+                        isVisible = true
+                    }
                 }
                 }
             },

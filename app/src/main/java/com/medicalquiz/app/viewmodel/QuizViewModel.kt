@@ -208,12 +208,28 @@ class QuizViewModel : ViewModel() {
     }
 
     fun loadNext() {
-        val current = state.value.currentQuestionIndex + 1
-        if (current < state.value.questionIds.size) loadQuestion(current)
+        val s = state.value
+        // If there is no current question loaded, load the first item when Next
+        // is pressed — this lets the user choose when to begin after filtering.
+        if (s.currentQuestion == null) {
+            if (s.questionIds.isNotEmpty()) loadQuestion(0)
+            return
+        }
+
+        val current = s.currentQuestionIndex + 1
+        if (current < s.questionIds.size) loadQuestion(current)
     }
 
     fun loadPrevious() {
-        val current = state.value.currentQuestionIndex - 1
+        val s = state.value
+        // If there is no current question loaded, load the first item when
+        // the user taps Previous — consistent with Next behavior.
+        if (s.currentQuestion == null) {
+            if (s.questionIds.isNotEmpty()) loadQuestion(0)
+            return
+        }
+
+        val current = s.currentQuestionIndex - 1
         if (current >= 0) loadQuestion(current)
     }
 
