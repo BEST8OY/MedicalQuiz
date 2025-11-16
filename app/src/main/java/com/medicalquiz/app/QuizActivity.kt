@@ -994,3 +994,4 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         private const val STATE_SELECTED_ANSWER_ID = "selected_answer_id"
         private const val STATE_CURRENT_QUESTION_ID = "current_question_id"
     }
+}
