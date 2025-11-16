@@ -131,7 +131,7 @@ class QuizViewModel : ViewModel() {
             // Prefetch subjects + systems for the new DB to make filter dropdowns snappy for users
             fetchSubjects()
             // If we have selected subjects, fetch for them, otherwise fetch all systems
-            fetchSystemsForSubjects(validSubjects.ifEmpty { null }.toList())
+            fetchSystemsForSubjects(validSubjects.takeIf { it.isNotEmpty() }?.toList())
 
             // update the filtered question ids according to the (pruned) filters that now apply to this DB
             loadFilteredQuestionIds()
