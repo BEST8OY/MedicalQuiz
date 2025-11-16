@@ -137,7 +137,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         setupToolbar(dbName)
         if (filtersOnlyMode) hideUiForFiltersOnlyMode()
-        initializeDatabaseAsync(dbPath)
+            initializeDatabaseAsync(dbPath)
     }
 
     private fun setupToolbar(dbName: String?) {
@@ -148,25 +148,31 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
     }
 
-    private fun initializeDatabaseAsync(dbPath: String) {
-        lifecycleScope.launch {
-            viewModel.switchDatabase(dbPath)
-            
-            // Wait for subjects to load
-            try {
-                viewModel.state.first { it.subjectsResource !is Resource.Loading }
-            } catch (_: Exception) { /* ignore */ }
+    
+        private fun initializeDatabaseAsync(dbPath: String) {
+            launchCatching(
+                dispatcher = Dispatchers.IO,
+                block = {
+                    viewModel.switchDatabase(dbPath)
+                    try {
+                        viewModel.state.first { it.subjectsResource !is Resource.Loading }
+                    } catch (_: Exception) { /* ignore */ }
+                },
+                onSuccess = {
+                    mediaHandler = MediaHandler(this@QuizActivity)
+                    filterDialogHandler = FilterDialogHandler(this@QuizActivity)
+                    mediaHandler.reset()
 
-            mediaHandler = MediaHandler(this@QuizActivity)
-            filterDialogHandler = FilterDialogHandler(this@QuizActivity)
-            mediaHandler.reset()
-            
-            setupWebViews()
-            setupDrawer()
-            setupListeners()
-            showStartFiltersPanel()
+                    setupWebViews()
+                    setupDrawer()
+                    setupListeners()
+                    showStartFiltersPanel()
+                },
+                onFailure = { throwable ->
+                    showToast("Failed to initialize database: ${throwable.message}")
+                }
+            )
         }
-    }
 
     private fun setupUI() {
         setupBottomBarListeners()
@@ -273,8 +279,17 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun handleQuestionListChanges(state: QuizState, previousState: QuizState?) {
         if (previousState?.questionIds == state.questionIds) return
 
+        // When the activity first observes the state it may be empty because the
+        // database hasn't been loaded yet. Don't show the "No questions" message
+        // immediately on first observation — only show it when the question list
+        // becomes empty after having been populated previously (or after a user action).
         if (state.questionIds.isEmpty()) {
-            showNoQuestionsFound()
+            if (previousState != null) {
+                showNoQuestionsFound()
+            } else {
+                // initial empty state — open the start filters panel instead
+                showStartFiltersPanel()
+            }
         } else {
             showQuestionsLoaded(state.questionIds.size)
             if (autoLoadFirstQuestion) {
@@ -313,10 +328,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private fun handleShowAnswer(event: UiEvent.ShowAnswer) {
         updateWebViewAnswerState(event.correctAnswerId, event.selectedAnswerId)
-        lifecycleScope.launch {
-            val state = viewModel.state.firstMatching()
-            showQuestionDetails(state)
-        }
+        launchCatching(
+            dispatcher = Dispatchers.IO,
+            block = { viewModel.state.firstMatching() },
+            onSuccess = { state -> showQuestionDetails(state) },
+            onFailure = { showToast("Failed to show answer: ${it.message}") }
+        )
     }
 
     // ============================================================================
@@ -327,19 +344,23 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val question = state.currentQuestion ?: return
         startTime = java.lang.System.currentTimeMillis()
 
-        lifecycleScope.launch(Dispatchers.Default) {
-            val quizHtml = QuestionHtmlBuilder.build(question, state.currentAnswers)
-            val mediaFiles = HtmlUtils.collectMediaFiles(question)
-
-            withContext(Dispatchers.Main) {
-                WebViewRenderer.loadContent(this@QuizActivity, binding.webViewQuestion, quizHtml)
-                updateQuestionMetadata(question, state)
-                updateMediaInfo(question.id, mediaFiles)
-                viewModel.resetAnswerState()
-                updateNavigationControls(state)
-                loadPerformanceForQuestion(question.id)
-            }
-        }
+            launchCatching(
+                dispatcher = Dispatchers.Default,
+                block = {
+                    val quizHtml = QuestionHtmlBuilder.build(question, state.currentAnswers)
+                    val mediaFiles = HtmlUtils.collectMediaFiles(question)
+                    quizHtml to mediaFiles
+                },
+                onSuccess = { (quizHtml, mediaFiles) ->
+                    WebViewRenderer.loadContent(this@QuizActivity, binding.webViewQuestion, quizHtml)
+                    updateQuestionMetadata(question, state)
+                    updateMediaInfo(question.id, mediaFiles)
+                    viewModel.resetAnswerState()
+                    updateNavigationControls(state)
+                    loadPerformanceForQuestion(question.id)
+                },
+                onFailure = { showToast("Failed to load question: ${it.message}") }
+            )
     }
 
     private fun updateQuestionMetadata(question: Question, state: QuizState) {
@@ -454,52 +475,62 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private fun handleSubjectSelection() {
         viewModel.fetchSubjects()
-        lifecycleScope.launch {
-            val resource = viewModel.state
-                .first { it.subjectsResource !is Resource.Loading }
-                .subjectsResource
-
-            when (resource) {
-                is Resource.Success<List<Subject>> -> {
-                    val state = viewModel.state.firstMatching()
-                    filterDialogHandler.showSubjectSelectionDialogSilently(
-                        resource.data,
-                        state.selectedSubjectIds,
-                        viewModel
-                    ) {
-                        viewModel.fetchSystemsForSubjects(viewModel.state.value.selectedSubjectIds.toList())
-                        updateAllFilterLabels()
+        launchCatching(
+            dispatcher = Dispatchers.IO,
+            block = {
+                viewModel.state
+                    .first { it.subjectsResource !is Resource.Loading }
+                    .subjectsResource
+            },
+            onSuccess = { resource ->
+                when (resource) {
+                    is Resource.Success<List<Subject>> -> {
+                        val state = viewModel.state.firstMatching()
+                        filterDialogHandler.showSubjectSelectionDialogSilently(
+                            resource.data,
+                            state.selectedSubjectIds,
+                            viewModel
+                        ) {
+                            viewModel.fetchSystemsForSubjects(viewModel.state.value.selectedSubjectIds.toList())
+                            updateAllFilterLabels()
+                        }
                     }
+                    is Resource.Error -> showToast("Error fetching subjects: ${resource.message}")
+                    else -> { /* ignore */ }
                 }
-                is Resource.Error -> showToast("Error fetching subjects: ${resource.message}")
-                else -> { /* ignore */ }
-            }
-        }
+            },
+            onFailure = { showToast("Failed to fetch subjects: ${it.message}") }
+        )
     }
 
     private fun handleSystemSelection() {
         val state = viewModel.state.value
         viewModel.fetchSystemsForSubjects(state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList())
         
-        lifecycleScope.launch {
-            val resource = viewModel.state
-                .first { it.systemsResource !is Resource.Loading }
-                .systemsResource
-
-            when (resource) {
-                is Resource.Success<List<System>> -> {
-                    filterDialogHandler.showSystemSelectionDialogSilently(
-                        resource.data,
-                        viewModel.state.value.selectedSystemIds,
-                        viewModel
-                    ) {
-                        updateAllFilterLabels()
+        launchCatching(
+            dispatcher = Dispatchers.IO,
+            block = {
+                viewModel.state
+                    .first { it.systemsResource !is Resource.Loading }
+                    .systemsResource
+            },
+            onSuccess = { resource ->
+                when (resource) {
+                    is Resource.Success<List<System>> -> {
+                        filterDialogHandler.showSystemSelectionDialogSilently(
+                            resource.data,
+                            viewModel.state.value.selectedSystemIds,
+                            viewModel
+                        ) {
+                            updateAllFilterLabels()
+                        }
                     }
+                    is Resource.Error -> showToast("Error fetching systems: ${resource.message}")
+                    else -> { /* ignore */ }
                 }
-                is Resource.Error -> showToast("Error fetching systems: ${resource.message}")
-                else -> { /* ignore */ }
-            }
-        }
+            },
+            onFailure = { showToast("Failed to fetch systems: ${it.message}") }
+        )
     }
 
     private fun handlePerformanceSelection() {
@@ -524,29 +555,30 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun startQuiz() {
-        lifecycleScope.launch {
-            try {
+        launchCatching(
+            dispatcher = Dispatchers.IO,
+            block = {
                 val ids = viewModel.fetchFilteredQuestionIds()
                 viewModel.setQuestionIds(ids)
-                
+                ids
+            },
+            onSuccess = { ids ->
                 if (ids.isNotEmpty()) {
                     viewModel.loadQuestion(0)
                 } else {
                     binding.textViewStatus.text = "No questions found for current filters"
                 }
-            } catch (e: Exception) {
-                showToast("Failed to start: ${e.message}")
-            } finally {
-                binding.startFiltersPanel.root.visibility = View.GONE
-                if (filtersOnlyMode) {
-                    // Restore UI to normal once the quiz starts
-                    binding.toolbar.visibility = View.VISIBLE
-                    binding.cardQuestion.visibility = View.VISIBLE
-                    binding.bottomBar.visibility = View.VISIBLE
-                    binding.navigationView.visibility = View.VISIBLE
-                    filtersOnlyMode = false
-                }
-            }
+            },
+            onFailure = { showToast("Failed to start: ${it.message}") }
+        )
+        // Always hide filter panel and restore UI if needed
+        binding.startFiltersPanel.root.visibility = View.GONE
+        if (filtersOnlyMode) {
+            binding.toolbar.visibility = View.VISIBLE
+            binding.cardQuestion.visibility = View.VISIBLE
+            binding.bottomBar.visibility = View.VISIBLE
+            binding.navigationView.visibility = View.VISIBLE
+            filtersOnlyMode = false
         }
     }
 
@@ -579,28 +611,19 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun updatePreviewCount() {
-        lifecycleScope.launch {
-            try {
-                val count = viewModel.fetchFilteredQuestionIds().size
+        launchCatching(
+            dispatcher = Dispatchers.IO,
+            block = { viewModel.fetchFilteredQuestionIds().size },
+            onSuccess = { count ->
                 val text = if (count == 1) "1 question matches" else "$count questions match"
-                
-                binding.startFiltersPanel
-                    .textViewPreviewCountPanel
-                    .text = text
-                
-                binding.startFiltersPanel
-                    .buttonStartPanel
-                    .isEnabled = count > 0
-            } catch (e: Exception) {
-                binding.startFiltersPanel
-                    .textViewPreviewCountPanel
-                    .text = "Preview unavailable"
-                
-                binding.startFiltersPanel
-                    .buttonStartPanel
-                    .isEnabled = true
+                binding.startFiltersPanel.textViewPreviewCountPanel.text = text
+                binding.startFiltersPanel.buttonStartPanel.isEnabled = count > 0
+            },
+            onFailure = {
+                binding.startFiltersPanel.textViewPreviewCountPanel.text = "Preview unavailable"
+                binding.startFiltersPanel.buttonStartPanel.isEnabled = true
             }
-        }
+        )
     }
 
     // ============================================================================
@@ -620,69 +643,83 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private fun showSubjectFilterDialog() {
         viewModel.fetchSubjects()
-        lifecycleScope.launch {
-            val resource = viewModel.state
-                .first { it.subjectsResource !is Resource.Loading }
-                .subjectsResource
-
-            when (resource) {
-                is Resource.Success<List<Subject>> -> {
-                    val state = viewModel.state.firstMatching()
-                    filterDialogHandler.showSubjectSelectionDialog(
-                        resource.data,
-                        state.selectedSubjectIds,
-                        viewModel
-                    )
+        launchCatching(
+            dispatcher = Dispatchers.IO,
+            block = {
+                viewModel.state
+                    .first { it.subjectsResource !is Resource.Loading }
+                    .subjectsResource
+            },
+            onSuccess = { resource ->
+                when (resource) {
+                    is Resource.Success<List<Subject>> -> {
+                        val state = viewModel.state.firstMatching()
+                        filterDialogHandler.showSubjectSelectionDialog(
+                            resource.data,
+                            state.selectedSubjectIds,
+                            viewModel
+                        )
+                    }
+                    is Resource.Error -> showToast("Error fetching subjects: ${resource.message}")
+                    else -> { /* ignore */ }
                 }
-                is Resource.Error -> showToast("Error fetching subjects: ${resource.message}")
-                else -> { /* ignore */ }
-            }
-        }
+            },
+            onFailure = { showToast("Failed to fetch subjects: ${it.message}") }
+        )
     }
 
     private fun showSystemFilterDialog() {
         val state = viewModel.state.value
         viewModel.fetchSystemsForSubjects(state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList())
         
-        lifecycleScope.launch {
-            val resource = viewModel.state
-                .first { it.systemsResource !is Resource.Loading }
-                .systemsResource
-
-            when (resource) {
-                is Resource.Success<List<System>> -> {
-                    val currentState = viewModel.state.firstMatching()
-                    filterDialogHandler.showSystemSelectionDialog(
-                        resource.data,
-                        currentState.selectedSystemIds,
-                        viewModel
-                    )
+        launchCatching(
+            dispatcher = Dispatchers.IO,
+            block = {
+                viewModel.state
+                    .first { it.systemsResource !is Resource.Loading }
+                    .systemsResource
+            },
+            onSuccess = { resource ->
+                when (resource) {
+                    is Resource.Success<List<System>> -> {
+                        val currentState = viewModel.state.firstMatching()
+                        filterDialogHandler.showSystemSelectionDialog(
+                            resource.data,
+                            currentState.selectedSystemIds,
+                            viewModel
+                        )
+                    }
+                    is Resource.Error -> showToast("Error fetching systems: ${resource.message}")
+                    else -> { /* ignore */ }
                 }
-                is Resource.Error -> showToast("Error fetching systems: ${resource.message}")
-                else -> { /* ignore */ }
-            }
-        }
+            },
+            onFailure = { showToast("Failed to fetch systems: ${it.message}") }
+        )
     }
 
     private fun showPerformanceFilterDialog() {
         val filters = PerformanceFilter.values()
         val labels = filters.map { getPerformanceFilterLabel(it) }.toTypedArray()
         
-        lifecycleScope.launch {
-            val state = viewModel.state.firstMatching()
-            val currentIndex = filters.indexOf(state.performanceFilter)
+        launchCatching(
+            dispatcher = Dispatchers.IO,
+            block = { viewModel.state.firstMatching() },
+            onSuccess = { state ->
+                val currentIndex = filters.indexOf(state.performanceFilter)
 
-            AlertDialog.Builder(this@QuizActivity)
-                .setTitle("Performance Filter")
-                .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
-                    dialog.dismiss()
-                    if (state.performanceFilter != filters[which]) {
-                        applyPerformanceFilter(filters[which])
+                AlertDialog.Builder(this@QuizActivity)
+                    .setTitle("Performance Filter")
+                    .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
+                        dialog.dismiss()
+                        if (state.performanceFilter != filters[which]) {
+                            applyPerformanceFilter(filters[which])
+                        }
                     }
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
-        }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            },
+            onFailure = { showToast("Failed to get performance filter: ${it.message}") }
+        )
     }
 
     private fun applyPerformanceFilter(filter: PerformanceFilter) {
@@ -736,14 +773,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             .setTitle("Reset log history")
             .setMessage("This will permanently delete all stored answer logs. Continue?")
             .setPositiveButton("Delete") { _, _ ->
-                lifecycleScope.launch {
-                    try {
-                        viewModel.clearLogsFromDb()
-                        showToast("Logs cleared")
-                    } catch (e: Exception) {
-                        showToast("Failed to clear logs: ${e.message}")
-                    }
-                }
+                launchCatching(
+                    dispatcher = Dispatchers.IO,
+                    block = { viewModel.clearLogsFromDb() },
+                    onSuccess = { showToast("Logs cleared") },
+                    onFailure = { showToast("Failed to clear logs: ${it.message}") }
+                )
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -782,15 +817,18 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun handleRestoreSuccess() {
-        lifecycleScope.launch {
-            val state = viewModel.state.firstMatching()
-            
-            if (state.questionIds.isEmpty()) {
-                loadQuestionsAfterRestore()
-            } else {
-                restoreCurrentQuestion(state)
-            }
-        }
+        launchCatching(
+            dispatcher = Dispatchers.IO,
+            block = { viewModel.state.firstMatching() },
+            onSuccess = { state ->
+                if (state.questionIds.isEmpty()) {
+                    loadQuestionsAfterRestore()
+                } else {
+                    restoreCurrentQuestion(state)
+                }
+            },
+            onFailure = { throwable -> Log.e(TAG, "Failed to get state during restore", throwable) }
+        )
     }
 
     private suspend fun loadQuestionsAfterRestore() {
