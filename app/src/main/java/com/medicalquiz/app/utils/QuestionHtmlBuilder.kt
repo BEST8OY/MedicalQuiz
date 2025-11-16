@@ -105,6 +105,16 @@ object QuestionHtmlBuilder {
                     }
 
                     onReady(function() {
+                        // Notify the host that the DOM is ready for this question
+                        try {
+                            var qid = document.querySelector('.quiz-block') && document.querySelector('.quiz-block').getAttribute('data-question-id');
+                            if (qid) {
+                                console.log('Quiz: DOM ready for question ' + qid);
+                                if (window.AndroidBridge && window.AndroidBridge.domReady) {
+                                    window.AndroidBridge.domReady(String(qid));
+                                }
+                            }
+                        } catch (e) { console.error('Error reporting domReady', e); }
                         console.log('Quiz: DOM ready - binding answer handlers');
                         try { bindAnswerButtons(); } catch (e) { console.error('Quiz: bindAnswerButtons failed', e); }
                         initializeHintBehavior();
@@ -147,7 +157,7 @@ object QuestionHtmlBuilder {
         """.trimIndent()
 
         return """
-            <article class="quiz-block">
+            <article class="quiz-block" data-question-id="${question.id}">
                 <section class="question-body">$questionBody</section>
                 <div id="answer-feedback" class="answer-feedback hidden"></div>
                 <section class="answers">$answersHtml</section>

@@ -21,6 +21,7 @@ class WebViewController(private val mediaHandler: MediaHandler) {
     interface Bridge {
         fun onAnswerSelected(answerId: Long)
         fun openMedia(mediaRef: String)
+        fun domReady(questionId: String)
     }
 
     fun setup(webView: WebView, bridge: Bridge) {
@@ -72,7 +73,7 @@ class WebViewController(private val mediaHandler: MediaHandler) {
         WebViewRenderer.loadContent(context, webView, html)
     }
 
-    private class QuizJsBridge(private val bridge: Bridge) {
+        private class QuizJsBridge(private val bridge: Bridge) {
         @JavascriptInterface
         fun onAnswerSelected(answerId: String) {
             val parsed = answerId.toLongOrNull() ?: return
@@ -84,6 +85,12 @@ class WebViewController(private val mediaHandler: MediaHandler) {
             if (mediaRef.isBlank()) return
             bridge.openMedia(mediaRef)
         }
+
+            @JavascriptInterface
+            fun domReady(questionId: String) {
+                if (questionId.isBlank()) return
+                bridge.domReady(questionId)
+            }
     }
 
     companion object {

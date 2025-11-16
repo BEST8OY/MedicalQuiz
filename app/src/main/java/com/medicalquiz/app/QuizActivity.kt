@@ -207,6 +207,18 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 viewModel.openMedia(url)
             }
         }
+
+        override fun domReady(questionId: String) {
+            runOnUiThread {
+                val qid = questionId.toLongOrNull() ?: return@runOnUiThread
+                val state = viewModel.state.value
+                Log.d(TAG, "DOM reported ready for questionId=$qid; currentQuestionId=${state.currentQuestionId}")
+                // Ignore DOM ready events for questions that are no longer current
+                if (state.currentQuestionId != qid) return@runOnUiThread
+                // Question DOM is for the current question — we can do on-ready tasks here
+                // e.g., re-enable answer buttons or restore state
+            }
+        }
     }
 
     private fun normalizeMediaUrl(ref: String): String {
