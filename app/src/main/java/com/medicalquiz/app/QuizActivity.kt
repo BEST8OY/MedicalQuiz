@@ -21,7 +21,9 @@ import com.medicalquiz.app.data.SettingsRepository
 import com.medicalquiz.app.data.database.PerformanceFilter
 import com.medicalquiz.app.data.database.QuestionPerformance
 import com.medicalquiz.app.data.models.Subject
-import com.medicalquiz.app.data.models.System
+import com.medicalquiz.app.data.models.System as QuizSystem
+import com.medicalquiz.app.data.models.Question
+import android.view.MenuItem
 import com.medicalquiz.app.databinding.ActivityQuizBinding
 import com.medicalquiz.app.databinding.DialogSettingsBinding
 import com.medicalquiz.app.ui.FilterDialogHandler
@@ -461,7 +463,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 .systemsResource
 
             when (resource) {
-                is Resource.Success<List<System>> -> {
+                is Resource.Success<List<QuizSystem>> -> {
                     filterDialogHandler.showSystemSelectionDialogSilently(
                         resource.data,
                         viewModel.state.value.selectedSystemIds,
@@ -575,8 +577,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private fun handleNavigationItemSelected(itemId: Int) {
         when (itemId) {
-            R.id.nav_filter_subjects -> showSubjectFilterDialog()
-            R.id.nav_filter_systems -> showSystemFilterDialog()
+            R.id.nav_filter_subject -> showSubjectFilterDialog()
+            R.id.nav_filter_system -> showSystemFilterDialog()
             R.id.nav_filter_performance -> showPerformanceFilterDialog()
             R.id.nav_clear_filters -> clearFilters()
             R.id.nav_settings -> showSettingsDialog()
@@ -616,7 +618,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 .systemsResource
 
             when (resource) {
-                is Resource.Success<List<System>> -> {
+                is Resource.Success<List<QuizSystem>> -> {
                     val currentState = viewModel.state.firstMatching()
                     filterDialogHandler.showSystemSelectionDialog(
                         resource.data,
