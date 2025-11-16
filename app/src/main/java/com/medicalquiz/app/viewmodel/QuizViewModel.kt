@@ -119,11 +119,20 @@ class QuizViewModel : ViewModel() {
     fun setDatabaseManager(db: com.medicalquiz.app.data.database.DatabaseProvider) {
         databaseManager = db
         viewModelScope.launch(Dispatchers.IO) {
-            val ids = databaseManager?.getQuestionIds() ?: emptyList()
             // When switching DB, prune previously selected filters to those valid in the new DB
             val validSubjects = pruneInvalidSubjects().toSet()
-            val validSystems = pruneInvalidSystems().toSet()
-            _state.update { it.copy(questionIds = ids, selectedSubjectIds = validSubjects, selectedSystemIds = validSystems) }
+            // Don't preselect systems when no subjects are selected (empty selection == no filter)
+            val validSystems = if (validSubjects.isEmpty()) emptySet<Long>() else pruneInvalidSystems().toSet()
+
+            // Compute filtered question ids up front so the UI doesn't show an
+            // unfiltered question list briefly before filters are applied.
+            val filteredIds = databaseManager?.getQuestionIds(
+                subjectIds = validSubjects.toList().takeIf { it.isNotEmpty() },
+                systemIds = validSystems.toList().takeIf { it.isNotEmpty() },
+                performanceFilter = state.value.performanceFilter
+            ) ?: emptyList()
+
+            _state.update { it.copy(questionIds = filteredIds, selectedSubjectIds = validSubjects, selectedSystemIds = validSystems) }
 
             // Clear system-cache so systems are re-fetched for the new DB
             lastFetchedSubjectIds = null
@@ -255,7 +264,10 @@ class QuizViewModel : ViewModel() {
     }
 
     suspend fun pruneInvalidSystems(): List<Long> {
+        // If no subject filters are set, we should not treat this as a request to
+        // return "all systems" — returning an empty list means "no system filter".
         val subjects = state.value.selectedSubjectIds.toList()
+        if (subjects.isEmpty()) return emptyList()
         return databaseManager?.getSystems(subjects)?.map { it.id } ?: emptyList()
     }
 
