@@ -498,10 +498,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                             }
                         }
                     }
-                            viewModel.fetchSystemsForSubjects(viewModel.state.value.selectedSubjectIds.toList())
-                            updateAllFilterLabels()
-                        }
-                    }
                     is Resource.Error -> showToast("Error fetching subjects: ${resource.message}")
                     else -> { /* ignore */ }
                 }
