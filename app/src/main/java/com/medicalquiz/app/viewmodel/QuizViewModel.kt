@@ -251,7 +251,15 @@ class QuizViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             // Update selected subjects, prune systems and then request filtered IDs
             _state.update { it.copy(selectedSubjectIds = newSubjectIds) }
-            val valid = if (newSubjectIds.isEmpty()) emptySet<Long>() else pruneInvalidSystems().toSet()
+            // Compute valid systems based on the new subject set directly instead of
+            // reading the reactive state (avoids races where state gets updated
+            // concurrently by other coroutines).
+            val valid = if (newSubjectIds.isEmpty()) {
+                emptySet<Long>()
+            } else {
+                // Database call to fetch systems for the provided subjects
+                databaseManager?.getSystems(newSubjectIds.toList())?.map { it.id }?.toSet() ?: emptySet()
+            }
             _state.update { it.copy(selectedSystemIds = valid) }
             loadFilteredQuestionIds()
         }

@@ -4,6 +4,8 @@ import com.medicalquiz.app.data.models.Answer
 import com.medicalquiz.app.data.models.Question
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Repository for question-related database operations
@@ -11,8 +13,6 @@ import kotlinx.coroutines.withContext
 class QuestionRepository(private val connection: DatabaseConnection) {
     private val subjectNameCache = mutableMapOf<Long, String?>()
     private val systemNameCache = mutableMapOf<Long, String?>()
-    private val subjectQuery by lazy { connection.getDatabase().compileStatement("SELECT name FROM Subjects WHERE id = ?") }
-    private val systemQuery by lazy { connection.getDatabase().compileStatement("SELECT name FROM Systems WHERE id = ?") }
     private val questionQuery by lazy {
         connection.getDatabase().compileStatement(
             "SELECT id, question, explanation, corrAns, title, mediaName, otherMedias, pplTaken, corrTaken, subId, sysId FROM Questions WHERE id = ?"
@@ -23,6 +23,9 @@ class QuestionRepository(private val connection: DatabaseConnection) {
             "SELECT answerId, answerText, correctPercentage FROM Answers WHERE qId = ? ORDER BY answerId"
         )
     }
+    // Guard compiled statements (like `questionQuery`) with a coroutine-friendly
+    // mutex so access is non-blocking and cancellations behave well.
+    private val compiledStatementMutex = Mutex()
     
     /**
      * Get all question IDs, optionally filtered by subjects and systems
@@ -75,19 +78,20 @@ class QuestionRepository(private val connection: DatabaseConnection) {
      */
     suspend fun getQuestionById(id: Long): Question? = withContext(Dispatchers.IO) {
         val db = connection.getDatabase()
-        questionQuery.bindLong(1, id)
-        // Execute the compiled statement to validate / warm the statement cache.
-        // If there is no row for this id, `simpleQueryForLong()` will throw
-        // SQLiteDoneException — catch it and continue; we'll still use the
-        // rawQuery below to safely read the whole row (which returns null if
-        // it does not exist).
-        try {
-            questionQuery.simpleQueryForLong()
-        } catch (e: android.database.sqlite.SQLiteDoneException) {
-            // No op — item not found, move on to rawQuery below which will
-            // return an empty cursor and thus null.
-        } finally {
-            questionQuery.clearBindings()
+        compiledStatementMutex.withLock {
+            questionQuery.bindLong(1, id)
+            // Execute the compiled statement to validate / warm the statement cache.
+            // If there is no row for this id, `simpleQueryForLong()` will throw
+            // SQLiteDoneException — catch it and continue; we'll still use the
+            // rawQuery below to safely read the whole row (which returns null if
+            // it does not exist).
+            try {
+                questionQuery.simpleQueryForLong()
+            } catch (e: android.database.sqlite.SQLiteDoneException) {
+                // No op — item not found
+            } finally {
+                questionQuery.clearBindings()
+            }
         }
 
         // Since we need full row data, we still need to use rawQuery for now
@@ -102,6 +106,8 @@ class QuestionRepository(private val connection: DatabaseConnection) {
                 // Get subject and system names with optimized queries
                 val subId = it.getString(9)
                 val sysId = it.getString(10)
+                // getSubjectName/getSystemName are now implemented with rawQuery
+                // which is safe to call concurrently. No need to lock here.
                 val subName = getSubjectName(subId)
                 val sysName = getSystemName(sysId)
 
@@ -211,24 +217,18 @@ class QuestionRepository(private val connection: DatabaseConnection) {
         ?.toLongOrNull()
 
     private fun fetchSubjectName(id: Long): String? {
-        subjectQuery.bindLong(1, id)
-        return try {
-            subjectQuery.simpleQueryForString()
-        } catch (e: android.database.sqlite.SQLiteDoneException) {
-            null
-        } finally {
-            subjectQuery.clearBindings()
+        val db = connection.getDatabase()
+        val cur = db.rawQuery("SELECT name FROM Subjects WHERE id = ?", arrayOf(id.toString()))
+        cur.use {
+            return if (it.moveToFirst()) it.getString(0) else null
         }
     }
 
     private fun fetchSystemName(id: Long): String? {
-        systemQuery.bindLong(1, id)
-        return try {
-            systemQuery.simpleQueryForString()
-        } catch (e: android.database.sqlite.SQLiteDoneException) {
-            null
-        } finally {
-            systemQuery.clearBindings()
+        val db = connection.getDatabase()
+        val cur = db.rawQuery("SELECT name FROM Systems WHERE id = ?", arrayOf(id.toString()))
+        cur.use {
+            return if (it.moveToFirst()) it.getString(0) else null
         }
     }
 }

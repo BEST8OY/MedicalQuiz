@@ -3,6 +3,8 @@ package com.medicalquiz.app.data.database
 import android.content.ContentValues
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -38,6 +40,9 @@ class LogRepository(private val connection: DatabaseConnection) {
             "SELECT lastCorrect, everCorrect, everIncorrect, attempts FROM logs_summary WHERE qid = ?"
         )
     }
+    // Compiled SQLite statements are not safe for concurrent usage across threads.
+    // Use a coroutine-friendly Mutex to guard binding & execution.
+    private val compiledStatementMutex = Mutex()
     
     data class PendingLogEntry(
         val qid: Long,
@@ -126,6 +131,7 @@ class LogRepository(private val connection: DatabaseConnection) {
             // Group entries by question ID for batch summary updates
             val entriesByQuestion = entriesToFlush.groupBy { it.qid }
             
+            // Insert entries sequentially inside the lock if necessary.
             entriesToFlush.forEach { entry ->
                 insertLogEntry(entry)
             }
@@ -142,18 +148,20 @@ class LogRepository(private val connection: DatabaseConnection) {
         }
     }
     
-    private fun insertLogEntry(entry: PendingLogEntry) {
-        insertLogStmt.bindLong(1, entry.qid)
-        insertLogStmt.bindLong(2, entry.selectedAnswer.toLong())
-        insertLogStmt.bindLong(3, entry.corrAnswer.toLong())
-        insertLogStmt.bindLong(4, entry.time)
-        insertLogStmt.bindString(5, entry.answerDate)
-        insertLogStmt.bindString(6, entry.testId)
-        insertLogStmt.executeInsert()
-        insertLogStmt.clearBindings()
+    private suspend fun insertLogEntry(entry: PendingLogEntry) {
+        compiledStatementMutex.withLock {
+            insertLogStmt.bindLong(1, entry.qid)
+            insertLogStmt.bindLong(2, entry.selectedAnswer.toLong())
+            insertLogStmt.bindLong(3, entry.corrAnswer.toLong())
+            insertLogStmt.bindLong(4, entry.time)
+            insertLogStmt.bindString(5, entry.answerDate)
+            insertLogStmt.bindString(6, entry.testId)
+            insertLogStmt.executeInsert()
+            insertLogStmt.clearBindings()
+        }
     }
 
-    private fun updateSummaryBatch(qid: Long, entries: List<PendingLogEntry>) {
+    private suspend fun updateSummaryBatch(qid: Long, entries: List<PendingLogEntry>) {
         // Get current summary state
         val currentState = getCurrentSummary(qid)
         
@@ -172,13 +180,15 @@ class LogRepository(private val connection: DatabaseConnection) {
         }
         
         // Update summary with final state
-        upsertSummaryStmt.bindLong(1, qid)
-        upsertSummaryStmt.bindLong(2, lastCorrect.toLong())
-        upsertSummaryStmt.bindLong(3, everCorrect.toLong())
-        upsertSummaryStmt.bindLong(4, everIncorrect.toLong())
-        upsertSummaryStmt.bindLong(5, attempts.toLong())
-        upsertSummaryStmt.executeInsert()
-        upsertSummaryStmt.clearBindings()
+        compiledStatementMutex.withLock {
+            upsertSummaryStmt.bindLong(1, qid)
+            upsertSummaryStmt.bindLong(2, lastCorrect.toLong())
+            upsertSummaryStmt.bindLong(3, everCorrect.toLong())
+            upsertSummaryStmt.bindLong(4, everIncorrect.toLong())
+            upsertSummaryStmt.bindLong(5, attempts.toLong())
+            upsertSummaryStmt.executeInsert()
+            upsertSummaryStmt.clearBindings()
+        }
     }
     
     private data class SummaryState(val lastCorrect: Int, val everCorrect: Int, val everIncorrect: Int, val attempts: Int)
