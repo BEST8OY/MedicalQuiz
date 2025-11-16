@@ -485,12 +485,19 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             onSuccess = { resource ->
                 when (resource) {
                     is Resource.Success<List<Subject>> -> {
-                        val state = viewModel.state.firstMatching()
-                        filterDialogHandler.showSubjectSelectionDialogSilently(
-                            resource.data,
-                            state.selectedSubjectIds,
-                            viewModel
-                        ) {
+                        // `firstMatching()` is a suspend function; call it from a coroutine
+                        lifecycleScope.launch {
+                            val state = viewModel.state.firstMatching()
+                            filterDialogHandler.showSubjectSelectionDialogSilently(
+                                resource.data,
+                                state.selectedSubjectIds,
+                                viewModel
+                            ) {
+                                viewModel.fetchSystemsForSubjects(viewModel.state.value.selectedSubjectIds.toList())
+                                updateAllFilterLabels()
+                            }
+                        }
+                    }
                             viewModel.fetchSystemsForSubjects(viewModel.state.value.selectedSubjectIds.toList())
                             updateAllFilterLabels()
                         }
@@ -593,14 +600,20 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val count = viewModel.state.value.selectedSubjectIds.size
         binding.startFiltersPanel
             .buttonSelectSubjectsPanel
-            .text = if (count == 0) "Select Subjects" else "Subjects: $count"
+            .text = if (count == 0) "Subjects: All" else "Subjects: $count"
+        // If no subjects are selected it used to mean "systems not applicable" —
+        // but we treat an empty subject selection as "All subjects" now. Systems
+        // are still available in that case, so keep the systems button enabled.
+        binding.startFiltersPanel
+            .buttonSelectSystemsPanel
+            .isEnabled = true
     }
 
     private fun updateSystemLabel() {
         val count = viewModel.state.value.selectedSystemIds.size
         binding.startFiltersPanel
             .buttonSelectSystemsPanel
-            .text = if (count == 0) "Select Systems" else "Systems: $count"
+            .text = if (count == 0) "Systems: All" else "Systems: $count"
     }
 
     private fun updatePerformanceLabel() {
@@ -653,12 +666,16 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             onSuccess = { resource ->
                 when (resource) {
                     is Resource.Success<List<Subject>> -> {
-                        val state = viewModel.state.firstMatching()
-                        filterDialogHandler.showSubjectSelectionDialog(
-                            resource.data,
-                            state.selectedSubjectIds,
-                            viewModel
-                        )
+                        // `firstMatching()` is suspend; launch a coroutine on the main
+                        // thread to get state and show the dialog
+                        lifecycleScope.launch {
+                            val state = viewModel.state.firstMatching()
+                            filterDialogHandler.showSubjectSelectionDialog(
+                                resource.data,
+                                state.selectedSubjectIds,
+                                viewModel
+                            )
+                        }
                     }
                     is Resource.Error -> showToast("Error fetching subjects: ${resource.message}")
                     else -> { /* ignore */ }
@@ -682,12 +699,15 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             onSuccess = { resource ->
                 when (resource) {
                     is Resource.Success<List<System>> -> {
-                        val currentState = viewModel.state.firstMatching()
-                        filterDialogHandler.showSystemSelectionDialog(
-                            resource.data,
-                            currentState.selectedSystemIds,
-                            viewModel
-                        )
+                        // `firstMatching()` is suspend; do it inside a coroutine
+                        lifecycleScope.launch {
+                            val currentState = viewModel.state.firstMatching()
+                            filterDialogHandler.showSystemSelectionDialog(
+                                resource.data,
+                                currentState.selectedSystemIds,
+                                viewModel
+                            )
+                        }
                     }
                     is Resource.Error -> showToast("Error fetching systems: ${resource.message}")
                     else -> { /* ignore */ }
@@ -822,7 +842,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             block = { viewModel.state.firstMatching() },
             onSuccess = { state ->
                 if (state.questionIds.isEmpty()) {
-                    loadQuestionsAfterRestore()
+                    // `loadQuestionsAfterRestore()` is a suspend function; run
+                    // it in a coroutine
+                    lifecycleScope.launch { loadQuestionsAfterRestore() }
                 } else {
                     restoreCurrentQuestion(state)
                 }
