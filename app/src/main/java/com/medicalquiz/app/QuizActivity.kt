@@ -295,7 +295,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 showStartFiltersPanel()
             }
         } else {
-            showQuestionsLoaded(state.questionIds.size)
             if (!filtersOnlyMode) {
                 binding.startFiltersPanel.root.visibility = View.GONE
             }
@@ -612,7 +611,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 if (ids.isNotEmpty()) {
                     viewModel.loadQuestion(0)
                 } else {
-                    binding.textViewStatus.text = "No questions found for current filters"
+                    showToast("No questions found for current filters")
                 }
             },
             onFailure = { showToast("Failed to start: ${it.message}") }
@@ -790,8 +789,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun restoreInstanceState(savedInstanceState: Bundle) {
         val dbPath = intent.getStringExtra(EXTRA_DB_PATH) ?: return
         
-        binding.textViewStatus.text = "Restoring quiz state..."
-        
         launchCatching(
             block = {
                 mediaHandler.reset()
@@ -834,7 +831,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             val state = viewModel.state.firstMatching()
             
             if (state.questionIds.isNotEmpty()) {
-                showQuestionsLoaded(state.questionIds.size)
                 viewModel.loadQuestion(0)
             } else {
                 showNoQuestionsFound()
@@ -853,11 +849,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
         
         updateToolbarSubtitle()
-        showQuestionsLoaded(state.questionIds.size)
     }
 
     private fun handleRestoreFailure(throwable: Throwable, dbPath: String) {
-        binding.textViewStatus.text = "Error restoring state: ${throwable.message}"
+        showToast("Error restoring state: ${throwable.message}")
         Log.e(TAG, "Failed to restore instance state", throwable)
         initializeDatabase(dbPath)
     }
@@ -912,18 +907,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private fun showNoQuestionsFound() {
         showToast("No questions found with selected filters")
-        binding.textViewStatus.apply {
-            text = "No questions found for current filters"
-            isVisible = true
-        }
-        updateToolbarSubtitle()
-    }
-
-    private fun showQuestionsLoaded(count: Int) {
-        binding.textViewStatus.apply {
-            text = "Loaded $count questions"
-            isVisible = true
-        }
         updateToolbarSubtitle()
     }
 
@@ -1013,7 +996,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun initializeDatabase(dbPath: String) {
-        binding.textViewStatus.text = "Loading database..."
         clearCaches()
         viewModel.initializeDatabase(dbPath)
     }
