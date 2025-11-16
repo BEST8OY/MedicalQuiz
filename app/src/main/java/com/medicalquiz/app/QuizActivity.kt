@@ -346,7 +346,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val question = state.currentQuestion ?: return
         startTime = java.lang.System.currentTimeMillis()
 
-            launchCatching(
+        launchCatching(
                 dispatcher = Dispatchers.Default,
                 block = {
                     val quizHtml = QuestionHtmlBuilder.build(question, state.currentAnswers)
@@ -362,7 +362,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     loadPerformanceForQuestion(question.id)
                 },
                 onFailure = { showToast("Failed to load question: ${it.message}") }
-            )
+        )
     }
 
     private fun updateQuestionMetadata(question: Question, state: QuizState) {
