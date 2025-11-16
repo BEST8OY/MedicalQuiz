@@ -4,12 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
-import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.Toast
 import android.util.Log
 import androidx.activity.OnBackPressedCallback
@@ -24,8 +19,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Lifecycle
 import androidx.activity.viewModels
 import com.google.android.material.navigation.NavigationView
-import com.medicalquiz.app.MedicalQuizApp
-// DatabaseManager switching is handled by the ViewModel now
 import com.medicalquiz.app.data.database.PerformanceFilter
 import com.medicalquiz.app.data.database.QuestionPerformance
 import com.medicalquiz.app.data.models.Answer
@@ -40,21 +33,10 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.medicalquiz.app.utils.Resource
 import com.medicalquiz.app.data.models.Subject
 import com.medicalquiz.app.data.models.System
-import com.medicalquiz.app.utils.HtmlUtils
-import com.medicalquiz.app.utils.WebViewRenderer
-import com.medicalquiz.app.utils.launchCatching
-import com.medicalquiz.app.utils.safeEvaluateJavascript
-import com.medicalquiz.app.utils.safeLoadDataWithBaseURL
-// settings handled by SettingsRepository now
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.async
-import java.util.UUID
+// ViewModel handles DB switching/state
 
 class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     private lateinit var binding: ActivityQuizBinding
-    // database access is handled by `QuizViewModel`; Activity does not hold a DB reference
     private val viewModel: com.medicalquiz.app.viewmodel.QuizViewModel by viewModels()
     private lateinit var drawerToggle: ActionBarDrawerToggle
     private lateinit var mediaHandler: MediaHandler
@@ -62,18 +44,11 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private lateinit var webViewController: com.medicalquiz.app.utils.WebViewController
     private lateinit var settingsRepository: com.medicalquiz.app.data.SettingsRepository
     private lateinit var cacheManager: com.medicalquiz.app.data.CacheManager
-    
+
     // UI state is driven by ViewModel.state — avoid duplicating it in Activity
     private var startTime: Long = 0
-    // When true, the first question will load automatically when a new 
-    // filtered question list arrives. Set by the UI after the user applies a filter.
     private var autoLoadFirstQuestion: Boolean = false
-    // Selected filters are now stored in the ViewModel
-    // Performance filter moved to ViewModel
-    // Answer submission tracked by `viewModel.state.answerSubmitted` — keep Activity stateless
-    // Activity delegates media caching to CacheManager
-    // Use ViewModel state for performance and other SSoT values
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityQuizBinding.inflate(layoutInflater)
@@ -81,58 +56,57 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         binding.scrollViewContent.clipToPadding = false
         applyWindowInsets()
+
         settingsRepository = com.medicalquiz.app.data.SettingsRepository(this)
         cacheManager = com.medicalquiz.app.data.CacheManager()
         viewModel.setSettingsRepository(settingsRepository)
         viewModel.setCacheManager(cacheManager)
+
         val initialPerformance = settingsRepository.performanceFilter.value
         viewModel.setPerformanceFilter(initialPerformance)
         settingsRepository.setPerformanceFilter(initialPerformance)
-        
+
         val dbPath = intent.getStringExtra(EXTRA_DB_PATH)
         val dbName = intent.getStringExtra(EXTRA_DB_NAME)
-        
-        if (dbPath == null) {
+
+        if (dbPath.isNullOrEmpty()) {
             showToast("No database selected")
             finish()
             return
         }
-        
+
         setSupportActionBar(binding.toolbar)
         supportActionBar?.title = dbName
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        
-        // initialize DB in ViewModel and keep local reference for non-ViewModel helpers
-        // Switch DB at the app level then hand it to the ViewModel (suspend function)
+
+        // Initialize DB in ViewModel
         lifecycleScope.launch {
-                viewModel.switchDatabase(dbPath)
-                // Wait until subjects are loaded (or an error occurs) so that the
-                // start dialog shows ready-to-use subject/system lists. This avoids
-                // showing the dialog when the DB hasn't finished initialization.
-                try {
-                    viewModel.state.first { it.subjectsResource !is com.medicalquiz.app.utils.Resource.Loading }
-                } catch (_: Exception) {
-                    // ignore — proceed to show dialog anyway so user can try selecting
-                }
+            viewModel.switchDatabase(dbPath)
+            // Wait until subjects are loaded (or an error occurs) so that the
+            // start panel shows ready-to-use subject/system lists. This avoids
+            // showing the panel when the DB hasn't finished initialization.
+            try {
+                viewModel.state.first { it.subjectsResource !is com.medicalquiz.app.utils.Resource.Loading }
+            } catch (_: Exception) { /* ignore */ }
+import com.medicalquiz.app.utils.HtmlUtils
+import com.medicalquiz.app.utils.WebViewRenderer
+import com.medicalquiz.app.utils.launchCatching
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+        
                 mediaHandler = MediaHandler(this@QuizActivity)
             filterDialogHandler = FilterDialogHandler(this@QuizActivity)
             mediaHandler.reset()
             // DB manager is switched through `viewModel.switchDatabase` during onCreate
-
-            // setup UI now that DB is ready
             setupWebViews()
             setupDrawer()
             setupListeners()
-                // Show the inline filter panel so user can set filters before
-                // starting the quiz. This is shown every time a new DB is opened.
-                binding.filterPanel.isVisible = true
-                // Prefetch subjects/systems for quick UI response
-                viewModel.fetchSubjects()
-                viewModel.fetchSystemsForSubjects(null)
-                // Configure the inline filter panel (listeners/preview)
-                setupFilterPanel()
+                // Show Start panel so the user can select filters before starting the quiz
+                showStartFiltersPanel()
         }
-        // Note: setupWebViews, setupDrawer, setupListeners will run after DB initialization
+        
 
         // Observe unified view state from ViewModel
         // `autoLoadFirstQuestion` controls whether the first question should be
@@ -167,8 +141,10 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                             }
                             updateToolbarSubtitle()
                             // New list available — do not auto-load. Let the user
-                            // filter and choose when to load. The Start UI is now
-                            // on the main screen, so no additional hint is required.
+                            // filter and choose when to load. We give a hint in
+                            // the status that the user can tap the counter or
+                            // use Next to begin.
+                            // No auto-start; user will use Start panel or next/counter to begin.
                         }
                     }
 
@@ -389,49 +365,21 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
     }
 
-    private fun setupFilterPanel() {
-        // Inline panel is built in XML and available via `binding`
+    private fun showStartFiltersPanel() {
+        val panel = binding.startFiltersPanel
+        panel.isVisible = true
 
-        // Update labels with current selection counts
-        fun updateSubjectLabel() {
-            val s = viewModel.state.value
-            val count = s.selectedSubjectIds.size
-            binding.buttonSelectSubjects.text = if (count == 0) "Select Subjects" else "Subjects: $count"
-        }
+        // Use global helper functions to update the panel labels. This avoids
+        // duplication between the local and global implementations.
 
-        fun updateSystemLabel() {
-            val s = viewModel.state.value
-            val count = s.selectedSystemIds.size
-            binding.buttonSelectSystems.text = if (count == 0) "Select Systems" else "Systems: $count"
-        }
-
-        fun updatePerformanceLabel() {
-            val pf = viewModel.state.value.performanceFilter
-            binding.buttonSelectPerformance.text = getPerformanceFilterLabel(pf)
-        }
-
-        // Update preview of how many questions match the current filters
-        fun updatePreviewCount() {
-            lifecycleScope.launch {
-                try {
-                    val count = viewModel.fetchFilteredQuestionIds().size
-                    binding.textViewPreviewCount.text = if (count == 1) "1 question matches" else "$count questions match"
-                    binding.buttonStartQuiz.isEnabled = count > 0
-                } catch (e: Exception) {
-                    binding.textViewPreviewCount.text = "Preview unavailable"
-                    binding.buttonStartQuiz.isEnabled = true
-                }
-            }
-        }
-
-        binding.buttonSelectSubjects.setOnClickListener {
+        panel.findViewById<android.widget.Button>(R.id.buttonSelectSubjectsPanel).setOnClickListener {
             viewModel.fetchSubjects()
             lifecycleScope.launch {
                 val resource = viewModel.state.first { it.subjectsResource !is com.medicalquiz.app.utils.Resource.Loading }.subjectsResource
                 when (resource) {
                     is com.medicalquiz.app.utils.Resource.Success<List<Subject>> -> {
                         val ss = viewModel.state.firstMatching()
-                        filterDialogHandler.showSubjectSelectionDialog(resource.data, ss.selectedSubjectIds, viewModel) {
+                        filterDialogHandler.showSubjectSelectionDialogSilently(resource.data, ss.selectedSubjectIds, viewModel) {
                             // When subjects are applied, systems list may change — prefetch
                             viewModel.fetchSystemsForSubjects(viewModel.state.value.selectedSubjectIds.toList())
                             updateSubjectLabel()
@@ -445,15 +393,14 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
         }
 
-        binding.buttonSelectSystems.setOnClickListener {
+        panel.findViewById<android.widget.Button>(R.id.buttonSelectSystemsPanel).setOnClickListener {
             val ss = viewModel.state.value
-            // Fetch systems for currently selected subjects
             viewModel.fetchSystemsForSubjects(ss.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList())
             lifecycleScope.launch {
                 val resource = viewModel.state.first { it.systemsResource !is com.medicalquiz.app.utils.Resource.Loading }.systemsResource
                 when (resource) {
                     is com.medicalquiz.app.utils.Resource.Success<List<System>> -> {
-                        filterDialogHandler.showSystemSelectionDialog(resource.data, viewModel.state.value.selectedSystemIds, viewModel) {
+                        filterDialogHandler.showSystemSelectionDialogSilently(resource.data, viewModel.state.value.selectedSystemIds, viewModel) {
                             updateSystemLabel()
                             updatePreviewCount()
                         }
@@ -464,8 +411,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
         }
 
-        binding.buttonSelectPerformance.setOnClickListener {
-            // Use existing performance dialog
+        panel.findViewById<android.widget.Button>(R.id.buttonSelectPerformancePanel).setOnClickListener {
             val filters = PerformanceFilter.values()
             val labels = filters.map { getPerformanceFilterLabel(it) }.toTypedArray()
             val currentIndex = filters.indexOf(viewModel.state.value.performanceFilter)
@@ -475,29 +421,77 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     d.dismiss()
                     viewModel.setPerformanceFilter(filters[which])
                     updatePerformanceLabel()
+                    updatePreviewCount()
                 }
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
         }
 
-        // No cancel button in inline panel (user can hide the panel via drawer or Start)
+        panel.findViewById<android.widget.Button>(R.id.buttonCancelPanel).setOnClickListener {
+            panel.isVisible = false
+            updateToolbarSubtitle()
         }
 
-        binding.buttonStartQuiz.setOnClickListener {
-            // Trigger loading of filtered question IDs and auto-load first
-            // question when available.
-            autoLoadFirstQuestion = true
-            binding.filterPanel.isVisible = false
-            viewModel.loadFilteredQuestionIds()
+        panel.findViewById<android.widget.Button>(R.id.buttonStartPanel).setOnClickListener {
+            // When starting, fetch the filtered question ids and then begin the quiz
+            lifecycleScope.launch {
+                try {
+                    val ids = viewModel.fetchFilteredQuestionIds()
+                    viewModel.setQuestionIds(ids)
+                    if (ids.isNotEmpty()) {
+                        viewModel.loadQuestion(0)
+                    } else {
+                        binding.textViewStatus.text = "No questions found for current filters"
+                    }
+                } catch (e: Exception) {
+                    showToast("Failed to start: ${e.message}")
+                } finally {
+                    panel.isVisible = false
+                }
+            }
         }
 
-        // compute initial preview
-        updatePreviewCount()
-
-        // Ensure labels are correct when panel is shown
         updateSubjectLabel()
         updateSystemLabel()
         updatePerformanceLabel()
+        updatePreviewCount()
+    }
+        // start filters are shown inline via `startFiltersPanel` (no dialog)
+
+        // Update labels with current selection counts
+        fun updateSubjectLabel() {
+            val s = viewModel.state.value
+            val count = s.selectedSubjectIds.size
+            binding.startFiltersPanel.findViewById<android.widget.Button>(R.id.buttonSelectSubjectsPanel).text = if (count == 0) "Select Subjects" else "Subjects: $count"
+        }
+
+        fun updateSystemLabel() {
+            val s = viewModel.state.value
+            val count = s.selectedSystemIds.size
+            binding.startFiltersPanel.findViewById<android.widget.Button>(R.id.buttonSelectSystemsPanel).text = if (count == 0) "Select Systems" else "Systems: $count"
+        }
+
+        fun updatePerformanceLabel() {
+            val pf = viewModel.state.value.performanceFilter
+            binding.startFiltersPanel.findViewById<android.widget.Button>(R.id.buttonSelectPerformancePanel).text = getPerformanceFilterLabel(pf)
+        }
+
+        // Update preview of how many questions match the current filters
+        fun updatePreviewCount() {
+            lifecycleScope.launch {
+                try {
+                    val count = viewModel.fetchFilteredQuestionIds().size
+                    binding.startFiltersPanel.findViewById<android.widget.TextView>(R.id.textViewPreviewCountPanel).text = if (count == 1) "1 question matches" else "$count questions match"
+                    binding.startFiltersPanel.findViewById<android.widget.Button>(R.id.buttonStartPanel).isEnabled = count > 0
+                } catch (e: Exception) {
+                    binding.startFiltersPanel.findViewById<android.widget.TextView>(R.id.textViewPreviewCountPanel).text = "Preview unavailable"
+                    binding.startFiltersPanel.findViewById<android.widget.Button>(R.id.buttonStartPanel).isEnabled = true
+                }
+            }
+        }
+
+        // Dialog-based start flow has been replaced with inline `startFiltersPanel`.
+        // Initialization above already set the labels and preview.
     }
 
     private fun updateNavigationControls(state: com.medicalquiz.app.ui.QuizState) {
@@ -506,37 +500,6 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         binding.buttonPrevious.isEnabled = state.currentQuestionIndex > 0
         binding.textViewQuestionIndex.text = (state.currentQuestionIndex + 1).toString()
         binding.textViewTotalQuestions.text = "/ $total"
-        binding.counterContainer.isEnabled = total > 0
-    }
-    
-    override fun onNavigationItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            R.id.nav_filter_subject -> {
-                // Fetch subjects in ViewModel and observe once
-                viewModel.fetchSubjects()
-                lifecycleScope.launch {
-                    val resource = viewModel.state.first { it.subjectsResource !is com.medicalquiz.app.utils.Resource.Loading }.subjectsResource
-                    when (resource) {
-                        is com.medicalquiz.app.utils.Resource.Loading -> {
-                            // optional loading UI
-                        }
-                        is com.medicalquiz.app.utils.Resource.Success<List<Subject>> -> {
-                            val ss = viewModel.state.firstMatching()
-                            val selectedSubjects = ss.selectedSubjectIds
-                            filterDialogHandler.showSubjectSelectionDialog(resource.data, selectedSubjects, viewModel)
-                        }
-                        is com.medicalquiz.app.utils.Resource.Error -> {
-                            showToast("Error fetching subjects: ${resource.message}")
-                        }
-                    }
-                }
-            }
-            R.id.nav_filter_system -> {
-                // Fetch systems from ViewModel and show the dialog once loaded
-                lifecycleScope.launch {
-                    val ss = viewModel.state.firstMatching()
-                    viewModel.fetchSystemsForSubjects(ss.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList())
-                    val resource = viewModel.state.first { it.systemsResource !is com.medicalquiz.app.utils.Resource.Loading }.systemsResource
                     // resource is filled above after fetch
                     when (resource) {
                         is com.medicalquiz.app.utils.Resource.Loading -> { /* optional loading */ }

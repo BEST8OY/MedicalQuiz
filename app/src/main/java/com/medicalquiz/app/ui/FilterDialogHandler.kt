@@ -29,6 +29,34 @@ class FilterDialogHandler(
         }
         showSubjectSelectionDialogInternal(subjects, currentSubjectIds, viewModel, onApply)
     }
+
+    /**
+     * Variant of the subject selection dialog that sets the selected subjects
+     * silently (does not call applySelectedSubjects), so callers can stage
+     * changes and later apply them when the user confirms in a separate UI.
+     */
+    fun showSubjectSelectionDialogSilently(
+        subjects: List<Subject>,
+        currentSubjectIds: Set<Long>,
+        viewModel: com.medicalquiz.app.viewmodel.QuizViewModel,
+        onApply: (() -> Unit)? = null
+    ) {
+        if (subjects.isEmpty()) {
+            showNoDataDialog("No subjects found")
+            return
+        }
+        showSelectionDialog(
+            title = "Select Subjects",
+            items = subjects,
+            isChecked = { currentSubjectIds.contains(it.id) },
+            labelProvider = { it.name },
+            idProvider = { it.id },
+            onApply = { selected ->
+                viewModel.setSelectedSubjectsSilently(selected)
+                onApply?.let { it.invoke() }
+            }
+        )
+    }
     
     fun showSystemSelectionDialog(
         systems: List<System>,
@@ -41,6 +69,29 @@ class FilterDialogHandler(
             return
         }
         showSystemSelectionDialogInternal(systems, currentSystemIds, viewModel, onApply)
+    }
+
+    fun showSystemSelectionDialogSilently(
+        systems: List<System>,
+        currentSystemIds: Set<Long>,
+        viewModel: com.medicalquiz.app.viewmodel.QuizViewModel,
+        onApply: (() -> Unit)? = null
+    ) {
+        if (systems.isEmpty()) {
+            showNoDataDialog("No systems found")
+            return
+        }
+        showSelectionDialog(
+            title = "Select Systems",
+            items = systems,
+            isChecked = { currentSystemIds.contains(it.id) },
+            labelProvider = { it.name },
+            idProvider = { it.id },
+            onApply = { selected ->
+                viewModel.setSelectedSystemsSilently(selected)
+                onApply?.let { it.invoke() }
+            }
+        )
     }
     
     private fun showSubjectSelectionDialogInternal(

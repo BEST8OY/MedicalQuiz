@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.atomic.AtomicInteger
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -14,6 +15,9 @@ import java.util.*
 class LogRepository(private val connection: DatabaseConnection) {
     
     private val logBuffer = mutableListOf<PendingLogEntry>()
+    // Track the size without locking for quick reads
+    private val pendingCount = AtomicInteger(0)
+    private val bufferMutex = Mutex()
     private val autoFlushThreshold = 10 // Flush after N answers
     
     // Prepared statements for better performance
@@ -106,12 +110,13 @@ class LogRepository(private val connection: DatabaseConnection) {
             testId = testId
         )
         
-        synchronized(logBuffer) {
+        bufferMutex.withLock {
             logBuffer.add(entry)
+            pendingCount.incrementAndGet()
         }
         
         // Auto-flush if threshold reached
-        if (logBuffer.size >= autoFlushThreshold) {
+        if (pendingCount.get() >= autoFlushThreshold) {
             flushLogs()
         }
     }
@@ -120,9 +125,12 @@ class LogRepository(private val connection: DatabaseConnection) {
      * Flush all pending logs to database
      */
     suspend fun flushLogs(): Int = withContext(Dispatchers.IO) {
-        val entriesToFlush = synchronized(logBuffer) {
+        val entriesToFlush = bufferMutex.withLock {
             if (logBuffer.isEmpty()) return@withContext 0
-            logBuffer.toList().also { logBuffer.clear() }
+            val snapshot = logBuffer.toList()
+            logBuffer.clear()
+            pendingCount.set(0)
+            snapshot
         }
         
         val db = connection.getDatabase()
@@ -217,14 +225,20 @@ class LogRepository(private val connection: DatabaseConnection) {
     /**
      * Get pending log count
      */
-    fun getPendingLogCount(): Int = synchronized(logBuffer) { logBuffer.size }
+    fun getPendingLogCount(): Int = pendingCount.get()
     
     /**
      * Clear buffer without flushing
      */
     fun clearBuffer() {
-        synchronized(logBuffer) {
-            logBuffer.clear()
+        // Best-effort clear — not suspend so we use the lock in a non-blocking way by
+        // launching a coroutine is not ideal, but we can clear the in-memory buffer safely
+        // by dispatching to IO. The method is small and infrequent.
+        kotlinx.coroutines.runBlocking {
+            bufferMutex.withLock {
+                logBuffer.clear()
+                pendingCount.set(0)
+            }
         }
     }
 

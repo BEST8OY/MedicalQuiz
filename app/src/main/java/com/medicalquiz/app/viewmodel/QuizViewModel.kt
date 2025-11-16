@@ -126,9 +126,9 @@ class QuizViewModel : ViewModel() {
 
             // Compute filtered question ids up front so the UI doesn't show an
             // unfiltered question list briefly before filters are applied.
-            // Do not auto-load any question list while opening a database — the
-            // user should choose filters and press Start on the main screen.
-            _state.update { it.copy(questionIds = emptyList(), selectedSubjectIds = validSubjects, selectedSystemIds = validSystems) }
+            // Do not load or set questionIds when switching databases — the
+            // user should set filters in the UI first and explicitly start.
+            _state.update { it.copy(selectedSubjectIds = validSubjects, selectedSystemIds = validSystems, questionIds = emptyList()) }
 
             // Clear system-cache so systems are re-fetched for the new DB
             lastFetchedSubjectIds = null
@@ -138,8 +138,7 @@ class QuizViewModel : ViewModel() {
             // If we have selected subjects, fetch for them, otherwise fetch all systems
             fetchSystemsForSubjects(validSubjects.takeIf { it.isNotEmpty() }?.toList())
 
-            // Do not update question list on DB open — wait until the user
-            // chooses filters and triggers loading (inline Start button).
+            // Let the Activity decide when to fetch filtered ids (Start action)
         }
     }
 
@@ -238,9 +237,23 @@ class QuizViewModel : ViewModel() {
         loadFilteredQuestionIds()
     }
 
+    // Update selected subjects WITHOUT triggering a filtered question load.
+    fun setSelectedSubjectsSilently(ids: Set<Long>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.update { it.copy(selectedSubjectIds = ids) }
+            val valid = if (ids.isEmpty()) emptySet<Long>() else pruneInvalidSystems().toSet()
+            _state.update { it.copy(selectedSystemIds = valid) }
+        }
+    }
+
     fun setSelectedSystems(ids: Set<Long>) {
         _state.update { it.copy(selectedSystemIds = ids) }
         loadFilteredQuestionIds()
+    }
+
+    // Update selected systems WITHOUT triggering a filtered question load.
+    fun setSelectedSystemsSilently(ids: Set<Long>) {
+        _state.update { it.copy(selectedSystemIds = ids) }
     }
 
     fun applySelectedSubjects(newSubjectIds: Set<Long>) {
@@ -271,6 +284,11 @@ class QuizViewModel : ViewModel() {
     fun setPerformanceFilter(filter: PerformanceFilter) {
         _state.update { it.copy(performanceFilter = filter) }
         loadFilteredQuestionIds()
+    }
+
+    // Update performance filter without immediately loading filtered ids.
+    fun setPerformanceFilterSilently(filter: PerformanceFilter) {
+        _state.update { it.copy(performanceFilter = filter) }
     }
 
     fun loadFilteredQuestionIds() {

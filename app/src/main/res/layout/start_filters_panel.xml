@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/startFiltersPanel"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:visibility="gone"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="6dp"
+    android:layout_marginTop="8dp"
+    android:layout_marginBottom="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/textViewStartPanelTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Start filters — select then press Start"
+            android:textStyle="bold"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/textViewPreviewCountPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="0 questions match"
+            android:textSize="14sp"
+            android:layout_marginTop="8dp" />
+
+        <Button
+            android:id="@+id/buttonSelectSubjectsPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select Subjects"
+            android:layout_marginTop="12dp" />
+
+        <Button
+            android:id="@+id/buttonSelectSystemsPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select Systems"
+            android:layout_marginTop="8dp" />
+
+        <Button
+            android:id="@+id/buttonSelectPerformancePanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select Performance"
+            android:layout_marginTop="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end"
+            android:layout_marginTop="12dp">
+
+            <Button
+                android:id="@+id/buttonCancelPanel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Cancel" />
+
+            <Button
+                android:id="@+id/buttonStartPanel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Start"
+                android:layout_marginStart="12dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

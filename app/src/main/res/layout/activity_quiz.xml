@@ -53,68 +53,6 @@
             android:visibility="gone"
             android:layout_marginTop="4dp"/>
 
-        <!-- Inline filters panel replaced the startup dialog: user sets filters directly on the
-             main screen and presses Start to load the filtered question list. -->
-        <LinearLayout
-            android:id="@+id/filterPanel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/textViewPreviewCount"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="0 questions match"
-                android:textSize="14sp"
-                android:layout_marginBottom="8dp"
-                android:textColor="?attr/colorOnSurface" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:weightSum="3">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/buttonSelectSubjects"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Subjects" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/buttonSelectSystems"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Systems" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/buttonSelectPerformance"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Performance" />
-            </LinearLayout>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonStartQuiz"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Start"
-                android:enabled="false" />
-
-        </LinearLayout>
-
         <!-- Question number and title removed from UI — they are not needed in this layout -->
 
         <TextView
