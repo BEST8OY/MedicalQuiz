@@ -12,6 +12,7 @@ import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import android.view.View
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -21,7 +22,7 @@ import com.medicalquiz.app.data.SettingsRepository
 import com.medicalquiz.app.data.database.PerformanceFilter
 import com.medicalquiz.app.data.database.QuestionPerformance
 import com.medicalquiz.app.data.models.Subject
-import com.medicalquiz.app.data.models.System as QuizSystem
+import com.medicalquiz.app.data.models.System
 import com.medicalquiz.app.data.models.Question
 import android.view.MenuItem
 import com.medicalquiz.app.databinding.ActivityQuizBinding
@@ -181,7 +182,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         override fun onAnswerSelected(answerId: Long) {
             runOnUiThread {
                 viewModel.onAnswerSelected(answerId)
-                val timeTaken = System.currentTimeMillis() - startTime
+                val timeTaken = java.lang.System.currentTimeMillis() - startTime
                 viewModel.submitAnswer(timeTaken)
             }
         }
@@ -321,7 +322,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private fun displayQuestion(state: QuizState) {
         val question = state.currentQuestion ?: return
-        startTime = System.currentTimeMillis()
+        startTime = java.lang.System.currentTimeMillis()
 
         lifecycleScope.launch(Dispatchers.Default) {
             val quizHtml = QuestionHtmlBuilder.build(question, state.currentAnswers)
@@ -404,26 +405,29 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     // ============================================================================
 
     private fun showStartFiltersPanel() {
-        binding.startFiltersPanel.isVisible = true
+        // Use bound included layout access rather than manual findViewById
+        binding.startFiltersPanel.root.visibility = View.VISIBLE
         setupFilterPanelListeners()
         updateAllFilterLabels()
     }
 
     private fun setupFilterPanelListeners() {
-        with(binding.startFiltersPanel) {
-            findViewById<android.widget.Button>(R.id.buttonSelectSubjectsPanel)
+        // Listeners on start filters panel
+        {
+            // Use activity root to resolve view IDs reliably
+            binding.startFiltersPanel.buttonSelectSubjectsPanel
                 .setOnClickListener { handleSubjectSelection() }
             
-            findViewById<android.widget.Button>(R.id.buttonSelectSystemsPanel)
+            binding.startFiltersPanel.buttonSelectSystemsPanel
                 .setOnClickListener { handleSystemSelection() }
             
-            findViewById<android.widget.Button>(R.id.buttonSelectPerformancePanel)
+            binding.startFiltersPanel.buttonSelectPerformancePanel
                 .setOnClickListener { handlePerformanceSelection() }
             
-            findViewById<android.widget.Button>(R.id.buttonCancelPanel)
+            binding.startFiltersPanel.buttonCancelPanel
                 .setOnClickListener { hideFilterPanel() }
             
-            findViewById<android.widget.Button>(R.id.buttonStartPanel)
+            binding.startFiltersPanel.buttonStartPanel
                 .setOnClickListener { startQuiz() }
         }
     }
@@ -463,7 +467,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 .systemsResource
 
             when (resource) {
-                is Resource.Success<List<QuizSystem>> -> {
+                is Resource.Success<List<System>> -> {
                     filterDialogHandler.showSystemSelectionDialogSilently(
                         resource.data,
                         viewModel.state.value.selectedSystemIds,
@@ -495,7 +499,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun hideFilterPanel() {
-        binding.startFiltersPanel.isVisible = false
+        binding.startFiltersPanel.root.visibility = View.GONE
         updateToolbarSubtitle()
     }
 
@@ -513,7 +517,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             } catch (e: Exception) {
                 showToast("Failed to start: ${e.message}")
             } finally {
-                binding.startFiltersPanel.isVisible = false
+                binding.startFiltersPanel.root.visibility = View.GONE
             }
         }
     }
@@ -528,21 +532,21 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun updateSubjectLabel() {
         val count = viewModel.state.value.selectedSubjectIds.size
         binding.startFiltersPanel
-            .findViewById<android.widget.Button>(R.id.buttonSelectSubjectsPanel)
+            .buttonSelectSubjectsPanel
             .text = if (count == 0) "Select Subjects" else "Subjects: $count"
     }
 
     private fun updateSystemLabel() {
         val count = viewModel.state.value.selectedSystemIds.size
         binding.startFiltersPanel
-            .findViewById<android.widget.Button>(R.id.buttonSelectSystemsPanel)
+            .buttonSelectSystemsPanel
             .text = if (count == 0) "Select Systems" else "Systems: $count"
     }
 
     private fun updatePerformanceLabel() {
         val filter = viewModel.state.value.performanceFilter
         binding.startFiltersPanel
-            .findViewById<android.widget.Button>(R.id.buttonSelectPerformancePanel)
+            .buttonSelectPerformancePanel
             .text = getPerformanceFilterLabel(filter)
     }
 
@@ -553,19 +557,19 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 val text = if (count == 1) "1 question matches" else "$count questions match"
                 
                 binding.startFiltersPanel
-                    .findViewById<android.widget.TextView>(R.id.textViewPreviewCountPanel)
+                    .textViewPreviewCountPanel
                     .text = text
                 
                 binding.startFiltersPanel
-                    .findViewById<android.widget.Button>(R.id.buttonStartPanel)
+                    .buttonStartPanel
                     .isEnabled = count > 0
             } catch (e: Exception) {
                 binding.startFiltersPanel
-                    .findViewById<android.widget.TextView>(R.id.textViewPreviewCountPanel)
+                    .textViewPreviewCountPanel
                     .text = "Preview unavailable"
                 
                 binding.startFiltersPanel
-                    .findViewById<android.widget.Button>(R.id.buttonStartPanel)
+                    .buttonStartPanel
                     .isEnabled = true
             }
         }
@@ -618,7 +622,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 .systemsResource
 
             when (resource) {
-                is Resource.Success<List<QuizSystem>> -> {
+                is Resource.Success<List<System>> -> {
                     val currentState = viewModel.state.firstMatching()
                     filterDialogHandler.showSystemSelectionDialog(
                         resource.data,
