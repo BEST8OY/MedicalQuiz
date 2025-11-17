@@ -66,8 +66,19 @@ fun QuizScreen(
                 .fillMaxWidth()
                 .wrapContentHeight()
         ) {
-            // Show performance stats only after answer is submitted
+            // Show metadata and stats after answer is submitted
             if (state.answerSubmitted) {
+                val question = state.currentQuestion
+                if (question != null) {
+                    // Question metadata
+                    Text(
+                        text = "ID: ${question.id} | Subject: ${question.subject} | System: ${question.system}",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+                    )
+                }
+                
+                // Performance stats
                 state.currentPerformance?.let { perf ->
                     val lastResultText = if (perf.lastCorrect) "Correct" else "Incorrect"
                     val correctCount = if (perf.everCorrect) 1 else 0
@@ -75,7 +86,7 @@ fun QuizScreen(
                     Text(
                         text = "Attempted: ${perf.attempts} | Last: $lastResultText | Correct: $correctCount | Incorrect: $incorrectCount",
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
                     )
                 }
             }
