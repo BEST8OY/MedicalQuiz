@@ -223,7 +223,7 @@ object WebViewRenderer {
 
             // Viewport and Zoom
             loadWithOverviewMode = true
-            useWideViewPort = false
+            useWideViewPort = true
             setSupportZoom(false)
             builtInZoomControls = false
             displayZoomControls = false
@@ -251,7 +251,7 @@ object WebViewRenderer {
 
         webView.apply {
             isVerticalScrollBarEnabled = true
-            isNestedScrollingEnabled = false
+            isNestedScrollingEnabled = true
             setBackgroundColor(Color.TRANSPARENT)
         }
     }

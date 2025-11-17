@@ -48,7 +48,6 @@ fun QuizScreen(
         android.util.Log.d("QuizScreen", "QuestionIds changed: count=${state.questionIds.size}, showingFilters=${state.questionIds.isEmpty()}")
     }
 
-    // Main column with proper space distribution
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -104,7 +103,6 @@ fun QuizScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp)
             ) {
                 com.medicalquiz.app.utils.WebViewComposable(
                     stateFlow = webViewStateFlow,

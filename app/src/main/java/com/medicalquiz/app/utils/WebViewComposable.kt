@@ -41,69 +41,65 @@ fun WebViewComposable(
     var appliedHtml by remember { mutableStateOf<String?>(null) }
     var appliedAnswerState by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        AndroidView(
-            factory = { ctx ->
-                WebView(ctx).apply {
-                    // Enable proper scrolling and zoom
-                    settings.apply {
-                        builtInZoomControls = true
-                        displayZoomControls = false
-                        useWideViewPort = true
-                        loadWithOverviewMode = true
-                        javaScriptEnabled = true
-                        domStorageEnabled = true
-                        databaseEnabled = true
+    AndroidView(
+        factory = { ctx ->
+            WebView(ctx).apply {
+                // Enable proper scrolling and zoom
+                settings.apply {
+                    builtInZoomControls = true
+                    displayZoomControls = false
+                    useWideViewPort = true
+                    loadWithOverviewMode = true
+                    javaScriptEnabled = true
+                    domStorageEnabled = true
+                    databaseEnabled = true
+                }
+                
+                // Configure scrolling behavior
+                isVerticalScrollBarEnabled = true
+                scrollBarStyle = WebView.SCROLLBARS_INSIDE_OVERLAY
+                
+                // Enable nested scrolling for better Compose integration
+                isNestedScrollingEnabled = true
+                
+                webViewController.setup(this, object : WebViewController.Bridge {
+                    override fun onAnswerSelected(answerId: Long) {
+                        onAnswerSelected(answerId)
                     }
-                    
-                    // Configure scrolling behavior
-                    isVerticalScrollBarEnabled = true
-                    scrollBarStyle = WebView.SCROLLBARS_INSIDE_OVERLAY
-                    
-                    // Enable smooth scrolling
-                    isScrollContainer = true
-                    
-                    webViewController.setup(this, object : WebViewController.Bridge {
-                        override fun onAnswerSelected(answerId: Long) {
-                            onAnswerSelected(answerId)
-                        }
 
-                        override fun openMedia(mediaRef: String) {
-                            onOpenMedia(mediaRef)
-                        }
-                    })
-                }
-            },
-            update = { webView ->
-                // Only load HTML if it has changed
-                currentState.html?.let { html ->
-                    if (html != appliedHtml) {
-                        webViewController.loadContent(context, webView, html)
-                        appliedHtml = html
-                        // Reset answer state when new question loads
-                        appliedAnswerState = null
+                    override fun openMedia(mediaRef: String) {
+                        onOpenMedia(mediaRef)
                     }
-                }
-                
-                // Only apply answer state if it has changed
-                val newAnswerState = currentState.correctAnswerId?.let { correct ->
-                    currentState.selectedAnswerId?.let { selected ->
-                        Pair(correct, selected)
-                    }
-                }
-                
-                if (newAnswerState != null && newAnswerState != appliedAnswerState) {
-                    webViewController.applyAnswerState(webView, newAnswerState.first, newAnswerState.second)
-                    appliedAnswerState = newAnswerState
-                }
-            },
-            onRelease = { webView ->
-                webView.stopLoading()
-                webView.destroy()
+                })
             }
-        )
-    }
+        },
+        update = { webView ->
+            // Only load HTML if it has changed
+            currentState.html?.let { html ->
+                if (html != appliedHtml) {
+                    webViewController.loadContent(context, webView, html)
+                    appliedHtml = html
+                    // Reset answer state when new question loads
+                    appliedAnswerState = null
+                }
+            }
+            
+            // Only apply answer state if it has changed
+            val newAnswerState = currentState.correctAnswerId?.let { correct ->
+                currentState.selectedAnswerId?.let { selected ->
+                    Pair(correct, selected)
+                }
+            }
+            
+            if (newAnswerState != null && newAnswerState != appliedAnswerState) {
+                webViewController.applyAnswerState(webView, newAnswerState.first, newAnswerState.second)
+                appliedAnswerState = newAnswerState
+            }
+        },
+        onRelease = { webView ->
+            webView.stopLoading()
+            webView.destroy()
+        },
+        modifier = Modifier.fillMaxSize()
+    )
 }
