@@ -101,9 +101,13 @@ class QuizViewModel : ViewModel() {
     fun switchDatabase(newDbPath: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                Log.d("QuizViewModel", "Switching database to: $newDbPath")
                 val db = MedicalQuizApp.switchDatabase(newDbPath)
+                Log.d("QuizViewModel", "Database switched successfully")
                 setDatabaseManager(db)
+                Log.d("QuizViewModel", "Database manager set and initialized")
             } catch (e: Exception) {
+                Log.e("QuizViewModel", "Failed to switch database", e)
                 emitToast("Failed to switch database: ${e.message}")
             }
         }
@@ -124,12 +128,15 @@ class QuizViewModel : ViewModel() {
     }
 
     private suspend fun initializeAfterDatabaseSwitch() {
+        Log.d("QuizViewModel", "Initializing after database switch")
         val validSubjects = pruneInvalidSubjects().toSet()
         val validSystems = if (validSubjects.isEmpty()) {
             emptySet()
         } else {
             pruneInvalidSystems().toSet()
         }
+
+        Log.d("QuizViewModel", "Valid subjects: ${validSubjects.size}, Valid systems: ${validSystems.size}")
 
         _state.update {
             it.copy(
@@ -139,11 +146,14 @@ class QuizViewModel : ViewModel() {
             )
         }
 
+        Log.d("QuizViewModel", "State updated: questionIds is now empty, filters should display")
+
         lastFetchedSubjectIds = null
 
         // Prefetch metadata for snappy UI interactions
         fetchSubjects()
         fetchSystemsForSubjects(validSubjects.takeIf { it.isNotEmpty() }?.toList())
+        Log.d("QuizViewModel", "Database initialization completed")
     }
 
     fun getDatabaseManager(): DatabaseProvider? = databaseManager
@@ -331,18 +341,26 @@ class QuizViewModel : ViewModel() {
     // ============================================================================
 
     fun setQuestionIds(ids: List<Long>) {
+        Log.d("QuizViewModel", "Setting question IDs: ${ids.size} questions")
         _state.update { it.copy(questionIds = ids) }
     }
 
     fun loadFilteredQuestionIds() {
+        Log.d("QuizViewModel", "Loading filtered question IDs")
         viewModelScope.launch(Dispatchers.IO) {
-            val currentState = state.value
-            val ids = fetchQuestionIdsWithFilters(
-                currentState.selectedSubjectIds.toList(),
-                currentState.selectedSystemIds.toList(),
-                currentState.performanceFilter
-            )
-            _state.update { it.copy(questionIds = ids) }
+            try {
+                val currentState = state.value
+                Log.d("QuizViewModel", "Filters: ${currentState.selectedSubjectIds.size} subjects, ${currentState.selectedSystemIds.size} systems, ${currentState.performanceFilter}")
+                val ids = fetchQuestionIdsWithFilters(
+                    currentState.selectedSubjectIds.toList(),
+                    currentState.selectedSystemIds.toList(),
+                    currentState.performanceFilter
+                )
+                Log.d("QuizViewModel", "Filtered query returned ${ids.size} questions")
+                _state.update { it.copy(questionIds = ids) }
+            } catch (e: Exception) {
+                Log.e("QuizViewModel", "Error loading filtered questions", e)
+            }
         }
     }
 

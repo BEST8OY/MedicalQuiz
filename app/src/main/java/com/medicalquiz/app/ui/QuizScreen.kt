@@ -42,6 +42,11 @@ fun QuizScreen(
     contentPadding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.foundation.layout.PaddingValues(0.dp)
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    
+    // Debug logging for state changes
+    LaunchedEffect(state.questionIds) {
+        android.util.Log.d("QuizScreen", "QuestionIds changed: count=${state.questionIds.size}, showingFilters=${state.questionIds.isEmpty()}")
+    }
 
     // Render the rest of the UI in the card's Compose content area
     Column(
@@ -67,6 +72,7 @@ fun QuizScreen(
 
             // Filter panel — shows whenever questions list is empty
             if (state.questionIds.isEmpty()) {
+                android.util.Log.d("QuizScreen", "Rendering StartFiltersPanel with ${state.selectedSubjectIds.size} subjects selected")
                 StartFiltersPanel(
                     subjectCount = state.selectedSubjectIds.size,
                     systemCount = state.selectedSystemIds.size,

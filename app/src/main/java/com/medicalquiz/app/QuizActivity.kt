@@ -152,45 +152,80 @@ class QuizActivity : AppCompatActivity() {
             launchCatching(
                 dispatcher = Dispatchers.IO,
                 block = {
+                    Log.d(TAG, "Starting database initialization for: $dbPath")
                     viewModel.switchDatabase(dbPath)
                     try {
                         viewModel.state.first { it.subjectsResource !is Resource.Loading }
+                        Log.d(TAG, "Database initialization completed successfully")
                     } catch (e: Exception) {
-                        Log.w(TAG, "Exception waiting for subjects resource to load", e)
+                        Log.e(TAG, "Exception waiting for subjects resource to load", e)
+                        throw e
                     }
                 },
                 onSuccess = {
-                    mediaHandler = MediaHandler(this@QuizActivity)
-                    filterDialogHandler = FilterDialogHandler(this@QuizActivity)
-                    mediaHandler.reset()
+                    try {
+                        mediaHandler = MediaHandler(this@QuizActivity)
+                        filterDialogHandler = FilterDialogHandler(this@QuizActivity)
+                        mediaHandler.reset()
 
-                    // Initialize media & filter handlers
-                    mediaHandler = MediaHandler(this@QuizActivity)
-                    filterDialogHandler = FilterDialogHandler(this@QuizActivity)
-                    mediaHandler.reset()
+                        Log.d(TAG, "Media and filter handlers initialized, setting up Compose UI")
 
-                    // Host the entire Quiz UI in Compose once DB is ready.
-                    setContent {
-                        MedicalQuizTheme {
-                            com.medicalquiz.app.ui.QuizRoot(
-                            viewModel = viewModel,
-                            webViewStateFlow = webViewStateFlow,
-                            mediaHandler = mediaHandler,
-                            filtersOnly = filtersOnlyMode,
-                            onSubjectFilter = { performSubjectSelection(filtersOnlyMode) },
-                            onSystemFilter = { performSystemSelection(filtersOnlyMode) },
-                            onClearFilters = { clearFilters() },
-                            onSettings = { showSettingsDialog() },
-                            onAbout = { showToast("About coming soon") },
-                            onJumpTo = { showJumpToDialog() }
-                            ,
-                            onStart = { startQuiz() }
-                            )
+                        // Host the entire Quiz UI in Compose once DB is ready.
+                        setContent {
+                            MedicalQuizTheme {
+                                com.medicalquiz.app.ui.QuizRoot(
+                                viewModel = viewModel,
+                                webViewStateFlow = webViewStateFlow,
+                                mediaHandler = mediaHandler,
+                                filtersOnly = filtersOnlyMode,
+                                onSubjectFilter = { performSubjectSelection(filtersOnlyMode) },
+                                onSystemFilter = { performSystemSelection(filtersOnlyMode) },
+                                onClearFilters = { clearFilters() },
+                                onSettings = { showSettingsDialog() },
+                                onAbout = { showToast("About coming soon") },
+                                onJumpTo = { showJumpToDialog() }
+                                ,
+                                onStart = { startQuiz() }
+                                )
+                            }
                         }
+                        Log.d(TAG, "Compose UI content set successfully")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error setting up Compose UI", e)
+                        showErrorDialog("UI Setup Error", "Failed to initialize UI: ${e.message}")
                     }
                 },
                 onFailure = { throwable ->
-                    showToast("Failed to initialize database: ${throwable.message}")
+                    Log.e(TAG, "Database initialization failed", throwable)
+                    showErrorDialog(
+                        "Database Error",
+                        "Failed to initialize database: ${throwable.message}\\n\\nTrying to continue..."
+                    )
+                    // Still attempt to show UI in case it's a partial failure
+                    try {
+                        mediaHandler = MediaHandler(this@QuizActivity)
+                        filterDialogHandler = FilterDialogHandler(this@QuizActivity)
+                        setContent {
+                            MedicalQuizTheme {
+                                com.medicalquiz.app.ui.QuizRoot(
+                                viewModel = viewModel,
+                                webViewStateFlow = webViewStateFlow,
+                                mediaHandler = mediaHandler,
+                                filtersOnly = filtersOnlyMode,
+                                onSubjectFilter = { performSubjectSelection(filtersOnlyMode) },
+                                onSystemFilter = { performSystemSelection(filtersOnlyMode) },
+                                onClearFilters = { clearFilters() },
+                                onSettings = { showSettingsDialog() },
+                                onAbout = { showToast("About coming soon") },
+                                onJumpTo = { showJumpToDialog() }
+                                ,
+                                onStart = { startQuiz() }
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to show UI after initialization error", e)
+                    }
                 }
             )
         }
@@ -914,6 +949,15 @@ class QuizActivity : AppCompatActivity() {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
+    private fun showErrorDialog(title: String, message: String) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
+            .setCancelable(false)
+            .show()
+    }
+
     // ============================================================================
     // Back Press Handling
     // ============================================================================
@@ -921,6 +965,8 @@ class QuizActivity : AppCompatActivity() {
     private fun setupBackPressHandler() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                Log.d(TAG, "Back pressed")
+                // User pressed back — finish the quiz activity and return to database selection
                 finish()
             }
         })

@@ -206,6 +206,9 @@ class MainActivity : AppCompatActivity() {
             putExtra(QuizActivity.EXTRA_OPEN_FILTERS_FULLSCREEN, true)
         }
         startActivity(intent)
+        // Finish this activity so back press in QuizActivity returns to system/launcher
+        // instead of coming back to database selection
+        finish()
     }
 
     private fun formatFileSize(size: Long): String {
