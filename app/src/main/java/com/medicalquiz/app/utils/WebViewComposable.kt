@@ -52,7 +52,6 @@ fun WebViewComposable(
                     loadWithOverviewMode = true
                     javaScriptEnabled = true
                     domStorageEnabled = true
-                    databaseEnabled = true
                 }
                 
                 // Configure scrolling behavior

@@ -51,7 +51,7 @@ fun QuizRoot(
         modifier = Modifier.fillMaxSize(),
         drawerState = drawerState,
         scrimColor = androidx.compose.material3.MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f),
-        gesturesEnabled = true,
+        gesturesEnabled = false,
         drawerContent = {
             ModalDrawerSheet {
                 NavigationDrawerItem(
@@ -104,6 +104,19 @@ fun QuizRoot(
             }
         }
     ) {
+        // Add scrim click handler to close drawer
+        if (drawerState.isOpen) {
+            androidx.compose.foundation.background(
+                color = androidx.compose.material3.MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f)
+            )
+            androidx.compose.foundation.clickable(
+                enabled = drawerState.isOpen,
+                onClick = { scope.launch { drawerState.close() } },
+                indication = null,
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+            )
+        }
+        
         Box(modifier = Modifier.fillMaxSize()) {
             android.util.Log.d("QuizRoot", "Box rendering for Scaffold")
             // Top-level scaffold with topBar and bottomBar
