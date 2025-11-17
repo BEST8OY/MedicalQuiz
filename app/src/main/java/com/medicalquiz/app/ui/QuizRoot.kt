@@ -21,6 +21,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import com.medicalquiz.app.viewmodel.QuizViewModel
 import com.medicalquiz.app.data.database.PerformanceFilter
 
@@ -53,56 +68,196 @@ fun QuizRoot(
         gesturesEnabled = false,
         scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f),
         drawerContent = {
-            ModalDrawerSheet {
-                NavigationDrawerItem(
-                    label = { Text("Filter by Subject") },
-                    selected = false,
-                    onClick = {
-                        onSubjectFilter()
-                        scope.launch { drawerState.close() }
-                    }
+            ModalDrawerSheet(
+                modifier = Modifier.fillMaxSize(0.85f)
+            ) {
+                // Header Section
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                ) {
+                    Text(
+                        text = "Medical Quiz",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Study Tools",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
-                NavigationDrawerItem(
-                    label = { Text("Filter by System") },
-                    selected = false,
-                    onClick = {
-                        onSystemFilter()
-                        scope.launch { drawerState.close() }
-                    }
+
+                // Filter Section
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, bottom = 8.dp)
+                ) {
+                    Text(
+                        text = "FILTERS",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                    )
+
+                    NavigationDrawerItem(
+                        label = {
+                            Row(
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Tune,
+                                    contentDescription = null,
+                                    modifier = Modifier.width(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text("Filter by Subject")
+                            }
+                        },
+                        selected = false,
+                        onClick = {
+                            onSubjectFilter()
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                    NavigationDrawerItem(
+                        label = {
+                            Row(
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Storage,
+                                    contentDescription = null,
+                                    modifier = Modifier.width(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text("Filter by System")
+                            }
+                        },
+                        selected = false,
+                        onClick = {
+                            onSystemFilter()
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                    NavigationDrawerItem(
+                        label = {
+                            Row(
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.TrendingUp,
+                                    contentDescription = null,
+                                    modifier = Modifier.width(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text("Filter by Performance")
+                            }
+                        },
+                        selected = false,
+                        onClick = {
+                            viewModel.openPerformanceDialog()
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                    NavigationDrawerItem(
+                        label = {
+                            Row(
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Refresh,
+                                    contentDescription = null,
+                                    modifier = Modifier.width(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text("Clear All Filters")
+                            }
+                        },
+                        selected = false,
+                        onClick = {
+                            onClearFilters()
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
-                NavigationDrawerItem(
-                    label = { Text("Filter by Performance") },
-                    selected = false,
-                    onClick = {
-                        viewModel.openPerformanceDialog()
-                        scope.launch { drawerState.close() }
-                    }
-                )
-                NavigationDrawerItem(
-                    label = { Text("Clear Filters") },
-                    selected = false,
-                    onClick = {
-                        onClearFilters()
-                        scope.launch { drawerState.close() }
-                    }
-                )
-                androidx.compose.material3.HorizontalDivider()
-                NavigationDrawerItem(
-                    label = { Text("Settings") },
-                    selected = false,
-                    onClick = {
-                        onSettings()
-                        scope.launch { drawerState.close() }
-                    }
-                )
-                NavigationDrawerItem(
-                    label = { Text("About") },
-                    selected = false,
-                    onClick = {
-                        onAbout()
-                        scope.launch { drawerState.close() }
-                    }
-                )
+
+                // App Section
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                ) {
+                    Text(
+                        text = "APP",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                    )
+
+                    NavigationDrawerItem(
+                        label = {
+                            Row(
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Settings,
+                                    contentDescription = null,
+                                    modifier = Modifier.width(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text("Settings")
+                            }
+                        },
+                        selected = false,
+                        onClick = {
+                            onSettings()
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                    NavigationDrawerItem(
+                        label = {
+                            Row(
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = null,
+                                    modifier = Modifier.width(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text("About")
+                            }
+                        },
+                        selected = false,
+                        onClick = {
+                            onAbout()
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                }
             }
         }
     ) {

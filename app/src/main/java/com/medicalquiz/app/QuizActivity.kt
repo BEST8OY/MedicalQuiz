@@ -344,21 +344,33 @@ class QuizActivity : AppCompatActivity() {
             val state = viewModel.state.firstMatching()
             if (state.questionIds.isEmpty()) return@launch
 
-            val picker = android.widget.NumberPicker(this@QuizActivity).apply {
-                minValue = 1
-                maxValue = state.questionIds.size
-                value = state.currentQuestionIndex + 1
-                wrapSelectorWheel = false
-            }
-
-            AlertDialog.Builder(this@QuizActivity)
-                .setTitle("Jump to question")
-                .setView(picker)
-                .setPositiveButton("Go") { _, _ ->
-                    viewModel.loadQuestion(picker.value - 1)
+            val composeView = androidx.compose.ui.platform.ComposeView(this@QuizActivity)
+            var isOpen = true
+            
+            composeView.setContent {
+                MedicalQuizTheme {
+                    if (isOpen) {
+                        com.medicalquiz.app.ui.JumpToQuestionDialog(
+                            totalQuestions = state.questionIds.size,
+                            currentQuestionIndex = state.currentQuestionIndex,
+                            onJumpTo = { index ->
+                                viewModel.loadQuestion(index)
+                            },
+                            onDismiss = {
+                                isOpen = false
+                            }
+                        )
+                    }
                 }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
+            }
+            
+            // Add to a container (we'll use a minimal dialog wrapper for now)
+            // This is a temporary solution - ideally this would be managed by QuizRoot
+            val dialog = AlertDialog.Builder(this@QuizActivity)
+                .setView(composeView)
+                .create()
+            
+            dialog.show()
         }
     }
 
@@ -563,13 +575,13 @@ class QuizActivity : AppCompatActivity() {
                         settingsRepository.setLoggingEnabled(enabled)
                         if (!enabled) viewModel.clearPendingLogsBuffer()
                     },
-                    onResetLogs = { showResetLogsConfirmation() }
+                    onResetLogs = { showResetLogsConfirmation() },
+                    onDismiss = {}
                 )
             }
         }
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle("Settings")
             .setView(composeView)
             .setPositiveButton("Close", null)
             .create()
