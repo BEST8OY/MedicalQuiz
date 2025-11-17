@@ -1,7 +1,14 @@
 package com.medicalquiz.app.ui
 
+import android.app.Dialog
 import android.content.Context
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.ui.platform.ComposeView
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 // no longer needed — handler is UI-only
 // ViewModel not used here — UI-only handler
 import com.medicalquiz.app.data.models.System
@@ -12,8 +19,9 @@ import com.medicalquiz.app.data.models.Subject
  * Handler for filter dialogs (Subject and System)
  */
 class FilterDialogHandler(
-    private val context: Context
+    private val activity: AppCompatActivity
 ) {
+    private val context: Context = activity
     
     // Database manager operations are provided by the ViewModel now
     
@@ -140,10 +148,19 @@ class FilterDialogHandler(
         idProvider: (T) -> Long,
         onApply: (Set<Long>) -> Unit
     ) {
-        // Use a Compose-based selection dialog contained in a native dialog so
-        // we can reuse compose UI while keeping the same lifecycle.
-        val dialog = android.app.Dialog(context)
-        val composeView = androidx.compose.ui.platform.ComposeView(context)
+        // Create a proper Dialog with Activity context and lifecycle support
+        val dialog = Dialog(context)
+        
+        // Create ComposeView with proper lifecycle owner setup
+        val composeView = ComposeView(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            // Set the lifecycle owner and saved state registry owner for Compose
+            setViewTreeLifecycleOwner(activity)
+            setViewTreeSavedStateRegistryOwner(activity)
+        }
 
         composeView.setContent {
             com.medicalquiz.app.ui.theme.MedicalQuizTheme {
