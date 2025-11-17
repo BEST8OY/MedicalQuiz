@@ -37,7 +37,8 @@ android {
     }
 
     buildFeatures {
-        viewBinding = true
+        // ViewBinding removed — using Jetpack Compose for UI surfaces
+        viewBinding = false
         compose = true
     }
 
@@ -76,7 +77,6 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.ui:ui-viewbinding")
     implementation("androidx.activity:activity-compose:1.9.0")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.0")
@@ -88,8 +88,8 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
 
 
-    // Optional: Accompanist Pager (if needed for older Compose pager API compatibility)
-    implementation("com.google.accompanist:accompanist-pager:0.37.3")
+    // Note: `ui-viewbinding` removed since the project uses Compose exclusively for UI
+    // Optional: Accompanist Pager removed — using official Compose pager
     
     // junit removed as part of deleting tests
         // core-testing removed per user request

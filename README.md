@@ -9,7 +9,7 @@ A Kotlin-based Android application for medical quizzes that allows users to sele
 - 📂 Reads databases from `/storage/emulated/0/MedicalQuiz/databases/`
 - 🎨 Material Design UI with card-based database selection
 - 🔐 Proper storage permissions handling for Android 6.0+
-- 🏗️ Clean architecture with ViewBinding
+- 🏗️ Clean architecture with Jetpack Compose UI
 
 ## Project Structure
 
@@ -145,7 +145,7 @@ The app requires the following permissions:
 
 - **Language**: Kotlin 1.9.20
 - **Build System**: Gradle with Kotlin DSL
-- **UI**: Material Design Components, ViewBinding
+- **UI**: Material Design Components, Jetpack Compose
 - **Architecture**: MVVM-ready structure
 - **Database**: SQLite
 - **Coroutines**: kotlinx-coroutines-android

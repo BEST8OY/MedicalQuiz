@@ -22,6 +22,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import android.util.Log
 import java.util.UUID
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 
 /**
  * ViewModel that manages quiz state and coordinates database operations.
@@ -53,6 +56,13 @@ class QuizViewModel : ViewModel() {
 
     private val _state = MutableStateFlow(QuizState.EMPTY)
     val state: StateFlow<QuizState> = _state.asStateFlow()
+
+    // Derived flows for UI convenience
+    val toolbarTitle = state.map { it.metadataText }.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        ""
+    )
 
     private val _uiEvents = MutableSharedFlow<UiEvent>(extraBufferCapacity = UI_EVENTS_BUFFER_CAPACITY)
     val uiEvents = _uiEvents.asSharedFlow()
@@ -479,6 +489,12 @@ class QuizViewModel : ViewModel() {
     fun setPerformanceFilter(filter: PerformanceFilter) {
         _state.update { it.copy(performanceFilter = filter) }
         loadFilteredQuestionIds()
+    }
+
+    fun openPerformanceDialog() {
+        viewModelScope.launch {
+            _uiEvents.emit(UiEvent.OpenPerformanceDialog)
+        }
     }
 
     fun setPerformanceFilterSilently(filter: PerformanceFilter) {

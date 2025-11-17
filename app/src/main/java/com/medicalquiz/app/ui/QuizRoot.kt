@@ -4,6 +4,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.medicalquiz.app.viewmodel.UiEvent
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ModalNavigationDrawer
@@ -35,6 +36,7 @@ fun QuizRoot(
     var showPerformanceDialog by remember { mutableStateOf(false) }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -53,7 +55,7 @@ fun QuizRoot(
                 NavigationDrawerItem(
                     label = { Text("Filter by Performance") },
                     selected = false,
-                    onClick = { showPerformanceDialog = true; scope.launch { drawerState.close() } }
+                    onClick = { viewModel.openPerformanceDialog(); scope.launch { drawerState.close() } }
                 )
                 NavigationDrawerItem(
                     label = { Text("Clear Filters") },
@@ -66,11 +68,19 @@ fun QuizRoot(
             }
         }
     ) {
+            LaunchedEffect(viewModel) {
+                viewModel.uiEvents.collect { event ->
+                    when (event) {
+                        is UiEvent.OpenPerformanceDialog -> showPerformanceDialog = true
+                        else -> {}
+                    }
+                }
+            }
         // Top-level scaffold with topBar and bottomBar
         Scaffold(
             topBar = if (filtersOnly) null else {
                 QuizTopBar(
-                    title = state.metadataText,
+                    title = title,
                     subtitle = null,
                     onMenuClick = { scope.launch { drawerState.open() } },
                     onSettingsClick = onSettings
@@ -90,7 +100,7 @@ fun QuizRoot(
                 onOpenSettings = onSettings,
                 onShowFilterSubject = onSubjectFilter,
                 onShowFilterSystem = onSystemFilter,
-                onSelectPerformance = { showPerformanceDialog = true },
+                onSelectPerformance = { viewModel.openPerformanceDialog() },
                 onStart = { /* handled by activity */ }
             )
         }

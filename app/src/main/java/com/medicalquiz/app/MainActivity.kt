@@ -9,7 +9,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
-import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -68,8 +67,7 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        setupRecyclerView()
-        setupManageStorageButton()
+        // Compose handles the list & manage storage prompt UI
         checkPermissionsAndLoadDatabases()
     }
 
@@ -81,9 +79,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupRecyclerView() {
-        // no RecyclerView — Compose LazyColumn is used in UI
-    }
+    // RecyclerView removed — Compose LazyColumn is used for the database list
 
     private fun checkPermissionsAndLoadDatabases() {
         when {
@@ -110,9 +106,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupManageStorageButton() {
-        // Compose handles the button and click through onGrantStorage
-    }
+    // Manage storage button is provided by the Compose MainScreen and handled there.
 
     private fun hideManageStorageButton() {
         showManageStoragePrompt = false

@@ -73,7 +73,7 @@
         "app/src/main/res/layout/activity_media_viewer.xml"
       ],
       "safeToDelete": true,
-      "notes": "ViewPager2 in this layout is replaced by `com.google.accompanist.pager` in Compose; consider removing `androidx.viewpager2` dependency if confirmed safe."
+      "notes": "ViewPager2 in this layout is replaced by a Compose pager (foundation). Consider removing `androidx.viewpager2` dependency if confirmed safe."
     },
     {
       "path": "app/src/main/res/layout/dialog_settings.xml",
@@ -120,7 +120,7 @@
       "type": "compose_wrapper",
       "status": "in_use",
       "replacedBy": null,
-      "rationale": "This Compose wrapper is in active use (`QuizActivity` sets content to compose WebView via `binding.composeWebView.setContent`), so keep it; WebViewRenderer still used for content styling.",
+      "rationale": "This Compose wrapper is in active use — `QuizActivity` hosts a Compose root and the WebView is composed using `WebViewComposable`; WebViewRenderer is still used for content styling.",
       "references": [
         "app/src/main/java/com/medicalquiz/app/QuizActivity.kt",
         "app/src/main/java/com/medicalquiz/app/utils/WebViewController.kt"
@@ -155,10 +155,11 @@
       "rationale": "Bindings are generated for layout XML files; if the XML is removed, generated bindings (and code references) will be unused.",
       "references": [
         "ActivityQuizBinding is no longer used — it can be removed after verifying Compose replacement.",
-        "No `ActivityMainBinding` or `ActivityMediaViewerBinding` occurrences were found in the codebase; `ItemDatabaseBinding` and `ItemMediaViewerBinding` are only used by their adapters." 
+        "No `ActivityMainBinding` or `ActivityMediaViewerBinding` occurrences were found in the codebase; `ItemDatabaseBinding` and `ItemMediaViewerBinding` are only used by their adapters.",
+        "ViewBinding build feature disabled in `app/build.gradle.kts` and `androidx.compose.ui:ui-viewbinding` removed."
       ],
-      "safeToDelete": false,
-      "notes": "You can't directly delete generated bindings; instead delete the XML and adapters, rebuild the project and the unused bindings will be removed by the build." 
+      "safeToDelete": true,
+      "notes": "Generated binding classes are created from XML layout files — after deleting the corresponding XML and adapter code (which is already migrated to Compose), these generated classes will be removed by the next build. `viewBinding` has been disabled in the app module." 
     }
   ]
 }
