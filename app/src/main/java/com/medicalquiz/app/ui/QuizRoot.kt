@@ -45,8 +45,10 @@ fun QuizRoot(
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
 
     ModalNavigationDrawer(
+        modifier = Modifier.fillMaxSize(),
         drawerState = drawerState,
         scrimColor = androidx.compose.material3.MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f),
+        gesturesEnabled = false,
         drawerContent = {
             ModalDrawerSheet {
                 NavigationDrawerItem(
@@ -99,16 +101,18 @@ fun QuizRoot(
             }
         }
     ) {
-            LaunchedEffect(viewModel) {
-                viewModel.uiEvents.collect { event ->
-                    when (event) {
-                        is UiEvent.OpenPerformanceDialog -> showPerformanceDialog = true
-                        else -> {}
-                    }
+        LaunchedEffect(viewModel) {
+            viewModel.uiEvents.collect { event ->
+                when (event) {
+                    is UiEvent.OpenPerformanceDialog -> showPerformanceDialog = true
+                    else -> {}
                 }
             }
+        }
+        
         // Top-level scaffold with topBar and bottomBar
         Scaffold(
+            modifier = Modifier.fillMaxSize(),
             topBar = {
                 if (!filtersOnly) {
                     QuizTopBar(
