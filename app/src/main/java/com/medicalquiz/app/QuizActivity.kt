@@ -205,64 +205,10 @@ class QuizActivity : AppCompatActivity() {
             )
         }
 
-    private fun setupUI() {
-        setupBottomBarListeners()
-    }
-
     // ============================================================================
     // WebView Setup
     // ============================================================================
-
     // Compose host is set after the database is initialized (see `initializeDatabaseAsync`)
-
-    private fun createWebViewBridge() = object : WebViewController.Bridge {
-        override fun onAnswerSelected(answerId: Long) {
-            runOnUiThread {
-                viewModel.onAnswerSelected(answerId)
-                val timeTaken = java.lang.System.currentTimeMillis() - startTime
-                viewModel.submitAnswer(timeTaken)
-            }
-        }
-
-        override fun openMedia(mediaRef: String) {
-            runOnUiThread {
-                val ref = mediaRef.takeIf { it.isNotBlank() } ?: return@runOnUiThread
-                val url = normalizeMediaUrl(ref)
-                viewModel.openMedia(url)
-            }
-        }
-    }
-
-    private fun normalizeMediaUrl(ref: String): String {
-        return if (ref.startsWith("file://") || 
-                   ref.startsWith("http://") || 
-                   ref.startsWith("https://") || 
-                   ref.startsWith("media://")) {
-            ref
-        } else {
-            "file:///media/${ref.substringAfterLast('/')}"
-        }
-    }
-
-    // ============================================================================
-    // Drawer Setup
-    // ============================================================================
-
-    private fun setupDrawer() {
-        // Drawer is handled by Compose `QuizRoot`; no view setup necessary.
-    }
-
-    // ============================================================================
-    // Listeners Setup
-    // ============================================================================
-
-    private fun setupListeners() {
-        setupBottomBarListeners()
-    }
-
-    private fun setupBottomBarListeners() {
-        // Bottom bar is handled by Compose `QuizRoot` — nothing to do here.
-    }
 
     // ============================================================================
     // ViewModel State Observation
@@ -360,12 +306,6 @@ class QuizActivity : AppCompatActivity() {
 
     private fun handleShowAnswer(event: UiEvent.ShowAnswer) {
         updateWebViewAnswerState(event.correctAnswerId, event.selectedAnswerId)
-        launchCatching(
-            dispatcher = Dispatchers.IO,
-            block = { viewModel.state.firstMatching() },
-            onSuccess = { state -> showQuestionDetails(state) },
-            onFailure = { showToast("Failed to show answer: ${it.message}") }
-        )
     }
 
     // ============================================================================
@@ -386,23 +326,12 @@ class QuizActivity : AppCompatActivity() {
                 onSuccess = { (quizHtml, mediaFiles) ->
                     // Use Compose WebView composable via state flow for HTML content
                     webViewStateFlow.value = WebViewState(html = quizHtml)
-                    updateQuestionMetadata(question, state)
                     updateMediaInfo(question.id, mediaFiles)
                     viewModel.resetAnswerState()
-                    updateNavigationControls(state)
                     loadPerformanceForQuestion(question.id)
                 },
                 onFailure = { showToast("Failed to load question: ${it.message}") }
         )
-    }
-
-    private fun updateQuestionMetadata(question: Question, state: QuizState) {
-        // Compose displays question metadata from the ViewModel state; no view update here.
-        updatePerformanceDisplay(state)
-    }
-
-    private fun updatePerformanceDisplay(state: QuizState) {
-        // Compose displays performance; update handled by ViewModel - no view update
     }
 
     private fun updateWebViewAnswerState(correctAnswerId: Int, selectedAnswerId: Int) {
@@ -412,10 +341,6 @@ class QuizActivity : AppCompatActivity() {
     // ============================================================================
     // Navigation Controls
     // ============================================================================
-
-    private fun updateNavigationControls(state: QuizState) {
-        // Compose bottom bar handles navigation and counters directly from ViewModel.
-    }
 
     private fun showJumpToDialog() {
         lifecycleScope.launch {
@@ -445,20 +370,7 @@ class QuizActivity : AppCompatActivity() {
     // ============================================================================
 
     private fun showStartFiltersPanel() {
-        // Use bound included layout access rather than manual findViewById
-            // Compose `StartFiltersPanel` shown by `QuizRoot` — nothing to set manually here.
-        // Hide cancel button for filters-only mode
-        if (filtersOnlyMode) {
-            // Hide the cancel button by recomposing the filters panel; it will be
-            // omitted in `StartFiltersPanel` in filters-only mode if necessary.
-        }
-        setupFilterPanelListeners()
-        updateAllFilterLabels()
-    }
-
-    private fun setupFilterPanelListeners() {
-        // Interactions with the filters panel are handled via the Compose
-        // StartFiltersPanel callbacks which are set in `showStartFiltersPanel()`.
+        updatePreviewCount()
     }
 
     private fun performSubjectSelection(silently: Boolean, onAfterApply: (() -> Unit)? = null) {
@@ -551,27 +463,6 @@ class QuizActivity : AppCompatActivity() {
         }
     }
 
-    private fun handleSubjectSelection() {
-        performSubjectSelection(true) {
-            viewModel.fetchSystemsForSubjects(viewModel.state.value.selectedSubjectIds.toList())
-            updateAllFilterLabels()
-        }
-    }
-
-    private fun handleSystemSelection() {
-        performSystemSelection(true) { updateAllFilterLabels() }
-    }
-
-    private fun handlePerformanceSelection() {
-        // Performance filter is now a Compose dialog in `QuizRoot`.
-        // This method remains for compatibility.
-    }
-
-    private fun hideFilterPanel() {
-            // Compose `StartFiltersPanel` displayed in `QuizRoot`.
-        updateToolbarSubtitle()
-    }
-
     private fun startQuiz() {
         launchCatching(
             dispatcher = Dispatchers.IO,
@@ -620,29 +511,6 @@ class QuizActivity : AppCompatActivity() {
         )
     }
 
-    private fun updateAllFilterLabels() {
-        // Compose `StartFiltersPanel` is driven by `viewModel` state; no manual setContent.
-        // Recompute preview separately (async)
-        updatePreviewCount()
-    }
-
-    private fun updateSubjectLabel() {
-        // Labels are handled by Compose; recompose the filters panel
-        updateAllFilterLabels()
-        // If no subjects are selected it used to mean "systems not applicable" —
-        // but we treat an empty subject selection as "All subjects" now. Systems
-        // are still available in that case, so keep the systems button enabled.
-        // `StartFiltersPanel` Compose component tracks the enabled state through `viewModel`.
-    }
-
-    private fun updateSystemLabel() {
-        updateAllFilterLabels()
-    }
-
-    private fun updatePerformanceLabel() {
-        updateAllFilterLabels()
-    }
-
     private fun updatePreviewCount() {
         launchCatching(
             dispatcher = Dispatchers.IO,
@@ -662,40 +530,7 @@ class QuizActivity : AppCompatActivity() {
     // Navigation Drawer Handling
     // ============================================================================
 
-    // Navigation is handled in `QuizRoot` via Compose drawer.
-
-    private fun showSubjectFilterDialog() {
-        performSubjectSelection(filtersOnlyMode)
-    }
-
-    private fun showSystemFilterDialog() {
-        performSystemSelection(filtersOnlyMode)
-    }
-
-    private fun showPerformanceFilterDialog() {
-        val filters = PerformanceFilter.values()
-        val labels = filters.map { getPerformanceFilterLabel(it) }.toTypedArray()
-        
-        launchCatching(
-            dispatcher = Dispatchers.IO,
-            block = { viewModel.state.firstMatching() },
-            onSuccess = { state ->
-                val currentIndex = filters.indexOf(state.performanceFilter)
-
-                AlertDialog.Builder(this@QuizActivity)
-                    .setTitle("Performance Filter")
-                    .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
-                        dialog.dismiss()
-                        if (state.performanceFilter != filters[which]) {
-                            applyPerformanceFilter(filters[which])
-                        }
-                    }
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .show()
-            },
-            onFailure = { showToast("Failed to get performance filter: ${it.message}") }
-        )
-    }
+    // Filter dialogs are handled by Compose (PerformanceFilterDialog in QuizRoot)
 
     private fun applyPerformanceFilter(filter: PerformanceFilter) {
         viewModel.setPerformanceFilter(filter)
@@ -704,10 +539,9 @@ class QuizActivity : AppCompatActivity() {
     }
 
     private fun clearFilters() {
-        viewModel.applySelectedSubjects(emptySet())
-        viewModel.setSelectedSystems(emptySet())
-        viewModel.setPerformanceFilter(PerformanceFilter.ALL)
-        settingsRepository.setPerformanceFilter(PerformanceFilter.ALL)
+        viewModel.setSelectedSubjectsSilently(emptySet())
+        viewModel.setSelectedSystemsSilently(emptySet())
+        viewModel.setPerformanceFilterSilently(PerformanceFilter.ALL)
         // Don't load questions - just clear the filters
         // The filter panel will update automatically via Compose state
         updatePreviewCount()
@@ -854,7 +688,7 @@ class QuizActivity : AppCompatActivity() {
         
         val performanceFilter = savedInstanceState.getString(STATE_PERFORMANCE_FILTER)
             ?.let { PerformanceFilter.valueOf(it) } ?: PerformanceFilter.ALL
-        viewModel.setPerformanceFilter(performanceFilter)
+        viewModel.setPerformanceFilterSilently(performanceFilter)
 
         viewModel.setQuestionIds(ids)
         if (ids.isNotEmpty()) {
@@ -894,22 +728,6 @@ class QuizActivity : AppCompatActivity() {
 
     private fun showNoQuestionsFound() {
         showToast("No questions found with selected filters")
-        updateToolbarSubtitle()
-    }
-
-    private fun showQuestionDetails(state: QuizState) {
-        // Compose handles showing question details; scroll behavior is handled
-        // inside `QuizScreen`/`WebViewComposable` and is not needed here.
-    }
-
-    private fun updateToolbarSubtitle() {
-        // Toolbar subtitle is managed by the Compose `QuizRoot` via ViewModel.
-        // No-op — kept for compatibility until all XML references are removed.
-    }
-
-    private fun applyWindowInsets() {
-        // Window insets are delivered to Compose when running with Compose. No
-        // explicit view-based insets required here.
     }
 
     // ============================================================================

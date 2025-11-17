@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -44,7 +45,7 @@ data class SelectionItem(
 )
 
 /**
- * A complete Jetpack Compose selection menu dialog
+ * A complete Jetpack Compose selection menu dialog with Material Design 3
  * @param title Dialog title
  * @param items List of items to select from
  * @param selectedIds Currently selected item IDs
@@ -74,8 +75,9 @@ fun SelectionMenuDialog(
         title = {
             Text(
                 text = title,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
             )
         },
         text = {
@@ -84,25 +86,15 @@ fun SelectionMenuDialog(
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
             ) {
-                // Action buttons row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Button(
-                        onClick = {
-                            selectedState = mutableSetOf()
-                            onClear()
-                        },
-                        modifier = Modifier.weight(1f)
+                // Action buttons row with Material Design 3 styling
+                if (showSelectAll) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("Clear")
-                    }
-
-                    if (showSelectAll) {
-                        Button(
+                        TextButton(
                             onClick = {
                                 selectedState = if (isAllSelected) {
                                     mutableSetOf()
@@ -110,22 +102,20 @@ fun SelectionMenuDialog(
                                     allIds.toMutableSet()
                                 }
                             },
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 8.dp)
+                            modifier = Modifier.weight(1f)
                         ) {
                             Text(if (isAllSelected) "Deselect All" else "Select All")
                         }
                     }
+                    HorizontalDivider(modifier = Modifier.padding(bottom = 12.dp))
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                // Selection list
+                // Selection list with optimized scrolling
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f, fill = false)
+                        .weight(1f, fill = false),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(items) { item ->
                         SelectionItemRow(
@@ -149,22 +139,26 @@ fun SelectionMenuDialog(
             Button(
                 onClick = {
                     onApply(selectedState.toSet())
-                }
+                },
+                modifier = Modifier.padding(end = 8.dp)
             ) {
-                Text("Apply")
+                Text("Apply", fontWeight = FontWeight.Medium)
             }
         },
         dismissButton = {
             TextButton(onClick = onCancel) {
-                Text("Cancel")
+                Text("Cancel", fontWeight = FontWeight.Medium)
             }
         },
-        modifier = Modifier.fillMaxWidth(0.9f)
+        modifier = Modifier.fillMaxWidth(0.9f),
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
 
 /**
- * Individual selection item row with checkbox
+ * Individual selection item row with checkbox and Material Design 3 styling
  */
 @Composable
 private fun SelectionItemRow(
@@ -172,27 +166,41 @@ private fun SelectionItemRow(
     isChecked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Row(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onCheckedChange(!isChecked) }
-            .padding(vertical = 8.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        color = if (isChecked) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        shape = RoundedCornerShape(8.dp)
     ) {
-        Text(
-            text = item.label,
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .padding(start = 8.dp),
-            style = MaterialTheme.typography.bodyMedium
-        )
+                .fillMaxWidth()
+                .padding(vertical = 12.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = item.label,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = if (isChecked) FontWeight.SemiBold else FontWeight.Normal
+            )
 
-        Checkbox(
-            checked = isChecked,
-            onCheckedChange = onCheckedChange,
-            modifier = Modifier.padding(end = 8.dp)
-        )
+            Checkbox(
+                checked = isChecked,
+                onCheckedChange = onCheckedChange,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        }
     }
 }
 
