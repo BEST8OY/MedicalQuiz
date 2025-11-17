@@ -203,7 +203,6 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(this, QuizActivity::class.java).apply {
             putExtra("DB_PATH", databaseItem.path)
             putExtra("DB_NAME", databaseItem.name)
-            putExtra(QuizActivity.EXTRA_OPEN_FILTERS_FULLSCREEN, false)
         }
         startActivity(intent)
         // Finish this activity so back press in QuizActivity returns to system/launcher
