@@ -48,21 +48,22 @@ android {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.12.0")
+    // Upgrade core for modern APIs and compileSdk 35
+    implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     
     // Lifecycle components
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4")
     // Switched from LiveData to StateFlow/SharedFlow — use lifecycle runtime for repeatOnLifecycle
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
     
     // SQLite support
-    implementation("androidx.sqlite:sqlite-ktx:2.4.0")
+    implementation("androidx.sqlite:sqlite-ktx:2.6.1")
     
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     
     // Activity and Fragment KTX
     implementation("androidx.activity:activity-ktx:1.9.0")
@@ -77,15 +78,15 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.activity:activity-compose:1.9.0")
+    implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
     // Pager for swipe/carousel UI in Compose (official pager from Compose Foundation)
     implementation("androidx.compose.foundation:foundation-layout")
 
     // Media loading (Coil 3) - updated for modern Compose compatibility
-    implementation("io.coil-kt.coil3:coil:3.3.0")
-    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+    implementation("io.coil-kt.coil3:coil:3.4.0")
+    implementation("io.coil-kt.coil3:coil-compose:3.4.0")
 
 
     // Note: `ui-viewbinding` removed since the project uses Compose exclusively for UI
