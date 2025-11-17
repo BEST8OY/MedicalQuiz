@@ -4,12 +4,10 @@ plugins {
     id("com.android.application") version "8.10.0" apply false
     // Kotlin updated to 2.2.0 to match dependencies
     id("org.jetbrains.kotlin.android") version "2.2.0" apply false
-    // ADD THIS LINE for the Compose Compiler plugin
+    // This line adds the Compose Compiler plugin, which is needed for Kotlin 2.0+
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.0" apply false
 }
 
-tasks.register("clean", Delete::class) {
+tasks.register("clean", Delete::class.java) {
     delete(rootProject.layout.buildDirectory)
 }
-
-After making changes to **both** files, sync Gradle again, and your build should be able to resolve all the Kotlin version conflicts.
