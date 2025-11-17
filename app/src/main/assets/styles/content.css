@@ -437,3 +437,30 @@
   color: var(--md-sys-color-on-surface-variant);
   font-style: italic;
 }
+
+/* Answer percentage display - only visible after answering */
+.medical-content .answer-percentage {
+  display: none;
+  padding: 4px 8px;
+  background-color: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.medical-content .answer-revealed .answer-percentage {
+  display: inline-block;
+  margin-left: auto;
+}
+
+.medical-content .answer-button.correct .answer-percentage {
+  background-color: var(--md-sys-color-success);
+  color: var(--md-sys-color-on-success);
+}
+
+.medical-content .answer-button.incorrect .answer-percentage {
+  background-color: var(--md-sys-color-warning);
+  color: var(--md-sys-color-on-warning-container);
+}

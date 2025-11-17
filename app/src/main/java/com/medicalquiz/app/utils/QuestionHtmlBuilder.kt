@@ -23,13 +23,18 @@ object QuestionHtmlBuilder {
                 val sanitizedAnswer = HtmlUtils.normalizeAnswerHtml(
                     HtmlUtils.sanitizeForWebView(answer.answerText)
                 )
+                val percentageDisplay = answer.correctPercentage?.let {
+                    """<span class="answer-percentage">$it%</span>"""
+                } ?: ""
                 """
                 <button type="button"
                         class="answer-button"
                         id="answer-${answer.answerId}"
-                        value="${answer.answerId}">
+                        value="${answer.answerId}"
+                        data-correct-percentage="${answer.correctPercentage ?: ""}">
                     <span class="answer-label">$label.</span>
                     <span class="answer-text">$sanitizedAnswer</span>
+                    $percentageDisplay
                 </button>
                 """.trimIndent()
             }.joinToString("\n")
