@@ -486,83 +486,96 @@ class QuizActivity : AppCompatActivity() {
     }
 
     private fun performSubjectSelection(silently: Boolean, onAfterApply: (() -> Unit)? = null) {
+        Log.d(TAG, "performSubjectSelection called, silently=$silently")
         viewModel.fetchSubjects()
-        launchCatching(
-            dispatcher = Dispatchers.IO,
-            block = {
-                viewModel.state
-                    .first { it.subjectsResource !is Resource.Loading }
-                    .subjectsResource
-            },
-            onSuccess = { resource ->
-                when (resource) {
-                    is Resource.Success<List<Subject>> -> {
-                        lifecycleScope.launch {
-                            val state = viewModel.state.firstMatching()
-                            if (silently) {
-                                filterDialogHandler.showSubjectSelectionDialogSilently(
-                                    resource.data,
-                                    state.selectedSubjectIds,
-                                    viewModel
-                                ) {
-                                    onAfterApply?.invoke()
+        
+        // Observe state changes and show dialog when subjects are loaded
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.state.collect { state ->
+                    val resource = state.subjectsResource
+                    if (resource !is Resource.Loading) {
+                        when (resource) {
+                            is Resource.Success<List<Subject>> -> {
+                                Log.d(TAG, "Subjects loaded: ${resource.data.size} subjects")
+                                if (silently) {
+                                    filterDialogHandler.showSubjectSelectionDialogSilently(
+                                        resource.data,
+                                        state.selectedSubjectIds,
+                                        viewModel
+                                    ) {
+                                        onAfterApply?.invoke()
+                                    }
+                                } else {
+                                    filterDialogHandler.showSubjectSelectionDialog(
+                                        resource.data,
+                                        state.selectedSubjectIds,
+                                        viewModel
+                                    ) {
+                                        onAfterApply?.invoke()
+                                    }
                                 }
-                            } else {
-                                filterDialogHandler.showSubjectSelectionDialog(
-                                    resource.data,
-                                    state.selectedSubjectIds,
-                                    viewModel
-                                )
+                                // Stop observing after showing dialog
+                                return@collect
                             }
+                            is Resource.Error -> {
+                                Log.e(TAG, "Error fetching subjects: ${resource.message}")
+                                showToast("Error fetching subjects: ${resource.message}")
+                                return@collect
+                            }
+                            else -> {}
                         }
                     }
-                    is Resource.Error -> showToast("Error fetching subjects: ${resource.message}")
-                    else -> { /* ignore */ }
                 }
-            },
-            onFailure = { showToast("Failed to fetch subjects: ${it.message}") }
-        )
+            }
+        }
     }
 
     private fun performSystemSelection(silently: Boolean, onAfterApply: (() -> Unit)? = null) {
+        Log.d(TAG, "performSystemSelection called, silently=$silently")
         val state = viewModel.state.value
         viewModel.fetchSystemsForSubjects(state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList())
         
-        launchCatching(
-            dispatcher = Dispatchers.IO,
-            block = {
-                viewModel.state
-                    .first { it.systemsResource !is Resource.Loading }
-                    .systemsResource
-            },
-            onSuccess = { resource ->
-                when (resource) {
-                    is Resource.Success<List<System>> -> {
-                        if (silently) {
-                            filterDialogHandler.showSystemSelectionDialogSilently(
-                                resource.data,
-                                viewModel.state.value.selectedSystemIds,
-                                viewModel
-                            ) {
-                                onAfterApply?.invoke()
+        // Observe state changes and show dialog when systems are loaded
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.state.collect { currentState ->
+                    val resource = currentState.systemsResource
+                    if (resource !is Resource.Loading) {
+                        when (resource) {
+                            is Resource.Success<List<System>> -> {
+                                Log.d(TAG, "Systems loaded: ${resource.data.size} systems")
+                                if (silently) {
+                                    filterDialogHandler.showSystemSelectionDialogSilently(
+                                        resource.data,
+                                        currentState.selectedSystemIds,
+                                        viewModel
+                                    ) {
+                                        onAfterApply?.invoke()
+                                    }
+                                } else {
+                                    filterDialogHandler.showSystemSelectionDialog(
+                                        resource.data,
+                                        currentState.selectedSystemIds,
+                                        viewModel
+                                    ) {
+                                        onAfterApply?.invoke()
+                                    }
+                                }
+                                // Stop observing after showing dialog
+                                return@collect
                             }
-                        } else {
-                            lifecycleScope.launch {
-                                val currentState = viewModel.state.firstMatching()
-                                filterDialogHandler.showSystemSelectionDialog(
-                                    resource.data,
-                                    currentState.selectedSystemIds,
-                                    viewModel
-                                )
+                            is Resource.Error -> {
+                                Log.e(TAG, "Error fetching systems: ${resource.message}")
+                                showToast("Error fetching systems: ${resource.message}")
+                                return@collect
                             }
+                            else -> {}
                         }
                     }
-                    is Resource.Error -> showToast("Error fetching systems: ${resource.message}")
-                    else -> { /* ignore */ }
                 }
-            },
-            onFailure = { showToast("Failed to fetch systems: ${it.message}") }
-        )
+            }
+        }
     }
 
     private fun handleSubjectSelection() {
