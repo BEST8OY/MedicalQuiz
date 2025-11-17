@@ -1,6 +1,8 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    // 1. ADD the Compose Compiler plugin
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -28,12 +30,14 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        // 2. UPDATE Java compatibility to 17 (recommended for modern AGP/Kotlin)
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "11"
+        // 3. UPDATE JVM target to 17
+        jvmTarget = "17"
     }
 
     buildFeatures {
@@ -41,14 +45,11 @@ android {
         viewBinding = false
         compose = true
     }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.15"
-    }
 }
 
 dependencies {
-    // Upgrade core for modern APIs and compileSdk 35
+    // Your dependencies are very new (alpha/beta), which is why they require Kotlin 2.2.0
+    // We will leave them as-is, but update Coil to match the version from your error log.
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
@@ -56,7 +57,6 @@ dependencies {
     
     // Lifecycle components
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4")
-    // Switched from LiveData to StateFlow/SharedFlow — use lifecycle runtime for repeatOnLifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
     
     // SQLite support
@@ -81,19 +81,8 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
-    // Pager for swipe/carousel UI in Compose (official pager from Compose Foundation)
     implementation("androidx.compose.foundation:foundation-layout")
 
-    // Media loading (Coil 3) - updated for modern Compose compatibility
     implementation("io.coil-kt.coil3:coil:3.3.0")
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
-
-
-    // Note: `ui-viewbinding` removed since the project uses Compose exclusively for UI
-    // Optional: Accompanist Pager removed — using official Compose pager
-    
-    // junit removed as part of deleting tests
-        // core-testing removed per user request
-        // Coroutines testing removed per user request
-    // No instrumentation tests configured; these were removed to slim dependencies
 }
