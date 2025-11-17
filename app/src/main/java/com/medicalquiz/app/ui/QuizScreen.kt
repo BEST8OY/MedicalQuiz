@@ -66,17 +66,14 @@ fun QuizScreen(
                 .fillMaxWidth()
                 .wrapContentHeight()
         ) {
-            if (!state.metadataText.isNullOrBlank()) {
+            // Show performance stats only after answer is submitted
+            if (state.answerSubmitted && state.currentPerformance != null) {
+                val perf = state.currentPerformance
+                val lastResultText = if (perf.lastCorrect) "Correct" else "Incorrect"
+                val correctCount = if (perf.everCorrect) 1 else 0
+                val incorrectCount = if (perf.everIncorrect) 1 else 0
                 Text(
-                    text = state.metadataText,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                )
-            }
-
-            if (state.currentPerformance != null) {
-                Text(
-                    text = mapPerformanceLabel(state.performanceFilter),
+                    text = "Attempted: ${perf.attempts} | Last: $lastResultText | Correct: $correctCount | Incorrect: $incorrectCount",
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                 )

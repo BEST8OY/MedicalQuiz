@@ -144,7 +144,10 @@ class QuizActivity : AppCompatActivity() {
     }
 
     private fun setupToolbar(dbName: String?) {
-        // No-op: `QuizRoot` uses `viewModel` to update the top bar.
+        // Set the database name in ViewModel for the top bar
+        if (!dbName.isNullOrEmpty()) {
+            viewModel.setDatabaseName(dbName)
+        }
     }
 
     

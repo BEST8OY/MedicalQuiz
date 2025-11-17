@@ -51,7 +51,7 @@ fun QuizRoot(
         modifier = Modifier.fillMaxSize(),
         drawerState = drawerState,
         scrimColor = androidx.compose.material3.MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f),
-        gesturesEnabled = false,
+        gesturesEnabled = true,
         drawerContent = {
             ModalDrawerSheet {
                 NavigationDrawerItem(

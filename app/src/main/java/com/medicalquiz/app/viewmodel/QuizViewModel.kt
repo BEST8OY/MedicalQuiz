@@ -59,7 +59,7 @@ class QuizViewModel : ViewModel() {
     val state: StateFlow<QuizState> = _state.asStateFlow()
 
     // Derived flows for UI convenience
-    val toolbarTitle = state.map { it.metadataText }.stateIn(
+    val toolbarTitle = state.map { it.databaseName }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
         ""
@@ -544,6 +544,10 @@ class QuizViewModel : ViewModel() {
 
     fun setPerformanceFilterSilently(filter: PerformanceFilter) {
         _state.update { it.copy(performanceFilter = filter) }
+    }
+
+    fun setDatabaseName(name: String) {
+        _state.update { it.copy(databaseName = name) }
     }
 
     fun loadPerformanceForQuestion(questionId: Long) {
