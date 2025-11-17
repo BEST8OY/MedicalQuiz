@@ -197,34 +197,14 @@ class QuizActivity : AppCompatActivity() {
                 },
                 onFailure = { throwable ->
                     Log.e(TAG, "Database initialization failed", throwable)
-                    showErrorDialog(
-                        "Database Error",
-                        "Failed to initialize database: ${throwable.message}\\n\\nTrying to continue..."
-                    )
-                    // Still attempt to show UI in case it's a partial failure
-                    try {
-                        mediaHandler = MediaHandler(this@QuizActivity)
-                        filterDialogHandler = FilterDialogHandler(this@QuizActivity)
-                        setContent {
-                            MedicalQuizTheme {
-                                com.medicalquiz.app.ui.QuizRoot(
-                                viewModel = viewModel,
-                                webViewStateFlow = webViewStateFlow,
-                                mediaHandler = mediaHandler,
-                                filtersOnly = filtersOnlyMode,
-                                onSubjectFilter = { performSubjectSelection(filtersOnlyMode) },
-                                onSystemFilter = { performSystemSelection(filtersOnlyMode) },
-                                onClearFilters = { clearFilters() },
-                                onSettings = { showSettingsDialog() },
-                                onAbout = { showToast("About coming soon") },
-                                onJumpTo = { showJumpToDialog() }
-                                ,
-                                onStart = { startQuiz() }
-                                )
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to show UI after initialization error", e)
+                    // Fatal initialization error - ask user to retry or close.
+                    runOnUiThread {
+                        AlertDialog.Builder(this@QuizActivity)
+                            .setTitle("Database Error")
+                            .setMessage("Failed to initialize database: ${throwable.message}")
+                            .setPositiveButton("Close") { _, _ -> finish() }
+                            .setCancelable(false)
+                            .show()
                     }
                 }
             )
@@ -326,11 +306,11 @@ class QuizActivity : AppCompatActivity() {
             if (previousState != null) {
                 showNoQuestionsFound()
             } else {
-                // initial empty state — open the start filters panel only when database
-                // initialization has completed. If subjects or systems are still
-                // loading it's likely the DB has not finished initializing.
-                val dbInitializing = state.subjectsResource is Resource.Loading || state.systemsResource is Resource.Loading
-                if (!dbInitializing) {
+                // only show the start filters panel if the database has successfully
+                // finished loading the subject list; if an error occurred we should
+                // not show the filters panel erroneously.
+                val dbReady = state.subjectsResource is Resource.Success
+                if (dbReady) {
                     showStartFiltersPanel()
                 }
             }
@@ -339,12 +319,21 @@ class QuizActivity : AppCompatActivity() {
                 // Compose UI controls the start filters panel — nothing to do
             }
             if (autoLoadFirstQuestion) {
-                // Ensure questions were registered before attempting to load the first one
-                lifecycleScope.launch {
-                    viewModel.state.first { it.questionIds.isNotEmpty() }
-                    viewModel.loadQuestion(0)
-                }
+                // Prevent duplicate launches and make sure we call loadQuestion only once
                 autoLoadFirstQuestion = false
+                lifecycleScope.launch {
+                    try {
+                        // Wait for the ViewModel to populate questions (timeout to avoid hang)
+                        withContext(Dispatchers.Main) {
+                            kotlinx.coroutines.withTimeout(10_000) {
+                                viewModel.state.first { it.questionIds.isNotEmpty() }
+                            }
+                        }
+                        viewModel.loadQuestion(0)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to auto-load first question", e)
+                    }
+                }
             }
         }
     }
@@ -498,9 +487,10 @@ class QuizActivity : AppCompatActivity() {
         Log.d(TAG, "performSubjectSelection called, silently=$silently")
         viewModel.fetchSubjects()
 
-        lifecycleScope.launch {
+            lifecycleScope.launch {
             // Wait until the subjects resource is no longer loading (single-shot)
-            val state = viewModel.state.first { it.subjectsResource !is Resource.Loading }
+            try {
+                val state = kotlinx.coroutines.withTimeout(10_000) { viewModel.state.first { it.subjectsResource !is Resource.Loading } }
             val resource = state.subjectsResource
             when (resource) {
                 is Resource.Success<List<Subject>> -> {
@@ -528,18 +518,25 @@ class QuizActivity : AppCompatActivity() {
                     showToast("Error fetching subjects: ${resource.message}")
                 }
                 else -> {}
+            } catch (e: Exception) {
+                Log.e(TAG, "Timeout/wait error waiting for subjects to load", e)
+                showToast("Failed to load subjects: ${e.message}")
             }
         }
     }
 
     private fun performSystemSelection(silently: Boolean, onAfterApply: (() -> Unit)? = null) {
         Log.d(TAG, "performSystemSelection called, silently=$silently")
-        val stateSnapshot = viewModel.state.value
-        viewModel.fetchSystemsForSubjects(stateSnapshot.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList())
+        // Use a snapshot of the subjects selection now, and pass the same
+        // snapshot to the systems fetch call to avoid race when the user
+        // changes their subject selection rapidly.
+        val subjectsSnapshot = viewModel.state.value.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+        viewModel.fetchSystemsForSubjects(subjectsSnapshot)
 
         lifecycleScope.launch {
             // Wait until the systems resource is no longer loading (single-shot)
-            val state = viewModel.state.first { it.systemsResource !is Resource.Loading }
+            try {
+                val state = kotlinx.coroutines.withTimeout(10_000) { viewModel.state.first { it.systemsResource !is Resource.Loading } }
             val resource = state.systemsResource
             when (resource) {
                 is Resource.Success<List<System>> -> {
@@ -567,6 +564,10 @@ class QuizActivity : AppCompatActivity() {
                     showToast("Error fetching systems: ${resource.message}")
                 }
                 else -> {}
+            }
+            } catch (e: Exception) {
+                Log.e(TAG, "Timeout/wait error waiting for systems to load", e)
+                showToast("Failed to load systems: ${e.message}")
             }
         }
     }
@@ -608,8 +609,20 @@ class QuizActivity : AppCompatActivity() {
                 if (ids.isNotEmpty()) {
                     // Wait until the ViewModel state reflects the new question ids
                     lifecycleScope.launch {
-                        viewModel.state.first { it.questionIds == ids }
-                        viewModel.loadQuestion(0)
+                        try {
+                            // Use structural equality (containsAll + size) so new lists
+                            // with the same content cause completion.
+                            kotlinx.coroutines.withTimeout(10_000) {
+                                viewModel.state.first {
+                                    it.questionIds.size == ids.size && it.questionIds.containsAll(ids)
+                                }
+                            }
+                            viewModel.loadQuestion(0)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Timeout waiting for question ids to update", e)
+                            // Fall back to trying to load if something did change
+                            if (ids.isNotEmpty()) viewModel.loadQuestion(0)
+                        }
                     }
                 } else {
                     showToast("No questions found for current filters")
@@ -647,7 +660,7 @@ class QuizActivity : AppCompatActivity() {
             dispatcher = Dispatchers.IO,
             block = { viewModel.fetchFilteredQuestionIds().size },
             onSuccess = { count ->
-                val text = if (count == 1) "1 question matches" else "$count questions match"
+                Log.d(TAG, "Preview count: $count")
                 // Recompose the filters panel with updated preview count
                 // Compose `StartFiltersPanel` will recompose using the new preview count.
             },
@@ -852,8 +865,9 @@ class QuizActivity : AppCompatActivity() {
         viewModel.setPerformanceFilter(performanceFilter)
 
         viewModel.setQuestionIds(ids)
-        if (ids.isNotEmpty() && currentIndex in ids.indices) {
-            viewModel.loadQuestion(currentIndex)
+        if (ids.isNotEmpty()) {
+            val safeIndex = currentIndex.coerceIn(0, ids.size - 1)
+            viewModel.loadQuestion(safeIndex)
         }
 
         val wasSubmitted = savedInstanceState.getBoolean(STATE_ANSWER_SUBMITTED, false)
