@@ -7,6 +7,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.compose.setContent
 // Drawer gravity & view helpers removed — Compose handles drawer and layout
 import androidx.lifecycle.Lifecycle
 // ViewGroup and other view-specific helpers removed; Compose manages the layout

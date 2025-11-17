@@ -31,7 +31,7 @@ fun AnswersList(
                 else -> Color.Transparent
             }
             Text(
-                text = answer.text ?: "",
+                text = answer.answerText,
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier
                     .fillMaxWidth()

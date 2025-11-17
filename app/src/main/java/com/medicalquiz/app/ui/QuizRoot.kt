@@ -2,6 +2,8 @@ package com.medicalquiz.app.ui
 
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.viewmodel.UiEvent
@@ -45,26 +47,50 @@ fun QuizRoot(
                 NavigationDrawerItem(
                     label = { Text("Filter by Subject") },
                     selected = false,
-                    onClick = { onSubjectFilter(); scope.launch { drawerState.close() } }
+                    onClick = {
+                        onSubjectFilter()
+                        scope.launch { drawerState.close() }
+                        Unit
+                    }
                 )
                 NavigationDrawerItem(
                     label = { Text("Filter by System") },
                     selected = false,
-                    onClick = { onSystemFilter(); scope.launch { drawerState.close() } }
+                    onClick = {
+                        onSystemFilter()
+                        scope.launch { drawerState.close() }
+                        Unit
+                    }
                 )
                 NavigationDrawerItem(
                     label = { Text("Filter by Performance") },
                     selected = false,
-                    onClick = { viewModel.openPerformanceDialog(); scope.launch { drawerState.close() } }
+                    onClick = {
+                        viewModel.openPerformanceDialog()
+                        scope.launch { drawerState.close() }
+                        Unit
+                    }
                 )
                 NavigationDrawerItem(
                     label = { Text("Clear Filters") },
                     selected = false,
-                    onClick = { onClearFilters(); scope.launch { drawerState.close() } }
+                    onClick = {
+                        onClearFilters()
+                        scope.launch { drawerState.close() }
+                        Unit
+                    }
                 )
                 Divider()
-                NavigationDrawerItem(label = { Text("Settings") }, selected = false, onClick = { onSettings(); scope.launch { drawerState.close() } })
-                NavigationDrawerItem(label = { Text("About") }, selected = false, onClick = { onAbout(); scope.launch { drawerState.close() } })
+                NavigationDrawerItem(label = { Text("Settings") }, selected = false, onClick = {
+                    onSettings()
+                    scope.launch { drawerState.close() }
+                    Unit
+                })
+                NavigationDrawerItem(label = { Text("About") }, selected = false, onClick = {
+                    onAbout()
+                    scope.launch { drawerState.close() }
+                    Unit
+                })
             }
         }
     ) {
@@ -82,7 +108,7 @@ fun QuizRoot(
                 QuizTopBar(
                     title = title,
                     subtitle = null,
-                    onMenuClick = { scope.launch { drawerState.open() } },
+                    onMenuClick = { scope.launch { drawerState.open() }; Unit },
                     onSettingsClick = onSettings
                 )
             },
@@ -94,6 +120,7 @@ fun QuizRoot(
                 viewModel = viewModel,
                 webViewStateFlow = webViewStateFlow,
                 mediaHandler = mediaHandler,
+            contentPadding = innerPadding,
                 onPrevious = { viewModel.loadPrevious() },
                 onNext = { viewModel.loadNext() },
                 onJumpTo = onJumpTo,

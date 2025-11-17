@@ -26,12 +26,12 @@ fun QuizTopBar(
         title = { Text(text = t ?: "Medical Quiz") },
         navigationIcon = {
             IconButton(onClick = onMenuClick) {
-                Icon(imageVector = Icons.Default.Menu as ImageVector, contentDescription = "Open drawer")
+                Icon(imageVector = Icons.Default.Menu, contentDescription = "Open drawer")
             }
         },
         actions = {
             IconButton(onClick = onSettingsClick) {
-                Icon(imageVector = Icons.Default.Settings as ImageVector, contentDescription = "Settings")
+                Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings")
             }
         },
         colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(

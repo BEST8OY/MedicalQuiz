@@ -35,7 +35,9 @@ fun QuizScreen(
     onShowFilterSubject: () -> Unit,
     onShowFilterSystem: () -> Unit,
     onSelectPerformance: () -> Unit,
-    onStart: () -> Unit
+    onStart: () -> Unit,
+    // Padding coming from Scaffold
+    contentPadding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.foundation.layout.PaddingValues(0.dp)
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -45,11 +47,11 @@ fun QuizScreen(
             .fillMaxSize()
             .padding(12.dp),
         verticalArrangement = Arrangement.Top
-    ) { innerPadding ->
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(contentPadding),
             verticalArrangement = Arrangement.Top
         ) {
             // Metadata

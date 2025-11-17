@@ -34,7 +34,7 @@ fun MediaViewerScreen(mediaFiles: List<String>, startIndex: Int) {
     BackHandler { /* Back handled by hosting activity */ }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        HorizontalPager(count = mediaFiles.size, state = pagerState) { page ->
+        HorizontalPager(pageCount = mediaFiles.size, state = pagerState) { page ->
             currentIndex = page
             val file = mediaFiles[page]
             when (getMediaType(file)) {

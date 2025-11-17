@@ -46,7 +46,7 @@ fun <T> SelectionDialog(
                         val label = labelProvider(item)
                         val checked = selected.value.contains(id)
                         androidx.compose.material3.ListItem(
-                            headlineText = { Text(label) },
+                            headlineContent = { Text(label) },
                             leadingContent = {
                                 Checkbox(
                                     checked = checked,
