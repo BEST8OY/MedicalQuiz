@@ -39,7 +39,7 @@ android {
 
             // (Optional but recommended for Kotlin 2.2)
             freeCompilerArgs.addAll(
-                "-Xcontext-receivers",
+                "-Xcontext-parameters",
                 "-opt-in=kotlin.RequiresOptIn"
             )
         }

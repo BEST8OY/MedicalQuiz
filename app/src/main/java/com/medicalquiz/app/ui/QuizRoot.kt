@@ -80,7 +80,7 @@ fun QuizRoot(
                         Unit
                     }
                 )
-                Divider()
+                androidx.compose.material3.HorizontalDivider()
                 NavigationDrawerItem(label = { Text("Settings") }, selected = false, onClick = {
                     onSettings()
                     scope.launch { drawerState.close() }

@@ -43,6 +43,7 @@ import com.medicalquiz.app.viewmodel.UiEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.withContext
 
 class QuizActivity : AppCompatActivity() {
@@ -662,8 +663,9 @@ class QuizActivity : AppCompatActivity() {
     private fun showSettingsDialog() {
         val composeView = androidx.compose.ui.platform.ComposeView(this)
         composeView.setContent {
+            val loggingEnabled by settingsRepository.isLoggingEnabled.collectAsStateWithLifecycle()
             com.medicalquiz.app.ui.SettingsDialog(
-                initialLoggingEnabled = settingsRepository.isLoggingEnabled.value,
+                initialLoggingEnabled = loggingEnabled,
                 onLoggingChanged = { enabled ->
                     settingsRepository.setLoggingEnabled(enabled)
                     if (!enabled) viewModel.clearPendingLogsBuffer()

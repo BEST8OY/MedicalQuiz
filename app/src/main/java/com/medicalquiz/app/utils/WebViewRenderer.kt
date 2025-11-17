@@ -219,7 +219,7 @@ object WebViewRenderer {
 
             // Storage
             domStorageEnabled = false
-            databaseEnabled = false
+            // databaseEnabled is deprecated; avoid setting it to remove lint/compat warnings
 
             // Viewport and Zoom
             loadWithOverviewMode = true
