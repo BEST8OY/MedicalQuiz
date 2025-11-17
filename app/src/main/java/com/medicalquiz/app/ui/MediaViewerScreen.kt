@@ -29,13 +29,13 @@ import java.io.File
 
 @Composable
 fun MediaViewerScreen(mediaFiles: List<String>, startIndex: Int) {
-    val pagerState = rememberPagerState(initialPage = startIndex)
+    val pagerState = rememberPagerState(initialPage = startIndex, pageCount = mediaFiles.size)
     var currentIndex by remember { mutableStateOf(startIndex) }
 
     BackHandler { /* Back handled by hosting activity */ }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        HorizontalPager(state = pagerState, pageCount = mediaFiles.size) { page ->
+        HorizontalPager(state = pagerState) { page ->
             currentIndex = page
             val file = mediaFiles[page]
             when (getMediaType(file)) {
