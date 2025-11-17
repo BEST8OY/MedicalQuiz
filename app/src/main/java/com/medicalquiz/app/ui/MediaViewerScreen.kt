@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import com.medicalquiz.app.MediaType
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import coil3.compose.AsyncImage
@@ -34,7 +35,7 @@ fun MediaViewerScreen(mediaFiles: List<String>, startIndex: Int) {
     BackHandler { /* Back handled by hosting activity */ }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        HorizontalPager(pageCount = mediaFiles.size, state = pagerState) { page ->
+        HorizontalPager(mediaFiles.size, state = pagerState) { page ->
             currentIndex = page
             val file = mediaFiles[page]
             when (getMediaType(file)) {

@@ -104,13 +104,15 @@ fun QuizRoot(
             }
         // Top-level scaffold with topBar and bottomBar
         Scaffold(
-            topBar = if (filtersOnly) null else {
-                QuizTopBar(
-                    title = title,
-                    subtitle = null,
-                    onMenuClick = { scope.launch { drawerState.open() }; Unit },
-                    onSettingsClick = onSettings
-                )
+            topBar = {
+                if (!filtersOnly) {
+                    QuizTopBar(
+                        title = title,
+                        subtitle = null,
+                        onMenuClick = { scope.launch { drawerState.open() }; Unit },
+                        onSettingsClick = onSettings
+                    )
+                }
             },
             bottomBar = {
                 if (!filtersOnly) QuizBottomBar(viewModel = viewModel, onJumpTo = onJumpTo)
