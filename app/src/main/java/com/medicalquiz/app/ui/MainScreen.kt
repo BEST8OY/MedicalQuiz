@@ -13,6 +13,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.DatabaseItem
 
@@ -24,7 +25,9 @@ fun MainScreen(
     onGrantStorage: () -> Unit,
     onDatabaseSelected: (DatabaseItem) -> Unit
 ) {
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Surface(modifier = Modifier
+        .fillMaxSize()
+        .systemBarsPadding(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = statusText)
 

@@ -4,6 +4,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.viewmodel.UiEvent
@@ -106,6 +108,8 @@ fun QuizRoot(
             }
         // Top-level scaffold with topBar and bottomBar
         Scaffold(
+            // Let scaffold automatically apply system bar insets for content.
+            contentWindowInsets = WindowInsets.systemBars,
             topBar = {
                 if (!filtersOnly) {
                     QuizTopBar(

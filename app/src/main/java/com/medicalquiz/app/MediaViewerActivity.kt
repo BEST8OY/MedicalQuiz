@@ -6,6 +6,8 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.medicalquiz.app.ui.MediaViewerScreen
+import com.medicalquiz.app.ui.theme.MedicalQuizTheme
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.platform.ComposeView
 import java.io.File
 
@@ -14,6 +16,12 @@ class MediaViewerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Enable edge-to-edge to allow immersive media viewing
+        WindowCompat.enableEdgeToEdge(window)
+        val isDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !isDark
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = !isDark
         if (!Environment.isExternalStorageManager()) {
             Toast.makeText(this, "Storage permission required to view media", Toast.LENGTH_LONG).show()
             finish()
@@ -35,7 +43,9 @@ class MediaViewerActivity : AppCompatActivity() {
 
         setContentView(ComposeView(this).apply {
             setContent {
-                MediaViewerScreen(mediaFiles = mediaFiles, startIndex = actualStartIndex)
+                MedicalQuizTheme {
+                    MediaViewerScreen(mediaFiles = mediaFiles, startIndex = actualStartIndex)
+                }
             }
         })
     }

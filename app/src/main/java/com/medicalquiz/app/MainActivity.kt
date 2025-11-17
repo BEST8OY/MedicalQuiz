@@ -15,6 +15,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.compose.runtime.mutableStateOf
 import androidx.activity.compose.setContent
+import androidx.core.view.WindowCompat
+import com.medicalquiz.app.ui.theme.MedicalQuizTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import java.io.File
@@ -57,15 +59,24 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Enable edge-to-edge display
+        WindowCompat.enableEdgeToEdge(window)
+        // Update status/navigation bar icon color based on current night mode
+        val isDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !isDark
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = !isDark
         // Use Jetpack Compose for the main UI — convert the database list to a LazyColumn
         setContent {
-            com.medicalquiz.app.ui.MainScreen(
+            MedicalQuizTheme {
+                com.medicalquiz.app.ui.MainScreen(
                 databases = databaseList,
                 statusText = statusText,
                 showManageStoragePrompt = showManageStoragePrompt,
                 onGrantStorage = { openManageStorageSettings() },
                 onDatabaseSelected = { onDatabaseSelected(it) }
             )
+            }
         }
 
         // Compose handles the list & manage storage prompt UI

@@ -146,7 +146,8 @@ class FilterDialogHandler(
         val composeView = androidx.compose.ui.platform.ComposeView(context)
 
         composeView.setContent {
-            SelectionDialog(
+            com.medicalquiz.app.ui.theme.MedicalQuizTheme {
+                SelectionDialog(
                 title = title,
                 items = items,
                 currentChecked = items.mapNotNull { item -> idProvider(item).takeIf { isChecked(item) } }.toSet(),
@@ -161,7 +162,8 @@ class FilterDialogHandler(
                     onApply(emptySet())
                     dialog.dismiss()
                 }
-            )
+                )
+            }
         }
 
         dialog.setContentView(composeView)

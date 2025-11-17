@@ -8,6 +8,8 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
+import androidx.core.view.WindowCompat
+import com.medicalquiz.app.ui.theme.MedicalQuizTheme
 // Drawer gravity & view helpers removed — Compose handles drawer and layout
 import androidx.lifecycle.Lifecycle
 // ViewGroup and other view-specific helpers removed; Compose manages the layout
@@ -74,6 +76,12 @@ class QuizActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Enable edge-to-edge display for this activity
+        WindowCompat.enableEdgeToEdge(window)
+        val isDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !isDark
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = !isDark
 
         initializeComponents()
         validateAndSetupDatabase()
@@ -163,7 +171,8 @@ class QuizActivity : AppCompatActivity() {
 
                     // Host the entire Quiz UI in Compose once DB is ready.
                     setContent {
-                        com.medicalquiz.app.ui.QuizRoot(
+                        MedicalQuizTheme {
+                            com.medicalquiz.app.ui.QuizRoot(
                             viewModel = viewModel,
                             webViewStateFlow = webViewStateFlow,
                             mediaHandler = mediaHandler,
@@ -176,7 +185,8 @@ class QuizActivity : AppCompatActivity() {
                             onJumpTo = { showJumpToDialog() }
                             ,
                             onStart = { startQuiz() }
-                        )
+                            )
+                        }
                     }
                 },
                 onFailure = { throwable ->
@@ -666,15 +676,17 @@ class QuizActivity : AppCompatActivity() {
     private fun showSettingsDialog() {
         val composeView = androidx.compose.ui.platform.ComposeView(this)
         composeView.setContent {
-            val loggingEnabled by settingsRepository.isLoggingEnabled.collectAsStateWithLifecycle()
-            com.medicalquiz.app.ui.SettingsDialog(
-                initialLoggingEnabled = loggingEnabled,
-                onLoggingChanged = { enabled ->
-                    settingsRepository.setLoggingEnabled(enabled)
-                    if (!enabled) viewModel.clearPendingLogsBuffer()
-                },
-                onResetLogs = { showResetLogsConfirmation() }
-            )
+            MedicalQuizTheme {
+                val loggingEnabled by settingsRepository.isLoggingEnabled.collectAsStateWithLifecycle()
+                com.medicalquiz.app.ui.SettingsDialog(
+                    initialLoggingEnabled = loggingEnabled,
+                    onLoggingChanged = { enabled ->
+                        settingsRepository.setLoggingEnabled(enabled)
+                        if (!enabled) viewModel.clearPendingLogsBuffer()
+                    },
+                    onResetLogs = { showResetLogsConfirmation() }
+                )
+            }
         }
 
         val dialog = AlertDialog.Builder(this)
