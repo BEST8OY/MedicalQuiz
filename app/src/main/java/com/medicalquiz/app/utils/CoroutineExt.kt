@@ -80,15 +80,22 @@ fun <T> LifecycleOwner.launchCatching(
  * Automatically retries failed operations with exponential backoff between attempts.
  * Useful for network operations or database queries that may fail temporarily.
  *
+ * Executes with total attempts = 1 (initial) + maxRetries. For example, maxRetries=3
+ * means 1 initial attempt + 3 retries = 4 total attempts.
+ *
+ * Note: If the coroutine is cancelled during retry delay (e.g., lifecycle destroyed),
+ * the CancellationException will propagate and onFailure will NOT be called. This
+ * follows standard coroutine cancellation semantics.
+ *
  * @param dispatcher The dispatcher to execute the block on
- * @param maxRetries Maximum number of retry attempts (default: 3)
+ * @param maxRetries Maximum number of retry attempts after initial attempt (default: 3)
  * @param initialDelay Initial delay before first retry (default: 1 second)
  * @param backoffFactor Multiplier for delay between retries (default: 2.0)
  * @param timeout Optional timeout for each individual attempt
  * @param shouldRetry Predicate to determine if exception should trigger retry
  * @param block The suspend function to execute
  * @param onSuccess Callback invoked on main thread when block succeeds
- * @param onFailure Callback invoked on main thread when all retries fail
+ * @param onFailure Callback invoked on main thread when all retries fail (not called if cancelled)
  * @return Job that can be used to cancel the operation
  *
  * @sample
@@ -170,6 +177,9 @@ fun <T> LifecycleCoroutineScope.launchCatching(
 /**
  * Executes a block with error handling and optional timeout.
  * Must be called from a coroutine context on the Main dispatcher.
+ * 
+ * Important: CancellationException is re-thrown to preserve coroutine
+ * cancellation semantics. This ensures proper cleanup when the lifecycle ends.
  */
 private suspend fun <T> executeCatchingBlock(
     dispatcher: CoroutineDispatcher,
@@ -184,6 +194,8 @@ private suspend fun <T> executeCatchingBlock(
     } catch (e: TimeoutCancellationException) {
         val timeoutError = createTimeoutException(timeout, e)
         onFailure(timeoutError)
+    } catch (e: CancellationException) {
+        throw e  // Re-throw to preserve cancellation semantics
     } catch (e: Exception) {
         onFailure(e)
     }
@@ -192,6 +204,9 @@ private suspend fun <T> executeCatchingBlock(
 /**
  * Executes a block with retry logic and exponential backoff.
  * Must be called from a coroutine context on the Main dispatcher.
+ * 
+ * Total attempts = 1 (initial) + maxRetries. For example, with maxRetries=3,
+ * there will be 1 initial attempt followed by up to 3 retries (4 attempts total).
  */
 private suspend fun <T> executeWithRetry(
     dispatcher: CoroutineDispatcher,
@@ -207,6 +222,7 @@ private suspend fun <T> executeWithRetry(
     var lastException: Throwable? = null
     var currentDelay = initialDelay
 
+    // Attempt initial + up to maxRetries times
     repeat(maxRetries + 1) { attempt ->
         val attemptResult = attemptExecution(
             dispatcher = dispatcher,
@@ -237,7 +253,7 @@ private suspend fun <T> executeWithRetry(
         }
     }
 
-    // All retries exhausted
+    // This should never be reached if logic is correct
     val finalException = lastException 
         ?: RuntimeException("Unknown error after $maxRetries retries")
     onFailure(finalException)
@@ -245,6 +261,9 @@ private suspend fun <T> executeWithRetry(
 
 /**
  * Attempts to execute the block once, handling various failure scenarios.
+ * 
+ * Correctly determines when to stop retrying by checking if we've exhausted
+ * our total attempts (initial + maxRetries).
  */
 private suspend fun <T> attemptExecution(
     dispatcher: CoroutineDispatcher,
@@ -279,6 +298,10 @@ private suspend fun <T> attemptExecution(
 
 /**
  * Determines the appropriate result based on the exception and retry conditions.
+ * 
+ * Uses > (not >=) for comparison because currentAttempt is 0-indexed:
+ * - maxRetries=3 means attempts 0,1,2,3 (4 total)
+ * - When currentAttempt=3, we've used all retries, so 3 > 2 is true (stop)
  */
 private fun <T> handleAttemptException(
     exception: Exception,
@@ -295,7 +318,7 @@ private fun <T> handleAttemptException(
     }
 
     return when {
-        currentAttempt >= maxRetries -> AttemptResult.Failure(wrappedException, shouldStop = true)
+        currentAttempt > maxRetries -> AttemptResult.Failure(wrappedException, shouldStop = true)
         !shouldRetry(exception) -> AttemptResult.Failure(wrappedException, shouldStop = true)
         else -> AttemptResult.Retry(wrappedException)
     }
@@ -332,9 +355,18 @@ private fun createTimeoutException(timeout: Duration?, cause: Throwable): Runtim
 
 /**
  * Calculates the next retry delay using exponential backoff, capped at maximum.
+ * 
+ * Checks for overflow before multiplication to prevent Duration overflow
+ * when backoff factor is large or currentDelay is already significant.
  */
 private fun calculateNextDelay(currentDelay: Duration, backoffFactor: Double): Duration {
-    return (currentDelay * backoffFactor).coerceAtMost(MAX_RETRY_DELAY)
+    val maxBeforeMultiply = MAX_RETRY_DELAY / backoffFactor
+    return if (currentDelay >= maxBeforeMultiply) {
+        // Multiplying would exceed max, so just return max
+        MAX_RETRY_DELAY
+    } else {
+        (currentDelay * backoffFactor).coerceAtMost(MAX_RETRY_DELAY)
+    }
 }
 
 // ============================================================================
