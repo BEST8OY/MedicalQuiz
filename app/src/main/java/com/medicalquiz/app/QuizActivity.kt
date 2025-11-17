@@ -128,6 +128,7 @@ class QuizActivity : AppCompatActivity() {
         val dbPath = intent.getStringExtra(EXTRA_DB_PATH)
         val dbName = intent.getStringExtra(EXTRA_DB_NAME)
         filtersOnlyMode = intent.getBooleanExtra(EXTRA_OPEN_FILTERS_FULLSCREEN, false)
+        Log.d(TAG, "validateAndSetupDatabase: filtersOnlyMode=$filtersOnlyMode (from intent extra)")
 
         if (dbPath.isNullOrEmpty()) {
             showToast("No database selected")
@@ -168,6 +169,7 @@ class QuizActivity : AppCompatActivity() {
                         mediaHandler.reset()
 
                         Log.d(TAG, "Media and filter handlers initialized, setting up Compose UI")
+                        Log.d(TAG, "About to call QuizRoot with filtersOnly=$filtersOnlyMode")
 
                         // Host the entire Quiz UI in Compose once DB is ready.
                         setContent {
