@@ -128,7 +128,6 @@ fun QuizRoot(
                 viewModel = viewModel,
                 webViewStateFlow = webViewStateFlow,
                 mediaHandler = mediaHandler,
-            contentPadding = innerPadding,
                 onPrevious = { viewModel.loadPrevious() },
                 onNext = { viewModel.loadNext() },
                 onJumpTo = onJumpTo,
@@ -138,7 +137,8 @@ fun QuizRoot(
                 onSelectPerformance = { viewModel.openPerformanceDialog() },
                 onStart = onStart,
                 onClearFilters = onClearFilters,
-                filtersOnly = filtersOnly
+                filtersOnly = filtersOnly,
+                contentPadding = innerPadding
             )
         }
     }
