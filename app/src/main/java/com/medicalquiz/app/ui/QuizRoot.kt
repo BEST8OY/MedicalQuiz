@@ -46,6 +46,7 @@ fun QuizRoot(
 
     ModalNavigationDrawer(
         drawerState = drawerState,
+        scrimColor = androidx.compose.material3.MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f),
         drawerContent = {
             ModalDrawerSheet {
                 NavigationDrawerItem(

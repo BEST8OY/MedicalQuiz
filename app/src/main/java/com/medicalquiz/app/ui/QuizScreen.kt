@@ -48,61 +48,66 @@ fun QuizScreen(
         android.util.Log.d("QuizScreen", "QuestionIds changed: count=${state.questionIds.size}, showingFilters=${state.questionIds.isEmpty()}")
     }
 
-    // Render the rest of the UI in the card's Compose content area
+    // Main column with proper space distribution
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(12.dp),
+            .padding(contentPadding),
         verticalArrangement = Arrangement.Top
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(contentPadding),
-            verticalArrangement = Arrangement.Top
-        ) {
-            // Metadata
-            if (!state.metadataText.isNullOrBlank()) {
-                Text(text = state.metadataText, style = MaterialTheme.typography.bodySmall)
-            }
-
-            if (state.currentPerformance != null) {
-                Text(text = mapPerformanceLabel(state.performanceFilter), style = MaterialTheme.typography.bodySmall)
-            }
-
-            // Filter panel — shows whenever questions list is empty
-            if (state.questionIds.isEmpty()) {
-                android.util.Log.d("QuizScreen", "Rendering StartFiltersPanel with ${state.selectedSubjectIds.size} subjects selected")
-                StartFiltersPanel(
-                    subjectCount = state.selectedSubjectIds.size,
-                    systemCount = state.selectedSystemIds.size,
-                    performanceLabel = mapPerformanceLabel(state.performanceFilter),
-                    previewCount = state.questionIds.size,
-                    onSelectSubjects = onShowFilterSubject,
-                    onSelectSystems = onShowFilterSystem,
-                    onSelectPerformance = onSelectPerformance,
-                    onClear = onClearFilters,
-                    onStart = onStart
-                )
-
-                // Nothing to show after filters; return early
-                return@Column
-            }
-
-            // Render question WebView
-            com.medicalquiz.app.utils.WebViewComposable(
-                stateFlow = webViewStateFlow,
-                onAnswerSelected = { answerId ->
-                    viewModel.onAnswerSelected(answerId)
-                    val timeTaken = System.currentTimeMillis() - (0L) // Activity manages startTime
-                    viewModel.submitAnswer(timeTaken)
-                },
-                onOpenMedia = { mediaRef ->
-                    val ref = mediaRef.takeIf { it.isNotBlank() } ?: return@WebViewComposable
-                    mediaHandler.handleMediaLink(ref)
-                },
-                mediaHandler = mediaHandler
+        // Metadata section
+        if (!state.metadataText.isNullOrBlank()) {
+            Text(
+                text = state.metadataText,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
             )
+        }
+
+        if (state.currentPerformance != null) {
+            Text(
+                text = mapPerformanceLabel(state.performanceFilter),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+        }
+
+        // Filter panel — shows whenever questions list is empty
+        if (state.questionIds.isEmpty()) {
+            android.util.Log.d("QuizScreen", "Rendering StartFiltersPanel with ${state.selectedSubjectIds.size} subjects selected")
+            StartFiltersPanel(
+                subjectCount = state.selectedSubjectIds.size,
+                systemCount = state.selectedSystemIds.size,
+                performanceLabel = mapPerformanceLabel(state.performanceFilter),
+                previewCount = state.questionIds.size,
+                onSelectSubjects = onShowFilterSubject,
+                onSelectSystems = onShowFilterSystem,
+                onSelectPerformance = onSelectPerformance,
+                onClear = onClearFilters,
+                onStart = onStart
+            )
+        } else {
+            // Render question WebView with weight to fill remaining space
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
+            ) {
+                com.medicalquiz.app.utils.WebViewComposable(
+                    stateFlow = webViewStateFlow,
+                    onAnswerSelected = { answerId ->
+                        viewModel.onAnswerSelected(answerId)
+                        val timeTaken = System.currentTimeMillis() - (0L) // Activity manages startTime
+                        viewModel.submitAnswer(timeTaken)
+                    },
+                    onOpenMedia = { mediaRef ->
+                        val ref = mediaRef.takeIf { it.isNotBlank() } ?: return@WebViewComposable
+                        mediaHandler.handleMediaLink(ref)
+                    },
+                    mediaHandler = mediaHandler
+                )
+            }
         }
     }
 
