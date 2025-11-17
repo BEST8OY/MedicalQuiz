@@ -104,7 +104,7 @@ fun QuizScreen(
                     subjectCount = state.selectedSubjectIds.size,
                     systemCount = state.selectedSystemIds.size,
                     performanceLabel = mapPerformanceLabel(state.performanceFilter),
-                    previewCount = state.questionIds.size,
+                    previewCount = state.previewQuestionCount,
                     onSelectSubjects = onShowFilterSubject,
                     onSelectSystems = onShowFilterSystem,
                     onSelectPerformance = onSelectPerformance,

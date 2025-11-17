@@ -445,8 +445,8 @@ class QuizViewModel : ViewModel() {
             }
             
             _state.update { it.copy(selectedSystemIds = validSystems) }
-            // Don't load questions here - just update the filter state
-            // The Start button will load the questions when ready
+            // Update preview count
+            updatePreviewQuestionCount()
         }
     }
 
@@ -489,8 +489,8 @@ class QuizViewModel : ViewModel() {
     fun applySelectedSystems(newSystemIds: Set<Long>) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(selectedSystemIds = newSystemIds) }
-            // Don't load questions here - just update the filter state
-            // The Start button will load the questions when ready
+            // Update preview count
+            updatePreviewQuestionCount()
         }
     }
 
@@ -536,6 +536,9 @@ class QuizViewModel : ViewModel() {
     fun setPerformanceFilter(filter: PerformanceFilter) {
         _state.update { it.copy(performanceFilter = filter) }
         loadFilteredQuestionIds()
+        viewModelScope.launch(Dispatchers.IO) {
+            updatePreviewQuestionCount()
+        }
     }
 
     fun openPerformanceDialog() {
@@ -550,6 +553,17 @@ class QuizViewModel : ViewModel() {
 
     fun setDatabaseName(name: String) {
         _state.update { it.copy(databaseName = name) }
+    }
+
+    private fun updatePreviewQuestionCount() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val count = fetchFilteredQuestionIds().size
+                _state.update { it.copy(previewQuestionCount = count) }
+            } catch (e: Exception) {
+                _state.update { it.copy(previewQuestionCount = 0) }
+            }
+        }
     }
 
     fun loadPerformanceForQuestion(questionId: Long) {

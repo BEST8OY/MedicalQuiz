@@ -29,7 +29,8 @@ data class QuizState(
     val subjectsResource: Resource<List<Subject>> = Resource.Loading,
     val systemsResource: Resource<List<System>> = Resource.Loading,
     val autoLoadFirstQuestion: Boolean = false,
-    val databaseName: String = ""
+    val databaseName: String = "",
+    val previewQuestionCount: Int = 0
 ) {
     // Cached computed properties to avoid repeated calculations
     val hasNextQuestion: Boolean by lazy { currentQuestionIndex < questionIds.size - 1 }
