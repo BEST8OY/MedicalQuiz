@@ -93,12 +93,12 @@
       "type": "layout",
       "status": "partially_replaced",
       "replacedBy": "app/src/main/java/com/medicalquiz/app/ui/FilterPanelComposable.kt (StartFiltersPanel) used in ComposeView",
-      "rationale": "The Start Filters panel's visible UI is replaced by the Compose `StartFiltersPanel`, but the old XML (`startFiltersPanel`) is still referenced for enabling/disabling lower-level controls in `QuizActivity` (e.g., `binding.startFiltersPanel.buttonSelectSystemsPanel`), so it cannot be removed without code changes.",
+      "rationale": "The Start Filters panel's visible UI is replaced by the Compose `StartFiltersPanel`; legacy XML references to `startFiltersPanel` have been removed from `QuizActivity`, so this layout is safe to delete.",
       "references": [
-        "app/src/main/java/com/medicalquiz/app/QuizActivity.kt (binding.startFiltersPanel usage)",
+        "app/src/main/java/com/medicalquiz/app/QuizActivity.kt (start filters replaced by Compose API)",
         "app/src/main/java/com/medicalquiz/app/ui/FilterPanelComposable.kt"
       ],
-      "safeToDelete": false,
+      "safeToDelete": true,
       "notes": "Refactor `QuizActivity` to use Compose-only updates for enabling/disabling if you want to remove this layout."
     },
     {

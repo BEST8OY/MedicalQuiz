@@ -7,13 +7,9 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.GravityCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.isVisible
-import android.view.View
+// Drawer gravity & view helpers removed — Compose handles drawer and layout
 import androidx.lifecycle.Lifecycle
-import android.view.ViewGroup
+// ViewGroup and other view-specific helpers removed; Compose manages the layout
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.navigation.NavigationView
@@ -24,7 +20,7 @@ import com.medicalquiz.app.data.database.QuestionPerformance
 import com.medicalquiz.app.data.models.Subject
 import com.medicalquiz.app.data.models.System
 import com.medicalquiz.app.data.models.Question
-import android.view.MenuItem
+// MenuItem handled by Compose top bar if needed
 // Activity now uses Compose for its UI; view binding removed
 // Using Compose-based settings dialog instead of XML-based binding
 import com.medicalquiz.app.ui.FilterDialogHandler
@@ -838,7 +834,8 @@ class QuizActivity : AppCompatActivity() {
     }
 
     private fun updateToolbarSubtitle() {
-        topBarSubtitle.value = null
+        // Toolbar subtitle is managed by the Compose `QuizRoot` via ViewModel.
+        // No-op — kept for compatibility until all XML references are removed.
     }
 
     private fun applyWindowInsets() {
@@ -852,16 +849,9 @@ class QuizActivity : AppCompatActivity() {
 
     private fun updateMediaInfo(questionId: Long, mediaFiles: List<String>) {
         cacheManager.updateMediaCache(questionId, mediaFiles)
+        // Delegate to MediaHandler — it will maintain the current media list for the question.
         mediaHandler.updateMedia(questionId, mediaFiles)
-        
-        // Compose manages the media info UI now. Update the media handler and let UI recompose.
-            mediaHandler.updateMedia(questionId, mediaFiles)
-            } else {
-            mediaHandler.updateMedia(questionId, emptyList())
-            }
-        
-        }
-        
+
         Log.d(TAG, "Question $questionId has media files: $mediaFiles")
     }
 
