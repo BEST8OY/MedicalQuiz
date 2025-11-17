@@ -109,14 +109,16 @@ fun QuizRoot(
     ) {
         // Add scrim click handler to close drawer
         if (drawerState.isOpen) {
-            androidx.compose.foundation.background(
-                color = androidx.compose.material3.MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f)
-            )
-            androidx.compose.foundation.clickable(
-                enabled = drawerState.isOpen,
-                onClick = { scope.launch { drawerState.close() } },
-                indication = null,
-                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(color = androidx.compose.material3.MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
+                    .clickable(
+                        enabled = drawerState.isOpen,
+                        onClick = { scope.launch { drawerState.close() } },
+                        indication = null,
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                    )
             )
         }
         
