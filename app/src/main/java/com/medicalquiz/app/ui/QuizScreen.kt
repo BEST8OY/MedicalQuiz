@@ -72,7 +72,7 @@ fun QuizScreen(
                 if (question != null) {
                     // Question metadata
                     Text(
-                        text = "ID: ${question.id} | Subject: ${question.subject} | System: ${question.system}",
+                        text = "ID: ${question.id} | Subject: ${question.subName} | System: ${question.sysName}",
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
                     )
