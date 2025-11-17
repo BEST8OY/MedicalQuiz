@@ -109,8 +109,6 @@ fun QuizRoot(
             }
         // Top-level scaffold with topBar and bottomBar
         Scaffold(
-            // Let scaffold automatically apply system bar insets for content.
-            contentWindowInsets = WindowInsets.systemBars,
             topBar = {
                 if (!filtersOnly) {
                     QuizTopBar(

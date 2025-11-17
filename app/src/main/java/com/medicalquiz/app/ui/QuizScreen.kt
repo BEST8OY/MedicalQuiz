@@ -55,44 +55,56 @@ fun QuizScreen(
             .padding(contentPadding),
         verticalArrangement = Arrangement.Top
     ) {
-        // Metadata section
-        if (!state.metadataText.isNullOrBlank()) {
-            Text(
-                text = state.metadataText,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-            )
-        }
+        // Metadata section (fixed height, only takes what it needs)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+        ) {
+            if (!state.metadataText.isNullOrBlank()) {
+                Text(
+                    text = state.metadataText,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                )
+            }
 
-        if (state.currentPerformance != null) {
-            Text(
-                text = mapPerformanceLabel(state.performanceFilter),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-            )
+            if (state.currentPerformance != null) {
+                Text(
+                    text = mapPerformanceLabel(state.performanceFilter),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                )
+            }
         }
 
         // Filter panel — shows whenever questions list is empty
         if (state.questionIds.isEmpty()) {
             android.util.Log.d("QuizScreen", "Rendering StartFiltersPanel with ${state.selectedSubjectIds.size} subjects selected")
-            StartFiltersPanel(
-                subjectCount = state.selectedSubjectIds.size,
-                systemCount = state.selectedSystemIds.size,
-                performanceLabel = mapPerformanceLabel(state.performanceFilter),
-                previewCount = state.questionIds.size,
-                onSelectSubjects = onShowFilterSubject,
-                onSelectSystems = onShowFilterSystem,
-                onSelectPerformance = onSelectPerformance,
-                onClear = onClearFilters,
-                onStart = onStart
-            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                StartFiltersPanel(
+                    subjectCount = state.selectedSubjectIds.size,
+                    systemCount = state.selectedSystemIds.size,
+                    performanceLabel = mapPerformanceLabel(state.performanceFilter),
+                    previewCount = state.questionIds.size,
+                    onSelectSubjects = onShowFilterSubject,
+                    onSelectSystems = onShowFilterSystem,
+                    onSelectPerformance = onSelectPerformance,
+                    onClear = onClearFilters,
+                    onStart = onStart
+                )
+            }
         } else {
             // Render question WebView with weight to fill remaining space
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
             ) {
                 com.medicalquiz.app.utils.WebViewComposable(
                     stateFlow = webViewStateFlow,

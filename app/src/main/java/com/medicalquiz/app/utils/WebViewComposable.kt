@@ -1,7 +1,6 @@
 package com.medicalquiz.app.utils
 
 import android.webkit.WebView
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -16,7 +15,6 @@ import kotlinx.coroutines.flow.Flow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 
 data class WebViewState(
     val html: String? = null,
@@ -46,23 +44,27 @@ fun WebViewComposable(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // Block horizontal drag gestures to prevent drawer from opening during scrolling
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures { change, _ ->
-                    change.consume()
-                }
-            }
     ) {
         AndroidView(
             factory = { ctx ->
                 WebView(ctx).apply {
-                    // Enable pinch zoom and gesture support
+                    // Enable proper scrolling and zoom
                     settings.apply {
                         builtInZoomControls = true
                         displayZoomControls = false
                         useWideViewPort = true
                         loadWithOverviewMode = true
+                        javaScriptEnabled = true
+                        domStorageEnabled = true
+                        databaseEnabled = true
                     }
+                    
+                    // Configure scrolling behavior
+                    isVerticalScrollBarEnabled = true
+                    scrollBarStyle = WebView.SCROLLBARS_INSIDE_OVERLAY
+                    
+                    // Enable smooth scrolling
+                    isScrollContainer = true
                     
                     webViewController.setup(this, object : WebViewController.Bridge {
                         override fun onAnswerSelected(answerId: Long) {

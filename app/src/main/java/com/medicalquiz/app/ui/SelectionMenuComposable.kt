@@ -21,8 +21,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -61,11 +63,11 @@ fun SelectionMenuDialog(
     onClear: () -> Unit,
     showSelectAll: Boolean = false
 ) {
-    val selectedState = remember { mutableStateOf(selectedIds.toMutableSet()) }
-    val allIds = items.map { it.id }.toSet()
-    val isAllSelected = remember(selectedState.value) {
-        selectedState.value.size == allIds.size && allIds.isNotEmpty()
+    var selectedState by remember(selectedIds) { 
+        mutableStateOf(selectedIds.toMutableSet())
     }
+    val allIds = items.map { it.id }.toSet()
+    val isAllSelected = selectedState.size == allIds.size && allIds.isNotEmpty()
 
     AlertDialog(
         onDismissRequest = onCancel,
@@ -91,7 +93,7 @@ fun SelectionMenuDialog(
                 ) {
                     Button(
                         onClick = {
-                            selectedState.value.clear()
+                            selectedState = mutableSetOf()
                             onClear()
                         },
                         modifier = Modifier.weight(1f)
@@ -102,7 +104,7 @@ fun SelectionMenuDialog(
                     if (showSelectAll) {
                         Button(
                             onClick = {
-                                selectedState.value = if (isAllSelected) {
+                                selectedState = if (isAllSelected) {
                                     mutableSetOf()
                                 } else {
                                     allIds.toMutableSet()
@@ -128,12 +130,14 @@ fun SelectionMenuDialog(
                     items(items) { item ->
                         SelectionItemRow(
                             item = item,
-                            isChecked = selectedState.value.contains(item.id),
+                            isChecked = selectedState.contains(item.id),
                             onCheckedChange = { checked ->
-                                if (checked) {
-                                    selectedState.value.add(item.id)
-                                } else {
-                                    selectedState.value.remove(item.id)
+                                selectedState = selectedState.toMutableSet().apply {
+                                    if (checked) {
+                                        add(item.id)
+                                    } else {
+                                        remove(item.id)
+                                    }
                                 }
                             }
                         )
@@ -144,7 +148,7 @@ fun SelectionMenuDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    onApply(selectedState.value.toSet())
+                    onApply(selectedState.toSet())
                 }
             ) {
                 Text("Apply")
