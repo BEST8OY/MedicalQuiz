@@ -21,6 +21,7 @@ fun QuizTopBar(
     onMenuClick: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
+    android.util.Log.d("QuizTopBar", "QuizTopBar rendering: title=$title")
     val t = title
     val s = subtitle
 

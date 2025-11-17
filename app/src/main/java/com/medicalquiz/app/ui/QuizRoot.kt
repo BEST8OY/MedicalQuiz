@@ -45,6 +45,8 @@ fun QuizRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
 
+    android.util.Log.d("QuizRoot", "QuizRoot composing: filtersOnly=$filtersOnly")
+
     ModalNavigationDrawer(
         modifier = Modifier.fillMaxSize(),
         drawerState = drawerState,
@@ -103,11 +105,14 @@ fun QuizRoot(
         }
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            android.util.Log.d("QuizRoot", "Box rendering for Scaffold")
             // Top-level scaffold with topBar and bottomBar
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 topBar = {
+                    android.util.Log.d("QuizRoot", "topBar lambda called: filtersOnly=$filtersOnly, should show=${!filtersOnly}")
                     if (!filtersOnly) {
+                        android.util.Log.d("QuizRoot", "Rendering QuizTopBar")
                         QuizTopBar(
                             title = title,
                             subtitle = null,
@@ -117,7 +122,11 @@ fun QuizRoot(
                     }
                 },
                 bottomBar = {
-                    if (!filtersOnly) QuizBottomBar(viewModel = viewModel, onJumpTo = onJumpTo)
+                    android.util.Log.d("QuizRoot", "bottomBar lambda called: filtersOnly=$filtersOnly, should show=${!filtersOnly}")
+                    if (!filtersOnly) {
+                        android.util.Log.d("QuizRoot", "Rendering QuizBottomBar")
+                        QuizBottomBar(viewModel = viewModel, onJumpTo = onJumpTo)
+                    }
                 }
             ) { innerPadding ->
                 QuizScreen(

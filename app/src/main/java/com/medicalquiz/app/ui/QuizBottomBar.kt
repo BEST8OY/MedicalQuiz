@@ -12,6 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun QuizBottomBar(viewModel: com.medicalquiz.app.viewmodel.QuizViewModel, onJumpTo: () -> Unit) {
+    android.util.Log.d("QuizBottomBar", "QuizBottomBar rendering")
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Row(

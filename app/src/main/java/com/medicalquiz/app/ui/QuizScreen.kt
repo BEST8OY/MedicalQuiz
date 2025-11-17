@@ -43,6 +43,8 @@ fun QuizScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     
+    android.util.Log.d("QuizScreen", "QuizScreen composing: filtersOnly=$filtersOnly, contentPadding=$contentPadding")
+    
     // Debug logging for state changes
     LaunchedEffect(state.questionIds) {
         android.util.Log.d("QuizScreen", "QuestionIds changed: count=${state.questionIds.size}, showingFilters=${state.questionIds.isEmpty()}")
