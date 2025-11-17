@@ -9,14 +9,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-// no longer needed — handler is UI-only
-// ViewModel not used here — UI-only handler
 import com.medicalquiz.app.data.models.System
 import com.medicalquiz.app.data.models.Subject
-// no longer uses ViewModel or Resource; Activity handles fetching
+import com.medicalquiz.app.ui.theme.MedicalQuizTheme
 
 /**
  * Handler for filter dialogs (Subject and System)
+ * Uses native Compose dialogs for proper lifecycle management
  */
 class FilterDialogHandler(
     private val activity: AppCompatActivity
@@ -148,42 +147,40 @@ class FilterDialogHandler(
         idProvider: (T) -> Long,
         onApply: (Set<Long>) -> Unit
     ) {
-        // Create a proper Dialog with Activity context and lifecycle support
-        val dialog = Dialog(context)
-        
-        // Create ComposeView with proper lifecycle owner setup
+        // Create a ComposeView with proper lifecycle owner setup
         val composeView = ComposeView(context).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            // Set the lifecycle owner and saved state registry owner for Compose
             setViewTreeLifecycleOwner(activity)
             setViewTreeSavedStateRegistryOwner(activity)
         }
 
+        val dialog = Dialog(context).apply {
+            setContentView(composeView)
+        }
+
         composeView.setContent {
-            com.medicalquiz.app.ui.theme.MedicalQuizTheme {
-                SelectionDialog(
-                title = title,
-                items = items,
-                currentChecked = items.mapNotNull { item -> idProvider(item).takeIf { isChecked(item) } }.toSet(),
-                labelProvider = labelProvider,
-                idProvider = idProvider,
-                onApply = { selected ->
-                    onApply(selected)
-                    dialog.dismiss()
-                },
-                onCancel = { dialog.dismiss() },
-                onClear = {
-                    onApply(emptySet())
-                    dialog.dismiss()
-                }
+            MedicalQuizTheme {
+                GenericSelectionMenuDialog(
+                    title = title,
+                    items = items,
+                    selectedIds = items.mapNotNull { item -> 
+                        idProvider(item).takeIf { isChecked(item) } 
+                    }.toSet(),
+                    labelProvider = labelProvider,
+                    idProvider = idProvider,
+                    onApply = { selected ->
+                        onApply(selected)
+                        dialog.dismiss()
+                    },
+                    onCancel = { dialog.dismiss() },
+                    onClear = {
+                        onApply(emptySet())
+                        dialog.dismiss()
+                    },
+                    showSelectAll = true
                 )
             }
         }
 
-        dialog.setContentView(composeView)
         dialog.show()
     }
 
