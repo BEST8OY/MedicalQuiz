@@ -12,7 +12,6 @@ import com.medicalquiz.app.viewmodel.UiEvent
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.ModalNavigationDrawer
@@ -53,8 +52,8 @@ fun QuizRoot(
     ModalNavigationDrawer(
         modifier = Modifier.fillMaxSize(),
         drawerState = drawerState,
-        scrimColor = androidx.compose.material3.MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f),
         gesturesEnabled = false,
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f),
         drawerContent = {
             ModalDrawerSheet {
                 NavigationDrawerItem(
@@ -63,7 +62,6 @@ fun QuizRoot(
                     onClick = {
                         onSubjectFilter()
                         scope.launch { drawerState.close() }
-                        Unit
                     }
                 )
                 NavigationDrawerItem(
@@ -72,7 +70,6 @@ fun QuizRoot(
                     onClick = {
                         onSystemFilter()
                         scope.launch { drawerState.close() }
-                        Unit
                     }
                 )
                 NavigationDrawerItem(
@@ -81,7 +78,6 @@ fun QuizRoot(
                     onClick = {
                         viewModel.openPerformanceDialog()
                         scope.launch { drawerState.close() }
-                        Unit
                     }
                 )
                 NavigationDrawerItem(
@@ -90,34 +86,37 @@ fun QuizRoot(
                     onClick = {
                         onClearFilters()
                         scope.launch { drawerState.close() }
-                        Unit
                     }
                 )
                 androidx.compose.material3.HorizontalDivider()
-                NavigationDrawerItem(label = { Text("Settings") }, selected = false, onClick = {
-                    onSettings()
-                    scope.launch { drawerState.close() }
-                    Unit
-                })
-                NavigationDrawerItem(label = { Text("About") }, selected = false, onClick = {
-                    onAbout()
-                    scope.launch { drawerState.close() }
-                    Unit
-                })
+                NavigationDrawerItem(
+                    label = { Text("Settings") },
+                    selected = false,
+                    onClick = {
+                        onSettings()
+                        scope.launch { drawerState.close() }
+                    }
+                )
+                NavigationDrawerItem(
+                    label = { Text("About") },
+                    selected = false,
+                    onClick = {
+                        onAbout()
+                        scope.launch { drawerState.close() }
+                    }
+                )
             }
         }
     ) {
-        // Add scrim click handler to close drawer
+        // Create invisible scrim click area when drawer is open
         if (drawerState.isOpen) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(color = androidx.compose.material3.MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
                     .clickable(
-                        enabled = drawerState.isOpen,
                         onClick = { scope.launch { drawerState.close() } },
                         indication = null,
-                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                        interactionSource = remember { MutableInteractionSource() }
                     )
             )
         }
