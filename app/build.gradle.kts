@@ -85,8 +85,8 @@ dependencies {
     implementation("androidx.compose.foundation:foundation-layout")
 
     // Media loading (Coil 3) - updated for modern Compose compatibility
-    implementation("io.coil-kt.coil3:coil:3.4.0")
-    implementation("io.coil-kt.coil3:coil-compose:3.4.0")
+    implementation("io.coil-kt.coil3:coil:3.3.0")
+    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
 
 
     // Note: `ui-viewbinding` removed since the project uses Compose exclusively for UI
