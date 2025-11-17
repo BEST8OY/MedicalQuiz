@@ -136,7 +136,7 @@ fun QuizRoot(
     }
 
     if (showPerformanceDialog) {
-        PerformanceFilterDialog(current = viewModel.state.value.performanceFilter, onSelect = { selected ->
+        PerformanceFilterDialog(current = state.performanceFilter, onSelect = { selected ->
             viewModel.setPerformanceFilter(selected)
         }, onDismiss = { showPerformanceDialog = false })
     }
