@@ -44,7 +44,7 @@ MedicalQuiz/
 - Android Studio Hedgehog (2023.1.1) or later
 - JDK 17 or later
 - Android SDK with minimum API level 24 (Android 7.0)
-- Kotlin 1.9.20+
+- Kotlin 1.9.25+
 
 ## Setup Instructions
 
@@ -143,7 +143,7 @@ The app requires the following permissions:
 
 ## Technologies Used
 
-- **Language**: Kotlin 1.9.20
+- **Language**: Kotlin 1.9.25
 - **Build System**: Gradle with Kotlin DSL
 - **UI**: Material Design Components, Jetpack Compose
 - **Architecture**: MVVM-ready structure
