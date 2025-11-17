@@ -178,7 +178,6 @@ class QuizActivity : AppCompatActivity() {
                                 onSystemFilter = { performSystemSelection(false) },
                                 onClearFilters = { clearFilters() },
                                 onSettings = { showSettingsDialog() },
-                                onAbout = { showToast("About coming soon") },
                                 onJumpTo = { showJumpToDialog() },
                                 onStart = { startQuiz() }
                                 )

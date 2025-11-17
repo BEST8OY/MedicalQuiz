@@ -12,15 +12,12 @@ import com.medicalquiz.app.viewmodel.UiEvent
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
@@ -49,7 +46,6 @@ fun QuizRoot(
     onSystemFilter: () -> Unit,
     onClearFilters: () -> Unit,
     onSettings: () -> Unit,
-    onAbout: () -> Unit,
     onJumpTo: () -> Unit,
     onStart: () -> Unit
 ) {
@@ -69,9 +65,7 @@ fun QuizRoot(
         gesturesEnabled = false,
         scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f),
         drawerContent = {
-            ModalDrawerSheet(
-                modifier = Modifier.fillMaxSize(0.85f)
-            ) {
+            ModalDrawerSheet {
                 // Header Section
                 Column(
                     modifier = Modifier
@@ -237,44 +231,11 @@ fun QuizRoot(
                             scope.launch { drawerState.close() }
                         }
                     )
-                    NavigationDrawerItem(
-                        label = {
-                            Row(
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Info,
-                                    contentDescription = null,
-                                    modifier = Modifier.width(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text("About")
-                            }
-                        },
-                        selected = false,
-                        onClick = {
-                            onAbout()
-                            scope.launch { drawerState.close() }
-                        }
-                    )
                 }
             }
         }
     ) {
-        // Create invisible scrim click area when drawer is open
-        if (drawerState.isOpen) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        onClick = { scope.launch { drawerState.close() } },
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    )
-            )
-        }
-        
+        // Content area - drawer scrim is handled by ModalNavigationDrawer
         Box(modifier = Modifier.fillMaxSize()) {
             android.util.Log.d("QuizRoot", "Box rendering for Scaffold")
             // Top-level scaffold with topBar and bottomBar
