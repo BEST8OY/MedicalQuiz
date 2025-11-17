@@ -101,32 +101,24 @@ fun QuizRoot(
             }
         }
     ) {
-        LaunchedEffect(viewModel) {
-            viewModel.uiEvents.collect { event ->
-                when (event) {
-                    is UiEvent.OpenPerformanceDialog -> showPerformanceDialog = true
-                    else -> {}
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Top-level scaffold with topBar and bottomBar
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                topBar = {
+                    if (!filtersOnly) {
+                        QuizTopBar(
+                            title = title,
+                            subtitle = null,
+                            onMenuClick = { scope.launch { drawerState.open() }; Unit },
+                            onSettingsClick = onSettings
+                        )
+                    }
+                },
+                bottomBar = {
+                    if (!filtersOnly) QuizBottomBar(viewModel = viewModel, onJumpTo = onJumpTo)
                 }
-            }
-        }
-        
-        // Top-level scaffold with topBar and bottomBar
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            topBar = {
-                if (!filtersOnly) {
-                    QuizTopBar(
-                        title = title,
-                        subtitle = null,
-                        onMenuClick = { scope.launch { drawerState.open() }; Unit },
-                        onSettingsClick = onSettings
-                    )
-                }
-            },
-            bottomBar = {
-                if (!filtersOnly) QuizBottomBar(viewModel = viewModel, onJumpTo = onJumpTo)
-            }
-        ) { innerPadding ->
+            ) { innerPadding ->
             QuizScreen(
                 viewModel = viewModel,
                 webViewStateFlow = webViewStateFlow,
@@ -143,6 +135,15 @@ fun QuizRoot(
                 filtersOnly = filtersOnly,
                 contentPadding = innerPadding
             )
+        }
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.uiEvents.collect { event ->
+            when (event) {
+                is UiEvent.OpenPerformanceDialog -> showPerformanceDialog = true
+                else -> {}
+            }
         }
     }
 

@@ -48,12 +48,16 @@ fun QuizScreen(
         android.util.Log.d("QuizScreen", "QuestionIds changed: count=${state.questionIds.size}, showingFilters=${state.questionIds.isEmpty()}")
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(contentPadding),
-        verticalArrangement = Arrangement.Top
+            .padding(contentPadding)
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.Top
+        ) {
         // Metadata section (fixed height, only takes what it needs)
         Column(
             modifier = Modifier
@@ -118,6 +122,7 @@ fun QuizScreen(
                     mediaHandler = mediaHandler
                 )
             }
+        }
         }
     }
 
