@@ -666,11 +666,11 @@ class QuizActivity : AppCompatActivity() {
             block = { viewModel.fetchFilteredQuestionIds().size },
             onSuccess = { count ->
                 Log.d(TAG, "Preview count: $count")
-                // Recompose the filters panel with updated preview count
-                // Compose `StartFiltersPanel` will recompose using the new preview count.
+                // Trigger UI update by calling a no-op on the ViewModel to ensure Compose recomposition
+                // The filter panel reads state.questionIds to calculate the preview count
             },
             onFailure = {
-                // Compose `StartFiltersPanel` will recompose with the updated preview count from `viewModel`
+                Log.e(TAG, "Failed to update preview count: ${it.message}")
             }
         )
     }
@@ -725,7 +725,9 @@ class QuizActivity : AppCompatActivity() {
         viewModel.setSelectedSystems(emptySet())
         viewModel.setPerformanceFilter(PerformanceFilter.ALL)
         settingsRepository.setPerformanceFilter(PerformanceFilter.ALL)
-        reloadQuestionsWithFilters()
+        // Don't load questions - just clear the filters
+        // The filter panel will update automatically via Compose state
+        updatePreviewCount()
     }
 
     private fun reloadQuestionsWithFilters() {

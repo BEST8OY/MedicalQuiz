@@ -445,7 +445,8 @@ class QuizViewModel : ViewModel() {
             }
             
             _state.update { it.copy(selectedSystemIds = validSystems) }
-            loadFilteredQuestionIds()
+            // Don't load questions here - just update the filter state
+            // The Start button will load the questions when ready
         }
     }
 
@@ -488,7 +489,8 @@ class QuizViewModel : ViewModel() {
     fun applySelectedSystems(newSystemIds: Set<Long>) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(selectedSystemIds = newSystemIds) }
-            loadFilteredQuestionIds()
+            // Don't load questions here - just update the filter state
+            // The Start button will load the questions when ready
         }
     }
 
