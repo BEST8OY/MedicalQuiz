@@ -68,8 +68,6 @@ class QuizActivity : AppCompatActivity() {
     
     // State
     private var startTime: Long = 0
-
-    // ============================================================================
     // Lifecycle Methods
     // ============================================================================
 
@@ -127,8 +125,6 @@ class QuizActivity : AppCompatActivity() {
     private fun validateAndSetupDatabase() {
         val dbPath = intent.getStringExtra(EXTRA_DB_PATH)
         val dbName = intent.getStringExtra(EXTRA_DB_NAME)
-        filtersOnlyMode = intent.getBooleanExtra(EXTRA_OPEN_FILTERS_FULLSCREEN, false)
-        Log.d(TAG, "validateAndSetupDatabase: filtersOnlyMode=$filtersOnlyMode (from intent extra)")
 
         if (dbPath.isNullOrEmpty()) {
             showToast("No database selected")
@@ -137,9 +133,6 @@ class QuizActivity : AppCompatActivity() {
         }
 
         setupToolbar(dbName)
-        if (filtersOnlyMode) {
-            hideUiForFiltersOnlyMode()
-        }
         initializeDatabaseAsync(dbPath)
     }
 
@@ -181,14 +174,12 @@ class QuizActivity : AppCompatActivity() {
                                 viewModel = viewModel,
                                 webViewStateFlow = webViewStateFlow,
                                 mediaHandler = mediaHandler,
-                                filtersOnly = filtersOnlyMode,
                                 onSubjectFilter = { performSubjectSelection(false) },
                                 onSystemFilter = { performSystemSelection(false) },
                                 onClearFilters = { clearFilters() },
                                 onSettings = { showSettingsDialog() },
                                 onAbout = { showToast("About coming soon") },
-                                onJumpTo = { showJumpToDialog() }
-                                ,
+                                onJumpTo = { showJumpToDialog() },
                                 onStart = { startQuiz() }
                                 )
                             }
@@ -463,14 +454,6 @@ class QuizActivity : AppCompatActivity() {
         }
         setupFilterPanelListeners()
         updateAllFilterLabels()
-    }
-
-    private fun hideUiForFiltersOnlyMode() {
-        // Hide the main UI elements so only the filter panel is visible full-screen
-        // full-screen filters: hide the main UI components — handled by Compose root
-
-        // Expand the start filters panel to full-screen height
-        // This is handled by Compose — nothing to set on a `ComposeView`.
     }
 
     private fun setupFilterPanelListeners() {
@@ -992,9 +975,14 @@ class QuizActivity : AppCompatActivity() {
     private fun setupBackPressHandler() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                Log.d(TAG, "Back pressed")
-                // User pressed back — finish the quiz activity and return to database selection
-                finish()
+                Log.d(TAG, "Back pressed, questionsLoaded=${viewModel.state.value.questionIds.isNotEmpty()}")
+                
+                // Only exit if questions are loaded (we're in quiz mode)
+                // If in filter selection phase, back does nothing
+                if (viewModel.state.value.questionIds.isNotEmpty()) {
+                    finish()
+                }
+                // Otherwise in filter panel - back does nothing, must use filters to proceed
             }
         })
     }
@@ -1009,7 +997,6 @@ class QuizActivity : AppCompatActivity() {
         // Intent extras
         const val EXTRA_DB_PATH = "DB_PATH"
         const val EXTRA_DB_NAME = "DB_NAME"
-        const val EXTRA_OPEN_FILTERS_FULLSCREEN = "OPEN_FILTERS_FULLSCREEN"
         
         // Instance state keys
         private const val STATE_CURRENT_QUESTION_INDEX = "current_question_index"

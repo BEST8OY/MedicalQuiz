@@ -29,14 +29,12 @@ fun QuizRoot(
     viewModel: QuizViewModel,
     webViewStateFlow: kotlinx.coroutines.flow.MutableStateFlow<com.medicalquiz.app.utils.WebViewState>,
     mediaHandler: com.medicalquiz.app.ui.MediaHandler,
-    filtersOnly: Boolean = false,
     onSubjectFilter: () -> Unit,
     onSystemFilter: () -> Unit,
     onClearFilters: () -> Unit,
     onSettings: () -> Unit,
     onAbout: () -> Unit,
-    onJumpTo: () -> Unit
-    ,
+    onJumpTo: () -> Unit,
     onStart: () -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -47,7 +45,7 @@ fun QuizRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
 
-    android.util.Log.d("QuizRoot", "QuizRoot composing: filtersOnly=$filtersOnly")
+
 
     ModalNavigationDrawer(
         modifier = Modifier.fillMaxSize(),
@@ -127,23 +125,15 @@ fun QuizRoot(
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 topBar = {
-                    android.util.Log.d("QuizRoot", "topBar lambda called: filtersOnly=$filtersOnly, should show=${!filtersOnly}")
-                    if (!filtersOnly) {
-                        android.util.Log.d("QuizRoot", "Rendering QuizTopBar")
-                        QuizTopBar(
-                            title = title,
-                            subtitle = null,
-                            onMenuClick = { scope.launch { drawerState.open() }; Unit },
-                            onSettingsClick = onSettings
-                        )
-                    }
+                    QuizTopBar(
+                        title = title,
+                        subtitle = null,
+                        onMenuClick = { scope.launch { drawerState.open() } },
+                        onSettingsClick = onSettings
+                    )
                 },
                 bottomBar = {
-                    android.util.Log.d("QuizRoot", "bottomBar lambda called: filtersOnly=$filtersOnly, should show=${!filtersOnly}")
-                    if (!filtersOnly) {
-                        android.util.Log.d("QuizRoot", "Rendering QuizBottomBar")
-                        QuizBottomBar(viewModel = viewModel, onJumpTo = onJumpTo)
-                    }
+                    QuizBottomBar(viewModel = viewModel, onJumpTo = onJumpTo)
                 }
             ) { innerPadding ->
                 QuizScreen(
@@ -159,7 +149,6 @@ fun QuizRoot(
                     onSelectPerformance = { viewModel.openPerformanceDialog() },
                     onStart = onStart,
                     onClearFilters = onClearFilters,
-                    filtersOnly = filtersOnly,
                     contentPadding = innerPadding
                 )
             }

@@ -37,13 +37,12 @@ fun QuizScreen(
     onSelectPerformance: () -> Unit,
     onStart: () -> Unit,
     onClearFilters: () -> Unit,
-    filtersOnly: Boolean = false,
     // Padding coming from Scaffold
     contentPadding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.foundation.layout.PaddingValues(0.dp)
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     
-    android.util.Log.d("QuizScreen", "QuizScreen composing: filtersOnly=$filtersOnly, contentPadding=$contentPadding")
+
     
     // Debug logging for state changes
     LaunchedEffect(state.questionIds) {
