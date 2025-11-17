@@ -666,8 +666,8 @@ class QuizActivity : AppCompatActivity() {
             block = { viewModel.fetchFilteredQuestionIds().size },
             onSuccess = { count ->
                 Log.d(TAG, "Preview count: $count")
-                // Trigger UI update by calling a no-op on the ViewModel to ensure Compose recomposition
-                // The filter panel reads state.questionIds to calculate the preview count
+                // Update the preview count in the ViewModel state
+                viewModel.updatePreviewQuestionCount()
             },
             onFailure = {
                 Log.e(TAG, "Failed to update preview count: ${it.message}")

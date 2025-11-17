@@ -549,13 +549,16 @@ class QuizViewModel : ViewModel() {
 
     fun setPerformanceFilterSilently(filter: PerformanceFilter) {
         _state.update { it.copy(performanceFilter = filter) }
+        viewModelScope.launch(Dispatchers.IO) {
+            updatePreviewQuestionCount()
+        }
     }
 
     fun setDatabaseName(name: String) {
         _state.update { it.copy(databaseName = name) }
     }
 
-    private fun updatePreviewQuestionCount() {
+    fun updatePreviewQuestionCount() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val count = fetchFilteredQuestionIds().size
