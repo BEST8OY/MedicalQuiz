@@ -31,13 +31,20 @@ class WebViewController(private val mediaHandler: MediaHandler) {
                 val url = request.url?.toString() ?: return null
                 if (url.startsWith("file://") && url.contains("/media/")) {
                     val fileName = url.substringAfterLast('/')
+                    
+                    // Validate fileName to prevent path traversal attacks
+                    if (!isValidMediaFileName(fileName)) {
+                        Log.w(TAG, "Rejected unsafe media filename: $fileName")
+                        return null
+                    }
+                    
                     Log.d(TAG, "Intercepting media request for: $fileName")
                     val mediaPath = HtmlUtils.getMediaPath(fileName)
                     if (mediaPath != null) {
                         return try {
                             val file = java.io.File(mediaPath)
                             if (file.exists() && file.canRead()) {
-                                val mimeType = WebViewController.getMimeType(fileName)
+                                val mimeType = getMimeType(fileName)
                                 WebResourceResponse(mimeType, "UTF-8", file.inputStream())
                             } else null
                         } catch (e: Exception) {
@@ -89,9 +96,40 @@ class WebViewController(private val mediaHandler: MediaHandler) {
     companion object {
         private const val TAG = "WebViewController"
 
+        /**
+         * Validates that a filename is safe for media serving.
+         * Rejects filenames with path traversal attempts.
+         */
+        private fun isValidMediaFileName(fileName: String): Boolean {
+            // Reject empty strings
+            if (fileName.isBlank()) return false
+            
+            // Reject path traversal attempts
+            if (fileName.contains("..") || 
+                fileName.contains("/") || 
+                fileName.contains("\\") ||
+                fileName.contains("\u0000")) {  // Null byte injection
+                return false
+            }
+            
+            return true
+        }
+
+        /**
+         * Determines MIME type from filename extension.
+         * Falls back to octet-stream for unknown or missing extensions.
+         */
         private fun getMimeType(fileName: String): String {
+            // Extract extension after the last dot
+            val lastDotIndex = fileName.lastIndexOf('.')
+            if (lastDotIndex <= 0 || lastDotIndex == fileName.length - 1) {
+                // No extension found, or dot is at start/end
+                return "application/octet-stream"
+            }
+            
+            val extension = fileName.substring(lastDotIndex + 1).lowercase()
             return android.webkit.MimeTypeMap.getSingleton()
-                .getMimeTypeFromExtension(fileName.substringAfterLast('.', ""))
+                .getMimeTypeFromExtension(extension)
                 ?: "application/octet-stream"
         }
     }
