@@ -225,7 +225,6 @@ class QuizActivity : AppCompatActivity() {
                 var previousState: QuizState? = null
                 
                 viewModel.state.collect { state ->
-                    updateNavigationControls(state)
                     handleQuestionListChanges(state, previousState)
                     handleQuestionChanges(state, previousState)
                     handlePerformanceChanges(state, previousState)
@@ -284,9 +283,7 @@ class QuizActivity : AppCompatActivity() {
     }
 
     private fun handlePerformanceChanges(state: QuizState, previousState: QuizState?) {
-        if (previousState?.currentPerformance != state.currentPerformance) {
-            updatePerformanceDisplay(state)
-        }
+        // Performance display is handled by Compose via ViewModel state
     }
 
     private fun observeUiEvents() {
@@ -667,8 +664,6 @@ class QuizActivity : AppCompatActivity() {
         } else if (state.questionIds.isNotEmpty()) {
             viewModel.loadQuestion(state.currentQuestionIndex)
         }
-        
-        updateToolbarSubtitle()
     }
 
     private fun handleRestoreFailure(throwable: Throwable, dbPath: String) {
