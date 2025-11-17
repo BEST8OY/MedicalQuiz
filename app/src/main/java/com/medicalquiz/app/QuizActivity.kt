@@ -323,10 +323,8 @@ class QuizActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     try {
                         // Wait for the ViewModel to populate questions (timeout to avoid hang)
-                        withContext(Dispatchers.Main) {
-                            kotlinx.coroutines.withTimeout(10_000) {
-                                viewModel.state.first { it.questionIds.isNotEmpty() }
-                            }
+                        kotlinx.coroutines.withTimeout(10_000) {
+                            viewModel.state.first { it.questionIds.isNotEmpty() }
                         }
                         viewModel.loadQuestion(0)
                     } catch (e: Exception) {
@@ -403,14 +401,7 @@ class QuizActivity : AppCompatActivity() {
     }
 
     private fun updateQuestionMetadata(question: Question, state: QuizState) {
-        val metadata = buildString {
-            append("ID: ${question.id}")
-            if (!question.subName.isNullOrBlank()) append(" | Subject: ${question.subName}")
-            if (!question.sysName.isNullOrBlank()) append(" | System: ${question.sysName}")
-        }
-
         // Compose displays question metadata from the ViewModel state; no view update here.
-
         updatePerformanceDisplay(state)
     }
 
@@ -486,37 +477,38 @@ class QuizActivity : AppCompatActivity() {
         Log.d(TAG, "performSubjectSelection called, silently=$silently")
         viewModel.fetchSubjects()
 
-            lifecycleScope.launch {
+        lifecycleScope.launch {
             // Wait until the subjects resource is no longer loading (single-shot)
             try {
                 val state = kotlinx.coroutines.withTimeout(10_000) { viewModel.state.first { it.subjectsResource !is Resource.Loading } }
-            val resource = state.subjectsResource
-            when (resource) {
-                is Resource.Success<List<Subject>> -> {
-                    Log.d(TAG, "Subjects loaded: ${resource.data.size} subjects")
-                    if (silently) {
-                        filterDialogHandler.showSubjectSelectionDialogSilently(
-                            resource.data,
-                            state.selectedSubjectIds,
-                            viewModel
-                        ) {
-                            onAfterApply?.invoke()
-                        }
-                    } else {
-                        filterDialogHandler.showSubjectSelectionDialog(
-                            resource.data,
-                            state.selectedSubjectIds,
-                            viewModel
-                        ) {
-                            onAfterApply?.invoke()
+                val resource = state.subjectsResource
+                when (resource) {
+                    is Resource.Success<List<Subject>> -> {
+                        Log.d(TAG, "Subjects loaded: ${resource.data.size} subjects")
+                        if (silently) {
+                            filterDialogHandler.showSubjectSelectionDialogSilently(
+                                resource.data,
+                                state.selectedSubjectIds,
+                                viewModel
+                            ) {
+                                onAfterApply?.invoke()
+                            }
+                        } else {
+                            filterDialogHandler.showSubjectSelectionDialog(
+                                resource.data,
+                                state.selectedSubjectIds,
+                                viewModel
+                            ) {
+                                onAfterApply?.invoke()
+                            }
                         }
                     }
+                    is Resource.Error -> {
+                        Log.e(TAG, "Error fetching subjects: ${resource.message}")
+                        showToast("Error fetching subjects: ${resource.message}")
+                    }
+                    else -> {}
                 }
-                is Resource.Error -> {
-                    Log.e(TAG, "Error fetching subjects: ${resource.message}")
-                    showToast("Error fetching subjects: ${resource.message}")
-                }
-                else -> {}
             } catch (e: Exception) {
                 Log.e(TAG, "Timeout/wait error waiting for subjects to load", e)
                 showToast("Failed to load subjects: ${e.message}")
@@ -536,34 +528,34 @@ class QuizActivity : AppCompatActivity() {
             // Wait until the systems resource is no longer loading (single-shot)
             try {
                 val state = kotlinx.coroutines.withTimeout(10_000) { viewModel.state.first { it.systemsResource !is Resource.Loading } }
-            val resource = state.systemsResource
-            when (resource) {
-                is Resource.Success<List<System>> -> {
-                    Log.d(TAG, "Systems loaded: ${resource.data.size} systems")
-                    if (silently) {
-                        filterDialogHandler.showSystemSelectionDialogSilently(
-                            resource.data,
-                            state.selectedSystemIds,
-                            viewModel
-                        ) {
-                            onAfterApply?.invoke()
-                        }
-                    } else {
-                        filterDialogHandler.showSystemSelectionDialog(
-                            resource.data,
-                            state.selectedSystemIds,
-                            viewModel
-                        ) {
-                            onAfterApply?.invoke()
+                val resource = state.systemsResource
+                when (resource) {
+                    is Resource.Success<List<System>> -> {
+                        Log.d(TAG, "Systems loaded: ${resource.data.size} systems")
+                        if (silently) {
+                            filterDialogHandler.showSystemSelectionDialogSilently(
+                                resource.data,
+                                state.selectedSystemIds,
+                                viewModel
+                            ) {
+                                onAfterApply?.invoke()
+                            }
+                        } else {
+                            filterDialogHandler.showSystemSelectionDialog(
+                                resource.data,
+                                state.selectedSystemIds,
+                                viewModel
+                            ) {
+                                onAfterApply?.invoke()
+                            }
                         }
                     }
+                    is Resource.Error -> {
+                        Log.e(TAG, "Error fetching systems: ${resource.message}")
+                        showToast("Error fetching systems: ${resource.message}")
+                    }
+                    else -> {}
                 }
-                is Resource.Error -> {
-                    Log.e(TAG, "Error fetching systems: ${resource.message}")
-                    showToast("Error fetching systems: ${resource.message}")
-                }
-                else -> {}
-            }
             } catch (e: Exception) {
                 Log.e(TAG, "Timeout/wait error waiting for systems to load", e)
                 showToast("Failed to load systems: ${e.message}")
@@ -617,10 +609,19 @@ class QuizActivity : AppCompatActivity() {
                                 }
                             }
                             viewModel.loadQuestion(0)
-                        } catch (e: Exception) {
+                        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                             Log.e(TAG, "Timeout waiting for question ids to update", e)
-                            // Fall back to trying to load if something did change
-                            if (ids.isNotEmpty()) viewModel.loadQuestion(0)
+                            // Verify state has at least some questions before attempting load
+                            val currentIds = viewModel.state.value.questionIds
+                            if (currentIds.isNotEmpty() && currentIds.size == ids.size) {
+                                Log.w(TAG, "Attempting to load anyway after timeout")
+                                viewModel.loadQuestion(0)
+                            } else {
+                                showToast("Failed to load questions - please try again")
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error waiting for question ids", e)
+                            showToast("Error: ${e.message}")
                         }
                     }
                 } else {
@@ -784,7 +785,9 @@ class QuizActivity : AppCompatActivity() {
         
         launchCatching(
             block = {
-                mediaHandler.reset()
+                if (::mediaHandler.isInitialized) {
+                    mediaHandler.reset()
+                }
                 restoreQuizState(savedInstanceState)
                 
                 val questionId = savedInstanceState.getLong(STATE_CURRENT_QUESTION_ID, -1)
@@ -937,12 +940,6 @@ class QuizActivity : AppCompatActivity() {
 
     private fun loadPerformanceForQuestion(questionId: Long) {
         viewModel.loadPerformanceForQuestion(questionId)
-    }
-
-    private fun buildPerformanceSummary(performance: QuestionPerformance?): String {
-        val summary = performance?.takeIf { it.attempts > 0 } ?: return ""
-        val lastLabel = if (summary.lastCorrect) "Correct" else "Incorrect"
-        return "Attempts: ${summary.attempts} | Last: $lastLabel"
     }
 
     // ============================================================================
