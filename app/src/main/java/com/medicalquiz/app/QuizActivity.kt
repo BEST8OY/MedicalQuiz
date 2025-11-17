@@ -168,12 +168,14 @@ class QuizActivity : AppCompatActivity() {
                             webViewStateFlow = webViewStateFlow,
                             mediaHandler = mediaHandler,
                             filtersOnly = filtersOnlyMode,
-                            onSubjectFilter = { performSubjectSelection(false) },
-                            onSystemFilter = { performSystemSelection(false) },
+                            onSubjectFilter = { performSubjectSelection(filtersOnlyMode) },
+                            onSystemFilter = { performSystemSelection(filtersOnlyMode) },
                             onClearFilters = { clearFilters() },
                             onSettings = { showSettingsDialog() },
                             onAbout = { showToast("About coming soon") },
                             onJumpTo = { showJumpToDialog() }
+                            ,
+                            onStart = { startQuiz() }
                         )
                     }
                 },
@@ -607,11 +609,11 @@ class QuizActivity : AppCompatActivity() {
     // Navigation is handled in `QuizRoot` via Compose drawer.
 
     private fun showSubjectFilterDialog() {
-        performSubjectSelection(false)
+        performSubjectSelection(filtersOnlyMode)
     }
 
     private fun showSystemFilterDialog() {
-        performSystemSelection(false)
+        performSystemSelection(filtersOnlyMode)
     }
 
     private fun showPerformanceFilterDialog() {

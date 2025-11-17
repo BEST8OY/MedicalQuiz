@@ -36,6 +36,8 @@ fun QuizScreen(
     onShowFilterSystem: () -> Unit,
     onSelectPerformance: () -> Unit,
     onStart: () -> Unit,
+    onClearFilters: () -> Unit,
+    filtersOnly: Boolean = false,
     // Padding coming from Scaffold
     contentPadding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.foundation.layout.PaddingValues(0.dp)
 ) {
@@ -73,7 +75,7 @@ fun QuizScreen(
                     onSelectSubjects = onShowFilterSubject,
                     onSelectSystems = onShowFilterSystem,
                     onSelectPerformance = onSelectPerformance,
-                    onCancel = { /* handled by activity */ },
+                    onClear = onClearFilters,
                     onStart = onStart
                 )
 

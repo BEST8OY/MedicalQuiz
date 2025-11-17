@@ -31,6 +31,8 @@ fun QuizRoot(
     onSettings: () -> Unit,
     onAbout: () -> Unit,
     onJumpTo: () -> Unit
+    ,
+    onStart: () -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -130,7 +132,9 @@ fun QuizRoot(
                 onShowFilterSubject = onSubjectFilter,
                 onShowFilterSystem = onSystemFilter,
                 onSelectPerformance = { viewModel.openPerformanceDialog() },
-                onStart = { /* handled by activity */ }
+                onStart = onStart,
+                onClearFilters = onClearFilters,
+                filtersOnly = filtersOnly
             )
         }
     }

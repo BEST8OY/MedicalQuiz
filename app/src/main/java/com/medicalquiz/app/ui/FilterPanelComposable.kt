@@ -2,7 +2,13 @@ package com.medicalquiz.app.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -18,10 +24,15 @@ fun StartFiltersPanel(
     onSelectSubjects: () -> Unit,
     onSelectSystems: () -> Unit,
     onSelectPerformance: () -> Unit,
-    onCancel: () -> Unit,
+    onClear: () -> Unit,
     onStart: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(modifier = Modifier.fillMaxWidth(0.8f)) {
         Text(text = "Choose Filters")
         Text(text = "$previewCount questions match")
 
@@ -37,14 +48,15 @@ fun StartFiltersPanel(
             Text(text = playcharForPerformance(performanceLabel))
         }
 
-        Row(modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = onCancel) {
-                Text(text = "Cancel")
-            }
-            Button(onClick = onStart) {
-                Text(text = "Start")
-            }
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) {
+            Text(text = "Start")
         }
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedButton(onClick = onClear, modifier = Modifier.fillMaxWidth()) {
+            Text(text = "Clear")
+        }
+    }
     }
 }
 
