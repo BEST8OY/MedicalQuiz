@@ -11,6 +11,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.viewmodel.UiEvent
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.NavigationDrawerItem
@@ -119,22 +120,23 @@ fun QuizRoot(
                     if (!filtersOnly) QuizBottomBar(viewModel = viewModel, onJumpTo = onJumpTo)
                 }
             ) { innerPadding ->
-            QuizScreen(
-                viewModel = viewModel,
-                webViewStateFlow = webViewStateFlow,
-                mediaHandler = mediaHandler,
-                onPrevious = { viewModel.loadPrevious() },
-                onNext = { viewModel.loadNext() },
-                onJumpTo = onJumpTo,
-                onOpenSettings = onSettings,
-                onShowFilterSubject = onSubjectFilter,
-                onShowFilterSystem = onSystemFilter,
-                onSelectPerformance = { viewModel.openPerformanceDialog() },
-                onStart = onStart,
-                onClearFilters = onClearFilters,
-                filtersOnly = filtersOnly,
-                contentPadding = innerPadding
-            )
+                QuizScreen(
+                    viewModel = viewModel,
+                    webViewStateFlow = webViewStateFlow,
+                    mediaHandler = mediaHandler,
+                    onPrevious = { viewModel.loadPrevious() },
+                    onNext = { viewModel.loadNext() },
+                    onJumpTo = onJumpTo,
+                    onOpenSettings = onSettings,
+                    onShowFilterSubject = onSubjectFilter,
+                    onShowFilterSystem = onSystemFilter,
+                    onSelectPerformance = { viewModel.openPerformanceDialog() },
+                    onStart = onStart,
+                    onClearFilters = onClearFilters,
+                    filtersOnly = filtersOnly,
+                    contentPadding = innerPadding
+                )
+            }
         }
     }
 
