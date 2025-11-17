@@ -14,14 +14,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.medicalquiz.app.databinding.ActivityMainBinding
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import java.io.File
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityMainBinding
-    private lateinit var databaseAdapter: DatabaseAdapter
-    private val databases = mutableListOf<DatabaseItem>()
+    private var databaseList by mutableStateOf<List<DatabaseItem>>(emptyList())
+    private var statusText by mutableStateOf("")
+    private var showManageStoragePrompt by mutableStateOf(false)
     private var shouldRetryPermissionCheck = false
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -56,8 +57,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        // Use Jetpack Compose for the main UI — convert the database list to a LazyColumn
+        setContent {
+            com.medicalquiz.app.ui.MainScreen(
+                databases = databaseList,
+                statusText = statusText,
+                showManageStoragePrompt = showManageStoragePrompt,
+                onGrantStorage = { openManageStorageSettings() },
+                onDatabaseSelected = { onDatabaseSelected(it) }
+            )
+        }
 
         setupRecyclerView()
         setupManageStorageButton()
@@ -73,14 +82,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        databaseAdapter = DatabaseAdapter(databases) { databaseItem ->
-            onDatabaseSelected(databaseItem)
-        }
-        
-        binding.recyclerViewDatabases.apply {
-            layoutManager = LinearLayoutManager(this@MainActivity)
-            adapter = databaseAdapter
-        }
+        // no RecyclerView — Compose LazyColumn is used in UI
     }
 
     private fun checkPermissionsAndLoadDatabases() {
@@ -109,19 +111,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupManageStorageButton() {
-        binding.buttonGrantStorage.visibility = View.GONE
-        binding.buttonGrantStorage.setOnClickListener {
-            openManageStorageSettings()
-        }
+        // Compose handles the button and click through onGrantStorage
     }
 
     private fun hideManageStorageButton() {
-        binding.buttonGrantStorage.visibility = View.GONE
+        showManageStoragePrompt = false
     }
 
     private fun showManageStoragePrompt() {
-        binding.textViewStatus.text = getString(R.string.storage_permission_required)
-        binding.buttonGrantStorage.visibility = View.VISIBLE
+        statusText = getString(R.string.storage_permission_required)
+        showManageStoragePrompt = true
     }
 
     private fun openAppSettings() {
@@ -147,10 +146,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadDatabases() {
-        databases.clear()
+        val mutableDatabases = mutableListOf<DatabaseItem>()
         
         if (Environment.getExternalStorageState() != Environment.MEDIA_MOUNTED) {
-            binding.textViewStatus.text = "External storage not available"
+            statusText = "External storage not available"
             return
         }
         
@@ -159,7 +158,7 @@ class MainActivity : AppCompatActivity() {
         val databasesFolder = File(externalStoragePath, Constants.DATABASES_FOLDER)
         
         if (!databasesFolder.exists()) {
-            binding.textViewStatus.text = "No databases folder found at:\n${databasesFolder.absolutePath}"
+            statusText = "No databases folder found at:\n${databasesFolder.absolutePath}"
             return
         }
 
@@ -168,17 +167,17 @@ class MainActivity : AppCompatActivity() {
                 file.isFile && file.extension == "db"
             }
         } catch (e: Exception) {
-            binding.textViewStatus.text = "Error accessing databases folder: ${e.message}"
+            statusText = "Error accessing databases folder: ${e.message}"
             return
         }
 
         if (dbFiles.isNullOrEmpty()) {
-            binding.textViewStatus.text = "No .db files found in:\n${databasesFolder.absolutePath}"
+            statusText = "No .db files found in:\n${databasesFolder.absolutePath}"
             return
         }
 
         dbFiles.forEach { file ->
-            databases.add(
+            mutableDatabases.add(
                 DatabaseItem(
                     name = file.nameWithoutExtension,
                     path = file.absolutePath,
@@ -187,8 +186,10 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        databaseAdapter.notifyDataSetChanged()
-        binding.textViewStatus.text = "Found ${databases.size} database(s)"
+        // Update state for compose UI
+        databaseList = mutableDatabases.toList()
+        statusText = "Found ${mutableDatabases.size} database(s)"
+        showManageStoragePrompt = false
     }
 
     private fun onDatabaseSelected(databaseItem: DatabaseItem) {

@@ -140,23 +140,32 @@ class FilterDialogHandler(
         idProvider: (T) -> Long,
         onApply: (Set<Long>) -> Unit
     ) {
-        val labels = items.map(labelProvider).toTypedArray()
-        val checkedItems = BooleanArray(items.size) { index -> isChecked(items[index]) }
+        // Use a Compose-based selection dialog contained in a native dialog so
+        // we can reuse compose UI while keeping the same lifecycle.
+        val dialog = android.app.Dialog(context)
+        val composeView = androidx.compose.ui.platform.ComposeView(context)
 
-        AlertDialog.Builder(context)
-            .setTitle(title)
-            .setMultiChoiceItems(labels, checkedItems) { _, which, checked ->
-                checkedItems[which] = checked
-            }
-            .setPositiveButton("Apply") { _, _ ->
-                val selected = items.mapIndexedNotNull { index, item ->
-                    idProvider(item).takeIf { checkedItems[index] }
-                }.toSet()
-                onApply(selected)
-            }
-            .setNeutralButton("Clear") { _, _ -> onApply(emptySet()) }
-            .setNegativeButton("Cancel", null)
-            .show()
+        composeView.setContent {
+            SelectionDialog(
+                title = title,
+                items = items,
+                currentChecked = items.mapNotNull { item -> idProvider(item).takeIf { isChecked(item) } }.toSet(),
+                labelProvider = labelProvider,
+                idProvider = idProvider,
+                onApply = { selected ->
+                    onApply(selected)
+                    dialog.dismiss()
+                },
+                onCancel = { dialog.dismiss() },
+                onClear = {
+                    onApply(emptySet())
+                    dialog.dismiss()
+                }
+            )
+        }
+
+        dialog.setContentView(composeView)
+        dialog.show()
     }
 
     private fun showNoDataDialog(message: String) = showMessageDialog(message = message)

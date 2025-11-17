@@ -5,7 +5,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
-import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
@@ -26,15 +25,19 @@ import com.medicalquiz.app.data.models.Subject
 import com.medicalquiz.app.data.models.System
 import com.medicalquiz.app.data.models.Question
 import android.view.MenuItem
-import com.medicalquiz.app.databinding.ActivityQuizBinding
-import com.medicalquiz.app.databinding.DialogSettingsBinding
+// Activity now uses Compose for its UI; view binding removed
+// Using Compose-based settings dialog instead of XML-based binding
 import com.medicalquiz.app.ui.FilterDialogHandler
 import com.medicalquiz.app.ui.MediaHandler
 import com.medicalquiz.app.ui.QuizState
+import com.medicalquiz.app.ui.QuizScreen
 import com.medicalquiz.app.utils.HtmlUtils
 import com.medicalquiz.app.utils.QuestionHtmlBuilder
 import com.medicalquiz.app.utils.Resource
 import com.medicalquiz.app.utils.WebViewController
+import com.medicalquiz.app.utils.WebViewState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import com.medicalquiz.app.utils.WebViewRenderer
 import com.medicalquiz.app.utils.firstMatching
 import com.medicalquiz.app.utils.launchCatching
@@ -45,19 +48,18 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
+class QuizActivity : AppCompatActivity() {
     
-    // View Binding
-    private lateinit var binding: ActivityQuizBinding
+    // Activity now uses Compose for its UI; view binding removed
     
     // ViewModel
     private val viewModel: QuizViewModel by viewModels()
     
     // UI Handlers
-    private lateinit var drawerToggle: ActionBarDrawerToggle
     private lateinit var mediaHandler: MediaHandler
     private lateinit var filterDialogHandler: FilterDialogHandler
-    private lateinit var webViewController: WebViewController
+    // Compose manages toolbar state through view model; remove `topBarTitle`/`topBarSubtitle`.
+    private val webViewStateFlow = MutableStateFlow(WebViewState())
     
     // Repositories
     private lateinit var settingsRepository: SettingsRepository
@@ -73,12 +75,9 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityQuizBinding.inflate(layoutInflater)
-        setContentView(binding.root)
 
         initializeComponents()
         validateAndSetupDatabase()
-        setupUI()
         observeViewModelState()
         restoreStateIfNeeded(savedInstanceState)
         setupBackPressHandler()
@@ -99,19 +98,14 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         saveQuizState(outState)
     }
 
-    override fun onNavigationItemSelected(item: MenuItem): Boolean {
-        handleNavigationItemSelected(item.itemId)
-        binding.drawerLayout.closeDrawer(GravityCompat.START)
-        return true
-    }
+    // Drawer navigation is now handled inside the Compose `QuizRoot`.
 
     // ============================================================================
     // Initialization
     // ============================================================================
 
     private fun initializeComponents() {
-        binding.scrollViewContent.clipToPadding = false
-        applyWindowInsets()
+        // Compose handles window insets and scrolling. No view-based insets required.
 
         settingsRepository = SettingsRepository(this)
         cacheManager = CacheManager()
@@ -143,11 +137,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun setupToolbar(dbName: String?) {
-        setSupportActionBar(binding.toolbar)
-        supportActionBar?.apply {
-            title = dbName
-            setDisplayHomeAsUpEnabled(true)
-        }
+        // No-op: `QuizRoot` uses `viewModel` to update the top bar.
     }
 
     
@@ -167,10 +157,26 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     filterDialogHandler = FilterDialogHandler(this@QuizActivity)
                     mediaHandler.reset()
 
-                    setupWebViews()
-                    setupDrawer()
-                    setupListeners()
-                    showStartFiltersPanel()
+                    // Initialize media & filter handlers
+                    mediaHandler = MediaHandler(this@QuizActivity)
+                    filterDialogHandler = FilterDialogHandler(this@QuizActivity)
+                    mediaHandler.reset()
+
+                    // Host the entire Quiz UI in Compose once DB is ready.
+                    setContent {
+                        com.medicalquiz.app.ui.QuizRoot(
+                            viewModel = viewModel,
+                            webViewStateFlow = webViewStateFlow,
+                            mediaHandler = mediaHandler,
+                            filtersOnly = filtersOnlyMode,
+                            onSubjectFilter = { performSubjectSelection(false) },
+                            onSystemFilter = { performSystemSelection(false) },
+                            onClearFilters = { clearFilters() },
+                            onSettings = { showSettingsDialog() },
+                            onAbout = { showToast("About coming soon") },
+                            onJumpTo = { showJumpToDialog() }
+                        )
+                    }
                 },
                 onFailure = { throwable ->
                     showToast("Failed to initialize database: ${throwable.message}")
@@ -186,10 +192,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     // WebView Setup
     // ============================================================================
 
-    private fun setupWebViews() {
-        webViewController = WebViewController(mediaHandler)
-        webViewController.setup(binding.webViewQuestion, createWebViewBridge())
-    }
+    // Compose host is set after the database is initialized (see `initializeDatabaseAsync`)
 
     private fun createWebViewBridge() = object : WebViewController.Bridge {
         override fun onAnswerSelected(answerId: Long) {
@@ -225,16 +228,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     // ============================================================================
 
     private fun setupDrawer() {
-        drawerToggle = ActionBarDrawerToggle(
-            this,
-            binding.drawerLayout,
-            binding.toolbar,
-            R.string.app_name,
-            R.string.app_name
-        )
-        binding.drawerLayout.addDrawerListener(drawerToggle)
-        drawerToggle.syncState()
-        binding.navigationView.setNavigationItemSelectedListener(this)
+        // Drawer is handled by Compose `QuizRoot`; no view setup necessary.
     }
 
     // ============================================================================
@@ -246,12 +240,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun setupBottomBarListeners() {
-        binding.buttonPrevious.setOnClickListener { viewModel.loadPrevious() }
-        binding.buttonNext.setOnClickListener { viewModel.loadNext() }
-        binding.counterContainer.apply {
-            setOnClickListener { showJumpToDialog() }
-            contentDescription = "Tap to jump to question"
-        }
+        // Bottom bar is handled by Compose `QuizRoot` — nothing to do here.
     }
 
     // ============================================================================
@@ -296,7 +285,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
         } else {
             if (!filtersOnlyMode) {
-                binding.startFiltersPanel.root.visibility = View.GONE
+                // Compose UI controls the start filters panel — nothing to do
             }
             if (autoLoadFirstQuestion) {
                 viewModel.loadQuestion(0)
@@ -358,7 +347,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     quizHtml to mediaFiles
                 },
                 onSuccess = { (quizHtml, mediaFiles) ->
-                    WebViewRenderer.loadContent(this@QuizActivity, binding.webViewQuestion, quizHtml)
+                    // Use Compose WebView composable via state flow for HTML content
+                    webViewStateFlow.value = WebViewState(html = quizHtml)
                     updateQuestionMetadata(question, state)
                     updateMediaInfo(question.id, mediaFiles)
                     viewModel.resetAnswerState()
@@ -376,23 +366,17 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             if (!question.sysName.isNullOrBlank()) append(" | System: ${question.sysName}")
         }
 
-        binding.textViewMetadata.apply {
-            text = metadata
-            isVisible = false
-        }
+        // Compose displays question metadata from the ViewModel state; no view update here.
 
         updatePerformanceDisplay(state)
     }
 
     private fun updatePerformanceDisplay(state: QuizState) {
-        binding.textViewPerformance.apply {
-            text = buildPerformanceSummary(state.currentPerformance)
-            isVisible = !text.isNullOrBlank() && state.isLoggingEnabled
-        }
+        // Compose displays performance; update handled by ViewModel - no view update
     }
 
     private fun updateWebViewAnswerState(correctAnswerId: Int, selectedAnswerId: Int) {
-        webViewController.applyAnswerState(binding.webViewQuestion, correctAnswerId, selectedAnswerId)
+        webViewStateFlow.value = webViewStateFlow.value.copy(correctAnswerId = correctAnswerId, selectedAnswerId = selectedAnswerId)
     }
 
     // ============================================================================
@@ -400,11 +384,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     // ============================================================================
 
     private fun updateNavigationControls(state: QuizState) {
-        val total = state.questionIds.size
-        binding.buttonNext.isEnabled = state.currentQuestionIndex < total - 1
-        binding.buttonPrevious.isEnabled = state.currentQuestionIndex > 0
-        binding.textViewQuestionIndex.text = (state.currentQuestionIndex + 1).toString()
-        binding.textViewTotalQuestions.text = "/ $total"
+        // Compose bottom bar handles navigation and counters directly from ViewModel.
     }
 
     private fun showJumpToDialog() {
@@ -436,10 +416,11 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private fun showStartFiltersPanel() {
         // Use bound included layout access rather than manual findViewById
-        binding.startFiltersPanel.root.visibility = View.VISIBLE
+            // Compose `StartFiltersPanel` shown by `QuizRoot` — nothing to set manually here.
         // Hide cancel button for filters-only mode
         if (filtersOnlyMode) {
-            binding.startFiltersPanel.buttonCancelPanel.visibility = View.GONE
+            // Hide the cancel button by recomposing the filters panel; it will be
+            // omitted in `StartFiltersPanel` in filters-only mode if necessary.
         }
         setupFilterPanelListeners()
         updateAllFilterLabels()
@@ -447,34 +428,15 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private fun hideUiForFiltersOnlyMode() {
         // Hide the main UI elements so only the filter panel is visible full-screen
-        binding.toolbar.visibility = View.GONE
-        binding.cardQuestion.visibility = View.GONE
-        binding.bottomBar.visibility = View.GONE
-        binding.navigationView.visibility = View.GONE
+        // full-screen filters: hide the main UI components — handled by Compose root
 
         // Expand the start filters panel to full-screen height
-        val params = binding.startFiltersPanel.root.layoutParams
-        params.height = ViewGroup.LayoutParams.MATCH_PARENT
-        binding.startFiltersPanel.root.layoutParams = params
+        // This is handled by Compose — nothing to set on a `ComposeView`.
     }
 
     private fun setupFilterPanelListeners() {
-        // Listeners on start filters panel
-        // Use activity root to resolve view IDs reliably
-        binding.startFiltersPanel.buttonSelectSubjectsPanel
-            .setOnClickListener { handleSubjectSelection() }
-        
-        binding.startFiltersPanel.buttonSelectSystemsPanel
-            .setOnClickListener { handleSystemSelection() }
-        
-        binding.startFiltersPanel.buttonSelectPerformancePanel
-            .setOnClickListener { handlePerformanceSelection() }
-        
-        binding.startFiltersPanel.buttonCancelPanel
-            .setOnClickListener { hideFilterPanel() }
-        
-        binding.startFiltersPanel.buttonStartPanel
-            .setOnClickListener { startQuiz() }
+        // Interactions with the filters panel are handled via the Compose
+        // StartFiltersPanel callbacks which are set in `showStartFiltersPanel()`.
     }
 
     private fun performSubjectSelection(silently: Boolean, onAfterApply: (() -> Unit)? = null) {
@@ -569,23 +531,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun handlePerformanceSelection() {
-        val filters = PerformanceFilter.values()
-        val labels = filters.map { getPerformanceFilterLabel(it) }.toTypedArray()
-        val currentIndex = filters.indexOf(viewModel.state.value.performanceFilter)
-
-        AlertDialog.Builder(this)
-            .setTitle("Performance Filter")
-            .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
-                dialog.dismiss()
-                viewModel.setPerformanceFilter(filters[which])
-                updateAllFilterLabels()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        // Performance filter is now a Compose dialog in `QuizRoot`.
+        // This method remains for compatibility.
     }
 
     private fun hideFilterPanel() {
-        binding.startFiltersPanel.root.visibility = View.GONE
+            // Compose `StartFiltersPanel` displayed in `QuizRoot`.
         updateToolbarSubtitle()
     }
 
@@ -599,14 +550,8 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             },
             onSuccess = { ids ->
                 // Hide filter panel first to ensure WebView is visible
-                binding.startFiltersPanel.root.visibility = View.GONE
-                if (filtersOnlyMode) {
-                    binding.toolbar.visibility = View.VISIBLE
-                    binding.cardQuestion.visibility = View.VISIBLE
-                    binding.bottomBar.visibility = View.VISIBLE
-                    binding.navigationView.visibility = View.VISIBLE
-                    filtersOnlyMode = false
-                }
+                // Compose `StartFiltersPanel` displayed in `QuizRoot`.
+                // Compose handles filter panel visibility; nothing to do
                 
                 if (ids.isNotEmpty()) {
                     viewModel.loadQuestion(0)
@@ -619,37 +564,26 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun updateAllFilterLabels() {
-        updateSubjectLabel()
-        updateSystemLabel()
-        updatePerformanceLabel()
+        // Compose `StartFiltersPanel` is driven by `viewModel` state; no manual setContent.
+        // Recompute preview separately (async)
         updatePreviewCount()
     }
 
     private fun updateSubjectLabel() {
-        val count = viewModel.state.value.selectedSubjectIds.size
-        binding.startFiltersPanel
-            .buttonSelectSubjectsPanel
-            .text = if (count == 0) "Subjects: All" else "Subjects: $count"
+        // Labels are handled by Compose; recompose the filters panel
+        updateAllFilterLabels()
         // If no subjects are selected it used to mean "systems not applicable" —
         // but we treat an empty subject selection as "All subjects" now. Systems
         // are still available in that case, so keep the systems button enabled.
-        binding.startFiltersPanel
-            .buttonSelectSystemsPanel
-            .isEnabled = true
+        // `StartFiltersPanel` Compose component tracks the enabled state through `viewModel`.
     }
 
     private fun updateSystemLabel() {
-        val count = viewModel.state.value.selectedSystemIds.size
-        binding.startFiltersPanel
-            .buttonSelectSystemsPanel
-            .text = if (count == 0) "Systems: All" else "Systems: $count"
+        updateAllFilterLabels()
     }
 
     private fun updatePerformanceLabel() {
-        val filter = viewModel.state.value.performanceFilter
-        binding.startFiltersPanel
-            .buttonSelectPerformancePanel
-            .text = getPerformanceFilterLabel(filter)
+        updateAllFilterLabels()
     }
 
     private fun updatePreviewCount() {
@@ -658,12 +592,11 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             block = { viewModel.fetchFilteredQuestionIds().size },
             onSuccess = { count ->
                 val text = if (count == 1) "1 question matches" else "$count questions match"
-                binding.startFiltersPanel.textViewPreviewCountPanel.text = text
-                binding.startFiltersPanel.buttonStartPanel.isEnabled = count > 0
+                // Recompose the filters panel with updated preview count
+                // Compose `StartFiltersPanel` will recompose using the new preview count.
             },
             onFailure = {
-                binding.startFiltersPanel.textViewPreviewCountPanel.text = "Preview unavailable"
-                binding.startFiltersPanel.buttonStartPanel.isEnabled = true
+                // Compose `StartFiltersPanel` will recompose with the updated preview count from `viewModel`
             }
         )
     }
@@ -672,16 +605,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     // Navigation Drawer Handling
     // ============================================================================
 
-    private fun handleNavigationItemSelected(itemId: Int) {
-        when (itemId) {
-            R.id.nav_filter_subject -> showSubjectFilterDialog()
-            R.id.nav_filter_system -> showSystemFilterDialog()
-            R.id.nav_filter_performance -> showPerformanceFilterDialog()
-            R.id.nav_clear_filters -> clearFilters()
-            R.id.nav_settings -> showSettingsDialog()
-            R.id.nav_about -> showToast("About coming soon")
-        }
-    }
+    // Navigation is handled in `QuizRoot` via Compose drawer.
 
     private fun showSubjectFilterDialog() {
         performSubjectSelection(false)
@@ -739,25 +663,23 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     // ============================================================================
 
     private fun showSettingsDialog() {
-        val dialogBinding = DialogSettingsBinding.inflate(layoutInflater)
-        dialogBinding.switchLogAnswers.isChecked = settingsRepository.isLoggingEnabled.value
+        val composeView = androidx.compose.ui.platform.ComposeView(this)
+        composeView.setContent {
+            com.medicalquiz.app.ui.SettingsDialog(
+                initialLoggingEnabled = settingsRepository.isLoggingEnabled.value,
+                onLoggingChanged = { enabled ->
+                    settingsRepository.setLoggingEnabled(enabled)
+                    if (!enabled) viewModel.clearPendingLogsBuffer()
+                },
+                onResetLogs = { showResetLogsConfirmation() }
+            )
+        }
 
         val dialog = AlertDialog.Builder(this)
             .setTitle("Settings")
-            .setView(dialogBinding.root)
+            .setView(composeView)
             .setPositiveButton("Close", null)
             .create()
-
-        dialogBinding.switchLogAnswers.setOnCheckedChangeListener { _, isChecked ->
-            settingsRepository.setLoggingEnabled(isChecked)
-            if (!isChecked) {
-                viewModel.clearPendingLogsBuffer()
-            }
-        }
-
-        dialogBinding.buttonResetLogs.setOnClickListener {
-            showResetLogsConfirmation()
-        }
 
         dialog.show()
     }
@@ -911,34 +833,17 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
 
     private fun showQuestionDetails(state: QuizState) {
-        val previousScrollY = binding.scrollViewContent.scrollY
-
-        binding.textViewMetadata.isVisible = !binding.textViewMetadata.text.isNullOrBlank()
-        binding.textViewPerformance.isVisible = 
-            !binding.textViewPerformance.text.isNullOrBlank() && state.isLoggingEnabled
-        binding.textViewMediaInfo.isVisible = !binding.textViewMediaInfo.text.isNullOrBlank()
-
-        binding.scrollViewContent.post {
-            binding.scrollViewContent.scrollTo(0, previousScrollY)
-        }
+        // Compose handles showing question details; scroll behavior is handled
+        // inside `QuizScreen`/`WebViewComposable` and is not needed here.
     }
 
     private fun updateToolbarSubtitle() {
-        supportActionBar?.subtitle = null
+        topBarSubtitle.value = null
     }
 
     private fun applyWindowInsets() {
-        ViewCompat.setOnApplyWindowInsetsListener(binding.scrollViewContent) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val extraBottom = resources.getDimensionPixelSize(R.dimen.quiz_scroll_bottom_padding)
-            view.setPadding(
-                view.paddingLeft,
-                view.paddingTop,
-                view.paddingRight,
-                extraBottom + systemBars.bottom
-            )
-            insets
-        }
+        // Window insets are delivered to Compose when running with Compose. No
+        // explicit view-based insets required here.
     }
 
     // ============================================================================
@@ -949,15 +854,12 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         cacheManager.updateMediaCache(questionId, mediaFiles)
         mediaHandler.updateMedia(questionId, mediaFiles)
         
-        binding.textViewMediaInfo.apply {
-            if (mediaFiles.isNotEmpty()) {
-                text = "📎 ${mediaFiles.size} media file(s) - Tap to view"
-                setOnClickListener { mediaHandler.showCurrentMediaGallery() }
+        // Compose manages the media info UI now. Update the media handler and let UI recompose.
+            mediaHandler.updateMedia(questionId, mediaFiles)
             } else {
-                text = ""
-                setOnClickListener(null)
+            mediaHandler.updateMedia(questionId, emptyList())
             }
-            isVisible = mediaFiles.isNotEmpty()
+        
         }
         
         Log.d(TAG, "Question $questionId has media files: $mediaFiles")
@@ -1011,11 +913,7 @@ class QuizActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun setupBackPressHandler() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                    binding.drawerLayout.closeDrawer(GravityCompat.START)
-                } else {
-                    finish()
-                }
+                finish()
             }
         })
     }

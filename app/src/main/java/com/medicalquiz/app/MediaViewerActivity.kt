@@ -5,28 +5,21 @@ import android.os.Environment
 import android.provider.Settings
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.viewpager2.widget.ViewPager2
-import com.medicalquiz.app.databinding.ActivityMediaViewerBinding
+import com.medicalquiz.app.ui.MediaViewerScreen
+import androidx.compose.ui.platform.ComposeView
 import java.io.File
 
 class MediaViewerActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityMediaViewerBinding
-    private lateinit var adapter: MediaViewerAdapter
     private var mediaFiles = listOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMediaViewerBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
         if (!Environment.isExternalStorageManager()) {
             Toast.makeText(this, "Storage permission required to view media", Toast.LENGTH_LONG).show()
             finish()
             return
         }
 
-        setSupportActionBar(binding.toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "Media Viewer"
 
         val allMediaFiles = intent.getStringArrayListExtra(EXTRA_MEDIA_FILES) ?: arrayListOf()
@@ -40,34 +33,14 @@ class MediaViewerActivity : AppCompatActivity() {
 
         val actualStartIndex = mediaFiles.indexOf(allMediaFiles.getOrNull(startIndex)).takeIf { it != -1 } ?: 0
 
-        setupViewPager(actualStartIndex)
-    }
-
-    private fun setupViewPager(startIndex: Int) {
-        adapter = MediaViewerAdapter(mediaFiles, this)
-        binding.viewPager.adapter = adapter
-        binding.viewPager.setCurrentItem(startIndex, false)
-
-        // Update counter when page changes
-        binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                updateCounter(position)
-                updateToolbarSubtitle(position)
+        setContentView(ComposeView(this).apply {
+            setContent {
+                MediaViewerScreen(mediaFiles = mediaFiles, startIndex = actualStartIndex)
             }
         })
-
-        // Set initial state
-        updateCounter(startIndex)
-        updateToolbarSubtitle(startIndex)
     }
 
-    private fun updateCounter(position: Int) {
-        binding.textViewCounter.text = "${position + 1} / ${mediaFiles.size}"
-    }
-
-    private fun updateToolbarSubtitle(position: Int) {
-        supportActionBar?.subtitle = mediaFiles.getOrNull(position) ?: ""
-    }
+    // Media viewer now uses Compose's pager; toolbar subtitle updated by Compose if required
 
     private fun isMediaAvailable(fileName: String): Boolean = getMediaFile(fileName).exists()
 
@@ -78,8 +51,6 @@ class MediaViewerActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Release any remaining media players
-        adapter.releaseAllPlayers()
     }
 
     companion object {

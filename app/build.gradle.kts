@@ -28,12 +28,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "11"
     }
 
     buildFeatures {
@@ -42,7 +42,7 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
+        kotlinCompilerExtensionVersion = "1.5.15"
     }
 }
 
@@ -56,12 +56,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.0")
     // Switched from LiveData to StateFlow/SharedFlow — use lifecycle runtime for repeatOnLifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.0")
-    
-    // RecyclerView
-    implementation("androidx.recyclerview:recyclerview:1.3.2")
-    
-    // ViewPager2 for swipe navigation
-    implementation("androidx.viewpager2:viewpager2:1.0.0")
     
     // SQLite support
     implementation("androidx.sqlite:sqlite-ktx:2.4.0")
@@ -77,18 +71,25 @@ dependencies {
     implementation("androidx.webkit:webkit:1.10.0")
 
     // Jetpack Compose
-    implementation(platform("androidx.compose:compose-bom:2024.06.00"))
+    implementation(platform("androidx.compose:compose-bom:2025.11.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-viewbinding")
     implementation("androidx.activity:activity-compose:1.9.0")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.0")
+    // Pager for swipe/carousel UI in Compose (official pager from Compose Foundation)
+    implementation("androidx.compose.foundation:foundation-layout")
 
-    // Media loading
-    implementation("io.coil-kt:coil:2.6.0")
-    // PhotoView for pinch-to-zoom in media viewer
-    implementation("com.github.chrisbanes:PhotoView:2.3.0")
+    // Media loading (Coil 3) - updated for modern Compose compatibility
+    implementation("io.coil-kt.coil3:coil:3.3.0")
+    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+
+
+    // Optional: Accompanist Pager (if needed for older Compose pager API compatibility)
+    implementation("com.google.accompanist:accompanist-pager:0.37.3")
     
     // junit removed as part of deleting tests
         // core-testing removed per user request
