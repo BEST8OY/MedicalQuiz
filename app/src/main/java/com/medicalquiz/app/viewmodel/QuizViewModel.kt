@@ -345,6 +345,14 @@ class QuizViewModel : ViewModel() {
         _state.update { it.copy(questionIds = ids) }
     }
 
+    fun requestAutoLoadFirstQuestion() {
+        _state.update { it.copy(autoLoadFirstQuestion = true) }
+    }
+
+    fun clearAutoLoadFirstQuestion() {
+        _state.update { it.copy(autoLoadFirstQuestion = false) }
+    }
+
     fun loadFilteredQuestionIds() {
         Log.d("QuizViewModel", "Loading filtered question IDs")
         viewModelScope.launch(Dispatchers.IO) {

@@ -68,7 +68,6 @@ class QuizActivity : AppCompatActivity() {
     
     // State
     private var startTime: Long = 0
-    private var autoLoadFirstQuestion: Boolean = false
 
     // ============================================================================
     // Lifecycle Methods
@@ -318,9 +317,9 @@ class QuizActivity : AppCompatActivity() {
             if (!filtersOnlyMode) {
                 // Compose UI controls the start filters panel — nothing to do
             }
-            if (autoLoadFirstQuestion) {
-                // Prevent duplicate launches and make sure we call loadQuestion only once
-                autoLoadFirstQuestion = false
+            if (viewModel.state.value.autoLoadFirstQuestion) {
+                // Clear the flag in ViewModel before launching the load to avoid races
+                viewModel.clearAutoLoadFirstQuestion()
                 lifecycleScope.launch {
                     try {
                         // Wait for the ViewModel to populate questions (timeout to avoid hang)
