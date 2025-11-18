@@ -64,7 +64,7 @@ fun QuizScreen(
             exit = fadeOut() + shrinkVertically()
         ) {
             QuestionMetadataCard(
-                questionId = state.currentQuestion?.questionId,
+                questionId = state.currentQuestion?.id,
                 subject = state.currentQuestion?.subName,
                 system = state.currentQuestion?.sysName
             )
