@@ -24,7 +24,7 @@
 .medical-content li {
   font-size: 16px;
   line-height: 1.75;
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--md-sys-color-on-surface);
 }
 
 /* Nested lists */
@@ -34,6 +34,7 @@
   margin-top: 8px;
   margin-bottom: 8px;
   margin-left: 16px;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .medical-content ul ol,
@@ -42,6 +43,7 @@
   margin-top: 8px;
   margin-bottom: 8px;
   margin-left: 16px;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 /* Circle style lists from database content */
@@ -59,4 +61,5 @@
 
 .medical-content td li {
   font-size: 14px;
+  color: var(--md-sys-color-on-surface-variant);
 }

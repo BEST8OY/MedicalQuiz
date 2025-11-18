@@ -19,8 +19,8 @@
 
 /* Table Headers */
 .medical-content thead {
-  background-color: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
+  background-color: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -31,7 +31,7 @@
   text-align: left;
   font-weight: 600;
   font-size: 14px;
-  border: 1px solid var(--md-sys-color-outline-variant);
+  border: 1px solid var(--md-sys-color-outline);
   white-space: nowrap;
 }
 
@@ -41,7 +41,7 @@
 }
 
 .medical-content tbody tr:hover {
-  background-color: var(--md-sys-color-primary-container);
+  background-color: var(--md-sys-color-surface-variant);
 }
 
 .medical-content tbody td {
@@ -73,29 +73,29 @@
 
 /* First row as header when no thead exists */
 .medical-content tbody tr:first-child {
-  background-color: var(--md-sys-color-surface-variant);
+  background-color: var(--md-sys-color-secondary-container);
   font-weight: 600;
 }
 
 .medical-content tbody tr:first-child td {
   font-weight: 600;
-  color: var(--md-sys-color-on-surface);
+  color: var(--md-sys-color-on-secondary-container);
 }
 
 /* Striped rows - start from second row */
 .medical-content tbody tr:nth-child(even):not(:first-child) {
-  background-color: var(--md-sys-color-surface-variant);
+  background-color: var(--md-sys-color-background);
 }
 
 /* Special classes from databases */
 .medical-content .table-default-style,
 .medical-content .table-header-footer-style {
-  border: 2px solid var(--md-sys-color-outline-variant);
+  border: 2px solid var(--md-sys-color-outline);
 }
 
 /* Footer rows (typically last row with abbreviations) */
 .medical-content tbody tr:last-child {
-  background-color: var(--md-sys-color-surface-variant);
+  background-color: var(--md-sys-color-surface);
   font-size: 12px;
 }
 
