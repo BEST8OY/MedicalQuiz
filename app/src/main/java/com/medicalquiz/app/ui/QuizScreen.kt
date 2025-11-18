@@ -165,14 +165,14 @@ private fun buildMetadataSections(question: Question?): List<MetadataSection> {
     val sections = mutableListOf<MetadataSection>()
     sections += MetadataSection.Chips(label = "ID", values = listOf("#${currentQuestion.id}"))
 
-    buildMetadataEntries(currentQuestion.subName, currentQuestion.subId)
+    extractMetadataList(currentQuestion.subName)
         .takeIf { it.isNotEmpty() }
         ?.let { values ->
             val label = if (values.size == 1) "Subject" else "Subjects"
             sections += MetadataSection.Chips(label, values)
         }
 
-    buildMetadataEntries(currentQuestion.sysName, currentQuestion.sysId)
+    extractMetadataList(currentQuestion.sysName)
         .takeIf { it.isNotEmpty() }
         ?.let { values ->
             val label = if (values.size == 1) "System" else "Systems"
@@ -232,24 +232,6 @@ private fun extractMetadataList(raw: String?): List<String> {
     return raw.split(metadataDelimiters)
         .map { it.trim() }
         .filter { it.isNotEmpty() }
-}
-
-private fun buildMetadataEntries(names: String?, ids: String?): List<String> {
-    val nameParts = extractMetadataList(names)
-    val idParts = extractMetadataList(ids)
-    val count = maxOf(nameParts.size, idParts.size)
-
-    return (0 until count)
-        .mapNotNull { index ->
-            val name = nameParts.getOrNull(index)
-            val id = idParts.getOrNull(index)
-            when {
-                !name.isNullOrBlank() && !id.isNullOrBlank() -> "$name (#$id)"
-                !name.isNullOrBlank() -> name
-                !id.isNullOrBlank() -> "#$id"
-                else -> null
-            }
-        }
 }
 
 @Composable

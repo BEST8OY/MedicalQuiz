@@ -129,7 +129,13 @@ class QuizActivity : AppCompatActivity() {
         }
 
         setupToolbar(dbName)
-        initializeDatabaseAsync(dbPath)
+        val hasExistingDatabase = viewModel.getDatabaseManager() != null
+        if (hasExistingDatabase) {
+            Log.d(TAG, "Reusing existing database connection after configuration change")
+            setupComposeContent()
+        } else {
+            initializeDatabaseAsync(dbPath)
+        }
     }
 
     private fun setupToolbar(dbName: String?) {
@@ -156,25 +162,7 @@ class QuizActivity : AppCompatActivity() {
                 },
                 onSuccess = {
                     try {
-                        mediaHandler = MediaHandler(this@QuizActivity)
-                        mediaHandler.reset()
-
-                        Log.d(TAG, "Media and filter handlers initialized, setting up Compose UI")
-                        Log.d(TAG, "About to call QuizRoot with filtersOnly=$filtersOnlyMode")
-
-                        // Host the entire Quiz UI in Compose once DB is ready.
-                        setContent {
-                            MedicalQuizTheme {
-                                com.medicalquiz.app.ui.QuizRoot(
-                                    viewModel = viewModel,
-                                    webViewStateFlow = webViewStateFlow,
-                                    mediaHandler = mediaHandler,
-                                    onClearFilters = { clearFilters() },
-                                    onStart = { startQuiz() }
-                                )
-                            }
-                        }
-                        Log.d(TAG, "Compose UI content set successfully")
+                        setupComposeContent()
                     } catch (e: Exception) {
                         Log.e(TAG, "Error setting up Compose UI", e)
                         viewModel.emitErrorDialog("UI Setup Error", "Failed to initialize UI: ${e.message}")
@@ -194,6 +182,26 @@ class QuizActivity : AppCompatActivity() {
                 }
             )
         }
+
+    private fun setupComposeContent() {
+        if (!::mediaHandler.isInitialized) {
+            mediaHandler = MediaHandler(this@QuizActivity)
+        }
+        mediaHandler.reset()
+
+        Log.d(TAG, "Setting Compose content for QuizActivity")
+        setContent {
+            MedicalQuizTheme {
+                com.medicalquiz.app.ui.QuizRoot(
+                    viewModel = viewModel,
+                    webViewStateFlow = webViewStateFlow,
+                    mediaHandler = mediaHandler,
+                    onClearFilters = { clearFilters() },
+                    onStart = { startQuiz() }
+                )
+            }
+        }
+    }
 
     // ============================================================================
     // WebView Setup
