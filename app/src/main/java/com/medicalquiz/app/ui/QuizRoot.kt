@@ -18,7 +18,6 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -402,14 +401,6 @@ private fun FilterScreen(
                 .padding(horizontal = 24.dp, vertical = 40.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            FilterIntroCard()
-
-            FilterStatsRow(
-                subjectCount = subjectCount,
-                systemCount = systemCount,
-                performanceLabel = performanceLabel
-            )
-
             FilterPreviewCard(previewCount = previewCount)
 
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -441,107 +432,6 @@ private fun FilterScreen(
                 hasPreview = hasPreview,
                 onStart = onStart,
                 onClearFilters = onClearFilters
-            )
-        }
-    }
-}
-
-@Composable
-private fun FilterIntroCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        ),
-        shape = RoundedCornerShape(28.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.size(48.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Rounded.FilterList,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = "Build your quiz",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = "Pick subjects, systems, and performance filters. Preview updates live before starting.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FilterStatsRow(
-    subjectCount: Int,
-    systemCount: Int,
-    performanceLabel: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        FilterStatChip(
-            title = "Subjects",
-            value = subjectCount.toString(),
-            modifier = Modifier.weight(1f)
-        )
-        FilterStatChip(
-            title = "Systems",
-            value = systemCount.toString(),
-            modifier = Modifier.weight(1f)
-        )
-        FilterStatChip(
-            title = "Performance",
-            value = performanceLabel,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-private fun FilterStatChip(title: String, value: String, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 1.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = title.uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1
             )
         }
     }
