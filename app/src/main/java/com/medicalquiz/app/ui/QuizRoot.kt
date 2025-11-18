@@ -318,4 +318,3 @@ fun QuizRoot(
         onDismiss = { showResetLogsConfirmation = false }
     )
 }
-}
