@@ -1,291 +1,244 @@
 package com.medicalquiz.app.ui
-
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.*
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
 
 @Composable
 fun StartFiltersPanel(
-    subjectCount: Int,
-    systemCount: Int,
-    performanceLabel: String,
-    previewCount: Int,
+    modifier: Modifier = Modifier,
+    selectedSubjectCount: Int,
+    selectedChapterCount: Int,
+    attemptFilterLabel: String,
+    previewCountLabel: String,
     onSelectSubjects: () -> Unit,
-    onSelectSystems: () -> Unit,
-    onSelectPerformance: () -> Unit,
+    onSelectChapters: () -> Unit,
+    onSelectAttemptFilter: () -> Unit,
+    onPreview: () -> Unit,
     onClear: () -> Unit,
-    onStart: () -> Unit
+    onStart: () -> Unit,
 ) {
+    val scrollState = rememberScrollState()
+
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier
+            .wrapContentHeight()
+            .fillMaxWidth()
+            .verticalScroll(scrollState)
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // Header Section with Enhanced Typography
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(text = "Quiz filters", style = MaterialTheme.typography.titleLarge)
+            Text(
+                text = "Fine-tune the next quiz. You can always adjust later.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        SummaryCluster(
+            previewCountLabel = previewCountLabel,
+            attemptFilterLabel = attemptFilterLabel,
+            onPreview = onPreview
+        )
+
+        FilterCard(
+            icon = Icons.Filled.CheckCircle,
+            title = "Subjects",
+            description = subjectLabel(selectedSubjectCount),
+            actionLabel = "Pick subjects",
+            onClick = onSelectSubjects
+        )
+
+        FilterCard(
+            icon = Icons.Filled.CheckCircle,
+            title = "Chapters",
+            description = chapterLabel(selectedChapterCount),
+            actionLabel = "Choose chapters",
+            onClick = onSelectChapters
+        )
+
+        FilterCard(
+            icon = Icons.Filled.Tune,
+            title = "Attempts",
+            description = attemptFilterLabel,
+            actionLabel = "Filter attempts",
+            onClick = onSelectAttemptFilter
+        )
+
+        ActionBar(onStart = onStart, onClear = onClear)
+    }
+}
+
+@Composable
+private fun SummaryCluster(
+    previewCountLabel: String,
+    attemptFilterLabel: String,
+    onPreview: () -> Unit,
+) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Start Quiz",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = "Select your learning preferences",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                letterSpacing = 0.5.sp
-            )
-        }
-
-        // Filters Card Section with Modern Layout
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .animateContentSize(
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
-                ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Section Label
-            Text(
-                text = "FILTERS",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 1.5.sp,
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
-
-            // Subject Filter Button
-            FilterButton(
-                label = "Subjects",
-                count = subjectCount,
-                onClick = onSelectSubjects
-            )
-
-            // System Filter Button
-            FilterButton(
-                label = "Systems",
-                count = systemCount,
-                onClick = onSelectSystems
-            )
-
-            // Performance Filter Button
-            FilterButton(
-                label = "Performance",
-                value = performanceLabel,
-                onClick = onSelectPerformance
-            )
-        }
-
-        // Preview Section with Enhanced Design
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .animateContentSize(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Questions Available",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-                        letterSpacing = 0.5.sp
-                    )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Ready to preview?",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = onPreview, contentPadding = PaddingValues(0.dp)) {
+                    Text("Preview quiz")
                 }
-                Text(
-                    text = previewCount.toString(),
-                    fontSize = 40.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = if (previewCount == 1) "question matches your filters" else "questions match your filters",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        // Action Buttons with Enhanced Styling
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Start Button (Primary)
-            Button(
-                onClick = onStart,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                enabled = previewCount > 0,
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            ) {
-                Text(
-                    text = "Start Quiz",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.5.sp
-                )
             }
 
-            // Clear Button (Secondary)
-            OutlinedButton(
-                onClick = onClear,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(
-                    width = 1.5.dp,
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                )
-            ) {
-                Text(
-                    text = "Clear Filters",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.5.sp
-                )
+            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SummaryChip(label = "Queued", value = previewCountLabel)
+                SummaryChip(label = "Attempts", value = attemptFilterLabel)
             }
         }
     }
 }
 
 @Composable
-private fun FilterButton(
-    label: String,
-    count: Int = 0,
-    value: String = "",
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-        )
-    ) {
-        Button(
-            onClick = onClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                contentColor = MaterialTheme.colorScheme.onSurface
-            )
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Tune,
-                        contentDescription = null,
-                        modifier = Modifier.size(22.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Column {
-                        Text(
-                            text = label,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 0.5.sp
-                        )
-                        Text(
-                            text = if (value.isNotEmpty()) value else {
-                                if (count == 0) "None selected" else "$count selected"
-                            },
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-                if (count > 0 && value.isEmpty()) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.padding(start = 8.dp)
-                    ) {
-                        Text(
-                            text = count.toString(),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                }
+private fun SummaryChip(label: String, value: String) {
+    AssistChip(
+        onClick = {},
+        label = {
+            Column(horizontalAlignment = Alignment.Start) {
+                Text(text = label, style = MaterialTheme.typography.labelSmall)
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
+        },
+        shape = MaterialTheme.shapes.large,
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+        )
+    )
+}
+
+@Composable
+private fun FilterCard(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    actionLabel: String,
+    onClick: () -> Unit,
+) {
+    ElevatedCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilterIcon(icon = icon)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = actionLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
+}
+
+@Composable
+private fun FilterIcon(icon: ImageVector) {
+    Box(
+        modifier = Modifier.size(48.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary
+        )
+    }
+}
+
+@Composable
+private fun ActionBar(onStart: () -> Unit, onClear: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        OutlinedButton(onClick = onStart, modifier = Modifier.fillMaxWidth()) {
+            Icon(
+                imageVector = Icons.Filled.CheckCircle,
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .size(18.dp)
+            )
+            Text("Start quiz")
+        }
+        TextButton(onClick = onClear, modifier = Modifier.fillMaxWidth()) {
+            Text("Clear filters")
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+    }
+}
+
+private fun subjectLabel(count: Int) = when (count) {
+    0 -> "No subjects selected"
+    1 -> "1 subject selected"
+    else -> "$count subjects selected"
+}
+
+private fun chapterLabel(count: Int) = when (count) {
+    0 -> "No chapters selected"
+    1 -> "1 chapter selected"
+    else -> "$count chapters selected"
 }

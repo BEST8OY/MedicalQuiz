@@ -1,321 +1,179 @@
 package com.medicalquiz.app.ui
 
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import kotlinx.coroutines.launch
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.background
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.medicalquiz.app.viewmodel.UiEvent
-import com.medicalquiz.app.viewmodel.QuizViewModel
-import androidx.compose.ui.Modifier
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.activity.compose.LocalActivityResultRegistryOwner
-import com.medicalquiz.app.data.database.PerformanceFilter
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.medicalquiz.app.utils.WebViewState
+import com.medicalquiz.app.viewmodel.QuizViewModel
+import com.medicalquiz.app.viewmodel.UiEvent
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 @Composable
 fun QuizRoot(
     viewModel: QuizViewModel,
-    webViewStateFlow: kotlinx.coroutines.flow.MutableStateFlow<com.medicalquiz.app.utils.WebViewState>,
-    mediaHandler: com.medicalquiz.app.ui.MediaHandler,
-    onSubjectFilter: () -> Unit,
-    onSystemFilter: () -> Unit,
+    webViewStateFlow: MutableStateFlow<WebViewState>,
+    mediaHandler: MediaHandler,
     onClearFilters: () -> Unit,
     onStart: () -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val hostActivity = LocalContext.current as? AppCompatActivity
 
-    var showPerformanceDialog by remember { mutableStateOf(false) }
-    var showSettingsDialog by remember { mutableStateOf(false) }
-    var showJumpToDialog by remember { mutableStateOf(false) }
-    var showErrorDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
-    var showResetLogsConfirmation by remember { mutableStateOf(false) }
+    var showPerformanceDialog by rememberSaveable { mutableStateOf(false) }
+    var showSettingsDialog by rememberSaveable { mutableStateOf(false) }
+    var showJumpToDialog by rememberSaveable { mutableStateOf(false) }
+    var errorDialog by rememberSaveable { mutableStateOf<Pair<String, String>?>(null) }
+    var showResetLogsConfirmation by rememberSaveable { mutableStateOf(false) }
+    var showSubjectDialog by rememberSaveable { mutableStateOf(false) }
+    var showSystemDialog by rememberSaveable { mutableStateOf(false) }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
 
-    ModalNavigationDrawer(
-        modifier = Modifier.fillMaxSize(),
-        drawerState = drawerState,
-        gesturesEnabled = drawerState.isOpen,
-        drawerContent = {
-            ModalDrawerSheet {
-                // Header Section
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                                    MaterialTheme.colorScheme.background
-                                )
-                            )
-                        )
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = "Medical Quiz",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Study Tools",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 0.5.sp
-                    )
-                }
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
-
-                // Filter Section
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp, bottom = 12.dp)
-                ) {
-                    Text(
-                        text = "FILTERS",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.2.sp,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-                    )
-
-                    NavigationDrawerItem(
-                        label = {
-                            Row(
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Tune,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "Filter by Subject",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        },
-                        selected = false,
-                        onClick = {
-                            onSubjectFilter()
-                            scope.launch { drawerState.close() }
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                    )
-                    NavigationDrawerItem(
-                        label = {
-                            Row(
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Storage,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "Filter by System",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        },
-                        selected = false,
-                        onClick = {
-                            onSystemFilter()
-                            scope.launch { drawerState.close() }
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                    )
-                    NavigationDrawerItem(
-                        label = {
-                            Row(
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "Filter by Performance",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        },
-                        selected = false,
-                        onClick = {
-                            viewModel.openPerformanceDialog()
-                            scope.launch { drawerState.close() }
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                    )
-                    NavigationDrawerItem(
-                        label = {
-                            Row(
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Refresh,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "Clear All Filters",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        },
-                        selected = false,
-                        onClick = {
-                            onClearFilters()
-                            scope.launch { drawerState.close() }
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                    )
-                }
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
-
-                // App Section
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp)
-                ) {
-                    Text(
-                        text = "APP",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.2.sp,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-                    )
-
-                    NavigationDrawerItem(
-                        label = {
-                            Row(
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Settings,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "Settings",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        },
-                        selected = false,
-                        onClick = {
-                            showSettingsDialog = true
-                            scope.launch { drawerState.close() }
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                    )
-                }
-            }
-        }
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            android.util.Log.d("QuizRoot", "Box rendering for Scaffold")
-            // Top-level scaffold with topBar and bottomBar
-            Scaffold(
-                modifier = Modifier.fillMaxSize(),
-                topBar = {
-                    QuizTopBar(
-                        title = title,
-                        subtitle = null,
-                        onMenuClick = { scope.launch { drawerState.open() } },
-                        onSettingsClick = { showSettingsDialog = true }
-                    )
-                },
-                bottomBar = {
-                    QuizBottomBar(viewModel = viewModel, onJumpTo = { showJumpToDialog = true })
-                }
-            ) { innerPadding ->
-                QuizScreen(
-                    viewModel = viewModel,
-                    webViewStateFlow = webViewStateFlow,
-                    mediaHandler = mediaHandler,
-                    onPrevious = { viewModel.loadPrevious() },
-                    onNext = { viewModel.loadNext() },
-                    onJumpTo = { showJumpToDialog = true },
-                    onOpenSettings = { showSettingsDialog = true },
-                    onShowFilterSubject = onSubjectFilter,
-                    onShowFilterSystem = onSystemFilter,
-                    onSelectPerformance = { viewModel.openPerformanceDialog() },
-                    onStart = onStart,
-                    onClearFilters = onClearFilters,
-                    contentPadding = innerPadding
-                )
-            }
-        }
+    val openSubjectFilter = {
+        showSubjectDialog = true
+    }
+    val openSystemFilter = {
+        showSystemDialog = true
     }
 
     LaunchedEffect(viewModel) {
         viewModel.uiEvents.collect { event ->
             when (event) {
                 is UiEvent.OpenPerformanceDialog -> showPerformanceDialog = true
-                is UiEvent.ShowErrorDialog -> showErrorDialog = event.title to event.message
+                is UiEvent.ShowErrorDialog -> errorDialog = event.title to event.message
                 is UiEvent.ShowResetLogsConfirmation -> showResetLogsConfirmation = true
-                else -> {}
+                else -> Unit
             }
         }
     }
 
+    LaunchedEffect(showSubjectDialog) {
+        if (showSubjectDialog) {
+            viewModel.fetchSubjects()
+        }
+    }
+
+    LaunchedEffect(showSystemDialog, state.selectedSubjectIds) {
+        if (showSystemDialog) {
+            val subjectsSnapshot = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+            viewModel.fetchSystemsForSubjects(subjectsSnapshot)
+        }
+    }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            QuizDrawerContent(
+                onSubjectFilter = {
+                    openSubjectFilter()
+                    scope.launch { drawerState.close() }
+                },
+                onSystemFilter = {
+                    openSystemFilter()
+                    scope.launch { drawerState.close() }
+                },
+                onPerformanceFilter = {
+                    viewModel.openPerformanceDialog()
+                    scope.launch { drawerState.close() }
+                },
+                onClearFilters = {
+                    onClearFilters()
+                    scope.launch { drawerState.close() }
+                },
+                onOpenSettings = {
+                    showSettingsDialog = true
+                    scope.launch { drawerState.close() }
+                }
+            )
+        }
+    ) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                QuizAppBar(
+                    title = title,
+                    questionIndex = state.currentQuestionIndex,
+                    totalQuestions = state.totalQuestions,
+                    onMenuClick = { scope.launch { drawerState.open() } },
+                    onJumpToClick = { showJumpToDialog = true },
+                    onSettingsClick = { showSettingsDialog = true }
+                )
+            },
+            bottomBar = {
+                QuizBottomBar(viewModel = viewModel, onJumpTo = { showJumpToDialog = true })
+            }
+        ) { innerPadding ->
+            QuizScreen(
+                viewModel = viewModel,
+                webViewStateFlow = webViewStateFlow,
+                mediaHandler = mediaHandler,
+                onPrevious = { viewModel.loadPrevious() },
+                onNext = { viewModel.loadNext() },
+                onJumpTo = { showJumpToDialog = true },
+                onOpenSettings = { showSettingsDialog = true },
+                onShowFilterSubject = openSubjectFilter,
+                onShowFilterSystem = openSystemFilter,
+                onSelectPerformance = { viewModel.openPerformanceDialog() },
+                onStart = onStart,
+                onClearFilters = onClearFilters,
+                contentPadding = innerPadding
+            )
+        }
+    }
+
     if (showPerformanceDialog) {
-        PerformanceFilterDialog(current = state.performanceFilter, onSelect = { selected ->
-            viewModel.setPerformanceFilterSilently(selected)
-            viewModel.updatePreviewQuestionCount()
-        }, onDismiss = { showPerformanceDialog = false })
+        PerformanceFilterDialog(
+            current = state.performanceFilter,
+            onSelect = { filter ->
+                viewModel.setPerformanceFilterSilently(filter)
+                viewModel.updatePreviewQuestionCount()
+                showPerformanceDialog = false
+            },
+            onDismiss = { showPerformanceDialog = false }
+        )
     }
 
     SettingsDialogComposable(
@@ -337,14 +195,159 @@ fun QuizRoot(
     )
 
     ErrorDialogComposable(
-        errorDialog = showErrorDialog,
-        onDismiss = { showErrorDialog = null }
+        errorDialog = errorDialog,
+        onDismiss = { errorDialog = null }
     )
 
     ResetLogsConfirmationDialogComposable(
         isVisible = showResetLogsConfirmation,
-        activity = (LocalContext.current as? androidx.activity.ComponentActivity) as? androidx.appcompat.app.AppCompatActivity,
+        activity = hostActivity,
         onConfirm = { showResetLogsConfirmation = false },
         onDismiss = { showResetLogsConfirmation = false }
+    )
+
+    SubjectFilterDialogComposable(
+        isVisible = showSubjectDialog,
+        resource = state.subjectsResource,
+        selectedIds = state.selectedSubjectIds,
+        onRetry = { viewModel.fetchSubjects() },
+        onApply = { selected ->
+            viewModel.applySelectedSubjects(selected)
+            showSubjectDialog = false
+        },
+        onClear = {
+            viewModel.applySelectedSubjects(emptySet())
+            showSubjectDialog = false
+        },
+        onDismiss = { showSubjectDialog = false }
+    )
+
+    SystemFilterDialogComposable(
+        isVisible = showSystemDialog,
+        resource = state.systemsResource,
+        selectedIds = state.selectedSystemIds,
+        onRetry = {
+            val subjectsSnapshot = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+            viewModel.fetchSystemsForSubjects(subjectsSnapshot)
+        },
+        onApply = { selected ->
+            viewModel.applySelectedSystems(selected)
+            showSystemDialog = false
+        },
+        onClear = {
+            viewModel.applySelectedSystems(emptySet())
+            showSystemDialog = false
+        },
+        onDismiss = { showSystemDialog = false }
+    )
+}
+
+@Composable
+private fun QuizAppBar(
+    title: String,
+    questionIndex: Int,
+    totalQuestions: Int,
+    onMenuClick: () -> Unit,
+    onJumpToClick: () -> Unit,
+    onSettingsClick: () -> Unit
+) {
+    CenterAlignedTopAppBar(
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(),
+        navigationIcon = {
+            IconButton(onClick = onMenuClick) {
+                Icon(imageVector = Icons.Rounded.Menu, contentDescription = "Open navigation drawer")
+            }
+        },
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(text = if (title.isNotBlank()) title else "Medical Quiz", fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = if (totalQuestions > 0) "${questionIndex + 1} / $totalQuestions" else "No questions loaded",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        actions = {
+            IconButton(onClick = onJumpToClick) {
+                Icon(imageVector = Icons.AutoMirrored.Filled.TrendingUp, contentDescription = "Jump to question")
+            }
+            IconButton(onClick = onSettingsClick) {
+                Icon(imageVector = Icons.Rounded.Settings, contentDescription = "Open settings")
+            }
+        }
+    )
+}
+
+@Composable
+private fun QuizDrawerContent(
+    onSubjectFilter: () -> Unit,
+    onSystemFilter: () -> Unit,
+    onPerformanceFilter: () -> Unit,
+    onClearFilters: () -> Unit,
+    onOpenSettings: () -> Unit
+) {
+    ModalDrawerSheet {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Quick filters",
+                modifier = Modifier.padding(horizontal = 24.dp),
+                style = MaterialTheme.typography.titleMedium,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            DrawerActionItem(
+                label = "Filter by subject",
+                icon = Icons.Filled.Tune,
+                onClick = onSubjectFilter
+            )
+            DrawerActionItem(
+                label = "Filter by system",
+                icon = Icons.Filled.Storage,
+                onClick = onSystemFilter
+            )
+            DrawerActionItem(
+                label = "Performance filter",
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
+                onClick = onPerformanceFilter
+            )
+            DrawerActionItem(
+                label = "Clear all filters",
+                icon = Icons.Filled.Refresh,
+                onClick = onClearFilters
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+            DrawerActionItem(
+                label = "Settings",
+                icon = Icons.Rounded.Settings,
+                onClick = onOpenSettings
+            )
+        }
+    }
+}
+
+@Composable
+private fun DrawerActionItem(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    NavigationDrawerItem(
+        label = { Text(label) },
+        icon = { Icon(imageVector = icon, contentDescription = null) },
+        selected = false,
+        onClick = onClick,
+        modifier = Modifier.padding(horizontal = 16.dp),
+        colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
     )
 }

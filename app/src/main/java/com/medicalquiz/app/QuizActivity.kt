@@ -20,13 +20,10 @@ import com.medicalquiz.app.data.CacheManager
 import com.medicalquiz.app.data.SettingsRepository
 import com.medicalquiz.app.data.database.PerformanceFilter
 import com.medicalquiz.app.data.database.QuestionPerformance
-import com.medicalquiz.app.data.models.Subject
-import com.medicalquiz.app.data.models.System
 import com.medicalquiz.app.data.models.Question
 // MenuItem handled by Compose top bar if needed
 // Activity now uses Compose for its UI; view binding removed
 // Using Compose-based settings dialog instead of XML-based binding
-import com.medicalquiz.app.ui.FilterDialogHandler
 import com.medicalquiz.app.ui.MediaHandler
 import com.medicalquiz.app.ui.QuizState
 import com.medicalquiz.app.ui.QuizScreen
@@ -58,7 +55,6 @@ class QuizActivity : AppCompatActivity() {
     
     // UI Handlers
     private lateinit var mediaHandler: MediaHandler
-    private lateinit var filterDialogHandler: FilterDialogHandler
     // Compose manages toolbar state through view model; remove `topBarTitle`/`topBarSubtitle`.
     private val webViewStateFlow = MutableStateFlow(WebViewState())
     
@@ -161,7 +157,6 @@ class QuizActivity : AppCompatActivity() {
                 onSuccess = {
                     try {
                         mediaHandler = MediaHandler(this@QuizActivity)
-                        filterDialogHandler = FilterDialogHandler(this@QuizActivity)
                         mediaHandler.reset()
 
                         Log.d(TAG, "Media and filter handlers initialized, setting up Compose UI")
@@ -171,13 +166,11 @@ class QuizActivity : AppCompatActivity() {
                         setContent {
                             MedicalQuizTheme {
                                 com.medicalquiz.app.ui.QuizRoot(
-                                viewModel = viewModel,
-                                webViewStateFlow = webViewStateFlow,
-                                mediaHandler = mediaHandler,
-                                onSubjectFilter = { performSubjectSelection(false) },
-                                onSystemFilter = { performSystemSelection(false) },
-                                onClearFilters = { clearFilters() },
-                                onStart = { startQuiz() }
+                                    viewModel = viewModel,
+                                    webViewStateFlow = webViewStateFlow,
+                                    mediaHandler = mediaHandler,
+                                    onClearFilters = { clearFilters() },
+                                    onStart = { startQuiz() }
                                 )
                             }
                         }
@@ -342,96 +335,6 @@ class QuizActivity : AppCompatActivity() {
 
     private fun showStartFiltersPanel() {
         updatePreviewCount()
-    }
-
-    private fun performSubjectSelection(silently: Boolean, onAfterApply: (() -> Unit)? = null) {
-        Log.d(TAG, "performSubjectSelection called, silently=$silently")
-        viewModel.fetchSubjects()
-
-        lifecycleScope.launch {
-            // Wait until the subjects resource is no longer loading (single-shot)
-            try {
-                val state = kotlinx.coroutines.withTimeout(10_000) { viewModel.state.first { it.subjectsResource !is Resource.Loading } }
-                val resource = state.subjectsResource
-                when (resource) {
-                    is Resource.Success<List<Subject>> -> {
-                        Log.d(TAG, "Subjects loaded: ${resource.data.size} subjects")
-                        if (silently) {
-                            filterDialogHandler.showSubjectSelectionDialogSilently(
-                                resource.data,
-                                state.selectedSubjectIds,
-                                viewModel
-                            ) {
-                                onAfterApply?.invoke()
-                            }
-                        } else {
-                            filterDialogHandler.showSubjectSelectionDialog(
-                                resource.data,
-                                state.selectedSubjectIds,
-                                viewModel
-                            ) {
-                                onAfterApply?.invoke()
-                            }
-                        }
-                    }
-                    is Resource.Error -> {
-                        Log.e(TAG, "Error fetching subjects: ${resource.message}")
-                        showToast("Error fetching subjects: ${resource.message}")
-                    }
-                    else -> {}
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Timeout/wait error waiting for subjects to load", e)
-                showToast("Failed to load subjects: ${e.message}")
-            }
-        }
-    }
-
-    private fun performSystemSelection(silently: Boolean, onAfterApply: (() -> Unit)? = null) {
-        Log.d(TAG, "performSystemSelection called, silently=$silently")
-        // Use a snapshot of the subjects selection now, and pass the same
-        // snapshot to the systems fetch call to avoid race when the user
-        // changes their subject selection rapidly.
-        val subjectsSnapshot = viewModel.state.value.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-        viewModel.fetchSystemsForSubjects(subjectsSnapshot)
-
-        lifecycleScope.launch {
-            // Wait until the systems resource is no longer loading (single-shot)
-            try {
-                val state = kotlinx.coroutines.withTimeout(10_000) { viewModel.state.first { it.systemsResource !is Resource.Loading } }
-                val resource = state.systemsResource
-                when (resource) {
-                    is Resource.Success<List<System>> -> {
-                        Log.d(TAG, "Systems loaded: ${resource.data.size} systems")
-                        if (silently) {
-                            filterDialogHandler.showSystemSelectionDialogSilently(
-                                resource.data,
-                                state.selectedSystemIds,
-                                viewModel
-                            ) {
-                                onAfterApply?.invoke()
-                            }
-                        } else {
-                            filterDialogHandler.showSystemSelectionDialog(
-                                resource.data,
-                                state.selectedSystemIds,
-                                viewModel
-                            ) {
-                                onAfterApply?.invoke()
-                            }
-                        }
-                    }
-                    is Resource.Error -> {
-                        Log.e(TAG, "Error fetching systems: ${resource.message}")
-                        showToast("Error fetching systems: ${resource.message}")
-                    }
-                    else -> {}
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Timeout/wait error waiting for systems to load", e)
-                showToast("Failed to load systems: ${e.message}")
-            }
-        }
     }
 
     private fun startQuiz() {
