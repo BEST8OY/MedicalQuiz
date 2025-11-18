@@ -47,11 +47,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.input.pointer.pointerInput
-import android.widget.MediaController
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import android.widget.VideoView
-import coil3.compose.AsyncImage
+import coil3.decode.SvgDecoder
 import coil3.svg.SvgDecoder
 import coil3.request.ImageRequest
 import com.medicalquiz.app.Constants
@@ -171,16 +170,6 @@ private fun ImageContent(fileName: String, onZoomStateChange: (Boolean) -> Unit)
         }
     }
 
-    val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
-        val newScale = (scale * zoomChange).coerceIn(minScale, maxScale)
-        scale = newScale
-        offset = if (newScale <= 1.01f) {
-            Offset.Zero
-        } else {
-            offset + panChange
-        }
-    }
-
     LaunchedEffect(fileName) {
         scale = 1f
         offset = Offset.Zero
@@ -194,7 +183,22 @@ private fun ImageContent(fileName: String, onZoomStateChange: (Boolean) -> Unit)
             translationX = offset.x,
             translationY = offset.y
         )
-        .pointerInput(Unit) {
+        .pointerInput(fileName) {
+            detectTransformGestures { _, pan, zoomChange, _ ->
+                val newScale = (scale * zoomChange).coerceIn(minScale, maxScale)
+                val wasZoomed = scale > 1.01f
+                scale = newScale
+                offset = if (newScale <= 1.01f) {
+                    Offset.Zero
+                } else {
+                    offset + pan
+                }
+                if (wasZoomed && newScale <= 1.01f) {
+                    offset = Offset.Zero
+                }
+            }
+        }
+        .pointerInput(fileName) {
             detectTapGestures(
                 onDoubleTap = {
                     scale = 1f
@@ -202,7 +206,6 @@ private fun ImageContent(fileName: String, onZoomStateChange: (Boolean) -> Unit)
                 }
             )
         }
-        .transformable(transformableState)
 
     val isZoomed = scale > 1.01f
     LaunchedEffect(isZoomed) {
@@ -234,7 +237,7 @@ private fun ImageContent(fileName: String, onZoomStateChange: (Boolean) -> Unit)
                         model = overlayRequest,
                         contentDescription = "Overlay image",
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.FillBounds
+                        contentScale = ContentScale.Fit
                     )
                 }
             }
