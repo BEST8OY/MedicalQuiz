@@ -251,9 +251,9 @@ private fun JumpToQuestionDialog(
     val typedNumber = inputValue.toIntOrNull()
     val isInRange = typedNumber != null && totalQuestions > 0 && typedNumber in 1..totalQuestions
     val supportingText = when {
-        inputValue.isBlank() -> "Enter a number from 1 to $safeTotal"
-        typedNumber == null -> "Only digits are allowed"
-        !isInRange -> "Value must stay within 1 and $safeTotal"
+        inputValue.isBlank() -> "Enter 1 to $safeTotal"
+        typedNumber == null -> "Numbers only"
+        !isInRange -> "Out of range"
         else -> null
     }
 
@@ -266,129 +266,96 @@ private fun JumpToQuestionDialog(
         }
     }
 
-    DialogSurface(maxWidth = 420.dp, verticalSpacing = 20.dp) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = "Jump to question",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "You are on $clampedCurrent of $safeTotal",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "Close dialog"
-                    )
-                }
-            }
-
-            OutlinedTextField(
-                value = inputValue,
-                onValueChange = { value ->
-                    inputValue = value.filter { it.isDigit() }.take(4)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
-                label = { Text("Question number") },
-                supportingText = supportingText?.let { helper ->
-                    { Text(text = helper, style = MaterialTheme.typography.bodySmall) }
-                },
-                isError = supportingText != null && !isInRange,
-                singleLine = true
-            )
-
-            if (totalQuestions > 1) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Slider(
-                        value = sliderValue,
-                        onValueChange = { newValue ->
-                            sliderValue = newValue
-                            val snapped = newValue.roundToInt().coerceIn(1, totalQuestions)
-                            inputValue = snapped.toString()
-                        },
-                        valueRange = 1f..totalQuestions.toFloat(),
-                        steps = (totalQuestions - 2).coerceAtLeast(0),
-                        colors = SliderDefaults.colors(activeTrackColor = MaterialTheme.colorScheme.primary)
-                    )
-                    LinearProgressIndicator(
-                        progress = { sliderValue / safeTotal.toFloat() },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                QuickJumpChip(label = "Current", value = clampedCurrent, onSelect = { inputValue = it })
-                if (clampedCurrent > 1) {
-                    QuickJumpChip(label = "Prev", value = (clampedCurrent - 1).coerceAtLeast(1), onSelect = { inputValue = it })
-                }
-                if (clampedCurrent < safeTotal) {
-                    QuickJumpChip(label = "Next", value = (clampedCurrent + 1).coerceAtMost(safeTotal), onSelect = { inputValue = it })
-                }
-                QuickJumpChip(label = "First", value = 1, onSelect = { inputValue = it })
-                QuickJumpChip(label = "Last", value = safeTotal, onSelect = { inputValue = it })
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Cancel")
-                }
-
-                FilledTonalButton(
-                    onClick = {
-                        if (typedNumber != null && isInRange) {
-                            onJumpTo(typedNumber - 1)
-                            onDismiss()
-                        }
-                    },
-                    enabled = isInRange,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Jump")
-                }
-            }
-    }
-}
-
-@Composable
-private fun QuickJumpChip(
-    label: String,
-    value: Int,
-    onSelect: (String) -> Unit
-) {
-    SuggestionChip(
-        onClick = { onSelect(value.toString()) },
-        label = {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
             Text(
-                text = "$label $value",
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelLarge
+                text = "Jump to question",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
             )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Text(
+                    text = "Currently on $clampedCurrent of $safeTotal",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                OutlinedTextField(
+                    value = inputValue,
+                    onValueChange = { value ->
+                        inputValue = value.filter { it.isDigit() }.take(4)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = { Text("Question number") },
+                    supportingText = supportingText?.let { { Text(it) } },
+                    isError = supportingText != null && !isInRange,
+                    singleLine = true
+                )
+
+                if (totalQuestions > 1) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Slider(
+                            value = sliderValue,
+                            onValueChange = { newValue ->
+                                sliderValue = newValue
+                                val snapped = newValue.roundToInt().coerceIn(1, totalQuestions)
+                                inputValue = snapped.toString()
+                            },
+                            valueRange = 1f..totalQuestions.toFloat(),
+                            steps = (totalQuestions - 2).coerceAtLeast(0)
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (clampedCurrent > 1) {
+                        SuggestionChip(
+                            onClick = { inputValue = "1" },
+                            label = { Text("First") }
+                        )
+                    }
+                    if (clampedCurrent < safeTotal) {
+                        SuggestionChip(
+                            onClick = { inputValue = safeTotal.toString() },
+                            label = { Text("Last") }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (typedNumber != null && isInRange) {
+                        onJumpTo(typedNumber - 1)
+                    }
+                },
+                enabled = isInRange
+            ) {
+                Text("Jump")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
         }
     )
 }
+
+
 
 @Composable
 private fun SettingsDialog(
@@ -399,137 +366,113 @@ private fun SettingsDialog(
 ) {
     var loggingEnabled by rememberSaveable { mutableStateOf(initialLoggingEnabled) }
 
-    DialogSurface(maxWidth = 480.dp, verticalSpacing = 24.dp) {
-            Row(
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Settings",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = "Settings",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "Manage how progress is tracked on this device",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "Close dialog"
-                    )
-                }
-            }
+                Text(
+                    text = "Manage progress tracking",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-            ElevatedCard {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp)
-                        .padding(bottom = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    ListItem(
-                        headlineContent = {
-                            Text("Answer logging", fontWeight = FontWeight.Medium)
-                        },
-                        supportingContent = {
-                            Text("Collects attempt history so you can review weak areas later.")
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = loggingEnabled,
-                                onCheckedChange = { enabled ->
-                                    loggingEnabled = enabled
-                                    onLoggingChanged(enabled)
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
-                                    checkedThumbColor = MaterialTheme.colorScheme.primary
-                                )
-                            )
-                        }
-                    )
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        AssistChip(
-                            onClick = {},
-                            enabled = false,
-                            label = { Text("Private storage") },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Rounded.CheckCircle,
-                                    contentDescription = null
-                                )
-                            },
-                            colors = AssistChipDefaults.assistChipColors(
-                                leadingIconContentColor = MaterialTheme.colorScheme.primary
-                            )
-                        )
-                        AssistChip(
-                            onClick = {},
-                            enabled = false,
-                            label = { Text("On this device") }
-                        )
-                        AssistChip(
-                            onClick = {},
-                            enabled = false,
-                            label = { Text("No cloud sync") }
-                        )
-                    }
-                }
-            }
-
-            AnimatedVisibility(
-                visible = loggingEnabled,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                FilledTonalButton(
-                    onClick = onResetLogs,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Clear log history")
-                        Icon(imageVector = Icons.Rounded.Delete, contentDescription = null)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Answer logging",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Track attempts and review progress",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = loggingEnabled,
+                            onCheckedChange = { enabled ->
+                                loggingEnabled = enabled
+                                onLoggingChanged(enabled)
+                            }
+                        )
+                    }
+
+                    HorizontalDivider()
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        AssistChip(
+                            onClick = {},
+                            enabled = false,
+                            label = { Text("Private") },
+                            leadingIcon = {
+                                Icon(Icons.Rounded.CheckCircle, null)
+                            }
+                        )
+                        AssistChip(
+                            onClick = {},
+                            enabled = false,
+                            label = { Text("On-device") }
+                        )
+                        AssistChip(
+                            onClick = {},
+                            enabled = false,
+                            label = { Text("No sync") }
+                        )
                     }
                 }
-            }
 
-            Text(
-                text = "All insights stay on-device. You can turn logging off at any time.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onDismiss) {
-                    Text("Close")
+                AnimatedVisibility(
+                    visible = loggingEnabled,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    FilledTonalButton(
+                        onClick = onResetLogs,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    ) {
+                        Icon(Icons.Rounded.Delete, null)
+                        Text("Clear log history", modifier = Modifier.padding(start = 8.dp))
+                    }
                 }
+
+                Text(
+                    text = "Data stays on your device only",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-    }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done")
+            }
+        }
+    )
 }
 
 @Composable
@@ -752,28 +695,6 @@ private fun SelectionEmptyDialog(
 // ============================================================================
 // Shared helpers
 // ============================================================================
-
-@Composable
-private fun DialogSurface(
-    maxWidth: Dp,
-    verticalSpacing: Dp,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        tonalElevation = 6.dp,
-        shape = MaterialTheme.shapes.extraLarge
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(24.dp)
-                .widthIn(max = maxWidth)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(verticalSpacing),
-            content = content
-        )
-    }
-}
 
 private fun PerformanceFilter.label(): String = when (this) {
     PerformanceFilter.ALL -> "All Questions"

@@ -1,19 +1,18 @@
 package com.medicalquiz.app.ui
 
+import androidx.activity.compose.LocalActivity
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -26,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -39,10 +37,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.utils.WebViewState
 import com.medicalquiz.app.viewmodel.QuizViewModel
@@ -59,28 +55,22 @@ fun QuizRoot(
     onClearFilters: () -> Unit,
     onStart: () -> Unit
 ) {
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    val hostActivity = LocalContext.current as? AppCompatActivity
-
-    var showPerformanceDialog by rememberSaveable { mutableStateOf(false) }
-    var showSettingsDialog by rememberSaveable { mutableStateOf(false) }
-    var showJumpToDialog by rememberSaveable { mutableStateOf(false) }
-    var errorDialog by rememberSaveable { mutableStateOf<Pair<String, String>?>(null) }
-    var showResetLogsConfirmation by rememberSaveable { mutableStateOf(false) }
-    var showSubjectDialog by rememberSaveable { mutableStateOf(false) }
-    var showSystemDialog by rememberSaveable { mutableStateOf(false) }
-
+    val hostActivity = LocalActivity.current as? AppCompatActivity
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
 
-    val openSubjectFilter = {
-        showSubjectDialog = true
-    }
-    val openSystemFilter = {
-        showSystemDialog = true
-    }
+    // Dialog states
+    var showPerformanceDialog by rememberSaveable { mutableStateOf(false) }
+    var showSettingsDialog by rememberSaveable { mutableStateOf(false) }
+    var showJumpToDialog by rememberSaveable { mutableStateOf(false) }
+    var showSubjectDialog by rememberSaveable { mutableStateOf(false) }
+    var showSystemDialog by rememberSaveable { mutableStateOf(false) }
+    var showResetLogsConfirmation by rememberSaveable { mutableStateOf(false) }
+    var errorDialog by rememberSaveable { mutableStateOf<Pair<String, String>?>(null) }
 
+    // Event handling
     LaunchedEffect(viewModel) {
         viewModel.uiEvents.collect { event ->
             when (event) {
@@ -93,28 +83,27 @@ fun QuizRoot(
     }
 
     LaunchedEffect(showSubjectDialog) {
-        if (showSubjectDialog) {
-            viewModel.fetchSubjects()
-        }
+        if (showSubjectDialog) viewModel.fetchSubjects()
     }
 
     LaunchedEffect(showSystemDialog, state.selectedSubjectIds) {
         if (showSystemDialog) {
-            val subjectsSnapshot = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-            viewModel.fetchSystemsForSubjects(subjectsSnapshot)
+            val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+            viewModel.fetchSystemsForSubjects(subjects)
         }
     }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = drawerState.isOpen,
         drawerContent = {
-            QuizDrawerContent(
+            NavigationDrawer(
                 onSubjectFilter = {
-                    openSubjectFilter()
+                    showSubjectDialog = true
                     scope.launch { drawerState.close() }
                 },
                 onSystemFilter = {
-                    openSystemFilter()
+                    showSystemDialog = true
                     scope.launch { drawerState.close() }
                 },
                 onPerformanceFilter = {
@@ -125,7 +114,7 @@ fun QuizRoot(
                     onClearFilters()
                     scope.launch { drawerState.close() }
                 },
-                onOpenSettings = {
+                onSettings = {
                     showSettingsDialog = true
                     scope.launch { drawerState.close() }
                 }
@@ -135,19 +124,22 @@ fun QuizRoot(
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             topBar = {
-                QuizAppBar(
+                TopBar(
                     title = title,
                     questionIndex = state.currentQuestionIndex,
                     totalQuestions = state.totalQuestions,
                     onMenuClick = { scope.launch { drawerState.open() } },
-                    onJumpToClick = { showJumpToDialog = true },
+                    onJumpClick = { showJumpToDialog = true },
                     onSettingsClick = { showSettingsDialog = true }
                 )
             },
             bottomBar = {
-                QuizBottomBar(viewModel = viewModel, onJumpTo = { showJumpToDialog = true })
+                QuizBottomBar(
+                    viewModel = viewModel,
+                    onJumpTo = { showJumpToDialog = true }
+                )
             }
-        ) { innerPadding ->
+        ) { padding ->
             QuizScreen(
                 viewModel = viewModel,
                 webViewStateFlow = webViewStateFlow,
@@ -156,16 +148,17 @@ fun QuizRoot(
                 onNext = { viewModel.loadNext() },
                 onJumpTo = { showJumpToDialog = true },
                 onOpenSettings = { showSettingsDialog = true },
-                onShowFilterSubject = openSubjectFilter,
-                onShowFilterSystem = openSystemFilter,
+                onShowFilterSubject = { showSubjectDialog = true },
+                onShowFilterSystem = { showSystemDialog = true },
                 onSelectPerformance = { viewModel.openPerformanceDialog() },
                 onStart = onStart,
                 onClearFilters = onClearFilters,
-                contentPadding = innerPadding
+                contentPadding = padding
             )
         }
     }
 
+    // Dialogs
     if (showPerformanceDialog) {
         PerformanceFilterDialog(
             current = state.performanceFilter,
@@ -178,179 +171,188 @@ fun QuizRoot(
         )
     }
 
-    SettingsDialogComposable(
-        isVisible = showSettingsDialog,
-        viewModel = viewModel,
-        onDismiss = { showSettingsDialog = false },
-        onResetLogsRequested = { showResetLogsConfirmation = true }
-    )
+    if (showSettingsDialog) {
+        SettingsDialogComposable(
+            isVisible = true,
+            viewModel = viewModel,
+            onDismiss = { showSettingsDialog = false },
+            onResetLogsRequested = { showResetLogsConfirmation = true }
+        )
+    }
 
-    JumpToDialogComposable(
-        isVisible = showJumpToDialog,
-        totalQuestions = state.questionIds.size,
-        currentIndex = state.currentQuestionIndex,
-        onJumpTo = { index ->
-            viewModel.loadQuestion(index)
-            showJumpToDialog = false
-        },
-        onDismiss = { showJumpToDialog = false }
-    )
+    if (showJumpToDialog) {
+        JumpToDialogComposable(
+            isVisible = true,
+            totalQuestions = state.questionIds.size,
+            currentIndex = state.currentQuestionIndex,
+            onJumpTo = { index ->
+                viewModel.loadQuestion(index)
+                showJumpToDialog = false
+            },
+            onDismiss = { showJumpToDialog = false }
+        )
+    }
 
-    ErrorDialogComposable(
-        errorDialog = errorDialog,
-        onDismiss = { errorDialog = null }
-    )
+    if (showSubjectDialog) {
+        SubjectFilterDialogComposable(
+            isVisible = true,
+            resource = state.subjectsResource,
+            selectedIds = state.selectedSubjectIds,
+            onRetry = { viewModel.fetchSubjects() },
+            onApply = { selected ->
+                viewModel.applySelectedSubjects(selected)
+                showSubjectDialog = false
+            },
+            onClear = {
+                viewModel.applySelectedSubjects(emptySet())
+                showSubjectDialog = false
+            },
+            onDismiss = { showSubjectDialog = false }
+        )
+    }
 
-    ResetLogsConfirmationDialogComposable(
-        isVisible = showResetLogsConfirmation,
-        activity = hostActivity,
-        onConfirm = { showResetLogsConfirmation = false },
-        onDismiss = { showResetLogsConfirmation = false }
-    )
+    if (showSystemDialog) {
+        SystemFilterDialogComposable(
+            isVisible = true,
+            resource = state.systemsResource,
+            selectedIds = state.selectedSystemIds,
+            onRetry = {
+                val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+                viewModel.fetchSystemsForSubjects(subjects)
+            },
+            onApply = { selected ->
+                viewModel.applySelectedSystems(selected)
+                showSystemDialog = false
+            },
+            onClear = {
+                viewModel.applySelectedSystems(emptySet())
+                showSystemDialog = false
+            },
+            onDismiss = { showSystemDialog = false }
+        )
+    }
 
-    SubjectFilterDialogComposable(
-        isVisible = showSubjectDialog,
-        resource = state.subjectsResource,
-        selectedIds = state.selectedSubjectIds,
-        onRetry = { viewModel.fetchSubjects() },
-        onApply = { selected ->
-            viewModel.applySelectedSubjects(selected)
-            showSubjectDialog = false
-        },
-        onClear = {
-            viewModel.applySelectedSubjects(emptySet())
-            showSubjectDialog = false
-        },
-        onDismiss = { showSubjectDialog = false }
-    )
+    if (showResetLogsConfirmation) {
+        ResetLogsConfirmationDialogComposable(
+            isVisible = true,
+            activity = hostActivity,
+            onConfirm = { showResetLogsConfirmation = false },
+            onDismiss = { showResetLogsConfirmation = false }
+        )
+    }
 
-    SystemFilterDialogComposable(
-        isVisible = showSystemDialog,
-        resource = state.systemsResource,
-        selectedIds = state.selectedSystemIds,
-        onRetry = {
-            val subjectsSnapshot = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-            viewModel.fetchSystemsForSubjects(subjectsSnapshot)
-        },
-        onApply = { selected ->
-            viewModel.applySelectedSystems(selected)
-            showSystemDialog = false
-        },
-        onClear = {
-            viewModel.applySelectedSystems(emptySet())
-            showSystemDialog = false
-        },
-        onDismiss = { showSystemDialog = false }
-    )
+    errorDialog?.let { (title, message) ->
+        ErrorDialogComposable(
+            errorDialog = title to message,
+            onDismiss = { errorDialog = null }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QuizAppBar(
+private fun TopBar(
     title: String,
     questionIndex: Int,
     totalQuestions: Int,
     onMenuClick: () -> Unit,
-    onJumpToClick: () -> Unit,
+    onJumpClick: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
     CenterAlignedTopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(),
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(),
         navigationIcon = {
             IconButton(onClick = onMenuClick) {
-                Icon(imageVector = Icons.Rounded.Menu, contentDescription = "Open navigation drawer")
-            }
-        },
-        title = {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(text = if (title.isNotBlank()) title else "Medical Quiz", fontWeight = FontWeight.SemiBold)
-                Text(
-                    text = if (totalQuestions > 0) "${questionIndex + 1} / $totalQuestions" else "No questions loaded",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                Icon(
+                    imageVector = Icons.Rounded.Menu,
+                    contentDescription = "Menu"
                 )
             }
         },
+        title = {
+            Text(
+                text = title.ifBlank { "Medical Quiz" },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1
+            )
+        },
         actions = {
-            IconButton(onClick = onJumpToClick) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.TrendingUp, contentDescription = "Jump to question")
-            }
             IconButton(onClick = onSettingsClick) {
-                Icon(imageVector = Icons.Rounded.Settings, contentDescription = "Open settings")
+                Icon(
+                    imageVector = Icons.Rounded.Settings,
+                    contentDescription = "Settings"
+                )
             }
         }
     )
 }
 
 @Composable
-private fun QuizDrawerContent(
+private fun NavigationDrawer(
     onSubjectFilter: () -> Unit,
     onSystemFilter: () -> Unit,
     onPerformanceFilter: () -> Unit,
     onClearFilters: () -> Unit,
-    onOpenSettings: () -> Unit
+    onSettings: () -> Unit
 ) {
     ModalDrawerSheet {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
-                text = "Quick filters",
-                modifier = Modifier.padding(horizontal = 24.dp),
+                text = "Filters",
+                modifier = Modifier.padding(horizontal = 28.dp, vertical = 16.dp),
                 style = MaterialTheme.typography.titleMedium,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.Bold
             )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
 
-            DrawerActionItem(
-                label = "Filter by subject",
-                icon = Icons.Filled.Tune,
-                onClick = onSubjectFilter
-            )
-            DrawerActionItem(
-                label = "Filter by system",
-                icon = Icons.Filled.Storage,
-                onClick = onSystemFilter
-            )
-            DrawerActionItem(
-                label = "Performance filter",
-                icon = Icons.AutoMirrored.Filled.TrendingUp,
-                onClick = onPerformanceFilter
-            )
-            DrawerActionItem(
-                label = "Clear all filters",
-                icon = Icons.Filled.Refresh,
-                onClick = onClearFilters
+            NavigationDrawerItem(
+                label = { Text("Subject") },
+                icon = { Icon(Icons.Filled.Tune, null) },
+                selected = false,
+                onClick = onSubjectFilter,
+                modifier = Modifier.padding(horizontal = 12.dp)
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider()
-            DrawerActionItem(
-                label = "Settings",
-                icon = Icons.Rounded.Settings,
-                onClick = onOpenSettings
+            NavigationDrawerItem(
+                label = { Text("System") },
+                icon = { Icon(Icons.Filled.Storage, null) },
+                selected = false,
+                onClick = onSystemFilter,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+
+            NavigationDrawerItem(
+                label = { Text("Performance") },
+                icon = { Icon(Icons.AutoMirrored.Filled.TrendingUp, null) },
+                selected = false,
+                onClick = onPerformanceFilter,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+
+            NavigationDrawerItem(
+                label = { Text("Clear filters") },
+                icon = { Icon(Icons.Filled.Refresh, null) },
+                selected = false,
+                onClick = onClearFilters,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            NavigationDrawerItem(
+                label = { Text("Settings") },
+                icon = { Icon(Icons.Rounded.Settings, null) },
+                selected = false,
+                onClick = onSettings,
+                modifier = Modifier.padding(horizontal = 12.dp)
             )
         }
     }
-}
-
-@Composable
-private fun DrawerActionItem(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit
-) {
-    NavigationDrawerItem(
-        label = { Text(label) },
-        icon = { Icon(imageVector = icon, contentDescription = null) },
-        selected = false,
-        onClick = onClick,
-        modifier = Modifier.padding(horizontal = 16.dp),
-        colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-    )
 }
