@@ -377,7 +377,7 @@
   border-radius: 12px;
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  align-items: center;
   box-shadow: none;
 }
 
@@ -388,6 +388,9 @@
 .medical-content .answer-button .answer-label {
   font-weight: 700;
   color: var(--md-sys-color-primary);
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
 }
 
 .medical-content .answer-button .answer-text {
@@ -441,18 +444,19 @@
 /* Answer percentage display - only visible after answering */
 .medical-content .answer-percentage {
   display: none;
-  padding: 4px 8px;
+  padding: 6px 10px;
   background-color: var(--md-sys-color-primary-container);
   color: var(--md-sys-color-on-primary-container);
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .medical-content .answer-revealed .answer-percentage {
   display: inline-block;
-  margin-left: auto;
 }
 
 .medical-content .answer-button.correct .answer-percentage {
