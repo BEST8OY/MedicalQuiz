@@ -2,37 +2,6 @@
 /* Standard CSS for AMBOSS STEP3 and UWorld USMLE STEP1 question/explanation HTML content */
 /* Optimized for Android WebView */
 
-:root {
-  --md-sys-color-primary: #2563eb;
-  --md-sys-color-on-primary: #ffffff;
-  --md-sys-color-primary-container: #dbeafe;
-  --md-sys-color-on-primary-container: #082f49;
-  --md-sys-color-secondary: #475569;
-  --md-sys-color-on-secondary: #ffffff;
-  --md-sys-color-secondary-container: #e2e8f0;
-  --md-sys-color-on-secondary-container: #0f172a;
-  --md-sys-color-tertiary: #9333ea;
-  --md-sys-color-on-tertiary: #ffffff;
-  --md-sys-color-tertiary-container: #f3e8ff;
-  --md-sys-color-on-tertiary-container: #581c87;
-  --md-sys-color-surface: #ffffff;
-  --md-sys-color-on-surface: #1f2937;
-  --md-sys-color-surface-variant: #f3f4f6;
-  --md-sys-color-on-surface-variant: #374151;
-  --md-sys-color-background: #ffffff;
-  --md-sys-color-on-background: #1f2937;
-  --md-sys-color-outline: #d1d5db;
-  --md-sys-color-outline-variant: #9ca3af;
-  --md-sys-color-error: #dc2626;
-  --md-sys-color-on-error: #ffffff;
-  --md-sys-color-error-container: #fee2e2;
-  --md-sys-color-on-error-container: #7f1d1d;
-  --md-sys-color-success: #22c55e;
-  --md-sys-color-on-success: #065f46;
-  --md-sys-color-warning: #f59e0b;
-  --md-sys-color-warning-container: #fffbeb;
-  --md-sys-color-on-warning-container: #78350f;
-}
 
 /* Base container for medical content */
 .medical-content {

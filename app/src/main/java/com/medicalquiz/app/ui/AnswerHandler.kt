@@ -3,10 +3,9 @@ package com.medicalquiz.app.ui
 import android.graphics.Color
 import android.widget.RadioButton
 import android.widget.RadioGroup
-import androidx.annotation.ColorRes
-import androidx.core.content.ContextCompat
 import androidx.core.view.children
-import com.medicalquiz.app.R
+import com.google.android.material.R as MaterialR
+import com.google.android.material.color.MaterialColors
 import com.medicalquiz.app.data.models.Answer
 
 /**
@@ -25,12 +24,12 @@ class AnswerHandler {
             val answerId = answers.getOrNull(index)?.answerId?.toInt() ?: return@forEachIndexed
             when (answerId) {
                 correctAnswerId -> radioButton.setAnswerState(
-                    R.color.quiz_answer_correct_bg,
-                    R.color.quiz_answer_correct_text
+                    MaterialR.attr.colorTertiaryContainer,
+                    MaterialR.attr.colorOnTertiaryContainer
                 )
                 selectedAnswerId -> radioButton.setAnswerState(
-                    R.color.quiz_answer_incorrect_bg,
-                    R.color.quiz_answer_incorrect_text
+                    MaterialR.attr.colorErrorContainer,
+                    MaterialR.attr.colorOnErrorContainer
                 )
                 else -> radioButton.resetAnswerColor()
             }
@@ -45,12 +44,18 @@ class AnswerHandler {
     
     private fun RadioButton.resetAnswerColor() {
         setBackgroundColor(Color.TRANSPARENT)
-        val defaultTextColor = ContextCompat.getColor(context, android.R.color.darker_gray)
+        val defaultTextColor = MaterialColors.getColor(
+            this,
+            MaterialR.attr.colorOnSurface,
+            Color.DKGRAY
+        )
         setTextColor(defaultTextColor)
     }
 
-    private fun RadioButton.setAnswerState(@ColorRes backgroundRes: Int, @ColorRes textRes: Int) {
-        setBackgroundColor(ContextCompat.getColor(context, backgroundRes))
-        setTextColor(ContextCompat.getColor(context, textRes))
+    private fun RadioButton.setAnswerState(backgroundAttr: Int, textAttr: Int) {
+        val backgroundColor = MaterialColors.getColor(this, backgroundAttr, Color.LTGRAY)
+        val textColor = MaterialColors.getColor(this, textAttr, Color.BLACK)
+        setBackgroundColor(backgroundColor)
+        setTextColor(textColor)
     }
 }

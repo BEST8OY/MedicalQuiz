@@ -275,7 +275,10 @@ class QuizActivity : AppCompatActivity() {
     }
 
     private fun handleQuestionChanges(state: QuizState, previousState: QuizState?) {
-        if (previousState?.currentQuestionId != state.currentQuestionId) {
+        val questionIdChanged = previousState?.currentQuestionId != state.currentQuestionId
+        val questionBecameAvailable = previousState?.currentQuestion == null && state.currentQuestion != null
+
+        if (questionIdChanged || questionBecameAvailable) {
             displayQuestion(state)
         }
     }
