@@ -23,12 +23,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.medicalquiz.app.data.models.Question
 import com.medicalquiz.app.data.database.QuestionPerformance
 import com.medicalquiz.app.utils.WebViewComposable
 import com.medicalquiz.app.utils.WebViewState
@@ -74,6 +76,10 @@ private fun QuestionContent(
     mediaHandler: MediaHandler,
     contentPadding: PaddingValues
 ) {
+    val metadataSections = remember(state.currentQuestion) {
+        buildMetadataSections(state.currentQuestion)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -105,15 +111,11 @@ private fun QuestionContent(
 
         // Question metadata - shown after answering
         AnimatedVisibility(
-            visible = state.answerSubmitted,
+            visible = state.answerSubmitted && metadataSections.isNotEmpty(),
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
-            QuestionMetadataCard(
-                questionId = state.currentQuestion?.id,
-                subject = state.currentQuestion?.subName,
-                system = state.currentQuestion?.sysName
-            )
+            QuestionMetadataCard(sections = metadataSections)
         }
 
         // Performance logs - shown after answering if logs enabled
@@ -128,11 +130,9 @@ private fun QuestionContent(
 }
 
 @Composable
-private fun QuestionMetadataCard(
-    questionId: Long?,
-    subject: String?,
-    system: String?
-) {
+private fun QuestionMetadataCard(sections: List<MetadataSection>) {
+    if (sections.isEmpty()) return
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -146,26 +146,11 @@ private fun QuestionMetadataCard(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            questionId?.let {
-                MetadataRow(label = "ID", value = "#$it")
-            }
-
-            val subjectValues = extractMetadataList(subject)
-            if (subjectValues.size <= 1) {
-                subjectValues.firstOrNull()?.let {
-                    MetadataRow(label = "Subject", value = it)
+            sections.forEach { section ->
+                when (section) {
+                    is MetadataSection.Row -> MetadataRow(section.label, section.value)
+                    is MetadataSection.Chips -> MetadataChipGroupRow(section.label, section.values)
                 }
-            } else {
-                MetadataChipGroupRow(label = "Subjects", values = subjectValues)
-            }
-
-            val systemValues = extractMetadataList(system)
-            if (systemValues.size <= 1) {
-                systemValues.firstOrNull()?.let {
-                    MetadataRow(label = "System", value = it)
-                }
-            } else {
-                MetadataChipGroupRow(label = "Systems", values = systemValues)
             }
         }
     }
@@ -197,6 +182,34 @@ private fun MetadataRow(label: String, value: String) {
     }
 }
 
+private sealed interface MetadataSection {
+    data class Row(val label: String, val value: String) : MetadataSection
+    data class Chips(val label: String, val values: List<String>) : MetadataSection
+}
+
+private fun buildMetadataSections(question: Question?): List<MetadataSection> {
+    val currentQuestion = question ?: return emptyList()
+
+    val sections = mutableListOf<MetadataSection>()
+    sections += MetadataSection.Row(label = "ID", value = "#${currentQuestion.id}")
+
+    buildMetadataEntries(currentQuestion.subName, currentQuestion.subId)
+        .takeIf { it.isNotEmpty() }
+        ?.let { values ->
+            val label = if (values.size == 1) "Subject" else "Subjects"
+            sections += MetadataSection.Chips(label, values)
+        }
+
+    buildMetadataEntries(currentQuestion.sysName, currentQuestion.sysId)
+        .takeIf { it.isNotEmpty() }
+        ?.let { values ->
+            val label = if (values.size == 1) "System" else "Systems"
+            sections += MetadataSection.Chips(label, values)
+        }
+
+    return sections
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MetadataChipGroupRow(label: String, values: List<String>) {
@@ -226,14 +239,14 @@ private fun MetadataChipGroupRow(label: String, values: List<String>) {
 private fun MetadataTag(text: String) {
     Surface(
         shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.08f)
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
     ) {
         Text(
             text = text,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            color = MaterialTheme.colorScheme.primary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -247,6 +260,42 @@ private fun extractMetadataList(raw: String?): List<String> {
     return raw.split(metadataDelimiters)
         .map { it.trim() }
         .filter { it.isNotEmpty() }
+}
+
+private fun buildMetadataEntries(names: String?, ids: String?): List<String> {
+    val nameParts = extractMetadataList(names)
+    val idParts = extractMetadataList(ids)
+    if (nameParts.isEmpty() && idParts.isEmpty()) return emptyList()
+
+    val count = maxOf(nameParts.size, idParts.size)
+    return (0 until count).mapNotNull { index ->
+        val name = nameParts.getOrNull(index)
+        val id = idParts.getOrNull(index)
+        when {
+            !name.isNullOrBlank() && !id.isNullOrBlank() -> "$name (#$id)"
+            !name.isNullOrBlank() -> name
+            !id.isNullOrBlank() -> "#$id"
+            else -> null
+        }
+    }
+}
+
+private fun buildMetadataEntries(names: String?, ids: String?): List<String> {
+    val nameParts = extractMetadataList(names)
+    val idParts = extractMetadataList(ids)
+    val count = maxOf(nameParts.size, idParts.size)
+
+    return (0 until count)
+        .mapNotNull { index ->
+            val name = nameParts.getOrNull(index)
+            val id = idParts.getOrNull(index)
+            when {
+                !name.isNullOrBlank() && !id.isNullOrBlank() -> "$name (#$id)"
+                !name.isNullOrBlank() -> name
+                !id.isNullOrBlank() -> "#$id"
+                else -> null
+            }
+        }
 }
 
 @Composable
