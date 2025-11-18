@@ -563,6 +563,8 @@ class QuizActivity : AppCompatActivity() {
 
     private fun showSettingsDialog() {
         val composeView = androidx.compose.ui.platform.ComposeView(this)
+        var dialog: android.app.AlertDialog? = null
+        
         composeView.setContent {
             MedicalQuizTheme {
                 val loggingEnabled by settingsRepository.isLoggingEnabled.collectAsStateWithLifecycle()
@@ -573,16 +575,16 @@ class QuizActivity : AppCompatActivity() {
                         if (!enabled) viewModel.clearPendingLogsBuffer()
                     },
                     onResetLogs = { showResetLogsConfirmation() },
-                    onDismiss = {}
+                    onDismiss = { dialog?.dismiss() }
                 )
             }
         }
 
-        val dialog = AlertDialog.Builder(this)
+        dialog = android.app.AlertDialog.Builder(this)
             .setView(composeView)
-            .setPositiveButton("Close", null)
+            .setCancelable(true)
             .create()
-
+        
         dialog.show()
     }
 
