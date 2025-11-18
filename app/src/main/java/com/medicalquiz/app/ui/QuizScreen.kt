@@ -148,7 +148,6 @@ private fun QuestionMetadataCard(sections: List<MetadataSection>) {
         ) {
             sections.forEach { section ->
                 when (section) {
-                    is MetadataSection.Row -> MetadataRow(section.label, section.value)
                     is MetadataSection.Chips -> MetadataChipGroupRow(section.label, section.values)
                 }
             }
@@ -156,34 +155,7 @@ private fun QuestionMetadataCard(sections: List<MetadataSection>) {
     }
 }
 
-@Composable
-private fun MetadataRow(label: String, value: String) {
-    val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = contentColor.copy(alpha = 0.75f)
-        )
-        Text(
-            text = value,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = contentColor,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
 private sealed interface MetadataSection {
-    data class Row(val label: String, val value: String) : MetadataSection
     data class Chips(val label: String, val values: List<String>) : MetadataSection
 }
 
@@ -191,7 +163,7 @@ private fun buildMetadataSections(question: Question?): List<MetadataSection> {
     val currentQuestion = question ?: return emptyList()
 
     val sections = mutableListOf<MetadataSection>()
-    sections += MetadataSection.Row(label = "ID", value = "#${currentQuestion.id}")
+    sections += MetadataSection.Chips(label = "ID", values = listOf("#${currentQuestion.id}"))
 
     buildMetadataEntries(currentQuestion.subName, currentQuestion.subId)
         .takeIf { it.isNotEmpty() }
