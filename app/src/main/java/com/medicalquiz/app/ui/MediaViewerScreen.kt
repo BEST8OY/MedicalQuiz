@@ -96,15 +96,22 @@ fun MediaViewerScreen(mediaFiles: List<String>, startIndex: Int) {
                 val file = mediaFiles[page]
                 when (getMediaType(file)) {
                     MediaType.IMAGE -> {
+                        val context = LocalContext.current
+                        val imageFile = File(Environment.getExternalStorageDirectory(), "${com.medicalquiz.app.Constants.MEDIA_FOLDER}/${file}")
+                        android.util.Log.d("MediaViewerScreen", "Loading image: ${imageFile.absolutePath}, exists: ${imageFile.exists()}")
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(Color.Black)
                         ) {
                             AsyncImage(
-                                model = file,
+                                model = imageFile,
                                 contentDescription = "Media ${page + 1}",
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                                onError = {
+                                    android.util.Log.e("MediaViewerScreen", "Failed to load image: ${imageFile.absolutePath}", it.result.throwable)
+                                }
                             )
                         }
                     }
