@@ -52,7 +52,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import android.widget.MediaController
 import android.widget.VideoView
 import coil3.compose.AsyncImage
-import coil3.decode.SvgDecoder
+import coil3.svg.SvgDecoder
 import coil3.request.ImageRequest
 import com.medicalquiz.app.Constants
 import com.medicalquiz.app.MediaType
