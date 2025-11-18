@@ -321,7 +321,7 @@ private fun JumpToQuestionDialog(
                         colors = SliderDefaults.colors(activeTrackColor = MaterialTheme.colorScheme.primary)
                     )
                     LinearProgressIndicator(
-                        progress = sliderValue / safeTotal.toFloat(),
+                        progress = { sliderValue / safeTotal.toFloat() },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

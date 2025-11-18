@@ -255,7 +255,7 @@ private fun QuizAppBar(
     onSettingsClick: () -> Unit
 ) {
     CenterAlignedTopAppBar(
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(),
+        colors = TopAppBarDefaults.topAppBarColors(),
         navigationIcon = {
             IconButton(onClick = onMenuClick) {
                 Icon(imageVector = Icons.Rounded.Menu, contentDescription = "Open navigation drawer")
