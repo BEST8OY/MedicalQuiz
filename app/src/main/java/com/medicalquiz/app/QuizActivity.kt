@@ -178,8 +178,6 @@ class QuizActivity : AppCompatActivity() {
                                 onSubjectFilter = { performSubjectSelection(false) },
                                 onSystemFilter = { performSystemSelection(false) },
                                 onClearFilters = { clearFilters() },
-                                onSettings = { showSettingsDialog() },
-                                onJumpTo = { showJumpToDialog() },
                                 onStart = { startQuiz() }
                                 )
                             }
@@ -338,10 +336,6 @@ class QuizActivity : AppCompatActivity() {
     // ============================================================================
     // Navigation Controls
     // ============================================================================
-
-    private fun showJumpToDialog() {
-        // Dialogs are now handled in Compose (QuizRoot)
-    }
 
     // ============================================================================
     // Start Filters Panel
@@ -532,10 +526,6 @@ class QuizActivity : AppCompatActivity() {
     // ============================================================================
     // Settings Dialog
     // ============================================================================
-
-    private fun showSettingsDialog() {
-        // Dialogs are now handled in Compose (QuizRoot)
-    }
 
     fun onResetLogsConfirmed() {
         launchCatching(

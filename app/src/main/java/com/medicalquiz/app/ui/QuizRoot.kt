@@ -45,8 +45,6 @@ fun QuizRoot(
     onSubjectFilter: () -> Unit,
     onSystemFilter: () -> Unit,
     onClearFilters: () -> Unit,
-    onSettings: () -> Unit,
-    onJumpTo: () -> Unit,
     onStart: () -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -259,8 +257,8 @@ fun QuizRoot(
                     mediaHandler = mediaHandler,
                     onPrevious = { viewModel.loadPrevious() },
                     onNext = { viewModel.loadNext() },
-                    onJumpTo = onJumpTo,
-                    onOpenSettings = onSettings,
+                    onJumpTo = { showJumpToDialog = true },
+                    onOpenSettings = { showSettingsDialog = true },
                     onShowFilterSubject = onSubjectFilter,
                     onShowFilterSystem = onSystemFilter,
                     onSelectPerformance = { viewModel.openPerformanceDialog() },
@@ -290,82 +288,34 @@ fun QuizRoot(
         }, onDismiss = { showPerformanceDialog = false })
     }
 
-    if (showSettingsDialog) {
-        val loggingEnabled = viewModel.settingsRepository?.isLoggingEnabled?.collectAsStateWithLifecycle(false)?.value ?: false
-        AlertDialog(
-            onDismissRequest = { showSettingsDialog = false },
-            confirmButton = { },
-            text = {
-                SettingsDialog(
-                    initialLoggingEnabled = loggingEnabled,
-                    onLoggingChanged = { enabled ->
-                        viewModel.settingsRepository?.setLoggingEnabled(enabled)
-                        if (!enabled) viewModel.clearPendingLogsBuffer()
-                    },
-                    onResetLogs = {
-                        showSettingsDialog = false
-                        viewModel.emitResetLogsConfirmation()
-                    },
-                    onDismiss = { showSettingsDialog = false }
-                )
-            }
-        )
-    }
+    SettingsDialogComposable(
+        isVisible = showSettingsDialog,
+        viewModel = viewModel,
+        onDismiss = { showSettingsDialog = false },
+        onResetLogsRequested = { showResetLogsConfirmation = true }
+    )
 
-    if (showJumpToDialog && state.questionIds.isNotEmpty()) {
-        AlertDialog(
-            onDismissRequest = { showJumpToDialog = false },
-            confirmButton = { },
-            text = {
-                JumpToQuestionDialog(
-                    totalQuestions = state.questionIds.size,
-                    currentQuestionIndex = state.currentQuestionIndex,
-                    onJumpTo = { index ->
-                        viewModel.loadQuestion(index)
-                        showJumpToDialog = false
-                    },
-                    onDismiss = { showJumpToDialog = false }
-                )
-            }
-        )
-    }
+    JumpToDialogComposable(
+        isVisible = showJumpToDialog,
+        totalQuestions = state.questionIds.size,
+        currentIndex = state.currentQuestionIndex,
+        onJumpTo = { index ->
+            viewModel.loadQuestion(index)
+            showJumpToDialog = false
+        },
+        onDismiss = { showJumpToDialog = false }
+    )
 
-    // Error Dialog
-    if (showErrorDialog != null) {
-        AlertDialog(
-            onDismissRequest = { showErrorDialog = null },
-            confirmButton = {
-                TextButton(onClick = { showErrorDialog = null }) {
-                    Text("OK")
-                }
-            },
-            title = { Text(showErrorDialog!!.first) },
-            text = { Text(showErrorDialog!!.second) }
-        )
-    }
+    ErrorDialogComposable(
+        errorDialog = showErrorDialog,
+        onDismiss = { showErrorDialog = null }
+    )
 
-    // Reset Logs Confirmation Dialog
-    if (showResetLogsConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showResetLogsConfirmation = false },
-            title = { Text("Reset log history") },
-            text = { Text("This will permanently delete all stored answer logs. Continue?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showResetLogsConfirmation = false
-                    // Call activity method to clear logs
-                    (androidx.compose.ui.platform.LocalContext.current as? androidx.appcompat.app.AppCompatActivity)?.let {
-                        (it as? com.medicalquiz.app.QuizActivity)?.onResetLogsConfirmed()
-                    }
-                }) {
-                    Text("Delete")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetLogsConfirmation = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
+    ResetLogsConfirmationDialogComposable(
+        isVisible = showResetLogsConfirmation,
+        activity = androidx.compose.ui.platform.LocalContext.current as? androidx.appcompat.app.AppCompatActivity,
+        onConfirm = { showResetLogsConfirmation = false },
+        onDismiss = { showResetLogsConfirmation = false }
+    )
+}
 }
