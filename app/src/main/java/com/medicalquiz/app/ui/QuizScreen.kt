@@ -240,9 +240,11 @@ private fun MetadataTag(text: String) {
     }
 }
 
+private val metadataDelimiters = Regex("[,;\\n•]+")
+
 private fun extractMetadataList(raw: String?): List<String> {
     if (raw.isNullOrBlank()) return emptyList()
-    return raw.split(',')
+    return raw.split(metadataDelimiters)
         .map { it.trim() }
         .filter { it.isNotEmpty() }
 }
