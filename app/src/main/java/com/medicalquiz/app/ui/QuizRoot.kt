@@ -3,10 +3,16 @@ package com.medicalquiz.app.ui
 import androidx.activity.compose.LocalActivity
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Refresh
@@ -17,6 +23,8 @@ import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -28,6 +36,7 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
@@ -39,8 +48,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.utils.WebViewState
 import com.medicalquiz.app.viewmodel.QuizViewModel
@@ -382,71 +394,272 @@ private fun FilterScreen(
     onStart: () -> Unit,
     onClearFilters: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp, vertical = 48.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Rounded.FilterList,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary
-        )
+    val hasPreview = previewCount > 0
+    Surface(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 40.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            FilterIntroCard()
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterStatsRow(
+                subjectCount = subjectCount,
+                systemCount = systemCount,
+                performanceLabel = performanceLabel
+            )
+
+            FilterPreviewCard(previewCount = previewCount)
+
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                FilterSelectionCard(
+                    title = "Subjects",
+                    subtitle = if (subjectCount == 0) "Tap to choose" else "$subjectCount selected",
+                    icon = Icons.Filled.Tune,
+                    onClick = onSelectSubjects
+                )
+
+                FilterSelectionCard(
+                    title = "Systems",
+                    subtitle = if (systemCount == 0) "Tap to choose" else "$systemCount selected",
+                    icon = Icons.Filled.Storage,
+                    onClick = onSelectSystems
+                )
+
+                FilterSelectionCard(
+                    title = "Performance",
+                    subtitle = performanceLabel,
+                    icon = Icons.AutoMirrored.Filled.TrendingUp,
+                    onClick = onSelectPerformance
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            PrimaryActionButtons(
+                hasPreview = hasPreview,
+                onStart = onStart,
+                onClearFilters = onClearFilters
+            )
+        }
+    }
+}
+
+@Composable
+private fun FilterIntroCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        shape = RoundedCornerShape(28.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Rounded.FilterList,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Build your quiz",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Pick subjects, systems, and performance filters. Preview updates live before starting.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilterStatsRow(
+    subjectCount: Int,
+    systemCount: Int,
+    performanceLabel: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        FilterStatChip(
+            title = "Subjects",
+            value = subjectCount.toString(),
+            modifier = Modifier.weight(1f)
+        )
+        FilterStatChip(
+            title = "Systems",
+            value = systemCount.toString(),
+            modifier = Modifier.weight(1f)
+        )
+        FilterStatChip(
+            title = "Performance",
+            value = performanceLabel,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun FilterStatChip(title: String, value: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             Text(
-                text = "Build your quiz",
-                style = MaterialTheme.typography.headlineMedium,
+                text = title.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun FilterPreviewCard(previewCount: Int) {
+    val hasPreview = previewCount > 0
+    val statusText = when {
+        previewCount > 1 -> "$previewCount questions ready"
+        previewCount == 1 -> "1 question ready"
+        else -> "No questions yet"
+    }
+    val supportingText = if (hasPreview) {
+        "You're good to start whenever you're ready."
+    } else {
+        "Add at least one subject, system, or performance filter to see matching questions."
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (hasPreview) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = "Pick subjects, systems, and performance filters. Preview updates live before starting.",
+                text = supportingText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
 
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = "Current selection",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text("Subjects: $subjectCount", style = MaterialTheme.typography.bodyMedium)
-            Text("Systems: $systemCount", style = MaterialTheme.typography.bodyMedium)
-            Text("Performance: $performanceLabel", style = MaterialTheme.typography.bodyMedium)
-            Text(
-                text = if (previewCount > 0) "$previewCount questions ready" else "No questions yet",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = onSelectSubjects, modifier = Modifier.fillMaxWidth()) {
-                Text("Choose subjects")
-            }
-            Button(onClick = onSelectSystems, modifier = Modifier.fillMaxWidth()) {
-                Text("Choose systems")
-            }
-            Button(onClick = onSelectPerformance, modifier = Modifier.fillMaxWidth()) {
-                Text("Performance filter")
-            }
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(
-                onClick = onStart,
-                enabled = previewCount > 0,
-                modifier = Modifier.fillMaxWidth()
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterSelectionCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.size(44.dp)
             ) {
-                Text("Start quiz")
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
-            OutlinedButton(onClick = onClearFilters, modifier = Modifier.fillMaxWidth()) {
-                Icon(imageVector = Icons.Filled.Refresh, contentDescription = null)
-                Text("Clear filters", modifier = Modifier.padding(start = 8.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun PrimaryActionButtons(
+    hasPreview: Boolean,
+    onStart: () -> Unit,
+    onClearFilters: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Button(
+            onClick = onStart,
+            enabled = hasPreview,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (hasPreview) "Start quiz" else "Select filters to start")
+        }
+        OutlinedButton(
+            onClick = onClearFilters,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(imageVector = Icons.Filled.Refresh, contentDescription = null)
+            Text("Clear filters", modifier = Modifier.padding(start = 8.dp))
         }
     }
 }
