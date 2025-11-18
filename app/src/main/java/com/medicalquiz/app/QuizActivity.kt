@@ -344,25 +344,31 @@ class QuizActivity : AppCompatActivity() {
             if (state.questionIds.isEmpty()) return@launch
 
             val composeView = androidx.compose.ui.platform.ComposeView(this@QuizActivity)
-            var dialog: android.app.AlertDialog? = null
+            var dialog: androidx.appcompat.app.AlertDialog? = null
             
             composeView.setContent {
                 MedicalQuizTheme {
-                    com.medicalquiz.app.ui.JumpToQuestionDialog(
-                        totalQuestions = state.questionIds.size,
-                        currentQuestionIndex = state.currentQuestionIndex,
-                        onJumpTo = { index ->
-                            viewModel.loadQuestion(index)
-                            dialog?.dismiss()
-                        },
-                        onDismiss = {
-                            dialog?.dismiss()
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { dialog?.dismiss() },
+                        confirmButton = { },
+                        text = {
+                            com.medicalquiz.app.ui.JumpToQuestionDialog(
+                                totalQuestions = state.questionIds.size,
+                                currentQuestionIndex = state.currentQuestionIndex,
+                                onJumpTo = { index ->
+                                    viewModel.loadQuestion(index)
+                                    dialog?.dismiss()
+                                },
+                                onDismiss = {
+                                    dialog?.dismiss()
+                                }
+                            )
                         }
                     )
                 }
             }
             
-            dialog = android.app.AlertDialog.Builder(this@QuizActivity)
+            dialog = androidx.appcompat.app.AlertDialog.Builder(this@QuizActivity, androidx.appcompat.R.style.Theme_AppCompat_Light_Dialog)
                 .setView(composeView)
                 .setCancelable(true)
                 .create()
@@ -563,24 +569,33 @@ class QuizActivity : AppCompatActivity() {
 
     private fun showSettingsDialog() {
         val composeView = androidx.compose.ui.platform.ComposeView(this)
-        var dialog: android.app.AlertDialog? = null
+        var dialog: androidx.appcompat.app.AlertDialog? = null
         
         composeView.setContent {
             MedicalQuizTheme {
                 val loggingEnabled by settingsRepository.isLoggingEnabled.collectAsStateWithLifecycle()
-                com.medicalquiz.app.ui.SettingsDialog(
-                    initialLoggingEnabled = loggingEnabled,
-                    onLoggingChanged = { enabled ->
-                        settingsRepository.setLoggingEnabled(enabled)
-                        if (!enabled) viewModel.clearPendingLogsBuffer()
-                    },
-                    onResetLogs = { showResetLogsConfirmation() },
-                    onDismiss = { dialog?.dismiss() }
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { dialog?.dismiss() },
+                    confirmButton = { },
+                    text = {
+                        com.medicalquiz.app.ui.SettingsDialog(
+                            initialLoggingEnabled = loggingEnabled,
+                            onLoggingChanged = { enabled ->
+                                settingsRepository.setLoggingEnabled(enabled)
+                                if (!enabled) viewModel.clearPendingLogsBuffer()
+                            },
+                            onResetLogs = { 
+                                dialog?.dismiss()
+                                showResetLogsConfirmation() 
+                            },
+                            onDismiss = { dialog?.dismiss() }
+                        )
+                    }
                 )
             }
         }
 
-        dialog = android.app.AlertDialog.Builder(this)
+        dialog = androidx.appcompat.app.AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Light_Dialog)
             .setView(composeView)
             .setCancelable(true)
             .create()
