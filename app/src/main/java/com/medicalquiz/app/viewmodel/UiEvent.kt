@@ -6,6 +6,8 @@ sealed interface UiEvent {
     data class OpenMedia(val url: String) : UiEvent
     object OpenPerformanceDialog : UiEvent
     data class ShowAnswer(val correctAnswerId: Int, val selectedAnswerId: Int) : UiEvent
+    data class ShowErrorDialog(val title: String, val message: String) : UiEvent
+    object ShowResetLogsConfirmation : UiEvent
 
     enum class FilterDialogType { SUBJECTS, SYSTEMS }
 }

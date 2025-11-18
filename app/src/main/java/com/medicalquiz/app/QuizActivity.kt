@@ -7,6 +7,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
 import com.medicalquiz.app.ui.theme.MedicalQuizTheme
@@ -186,7 +187,7 @@ class QuizActivity : AppCompatActivity() {
                         Log.d(TAG, "Compose UI content set successfully")
                     } catch (e: Exception) {
                         Log.e(TAG, "Error setting up Compose UI", e)
-                        showErrorDialog("UI Setup Error", "Failed to initialize UI: ${e.message}")
+                        viewModel.emitErrorDialog("UI Setup Error", "Failed to initialize UI: ${e.message}")
                     }
                 },
                 onFailure = { throwable ->
@@ -339,42 +340,7 @@ class QuizActivity : AppCompatActivity() {
     // ============================================================================
 
     private fun showJumpToDialog() {
-        lifecycleScope.launch {
-            val state = viewModel.state.firstMatching()
-            if (state.questionIds.isEmpty()) return@launch
-
-            val composeView = androidx.compose.ui.platform.ComposeView(this@QuizActivity)
-            var dialog: androidx.appcompat.app.AlertDialog? = null
-            
-            composeView.setContent {
-                MedicalQuizTheme {
-                    androidx.compose.material3.AlertDialog(
-                        onDismissRequest = { dialog?.dismiss() },
-                        confirmButton = { },
-                        text = {
-                            com.medicalquiz.app.ui.JumpToQuestionDialog(
-                                totalQuestions = state.questionIds.size,
-                                currentQuestionIndex = state.currentQuestionIndex,
-                                onJumpTo = { index ->
-                                    viewModel.loadQuestion(index)
-                                    dialog?.dismiss()
-                                },
-                                onDismiss = {
-                                    dialog?.dismiss()
-                                }
-                            )
-                        }
-                    )
-                }
-            }
-            
-            dialog = androidx.appcompat.app.AlertDialog.Builder(this@QuizActivity, androidx.appcompat.R.style.Theme_AppCompat_Light_Dialog)
-                .setView(composeView)
-                .setCancelable(true)
-                .create()
-            
-            dialog?.show()
-        }
+        // Dialogs are now handled in Compose (QuizRoot)
     }
 
     // ============================================================================
@@ -568,55 +534,16 @@ class QuizActivity : AppCompatActivity() {
     // ============================================================================
 
     private fun showSettingsDialog() {
-        val composeView = androidx.compose.ui.platform.ComposeView(this)
-        var dialog: androidx.appcompat.app.AlertDialog? = null
-        
-        composeView.setContent {
-            MedicalQuizTheme {
-                val loggingEnabled by settingsRepository.isLoggingEnabled.collectAsStateWithLifecycle()
-                androidx.compose.material3.AlertDialog(
-                    onDismissRequest = { dialog?.dismiss() },
-                    confirmButton = { },
-                    text = {
-                        com.medicalquiz.app.ui.SettingsDialog(
-                            initialLoggingEnabled = loggingEnabled,
-                            onLoggingChanged = { enabled ->
-                                settingsRepository.setLoggingEnabled(enabled)
-                                if (!enabled) viewModel.clearPendingLogsBuffer()
-                            },
-                            onResetLogs = { 
-                                dialog?.dismiss()
-                                showResetLogsConfirmation() 
-                            },
-                            onDismiss = { dialog?.dismiss() }
-                        )
-                    }
-                )
-            }
-        }
-
-        dialog = androidx.appcompat.app.AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Light_Dialog)
-            .setView(composeView)
-            .setCancelable(true)
-            .create()
-        
-        dialog.show()
+        // Dialogs are now handled in Compose (QuizRoot)
     }
 
-    private fun showResetLogsConfirmation() {
-        AlertDialog.Builder(this)
-            .setTitle("Reset log history")
-            .setMessage("This will permanently delete all stored answer logs. Continue?")
-            .setPositiveButton("Delete") { _, _ ->
-                launchCatching(
-                    dispatcher = Dispatchers.IO,
-                    block = { viewModel.clearLogsFromDb() },
-                    onSuccess = { showToast("Logs cleared") },
-                    onFailure = { showToast("Failed to clear logs: ${it.message}") }
-                )
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+    fun onResetLogsConfirmed() {
+        launchCatching(
+            dispatcher = Dispatchers.IO,
+            block = { viewModel.clearLogsFromDb() },
+            onSuccess = { viewModel.emitToastEvent("Logs cleared") },
+            onFailure = { viewModel.emitToastEvent("Failed to clear logs: ${it.message}") }
+        )
     }
 
     // ============================================================================

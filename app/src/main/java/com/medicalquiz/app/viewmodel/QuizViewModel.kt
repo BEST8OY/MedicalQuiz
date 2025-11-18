@@ -45,7 +45,8 @@ class QuizViewModel : ViewModel() {
     // ============================================================================
 
     private var databaseManager: DatabaseProvider? = null
-    private var settingsRepository: SettingsRepository? = null
+    internal var settingsRepository: SettingsRepository? = null
+        private set
     private var cacheManager: CacheManager? = null
     private var settingsObservationJob: kotlinx.coroutines.Job? = null
 
@@ -547,6 +548,11 @@ class QuizViewModel : ViewModel() {
         }
     }
 
+    fun openResetLogsConfirmation() {
+        // For now, handle in Activity since it uses AlertDialog.Builder
+        // This can be moved to Compose state management later
+    }
+
     fun setPerformanceFilterSilently(filter: PerformanceFilter) {
         _state.update { it.copy(performanceFilter = filter) }
         viewModelScope.launch(Dispatchers.IO) {
@@ -661,6 +667,22 @@ class QuizViewModel : ViewModel() {
     private fun emitToast(message: String) {
         viewModelScope.launch {
             _uiEvents.emit(UiEvent.ShowToast(message))
+        }
+    }
+
+    fun emitToastEvent(message: String) {
+        emitToast(message)
+    }
+
+    fun emitErrorDialog(title: String, message: String) {
+        viewModelScope.launch {
+            _uiEvents.emit(UiEvent.ShowErrorDialog(title, message))
+        }
+    }
+
+    fun emitResetLogsConfirmation() {
+        viewModelScope.launch {
+            _uiEvents.emit(UiEvent.ShowResetLogsConfirmation)
         }
     }
 }

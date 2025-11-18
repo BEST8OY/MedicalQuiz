@@ -53,6 +53,10 @@ fun QuizRoot(
     val scope = rememberCoroutineScope()
 
     var showPerformanceDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
+    var showJumpToDialog by remember { mutableStateOf(false) }
+    var showErrorDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showResetLogsConfirmation by remember { mutableStateOf(false) }
 
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
@@ -224,7 +228,7 @@ fun QuizRoot(
                         },
                         selected = false,
                         onClick = {
-                            onSettings()
+                            showSettingsDialog = true
                             scope.launch { drawerState.close() }
                         }
                     )
@@ -242,11 +246,11 @@ fun QuizRoot(
                         title = title,
                         subtitle = null,
                         onMenuClick = { scope.launch { drawerState.open() } },
-                        onSettingsClick = onSettings
+                        onSettingsClick = { showSettingsDialog = true }
                     )
                 },
                 bottomBar = {
-                    QuizBottomBar(viewModel = viewModel, onJumpTo = onJumpTo)
+                    QuizBottomBar(viewModel = viewModel, onJumpTo = { showJumpToDialog = true })
                 }
             ) { innerPadding ->
                 QuizScreen(
@@ -272,6 +276,8 @@ fun QuizRoot(
         viewModel.uiEvents.collect { event ->
             when (event) {
                 is UiEvent.OpenPerformanceDialog -> showPerformanceDialog = true
+                is UiEvent.ShowErrorDialog -> showErrorDialog = event.title to event.message
+                is UiEvent.ShowResetLogsConfirmation -> showResetLogsConfirmation = true
                 else -> {}
             }
         }
@@ -282,5 +288,84 @@ fun QuizRoot(
             viewModel.setPerformanceFilterSilently(selected)
             viewModel.updatePreviewQuestionCount()
         }, onDismiss = { showPerformanceDialog = false })
+    }
+
+    if (showSettingsDialog) {
+        val loggingEnabled = viewModel.settingsRepository?.isLoggingEnabled?.collectAsStateWithLifecycle(false)?.value ?: false
+        AlertDialog(
+            onDismissRequest = { showSettingsDialog = false },
+            confirmButton = { },
+            text = {
+                SettingsDialog(
+                    initialLoggingEnabled = loggingEnabled,
+                    onLoggingChanged = { enabled ->
+                        viewModel.settingsRepository?.setLoggingEnabled(enabled)
+                        if (!enabled) viewModel.clearPendingLogsBuffer()
+                    },
+                    onResetLogs = {
+                        showSettingsDialog = false
+                        viewModel.emitResetLogsConfirmation()
+                    },
+                    onDismiss = { showSettingsDialog = false }
+                )
+            }
+        )
+    }
+
+    if (showJumpToDialog && state.questionIds.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { showJumpToDialog = false },
+            confirmButton = { },
+            text = {
+                JumpToQuestionDialog(
+                    totalQuestions = state.questionIds.size,
+                    currentQuestionIndex = state.currentQuestionIndex,
+                    onJumpTo = { index ->
+                        viewModel.loadQuestion(index)
+                        showJumpToDialog = false
+                    },
+                    onDismiss = { showJumpToDialog = false }
+                )
+            }
+        )
+    }
+
+    // Error Dialog
+    if (showErrorDialog != null) {
+        AlertDialog(
+            onDismissRequest = { showErrorDialog = null },
+            confirmButton = {
+                TextButton(onClick = { showErrorDialog = null }) {
+                    Text("OK")
+                }
+            },
+            title = { Text(showErrorDialog!!.first) },
+            text = { Text(showErrorDialog!!.second) }
+        )
+    }
+
+    // Reset Logs Confirmation Dialog
+    if (showResetLogsConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showResetLogsConfirmation = false },
+            title = { Text("Reset log history") },
+            text = { Text("This will permanently delete all stored answer logs. Continue?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showResetLogsConfirmation = false
+                    // Call activity method to clear logs
+                    (androidx.compose.ui.platform.LocalContext.current as? androidx.appcompat.app.AppCompatActivity)?.let {
+                        (it as? com.medicalquiz.app.QuizActivity)?.onResetLogsConfirmed()
+                    }
+                }) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetLogsConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
