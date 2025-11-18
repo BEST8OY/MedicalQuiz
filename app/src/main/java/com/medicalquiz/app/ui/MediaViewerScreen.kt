@@ -3,46 +3,50 @@ package com.medicalquiz.app.ui
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Environment
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import com.medicalquiz.app.MediaType
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
-import coil3.compose.AsyncImage
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.viewinterop.AndroidView
-import android.widget.VideoView
 import android.widget.MediaController
+import android.widget.VideoView
+import coil3.compose.AsyncImage
+import com.medicalquiz.app.Constants
+import com.medicalquiz.app.MediaType
 import com.medicalquiz.app.utils.WebViewRenderer
-import androidx.compose.ui.Alignment
-import androidx.compose.foundation.background
-import androidx.compose.ui.graphics.Color
 import java.io.File
+
+private const val TAG = "MediaViewerScreen"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,35 +56,7 @@ fun MediaViewerScreen(mediaFiles: List<String>, startIndex: Int) {
     
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "Media Viewer",
-                            style = MaterialTheme.typography.titleLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = "${currentIndex + 1} / ${mediaFiles.size}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { /* Handled by activity back press */ }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface
-                )
-            )
+            MediaViewerTopBar(currentIndex, mediaFiles.size)
         }
     ) { innerPadding ->
         Box(
@@ -94,158 +70,234 @@ fun MediaViewerScreen(mediaFiles: List<String>, startIndex: Int) {
             ) { page ->
                 currentIndex = page
                 val file = mediaFiles[page]
-                when (getMediaType(file)) {
-                    MediaType.IMAGE -> {
-                        val context = LocalContext.current
-                        val imageFile = File(Environment.getExternalStorageDirectory(), "${com.medicalquiz.app.Constants.MEDIA_FOLDER}/${file}")
-                        
-                        // Log file info
-                        android.util.Log.d("MediaViewerScreen", "IMAGE: file=$file")
-                        android.util.Log.d("MediaViewerScreen", "IMAGE: path=${imageFile.absolutePath}")
-                        android.util.Log.d("MediaViewerScreen", "IMAGE: exists=${imageFile.exists()}")
-                        android.util.Log.d("MediaViewerScreen", "IMAGE: canRead=${imageFile.canRead()}")
-                        android.util.Log.d("MediaViewerScreen", "IMAGE: length=${imageFile.length()}")
-                        
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black)
-                        ) {
-                            if (imageFile.exists()) {
-                                AsyncImage(
-                                    model = imageFile,
-                                    contentDescription = "Media ${page + 1}",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = androidx.compose.ui.layout.ContentScale.Fit
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "Image not found:\n${imageFile.absolutePath}",
-                                        color = Color.White,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    MediaType.VIDEO -> {
-                        val context = LocalContext.current
-                        AndroidView(factory = { ctx ->
-                            VideoView(ctx).apply {
-                                setVideoURI(Uri.fromFile(File(Environment.getExternalStorageDirectory(), "${com.medicalquiz.app.Constants.MEDIA_FOLDER}/$file")))
-                                val mc = MediaController(ctx)
-                                mc.setAnchorView(this)
-                                setMediaController(mc)
-                                setOnPreparedListener { start() }
-                            }
-                        }, modifier = Modifier.fillMaxSize())
-                    }
-                    MediaType.AUDIO -> {
-                        val context = LocalContext.current
-                        val mediaFile = File(Environment.getExternalStorageDirectory(), "${com.medicalquiz.app.Constants.MEDIA_FOLDER}/$file")
-                        val mediaPlayer = remember { MediaPlayer() }
-                        var isPlaying by remember { mutableStateOf(false) }
-                        var currentPosition by remember { mutableStateOf(0) }
-                        var duration by remember { mutableStateOf(0) }
-                        
-                        DisposableEffect(mediaFile) {
-                            try {
-                                mediaPlayer.setDataSource(mediaFile.absolutePath)
-                                mediaPlayer.prepare()
-                                duration = mediaPlayer.duration
-                                mediaPlayer.setOnCompletionListener { isPlaying = false }
-                            } catch (e: Exception) {
-                                android.util.Log.e("MediaViewerScreen", "Error preparing audio", e)
-                            }
-                            onDispose {
-                                mediaPlayer.stop()
-                                mediaPlayer.release()
-                            }
-                        }
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surface)
-                                .padding(24.dp),
-                            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = mediaFile.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(bottom = 24.dp)
-                            )
-                            
-                            Button(
-                                onClick = {
-                                    if (isPlaying) {
-                                        mediaPlayer.pause()
-                                        isPlaying = false
-                                    } else {
-                                        mediaPlayer.start()
-                                        isPlaying = true
-                                    }
-                                },
-                                modifier = Modifier.padding(bottom = 24.dp)
-                            ) {
-                                Text(if (isPlaying) "Pause" else "Play")
-                            }
-                            
-                            if (duration > 0) {
-                                LinearProgressIndicator(
-                                    progress = { currentPosition.toFloat() / duration },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 12.dp)
-                                )
-                                Text(
-                                    text = "${formatTime(currentPosition)} / ${formatTime(duration)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                    MediaType.HTML -> {
-                        val htmlFile = File(Environment.getExternalStorageDirectory(), "${com.medicalquiz.app.Constants.MEDIA_FOLDER}/$file")
-                        AndroidView(factory = { ctx ->
-                            val wv = android.webkit.WebView(ctx)
-                            WebViewRenderer.setupWebView(wv)
-                            WebViewRenderer.loadContent(ctx, wv, htmlFile.readText())
-                            wv
-                        }, modifier = Modifier.fillMaxSize())
-                    }
-                    MediaType.UNKNOWN -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Unsupported media type",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
-                }
+                MediaContent(file = file, pageNumber = page)
             }
         }
     }
 }
 
-private fun getMediaType(fileName: String): com.medicalquiz.app.MediaType {
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MediaViewerTopBar(currentIndex: Int, totalFiles: Int) {
+    CenterAlignedTopAppBar(
+        title = {
+            Column {
+                Text(
+                    text = "Media Viewer",
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "${currentIndex + 1} / $totalFiles",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        navigationIcon = {
+            IconButton(onClick = { /* Handled by activity back press */ }) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back"
+                )
+            }
+        },
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrolledContainerColor = MaterialTheme.colorScheme.surface
+        )
+    )
+}
+
+@Composable
+private fun MediaContent(file: String, pageNumber: Int) {
+    when (getMediaType(file)) {
+        MediaType.IMAGE -> ImageContent(file)
+        MediaType.VIDEO -> VideoContent(file)
+        MediaType.AUDIO -> AudioContent(file)
+        MediaType.HTML -> HtmlContent(file)
+        MediaType.UNKNOWN -> UnsupportedContent()
+    }
+}
+
+@Composable
+private fun ImageContent(fileName: String) {
+    val imageFile = File(
+        Environment.getExternalStorageDirectory(),
+        "${Constants.MEDIA_FOLDER}/$fileName"
+    )
+    
+    // Log file info
+    android.util.Log.d(TAG, "IMAGE: file=$fileName, path=${imageFile.absolutePath}, exists=${imageFile.exists()}, canRead=${imageFile.canRead()}, length=${imageFile.length()}")
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        if (imageFile.exists()) {
+            AsyncImage(
+                model = imageFile,
+                contentDescription = "Media image",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+        } else {
+            ErrorMessage("Image not found:\n${imageFile.absolutePath}")
+        }
+    }
+}
+
+@Composable
+private fun VideoContent(fileName: String) {
+    val videoFile = File(
+        Environment.getExternalStorageDirectory(),
+        "${Constants.MEDIA_FOLDER}/$fileName"
+    )
+    
+    AndroidView(
+        factory = { ctx ->
+            VideoView(ctx).apply {
+                setVideoURI(Uri.fromFile(videoFile))
+                val mc = MediaController(ctx)
+                mc.setAnchorView(this)
+                setMediaController(mc)
+                setOnPreparedListener { start() }
+            }
+        },
+        modifier = Modifier.fillMaxSize()
+    )
+}
+
+@Composable
+private fun AudioContent(fileName: String) {
+    val mediaFile = File(
+        Environment.getExternalStorageDirectory(),
+        "${Constants.MEDIA_FOLDER}/$fileName"
+    )
+    val mediaPlayer = remember { MediaPlayer() }
+    var isPlaying by remember { mutableStateOf(false) }
+    var duration by remember { mutableStateOf(0) }
+    
+    DisposableEffect(mediaFile) {
+        try {
+            mediaPlayer.setDataSource(mediaFile.absolutePath)
+            mediaPlayer.prepare()
+            duration = mediaPlayer.duration
+            mediaPlayer.setOnCompletionListener { isPlaying = false }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error preparing audio", e)
+        }
+        onDispose {
+            try {
+                mediaPlayer.stop()
+                mediaPlayer.release()
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Error releasing media player", e)
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = mediaFile.name,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+        
+        Button(
+            onClick = {
+                if (isPlaying) {
+                    mediaPlayer.pause()
+                    isPlaying = false
+                } else {
+                    mediaPlayer.start()
+                    isPlaying = true
+                }
+            },
+            modifier = Modifier.padding(bottom = 24.dp)
+        ) {
+            Text(if (isPlaying) "Pause" else "Play")
+        }
+        
+        if (duration > 0) {
+            LinearProgressIndicator(
+                progress = { mediaPlayer.currentPosition.toFloat() / duration },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            )
+            Text(
+                text = "${formatTime(mediaPlayer.currentPosition)} / ${formatTime(duration)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun HtmlContent(fileName: String) {
+    val htmlFile = File(
+        Environment.getExternalStorageDirectory(),
+        "${Constants.MEDIA_FOLDER}/$fileName"
+    )
+    
+    AndroidView(
+        factory = { ctx ->
+            android.webkit.WebView(ctx).apply {
+                WebViewRenderer.setupWebView(this)
+                WebViewRenderer.loadContent(ctx, this, htmlFile.readText())
+            }
+        },
+        modifier = Modifier.fillMaxSize()
+    )
+}
+
+@Composable
+private fun UnsupportedContent() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Unsupported media type",
+            style = MaterialTheme.typography.bodyLarge
+        )
+    }
+}
+
+@Composable
+private fun ErrorMessage(message: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            color = Color.White,
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+}
+
+private fun getMediaType(fileName: String): MediaType {
     return when (fileName.substringAfterLast('.').lowercase()) {
-        "jpg", "jpeg", "png", "gif", "bmp", "webp" -> com.medicalquiz.app.MediaType.IMAGE
-        "mp4", "avi", "mkv", "mov", "webm", "3gp" -> com.medicalquiz.app.MediaType.VIDEO
-        "mp3", "wav", "ogg", "m4a", "aac", "flac" -> com.medicalquiz.app.MediaType.AUDIO
-        "html", "htm" -> com.medicalquiz.app.MediaType.HTML
-        else -> com.medicalquiz.app.MediaType.UNKNOWN
+        "jpg", "jpeg", "png", "gif", "bmp", "webp" -> MediaType.IMAGE
+        "mp4", "avi", "mkv", "mov", "webm", "3gp" -> MediaType.VIDEO
+        "mp3", "wav", "ogg", "m4a", "aac", "flac" -> MediaType.AUDIO
+        "html", "htm" -> MediaType.HTML
+        else -> MediaType.UNKNOWN
     }
 }
 
