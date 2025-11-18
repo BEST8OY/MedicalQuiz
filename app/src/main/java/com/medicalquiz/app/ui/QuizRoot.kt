@@ -153,11 +153,6 @@ fun QuizRoot(
                     onNext = { viewModel.loadNext() },
                     onJumpTo = { showJumpToDialog = true },
                     onOpenSettings = { showSettingsDialog = true },
-                    onShowFilterSubject = { showSubjectDialog = true },
-                    onShowFilterSystem = { showSystemDialog = true },
-                    onSelectPerformance = { viewModel.openPerformanceDialog() },
-                    onStart = onStart,
-                    onClearFilters = onClearFilters,
                     contentPadding = padding
                 )
             }
