@@ -5,8 +5,10 @@ import android.net.Uri
 import android.os.Environment
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,15 +45,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.viewinterop.AndroidView
+import android.widget.MediaController
 import android.widget.VideoView
+import coil3.compose.AsyncImage
 import coil3.decode.SvgDecoder
-import coil3.svg.SvgDecoder
 import coil3.request.ImageRequest
 import com.medicalquiz.app.Constants
 import com.medicalquiz.app.MediaType
@@ -184,18 +187,29 @@ private fun ImageContent(fileName: String, onZoomStateChange: (Boolean) -> Unit)
             translationY = offset.y
         )
         .pointerInput(fileName) {
-            detectTransformGestures { _, pan, zoomChange, _ ->
-                val newScale = (scale * zoomChange).coerceIn(minScale, maxScale)
-                val wasZoomed = scale > 1.01f
-                scale = newScale
-                offset = if (newScale <= 1.01f) {
-                    Offset.Zero
-                } else {
-                    offset + pan
-                }
-                if (wasZoomed && newScale <= 1.01f) {
-                    offset = Offset.Zero
-                }
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false)
+                do {
+                    val event = awaitPointerEvent()
+                    val zoomChange = event.calculateZoom()
+                    val panChange = event.calculatePan()
+                    val isMultiTouch = event.changes.size > 1
+                    val shouldTransform = isMultiTouch || scale > 1.01f || zoomChange != 1f
+                    if (shouldTransform) {
+                        val newScale = (scale * zoomChange).coerceIn(minScale, maxScale)
+                        val wasZoomed = scale > 1.01f
+                        scale = newScale
+                        offset = if (newScale <= 1.01f) {
+                            Offset.Zero
+                        } else {
+                            offset + panChange
+                        }
+                        if (wasZoomed && newScale <= 1.01f) {
+                            offset = Offset.Zero
+                        }
+                        event.changes.forEach { it.consume() }
+                    }
+                } while (event.changes.any { it.pressed })
             }
         }
         .pointerInput(fileName) {
