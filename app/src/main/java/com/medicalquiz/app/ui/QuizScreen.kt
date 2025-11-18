@@ -265,24 +265,6 @@ private fun extractMetadataList(raw: String?): List<String> {
 private fun buildMetadataEntries(names: String?, ids: String?): List<String> {
     val nameParts = extractMetadataList(names)
     val idParts = extractMetadataList(ids)
-    if (nameParts.isEmpty() && idParts.isEmpty()) return emptyList()
-
-    val count = maxOf(nameParts.size, idParts.size)
-    return (0 until count).mapNotNull { index ->
-        val name = nameParts.getOrNull(index)
-        val id = idParts.getOrNull(index)
-        when {
-            !name.isNullOrBlank() && !id.isNullOrBlank() -> "$name (#$id)"
-            !name.isNullOrBlank() -> name
-            !id.isNullOrBlank() -> "#$id"
-            else -> null
-        }
-    }
-}
-
-private fun buildMetadataEntries(names: String?, ids: String?): List<String> {
-    val nameParts = extractMetadataList(names)
-    val idParts = extractMetadataList(ids)
     val count = maxOf(nameParts.size, idParts.size)
 
     return (0 until count)
