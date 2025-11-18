@@ -455,7 +455,7 @@
   flex-shrink: 0;
 }
 
-.medical-content .answer-revealed .answer-percentage {
+body.answer-revealed .answer-percentage {
   display: inline-block;
 }
 
