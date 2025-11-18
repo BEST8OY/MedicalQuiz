@@ -205,9 +205,6 @@ class MainActivity : AppCompatActivity() {
             putExtra("DB_NAME", databaseItem.name)
         }
         startActivity(intent)
-        // Finish this activity so back press in QuizActivity returns to system/launcher
-        // instead of coming back to database selection
-        finish()
     }
 
     private fun formatFileSize(size: Long): String {
