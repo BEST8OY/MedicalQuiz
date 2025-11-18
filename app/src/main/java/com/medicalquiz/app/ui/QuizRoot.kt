@@ -284,7 +284,7 @@ private fun TopBar(
     onSettingsClick: () -> Unit
 ) {
     CenterAlignedTopAppBar(
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(),
+        colors = TopAppBarDefaults.topAppBarColors(),
         navigationIcon = {
             IconButton(onClick = onMenuClick) {
                 Icon(
