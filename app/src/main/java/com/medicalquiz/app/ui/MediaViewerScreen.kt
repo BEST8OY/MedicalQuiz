@@ -98,21 +98,38 @@ fun MediaViewerScreen(mediaFiles: List<String>, startIndex: Int) {
                     MediaType.IMAGE -> {
                         val context = LocalContext.current
                         val imageFile = File(Environment.getExternalStorageDirectory(), "${com.medicalquiz.app.Constants.MEDIA_FOLDER}/${file}")
-                        android.util.Log.d("MediaViewerScreen", "Loading image: ${imageFile.absolutePath}, exists: ${imageFile.exists()}")
+                        
+                        // Log file info
+                        android.util.Log.d("MediaViewerScreen", "IMAGE: file=$file")
+                        android.util.Log.d("MediaViewerScreen", "IMAGE: path=${imageFile.absolutePath}")
+                        android.util.Log.d("MediaViewerScreen", "IMAGE: exists=${imageFile.exists()}")
+                        android.util.Log.d("MediaViewerScreen", "IMAGE: canRead=${imageFile.canRead()}")
+                        android.util.Log.d("MediaViewerScreen", "IMAGE: length=${imageFile.length()}")
+                        
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(Color.Black)
                         ) {
-                            AsyncImage(
-                                model = imageFile,
-                                contentDescription = "Media ${page + 1}",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                                onError = {
-                                    android.util.Log.e("MediaViewerScreen", "Failed to load image: ${imageFile.absolutePath}", it.result.throwable)
+                            if (imageFile.exists()) {
+                                AsyncImage(
+                                    model = imageFile,
+                                    contentDescription = "Media ${page + 1}",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Image not found:\n${imageFile.absolutePath}",
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
                                 }
-                            )
+                            }
                         }
                     }
                     MediaType.VIDEO -> {

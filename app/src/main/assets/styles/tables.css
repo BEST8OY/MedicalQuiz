@@ -4,12 +4,26 @@
   border-collapse: collapse;
   margin-bottom: 24px;
   border: 1px solid var(--md-sys-color-outline);
+  min-width: min-content;
+}
+
+/* Wrapper for scrollable tables */
+.medical-content .table-wrapper {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -16px;
+  padding: 0 16px;
+  margin-bottom: 24px;
 }
 
 /* Table Headers */
 .medical-content thead {
   background-color: var(--md-sys-color-primary);
   color: var(--md-sys-color-on-primary);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .medical-content thead th {
@@ -18,6 +32,7 @@
   font-weight: 600;
   font-size: 14px;
   border: 1px solid var(--md-sys-color-outline-variant);
+  white-space: nowrap;
 }
 
 /* Table Body */
@@ -35,11 +50,13 @@
   vertical-align: top;
   color: var(--md-sys-color-on-surface);
   border: 1px solid var(--md-sys-color-outline);
+  white-space: nowrap;
 }
 
 /* Paragraphs inside table cells should not have extra spacing */
 .medical-content td p {
   margin-bottom: 0;
+  white-space: normal;
 }
 
 /* Strong text in table cells */
