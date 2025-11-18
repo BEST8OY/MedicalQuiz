@@ -19,8 +19,10 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,6 +33,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -54,10 +57,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import android.widget.MediaController
 import android.widget.VideoView
 import coil3.compose.AsyncImage
-import coil3.svg.SvgDecoder
+import coil3.decode.SvgDecoder
 import coil3.request.ImageRequest
 import com.medicalquiz.app.Constants
 import com.medicalquiz.app.MediaType
+import com.medicalquiz.app.data.MediaDescription
 import com.medicalquiz.app.utils.WebViewRenderer
 import java.io.File
 
@@ -65,7 +69,11 @@ private const val TAG = "MediaViewerScreen"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MediaViewerScreen(mediaFiles: List<String>, startIndex: Int) {
+fun MediaViewerScreen(
+    mediaFiles: List<String>,
+    startIndex: Int,
+    mediaDescriptions: Map<String, MediaDescription>
+) {
     val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { mediaFiles.size })
     var currentIndex by remember { mutableStateOf(startIndex) }
     var userScrollEnabled by remember { mutableStateOf(true) }
@@ -89,6 +97,7 @@ fun MediaViewerScreen(mediaFiles: List<String>, startIndex: Int) {
                 val file = mediaFiles[page]
                 MediaContent(
                     file = file,
+                    description = mediaDescriptions[file],
                     onZoomStateChange = { isZoomed ->
                         userScrollEnabled = !isZoomed
                     }
@@ -135,13 +144,14 @@ private fun MediaViewerTopBar(currentIndex: Int, totalFiles: Int) {
 @Composable
 private fun MediaContent(
     file: String,
+    description: MediaDescription?,
     onZoomStateChange: (Boolean) -> Unit
 ) {
     LaunchedEffect(file) {
         onZoomStateChange(false)
     }
     when (getMediaType(file)) {
-        MediaType.IMAGE -> ImageContent(file, onZoomStateChange)
+        MediaType.IMAGE -> ImageContent(file, description, onZoomStateChange)
         MediaType.VIDEO -> VideoContent(file)
         MediaType.AUDIO -> AudioContent(file)
         MediaType.HTML -> HtmlContent(file)
@@ -150,7 +160,11 @@ private fun MediaContent(
 }
 
 @Composable
-private fun ImageContent(fileName: String, onZoomStateChange: (Boolean) -> Unit) {
+private fun ImageContent(
+    fileName: String,
+    description: MediaDescription?,
+    onZoomStateChange: (Boolean) -> Unit
+) {
     val context = LocalContext.current
     val imageFile = File(
         Environment.getExternalStorageDirectory(),
@@ -164,6 +178,8 @@ private fun ImageContent(fileName: String, onZoomStateChange: (Boolean) -> Unit)
     var offset by remember { mutableStateOf(Offset.Zero) }
     val minScale = 1f
     val maxScale = 5f
+    val hasExplanation = description != null
+    var showExplanation by rememberSaveable(fileName) { mutableStateOf(false) }
     val overlayRequest = remember(overlayFile?.absolutePath) {
         overlayFile?.takeIf { showOverlayControls }?.let {
             ImageRequest.Builder(context)
@@ -176,6 +192,7 @@ private fun ImageContent(fileName: String, onZoomStateChange: (Boolean) -> Unit)
     LaunchedEffect(fileName) {
         scale = 1f
         offset = Offset.Zero
+        showExplanation = false
     }
 
     val zoomModifier = Modifier
@@ -269,9 +286,40 @@ private fun ImageContent(fileName: String, onZoomStateChange: (Boolean) -> Unit)
                     )
                 }
             }
+
+            if (hasExplanation) {
+                FilledTonalIconButton(
+                    onClick = { showExplanation = true },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Info,
+                        contentDescription = "Show explanation"
+                    )
+                }
+            }
         } else {
             ErrorMessage("Image not found:\n${imageFile.absolutePath}")
         }
+    }
+
+    if (showExplanation && description != null) {
+        AlertDialog(
+            onDismissRequest = { showExplanation = false },
+            confirmButton = {
+                TextButton(onClick = { showExplanation = false }) {
+                    Text("Close")
+                }
+            },
+            title = {
+                Text(description.title.ifBlank { "Explanation" })
+            },
+            text = {
+                Text(description.description)
+            }
+        )
     }
 }
 

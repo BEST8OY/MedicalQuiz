@@ -5,6 +5,7 @@ import android.os.Environment
 import android.provider.Settings
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.medicalquiz.app.data.MediaDescriptionRepository
 import com.medicalquiz.app.ui.MediaViewerScreen
 import com.medicalquiz.app.ui.theme.MedicalQuizTheme
 import androidx.core.view.WindowCompat
@@ -49,10 +50,16 @@ class MediaViewerActivity : AppCompatActivity() {
             }
         })
 
+        val mediaDescriptions = MediaDescriptionRepository.load(this)
+
         setContentView(ComposeView(this).apply {
             setContent {
                 MedicalQuizTheme {
-                    MediaViewerScreen(mediaFiles = mediaFiles, startIndex = actualStartIndex)
+                    MediaViewerScreen(
+                        mediaFiles = mediaFiles,
+                        startIndex = actualStartIndex,
+                        mediaDescriptions = mediaDescriptions
+                    )
                 }
             }
         })
