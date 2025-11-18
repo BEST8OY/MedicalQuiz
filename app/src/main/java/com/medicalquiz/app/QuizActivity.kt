@@ -344,32 +344,30 @@ class QuizActivity : AppCompatActivity() {
             if (state.questionIds.isEmpty()) return@launch
 
             val composeView = androidx.compose.ui.platform.ComposeView(this@QuizActivity)
-            var isOpen = true
+            var dialog: android.app.AlertDialog? = null
             
             composeView.setContent {
                 MedicalQuizTheme {
-                    if (isOpen) {
-                        com.medicalquiz.app.ui.JumpToQuestionDialog(
-                            totalQuestions = state.questionIds.size,
-                            currentQuestionIndex = state.currentQuestionIndex,
-                            onJumpTo = { index ->
-                                viewModel.loadQuestion(index)
-                            },
-                            onDismiss = {
-                                isOpen = false
-                            }
-                        )
-                    }
+                    com.medicalquiz.app.ui.JumpToQuestionDialog(
+                        totalQuestions = state.questionIds.size,
+                        currentQuestionIndex = state.currentQuestionIndex,
+                        onJumpTo = { index ->
+                            viewModel.loadQuestion(index)
+                            dialog?.dismiss()
+                        },
+                        onDismiss = {
+                            dialog?.dismiss()
+                        }
+                    )
                 }
             }
             
-            // Add to a container (we'll use a minimal dialog wrapper for now)
-            // This is a temporary solution - ideally this would be managed by QuizRoot
-            val dialog = AlertDialog.Builder(this@QuizActivity)
+            dialog = android.app.AlertDialog.Builder(this@QuizActivity)
                 .setView(composeView)
+                .setCancelable(true)
                 .create()
             
-            dialog.show()
+            dialog?.show()
         }
     }
 
@@ -799,14 +797,10 @@ class QuizActivity : AppCompatActivity() {
     private fun setupBackPressHandler() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                Log.d(TAG, "Back pressed, questionsLoaded=${viewModel.state.value.questionIds.isNotEmpty()}")
-                
-                // Only exit if questions are loaded (we're in quiz mode)
-                // If in filter selection phase, back does nothing
-                if (viewModel.state.value.questionIds.isNotEmpty()) {
-                    finish()
-                }
-                // Otherwise in filter panel - back does nothing, must use filters to proceed
+                Log.d(TAG, "Back pressed")
+                // Back gesture always goes back to database selection (MainActivity)
+                // This works for both filter panel and quiz modes
+                finish()
             }
         })
     }
