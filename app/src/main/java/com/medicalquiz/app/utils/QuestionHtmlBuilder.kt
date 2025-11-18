@@ -18,21 +18,34 @@ object QuestionHtmlBuilder {
                 <p class="empty-state">No answers available for this question.</p>
             """.trimIndent()
         } else {
+            // Calculate total count to compute percentages
+            val totalCount = answers.sumOf { it.correctPercentage ?: 0 }
+            
             answers.mapIndexed { index, answer ->
                 val label = ('A'.code + index).toChar()
                 val sanitizedAnswer = HtmlUtils.normalizeAnswerHtml(
                     HtmlUtils.sanitizeForWebView(answer.answerText)
                 )
-                val percentageDisplay = answer.correctPercentage?.let {
+                
+                // Calculate actual percentage from count
+                val percentage = if (totalCount > 0 && answer.correctPercentage != null) {
+                    ((answer.correctPercentage!! * 100) / totalCount)
+                } else {
+                    null
+                }
+                
+                val percentageDisplay = percentage?.let {
                     """<span class="answer-percentage">$it%</span>"""
                 } ?: ""
-                android.util.Log.d("QuestionHtmlBuilder", "Answer ${answer.answerId}: percentage=${answer.correctPercentage}, display=$percentageDisplay")
+                
+                android.util.Log.d("QuestionHtmlBuilder", "Answer ${answer.answerId}: count=${answer.correctPercentage}, total=$totalCount, percentage=$percentage")
+                
                 """
                 <button type="button"
                         class="answer-button"
                         id="answer-${answer.answerId}"
                         value="${answer.answerId}"
-                        data-correct-percentage="${answer.correctPercentage ?: ""}">
+                        data-count="${answer.correctPercentage ?: 0}">
                     <span class="answer-label">$label.</span>
                     <span class="answer-text">$sanitizedAnswer</span>
                     $percentageDisplay
@@ -145,8 +158,15 @@ object QuestionHtmlBuilder {
                     };
 
                     window.markAnswerRevealed = function() {
-                        var body = document.body; if (!body) { return; }
-                        body.classList.add('answer-revealed'); setHintVisibility(true, { auto: true });
+                        var body = document.body; 
+                        if (!body) { 
+                            console.log('Quiz: markAnswerRevealed - body is null'); 
+                            return; 
+                        }
+                        console.log('Quiz: markAnswerRevealed - before: answer-revealed=', body.classList.contains('answer-revealed'));
+                        body.classList.add('answer-revealed'); 
+                        console.log('Quiz: markAnswerRevealed - after: answer-revealed=', body.classList.contains('answer-revealed'));
+                        setHintVisibility(true, { auto: true });
                     };
                 })();
             </script>
