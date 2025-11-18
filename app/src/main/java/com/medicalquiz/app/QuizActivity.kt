@@ -314,7 +314,6 @@ class QuizActivity : AppCompatActivity() {
                     // Use Compose WebView composable via state flow for HTML content
                     webViewStateFlow.value = WebViewState(html = quizHtml)
                     updateMediaInfo(question.id, mediaFiles)
-                    viewModel.resetAnswerState()
                     loadPerformanceForQuestion(question.id)
                 },
                 onFailure = { showToast("Failed to load question: ${it.message}") }
