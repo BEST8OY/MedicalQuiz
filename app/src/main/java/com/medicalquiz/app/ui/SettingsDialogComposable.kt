@@ -27,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 
 @Composable
 fun SettingsDialog(
@@ -38,116 +37,107 @@ fun SettingsDialog(
 ) {
     val enabled = remember { mutableStateOf(initialLoggingEnabled) }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true,
-            usePlatformDefaultWidth = false
-        )
+    Surface(
+        modifier = Modifier.fillMaxWidth(0.85f),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.background
     ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(0.85f),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.background
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            // Header
+            Text(
+                text = "Settings",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            // Logging Section
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Header
                 Text(
-                    text = "Settings",
-                    fontSize = 20.sp,
+                    text = "LOGGING",
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 1.sp
                 )
 
-                // Logging Section
-                Column(
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
-                    Text(
-                        text = "LOGGING",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 1.sp
-                    )
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        // Logging Toggle Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Logging Toggle Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Answer Logging",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Track your answers and performance metrics",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
-                                }
-
-                                Switch(
-                                    checked = enabled.value,
-                                    onCheckedChange = { newValue ->
-                                        enabled.value = newValue
-                                        onLoggingChanged(newValue)
-                                    },
-                                    modifier = Modifier.padding(start = 16.dp)
-                                )
-                            }
-
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 4.dp),
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                            )
-
-                            // Reset Logs Button
-                            Button(
-                                onClick = onResetLogs,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Reset All Logs",
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.padding(vertical = 4.dp)
+                                    text = "Answer Logging",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Track your answers and performance metrics",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp)
                                 )
                             }
+
+                            Switch(
+                                checked = enabled.value,
+                                onCheckedChange = { newValue ->
+                                    enabled.value = newValue
+                                    onLoggingChanged(newValue)
+                                },
+                                modifier = Modifier.padding(start = 16.dp)
+                            )
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                        )
+
+                        // Reset Logs Button
+                        Button(
+                            onClick = onResetLogs,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "Reset All Logs",
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
                         }
                     }
                 }
-
-                // Bottom spacing
-                Spacer(modifier = Modifier.height(12.dp))
             }
+
+            // Bottom spacing
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }

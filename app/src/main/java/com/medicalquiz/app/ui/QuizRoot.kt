@@ -34,7 +34,6 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import androidx.activity.compose.BackHandler
 import com.medicalquiz.app.viewmodel.QuizViewModel
 import com.medicalquiz.app.data.database.PerformanceFilter
 
@@ -58,16 +57,10 @@ fun QuizRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
 
-    // Handle back press to close drawer if open
-    BackHandler(enabled = drawerState.isOpen) {
-        scope.launch { drawerState.close() }
-    }
-
     ModalNavigationDrawer(
         modifier = Modifier.fillMaxSize(),
         drawerState = drawerState,
-        gesturesEnabled = false,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f),
+        gesturesEnabled = drawerState.isOpen,
         drawerContent = {
             ModalDrawerSheet {
                 // Header Section
@@ -239,7 +232,6 @@ fun QuizRoot(
             }
         }
     ) {
-        // Content area - drawer scrim is handled by ModalNavigationDrawer
         Box(modifier = Modifier.fillMaxSize()) {
             android.util.Log.d("QuizRoot", "Box rendering for Scaffold")
             // Top-level scaffold with topBar and bottomBar
