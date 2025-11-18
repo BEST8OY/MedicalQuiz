@@ -21,7 +21,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -29,12 +29,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-import com.medicalquiz.app.viewmodel.QuizViewModel
+import androidx.compose.material3.LocalActivity
 import com.medicalquiz.app.data.database.PerformanceFilter
 
 @Composable
@@ -69,19 +74,29 @@ fun QuizRoot(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp)
+                        .background(
+                            brush = androidx.compose.foundation.background.Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                                    MaterialTheme.colorScheme.background
+                                )
+                            )
+                        )
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
                         text = "Medical Quiz",
-                        fontSize = 24.sp,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "Study Tools",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 0.5.sp
                     )
                 }
 
@@ -94,13 +109,14 @@ fun QuizRoot(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp, bottom = 8.dp)
+                        .padding(top = 16.dp, bottom = 12.dp)
                 ) {
                     Text(
                         text = "FILTERS",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 1.2.sp,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                     )
 
@@ -108,90 +124,114 @@ fun QuizRoot(
                         label = {
                             Row(
                                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Tune,
                                     contentDescription = null,
-                                    modifier = Modifier.width(20.dp)
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text("Filter by Subject")
+                                Text(
+                                    text = "Filter by Subject",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         },
                         selected = false,
                         onClick = {
                             onSubjectFilter()
                             scope.launch { drawerState.close() }
-                        }
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                     )
                     NavigationDrawerItem(
                         label = {
                             Row(
                                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Storage,
                                     contentDescription = null,
-                                    modifier = Modifier.width(20.dp)
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text("Filter by System")
+                                Text(
+                                    text = "Filter by System",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         },
                         selected = false,
                         onClick = {
                             onSystemFilter()
                             scope.launch { drawerState.close() }
-                        }
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                     )
                     NavigationDrawerItem(
                         label = {
                             Row(
                                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.TrendingUp,
+                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                                     contentDescription = null,
-                                    modifier = Modifier.width(20.dp)
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text("Filter by Performance")
+                                Text(
+                                    text = "Filter by Performance",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         },
                         selected = false,
                         onClick = {
                             viewModel.openPerformanceDialog()
                             scope.launch { drawerState.close() }
-                        }
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                     )
                     NavigationDrawerItem(
                         label = {
                             Row(
                                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Refresh,
                                     contentDescription = null,
-                                    modifier = Modifier.width(20.dp)
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text("Clear All Filters")
+                                Text(
+                                    text = "Clear All Filters",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         },
                         selected = false,
                         onClick = {
                             onClearFilters()
                             scope.launch { drawerState.close() }
-                        }
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                     )
                 }
 
                 HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
                     color = MaterialTheme.colorScheme.outlineVariant
                 )
 
@@ -199,13 +239,14 @@ fun QuizRoot(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
+                        .padding(top = 4.dp)
                 ) {
                     Text(
                         text = "APP",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 1.2.sp,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                     )
 
@@ -213,22 +254,28 @@ fun QuizRoot(
                         label = {
                             Row(
                                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Settings,
                                     contentDescription = null,
-                                    modifier = Modifier.width(20.dp)
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text("Settings")
+                                Text(
+                                    text = "Settings",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         },
                         selected = false,
                         onClick = {
                             showSettingsDialog = true
                             scope.launch { drawerState.close() }
-                        }
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                     )
                 }
             }
@@ -313,7 +360,7 @@ fun QuizRoot(
 
     ResetLogsConfirmationDialogComposable(
         isVisible = showResetLogsConfirmation,
-        activity = androidx.compose.ui.platform.LocalContext.current as? androidx.appcompat.app.AppCompatActivity,
+        activity = LocalActivity.current as? androidx.appcompat.app.AppCompatActivity,
         onConfirm = { showResetLogsConfirmation = false },
         onDismiss = { showResetLogsConfirmation = false }
     )
