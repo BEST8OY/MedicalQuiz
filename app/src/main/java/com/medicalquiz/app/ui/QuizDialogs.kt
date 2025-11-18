@@ -368,7 +368,6 @@ private fun JumpToQuestionDialog(
                     Text("Jump")
                 }
             }
-        }
     }
 }
 
@@ -530,7 +529,6 @@ private fun SettingsDialog(
                     Text("Close")
                 }
             }
-        }
     }
 }
 
