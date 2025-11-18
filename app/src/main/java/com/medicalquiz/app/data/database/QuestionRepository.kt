@@ -165,18 +165,17 @@ class QuestionRepository(private val connection: DatabaseConnection) {
         answers
     }
     
-    private fun getSubjectName(subId: String?): String? {
-        if (subId.isNullOrBlank()) return null
-        
-        val firstId = extractFirstId(subId) ?: return null
-        return subjectNameCache[firstId] ?: fetchSubjectName(firstId).also { subjectNameCache[firstId] = it }
-    }
+    private fun getSubjectName(subId: String?): String? = resolveNames(
+        rawIds = subId,
+        cache = subjectNameCache,
+        fetcher = ::fetchSubjectName
+    )
     
-    private fun getSystemName(sysId: String?): String? {
-        if (sysId.isNullOrBlank()) return null
-        val firstId = extractFirstId(sysId) ?: return null
-        return systemNameCache[firstId] ?: fetchSystemName(firstId).also { systemNameCache[firstId] = it }
-    }
+    private fun getSystemName(sysId: String?): String? = resolveNames(
+        rawIds = sysId,
+        cache = systemNameCache,
+        fetcher = ::fetchSystemName
+    )
 
     private fun buildMultiValueCondition(
         columnAlias: String,
@@ -210,11 +209,30 @@ class QuestionRepository(private val connection: DatabaseConnection) {
         PerformanceFilter.EVER_INCORRECT -> "ls.everIncorrect = 1"
     }
 
-    private fun extractFirstId(rawIds: String?): Long? = rawIds
+    private fun resolveNames(
+        rawIds: String?,
+        cache: MutableMap<Long, String?>,
+        fetcher: (Long) -> String?
+    ): String? {
+        val ids = extractIds(rawIds)
+        if (ids.isEmpty()) return null
+
+        val names = ids.mapNotNull { id ->
+            cache[id] ?: fetcher(id).also { cache[id] = it }
+        }
+
+        return names.takeIf { it.isNotEmpty() }?.joinToString(", ")
+    }
+
+    private fun extractIds(rawIds: String?): List<Long> = rawIds
         ?.split(",")
-        ?.firstOrNull()
-        ?.trim()
-        ?.toLongOrNull()
+        ?.mapNotNull { part ->
+            part.trim()
+                .takeIf { it.isNotEmpty() }
+                ?.toLongOrNull()
+        }
+        ?.distinct()
+        ?: emptyList()
 
     private fun fetchSubjectName(id: Long): String? {
         val db = connection.getDatabase()
