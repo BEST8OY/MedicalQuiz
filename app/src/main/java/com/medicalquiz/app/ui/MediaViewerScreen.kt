@@ -4,6 +4,9 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Environment
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,9 +17,12 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -26,21 +32,28 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.input.pointer.pointerInput
 import android.widget.MediaController
 import android.widget.VideoView
 import coil3.compose.AsyncImage
+import coil3.decode.SvgDecoder
+import coil3.request.ImageRequest
 import com.medicalquiz.app.Constants
 import com.medicalquiz.app.MediaType
 import com.medicalquiz.app.utils.WebViewRenderer
@@ -53,6 +66,7 @@ private const val TAG = "MediaViewerScreen"
 fun MediaViewerScreen(mediaFiles: List<String>, startIndex: Int) {
     val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { mediaFiles.size })
     var currentIndex by remember { mutableStateOf(startIndex) }
+    var userScrollEnabled by remember { mutableStateOf(true) }
     
     Scaffold(
         topBar = {
@@ -66,11 +80,17 @@ fun MediaViewerScreen(mediaFiles: List<String>, startIndex: Int) {
         ) {
             HorizontalPager(
                 state = pagerState,
+                userScrollEnabled = userScrollEnabled,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 currentIndex = page
                 val file = mediaFiles[page]
-                MediaContent(file = file, pageNumber = page)
+                MediaContent(
+                    file = file,
+                    onZoomStateChange = { isZoomed ->
+                        userScrollEnabled = !isZoomed
+                    }
+                )
             }
         }
     }
@@ -111,9 +131,15 @@ private fun MediaViewerTopBar(currentIndex: Int, totalFiles: Int) {
 }
 
 @Composable
-private fun MediaContent(file: String, pageNumber: Int) {
+private fun MediaContent(
+    file: String,
+    onZoomStateChange: (Boolean) -> Unit
+) {
+    LaunchedEffect(file) {
+        onZoomStateChange(false)
+    }
     when (getMediaType(file)) {
-        MediaType.IMAGE -> ImageContent(file)
+        MediaType.IMAGE -> ImageContent(file, onZoomStateChange)
         MediaType.VIDEO -> VideoContent(file)
         MediaType.AUDIO -> AudioContent(file)
         MediaType.HTML -> HtmlContent(file)
@@ -122,14 +148,72 @@ private fun MediaContent(file: String, pageNumber: Int) {
 }
 
 @Composable
-private fun ImageContent(fileName: String) {
+private fun ImageContent(fileName: String, onZoomStateChange: (Boolean) -> Unit) {
+    val context = LocalContext.current
     val imageFile = File(
         Environment.getExternalStorageDirectory(),
         "${Constants.MEDIA_FOLDER}/$fileName"
     )
+    val overlayFile = getOverlayFile(fileName)
+    val overlayAvailable = overlayFile?.exists() == true
+    val showOverlayControls = overlayAvailable && fileName.startsWith("big_", ignoreCase = true)
+    var isOverlayVisible by rememberSaveable(fileName) { mutableStateOf(showOverlayControls) }
+    var scale by rememberSaveable(fileName) { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    val minScale = 1f
+    val maxScale = 5f
+    val overlayRequest = remember(overlayFile?.absolutePath) {
+        overlayFile?.takeIf { showOverlayControls }?.let {
+            ImageRequest.Builder(context)
+                .data(it)
+                .decoderFactory(SvgDecoder.Factory())
+                .build()
+        }
+    }
+
+    val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
+        val newScale = (scale * zoomChange).coerceIn(minScale, maxScale)
+        scale = newScale
+        offset = if (newScale <= 1.01f) {
+            Offset.Zero
+        } else {
+            offset + panChange
+        }
+    }
+
+    LaunchedEffect(fileName) {
+        scale = 1f
+        offset = Offset.Zero
+    }
+
+    val zoomModifier = Modifier
+        .fillMaxSize()
+        .graphicsLayer(
+            scaleX = scale,
+            scaleY = scale,
+            translationX = offset.x,
+            translationY = offset.y
+        )
+        .pointerInput(Unit) {
+            detectTapGestures(
+                onDoubleTap = {
+                    scale = 1f
+                    offset = Offset.Zero
+                }
+            )
+        }
+        .transformable(transformableState)
+
+    val isZoomed = scale > 1.01f
+    LaunchedEffect(isZoomed) {
+        onZoomStateChange(isZoomed)
+    }
     
     // Log file info
-    android.util.Log.d(TAG, "IMAGE: file=$fileName, path=${imageFile.absolutePath}, exists=${imageFile.exists()}, canRead=${imageFile.canRead()}, length=${imageFile.length()}")
+    android.util.Log.d(
+        TAG,
+        "IMAGE: file=$fileName, path=${imageFile.absolutePath}, exists=${imageFile.exists()}, canRead=${imageFile.canRead()}, length=${imageFile.length()}, overlay=${overlayFile?.absolutePath}, overlayExists=$overlayAvailable"
+    )
     
     Box(
         modifier = Modifier
@@ -137,16 +221,53 @@ private fun ImageContent(fileName: String) {
             .background(Color.Black)
     ) {
         if (imageFile.exists()) {
-            AsyncImage(
-                model = imageFile,
-                contentDescription = "Media image",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit
-            )
+            Box(modifier = zoomModifier) {
+                AsyncImage(
+                    model = imageFile,
+                    contentDescription = "Media image",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+
+                if (showOverlayControls && isOverlayVisible && overlayRequest != null) {
+                    AsyncImage(
+                        model = overlayRequest,
+                        contentDescription = "Overlay image",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.FillBounds
+                    )
+                }
+            }
+
+            if (showOverlayControls) {
+                FilledTonalIconButton(
+                    onClick = { isOverlayVisible = !isOverlayVisible },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isOverlayVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = if (isOverlayVisible) "Hide overlay" else "Show overlay"
+                    )
+                }
+            }
         } else {
             ErrorMessage("Image not found:\n${imageFile.absolutePath}")
         }
     }
+}
+
+private fun getOverlayFile(fileName: String): File? {
+    if (!fileName.startsWith("big_", ignoreCase = true) || !fileName.contains('.')) {
+        return null
+    }
+    val baseName = fileName.substringBeforeLast('.')
+    val overlayName = "$baseName.svg"
+    return File(
+        Environment.getExternalStorageDirectory(),
+        "${Constants.MEDIA_FOLDER}/$overlayName"
+    )
 }
 
 @Composable

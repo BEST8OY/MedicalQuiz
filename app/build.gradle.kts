@@ -96,4 +96,5 @@ dependencies {
     // Coil 3 (Kotlin 2+ compatible)
     implementation("io.coil-kt.coil3:coil:3.3.0")
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+    implementation("io.coil-kt.coil3:coil-svg:3.3.0")
 }
