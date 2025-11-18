@@ -2,6 +2,7 @@ package com.medicalquiz.app.ui
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.medicalquiz.app.MediaViewerActivity
 
 /**
@@ -19,25 +20,38 @@ class MediaHandler(private val context: Context) {
     fun updateMedia(questionId: Long, mediaFiles: List<String>) {
         currentQuestionId = questionId
         currentMediaFiles = mediaFiles
+        Log.d(TAG, "updateMedia: question=$questionId, mediaCount=${mediaFiles.size}, files=$mediaFiles")
     }
 
     fun handleMediaLink(url: String): Boolean {
+        Log.d(TAG, "handleMediaLink called with URL: $url")
+        Log.d(TAG, "Current media files: $currentMediaFiles")
+        
         // Support both file://.../media/... links and the legacy media://<filename> scheme
         if (url.startsWith("media://")) {
             val fileName = url.substringAfter("media://")
+            Log.d(TAG, "Detected media:// scheme, fileName: $fileName")
             return openMediaFromCache(fileName)
         }
 
-        if (!url.startsWith(FILE_SCHEME) || !url.contains(MEDIA_PATH_SEGMENT)) return false
+        if (!url.startsWith(FILE_SCHEME) || !url.contains(MEDIA_PATH_SEGMENT)) {
+            Log.d(TAG, "URL does not match file:///media/ pattern")
+            return false
+        }
         val fileName = url.substringAfterLast('/')
+        Log.d(TAG, "Detected file:///media/ scheme, fileName: $fileName")
         return openMediaFromCache(fileName)
     }
 
     fun showCurrentMediaGallery(startIndex: Int = 0): Boolean = openMediaFromCache(null, startIndex)
 
     private fun openMediaFromCache(fileName: String?, fallbackIndex: Int = 0): Boolean {
-        if (currentMediaFiles.isEmpty()) return false
+        if (currentMediaFiles.isEmpty()) {
+            Log.w(TAG, "No media files available for current question")
+            return false
+        }
         val startIndex = resolveStartIndex(currentMediaFiles, fileName, fallbackIndex)
+        Log.d(TAG, "Opening media viewer with startIndex=$startIndex, fileName=$fileName")
         openMediaViewer(currentMediaFiles, startIndex)
         return true
     }
@@ -52,6 +66,7 @@ class MediaHandler(private val context: Context) {
     }
 
     fun openMediaViewer(mediaFiles: List<String>, startIndex: Int) {
+        Log.d(TAG, "openMediaViewer: mediaCount=${mediaFiles.size}, startIndex=$startIndex")
         val intent = Intent(context, MediaViewerActivity::class.java).apply {
             putStringArrayListExtra(
                 MediaViewerActivity.EXTRA_MEDIA_FILES,
@@ -63,6 +78,7 @@ class MediaHandler(private val context: Context) {
     }
 
     private companion object {
+        private const val TAG = "MediaHandler"
         private const val FILE_SCHEME = "file://"
         private const val MEDIA_PATH_SEGMENT = "/media/"
     }

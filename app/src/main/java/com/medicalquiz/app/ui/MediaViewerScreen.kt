@@ -25,6 +25,12 @@ import androidx.compose.ui.viewinterop.AndroidView
 import android.widget.VideoView
 import android.widget.MediaController
 import com.medicalquiz.app.utils.WebViewRenderer
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import java.io.File
 
 @Composable
@@ -92,8 +98,19 @@ fun MediaViewerScreen(mediaFiles: List<String>, startIndex: Int) {
             }
         }
 
-        // Counter overlay
-        Text(text = "${currentIndex + 1} / ${mediaFiles.size}")
+        // Counter overlay positioned in top-right
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .background(Color.Black.copy(alpha = 0.7f), shape = RoundedCornerShape(4.dp))
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = "${currentIndex + 1} / ${mediaFiles.size}",
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
     }
 }
 

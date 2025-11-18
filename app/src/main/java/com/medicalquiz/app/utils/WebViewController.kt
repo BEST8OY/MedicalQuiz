@@ -58,12 +58,18 @@ class WebViewController(private val mediaHandler: MediaHandler) {
 
             @Deprecated("Deprecated in Java")
             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                return mediaHandler.handleMediaLink(url)
+                Log.d(TAG, "shouldOverrideUrlLoading (deprecated) called with URL: $url")
+                val handled = mediaHandler.handleMediaLink(url)
+                Log.d(TAG, "handleMediaLink returned: $handled for URL: $url")
+                return handled
             }
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url?.toString() ?: return false
-                return mediaHandler.handleMediaLink(url)
+                Log.d(TAG, "shouldOverrideUrlLoading called with URL: $url")
+                val handled = mediaHandler.handleMediaLink(url)
+                Log.d(TAG, "handleMediaLink returned: $handled for URL: $url")
+                return handled
             }
         }
 
