@@ -6,8 +6,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -73,15 +74,18 @@ private fun QuestionContent(
     mediaHandler: MediaHandler,
     contentPadding: PaddingValues
 ) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Question content stays primary, metadata/logs follow below
         Surface(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .weight(1f)
+                .fillMaxWidth(),
             tonalElevation = 2.dp,
             shape = RoundedCornerShape(20.dp)
         ) {
@@ -99,34 +103,26 @@ private fun QuestionContent(
             )
         }
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        // Question metadata - shown after answering
+        AnimatedVisibility(
+            visible = state.answerSubmitted,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
         ) {
-            // Question metadata - shown after answering
-            AnimatedVisibility(
-                visible = state.answerSubmitted,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                QuestionMetadataCard(
-                    questionId = state.currentQuestion?.id,
-                    subject = state.currentQuestion?.subName,
-                    system = state.currentQuestion?.sysName
-                )
-            }
+            QuestionMetadataCard(
+                questionId = state.currentQuestion?.id,
+                subject = state.currentQuestion?.subName,
+                system = state.currentQuestion?.sysName
+            )
+        }
 
-            // Performance logs - shown after answering if logs enabled
-            AnimatedVisibility(
-                visible = state.answerSubmitted && state.currentPerformance != null,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                PerformanceCard(performance = state.currentPerformance)
-            }
+        // Performance logs - shown after answering if logs enabled
+        AnimatedVisibility(
+            visible = state.answerSubmitted && state.currentPerformance != null,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            PerformanceCard(performance = state.currentPerformance)
         }
     }
 }
@@ -139,7 +135,7 @@ private fun QuestionMetadataCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         )
@@ -147,19 +143,29 @@ private fun QuestionMetadataCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             questionId?.let {
                 MetadataRow(label = "ID", value = "#$it")
             }
 
-            subject?.takeIf { it.isNotBlank() }?.let {
-                MetadataRow(label = "Subject", value = it)
+            val subjectValues = extractMetadataList(subject)
+            if (subjectValues.size <= 1) {
+                subjectValues.firstOrNull()?.let {
+                    MetadataRow(label = "Subject", value = it)
+                }
+            } else {
+                MetadataChipGroupRow(label = "Subjects", values = subjectValues)
             }
 
-            system?.takeIf { it.isNotBlank() }?.let {
-                MetadataRow(label = "System", value = it)
+            val systemValues = extractMetadataList(system)
+            if (systemValues.size <= 1) {
+                systemValues.firstOrNull()?.let {
+                    MetadataRow(label = "System", value = it)
+                }
+            } else {
+                MetadataChipGroupRow(label = "Systems", values = systemValues)
             }
         }
     }
@@ -170,12 +176,12 @@ private fun MetadataRow(label: String, value: String) {
     val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
             color = contentColor.copy(alpha = 0.75f)
         )
@@ -191,13 +197,63 @@ private fun MetadataRow(label: String, value: String) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MetadataChipGroupRow(label: String, values: List<String>) {
+    val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = contentColor.copy(alpha = 0.75f)
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            values.forEach { value ->
+                MetadataTag(text = value)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetadataTag(text: String) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.08f)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+private fun extractMetadataList(raw: String?): List<String> {
+    if (raw.isNullOrBlank()) return emptyList()
+    return raw.split(',')
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+}
+
 @Composable
 private fun PerformanceCard(performance: QuestionPerformance?) {
     performance ?: return
     
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
@@ -205,8 +261,8 @@ private fun PerformanceCard(performance: QuestionPerformance?) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(

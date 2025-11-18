@@ -458,7 +458,16 @@ class QuizActivity : AppCompatActivity() {
                 
                 val questionId = savedInstanceState.getLong(STATE_CURRENT_QUESTION_ID, -1)
                 if (questionId != -1L) {
-                    viewModel.restoreQuestionFromDatabase(questionId)
+                    val wasSubmitted = savedInstanceState.getBoolean(STATE_ANSWER_SUBMITTED, false)
+                    val selectedAnswer = if (savedInstanceState.containsKey(STATE_SELECTED_ANSWER_ID)) {
+                        savedInstanceState.getInt(STATE_SELECTED_ANSWER_ID)
+                    } else null
+                    val shouldPreserveAnswerState = wasSubmitted || selectedAnswer != null
+
+                    viewModel.restoreQuestionFromDatabase(
+                        questionId = questionId,
+                        resetAnswerState = !shouldPreserveAnswerState
+                    )
                 }
             },
             onSuccess = {
@@ -507,7 +516,11 @@ class QuizActivity : AppCompatActivity() {
             displayQuestion(state)
             loadPerformanceForQuestion(state.currentQuestion!!.id)
         } else if (state.questionIds.isNotEmpty()) {
-            viewModel.loadQuestion(state.currentQuestionIndex)
+            val shouldPreserveAnswerState = state.answerSubmitted || state.selectedAnswerId != null
+            viewModel.loadQuestion(
+                index = state.currentQuestionIndex,
+                resetAnswerState = !shouldPreserveAnswerState
+            )
         }
     }
 
@@ -530,17 +543,22 @@ class QuizActivity : AppCompatActivity() {
             ?.let { PerformanceFilter.valueOf(it) } ?: PerformanceFilter.ALL
         viewModel.setPerformanceFilterSilently(performanceFilter)
 
-        viewModel.setQuestionIds(ids)
-        if (ids.isNotEmpty()) {
-            val safeIndex = currentIndex.coerceIn(0, ids.size - 1)
-            viewModel.loadQuestion(safeIndex)
-        }
-
         val wasSubmitted = savedInstanceState.getBoolean(STATE_ANSWER_SUBMITTED, false)
         val selectedAnswer = if (savedInstanceState.containsKey(STATE_SELECTED_ANSWER_ID)) {
             savedInstanceState.getInt(STATE_SELECTED_ANSWER_ID)
         } else null
         viewModel.setAnswerSubmissionState(wasSubmitted, selectedAnswer)
+
+        val shouldPreserveAnswerState = wasSubmitted || selectedAnswer != null
+
+        viewModel.setQuestionIds(ids)
+        if (ids.isNotEmpty()) {
+            val safeIndex = currentIndex.coerceIn(0, ids.size - 1)
+            viewModel.loadQuestion(
+                index = safeIndex,
+                resetAnswerState = !shouldPreserveAnswerState
+            )
+        }
 
         savedInstanceState.getString(STATE_TEST_ID)?.let { viewModel.setTestId(it) }
     }

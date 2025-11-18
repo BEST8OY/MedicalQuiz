@@ -63,12 +63,16 @@ data class QuizState(
     }
 
     // Factory method for creating updated states efficiently
-    fun copyWithQuestion(question: Question?, answers: List<Answer>): QuizState {
+    fun copyWithQuestion(
+        question: Question?,
+        answers: List<Answer>,
+        resetAnswerState: Boolean = true
+    ): QuizState {
         return copy(
             currentQuestion = question,
             currentAnswers = answers,
-            selectedAnswerId = null,
-            answerSubmitted = false
+            selectedAnswerId = if (resetAnswerState) null else selectedAnswerId,
+            answerSubmitted = if (resetAnswerState) false else answerSubmitted
         )
     }
 

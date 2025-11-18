@@ -181,7 +181,7 @@ class QuizViewModel : ViewModel() {
     // Question Navigation
     // ============================================================================
 
-    fun loadQuestion(index: Int) {
+    fun loadQuestion(index: Int, resetAnswerState: Boolean = true) {
         val ids = state.value.questionIds
         val questionId = ids.getOrNull(index) ?: return
 
@@ -192,7 +192,11 @@ class QuizViewModel : ViewModel() {
                 val answers = databaseManager?.getAnswersForQuestion(questionId) ?: emptyList()
                 _state.update { 
                     it.copy(currentQuestionIndex = index)
-                      .copyWithQuestion(question, answers)
+                      .copyWithQuestion(
+                          question = question,
+                          answers = answers,
+                          resetAnswerState = resetAnswerState
+                      )
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading question $questionId", e)
@@ -236,7 +240,7 @@ class QuizViewModel : ViewModel() {
         }
     }
 
-    fun restoreQuestionFromDatabase(questionId: Long) {
+    fun restoreQuestionFromDatabase(questionId: Long, resetAnswerState: Boolean = true) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val question = databaseManager?.getQuestionById(questionId)
@@ -246,7 +250,11 @@ class QuizViewModel : ViewModel() {
 
                 _state.update {
                     it.copy(questionIds = ids, currentQuestionIndex = index)
-                        .copyWithQuestion(question, answers)
+                        .copyWithQuestion(
+                            question = question,
+                            answers = answers,
+                            resetAnswerState = resetAnswerState
+                        )
                 }
             } catch (e: Exception) {
                 emitToast("Error restoring question: ${e.message}")
