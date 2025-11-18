@@ -123,7 +123,7 @@ fun StartFiltersPanel(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = androidx.compose.material.icons.filled.CheckCircle,
+                        imageVector = CheckCircle,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
                         tint = MaterialTheme.colorScheme.primary
@@ -247,7 +247,7 @@ private fun FilterButton(
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = androidx.compose.material.icons.filled.Tune,
+                        imageVector = Tune,
                         contentDescription = null,
                         modifier = Modifier.size(22.dp),
                         tint = MaterialTheme.colorScheme.primary

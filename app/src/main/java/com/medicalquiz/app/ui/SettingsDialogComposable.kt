@@ -100,7 +100,7 @@ fun SettingsDialog(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                     ),
-                    border = androidx.compose.foundation.border.BorderStroke(
+                    border = BorderStroke(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                     )

@@ -5,6 +5,7 @@ import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Brush
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.viewmodel.UiEvent
@@ -57,7 +58,7 @@ fun QuizRoot(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            brush = androidx.compose.foundation.background.Brush.verticalGradient(
+                            brush = Brush.verticalGradient(
                                 colors = listOf(
                                     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
                                     MaterialTheme.colorScheme.background
