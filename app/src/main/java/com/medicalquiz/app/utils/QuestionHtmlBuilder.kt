@@ -26,6 +26,7 @@ object QuestionHtmlBuilder {
                 val percentageDisplay = answer.correctPercentage?.let {
                     """<span class="answer-percentage">$it%</span>"""
                 } ?: ""
+                android.util.Log.d("QuestionHtmlBuilder", "Answer ${answer.answerId}: percentage=${answer.correctPercentage}, display=$percentageDisplay")
                 """
                 <button type="button"
                         class="answer-button"
