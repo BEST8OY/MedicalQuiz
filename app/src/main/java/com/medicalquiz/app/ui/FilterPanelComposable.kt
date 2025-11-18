@@ -4,11 +4,11 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
@@ -123,7 +123,7 @@ fun StartFiltersPanel(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = CheckCircle,
+                        imageVector = Icons.Filled.CheckCircle,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
                         tint = MaterialTheme.colorScheme.primary
@@ -247,7 +247,7 @@ private fun FilterButton(
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = Tune,
+                        imageVector = Icons.Filled.Tune,
                         contentDescription = null,
                         modifier = Modifier.size(22.dp),
                         tint = MaterialTheme.colorScheme.primary

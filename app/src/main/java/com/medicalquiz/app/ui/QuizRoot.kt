@@ -5,7 +5,6 @@ import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.Brush
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.viewmodel.UiEvent
@@ -22,7 +21,8 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.platform.LocalActivity
+import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.LocalActivityResultRegistryOwner
 import com.medicalquiz.app.data.database.PerformanceFilter
 
 @Composable
@@ -58,7 +58,7 @@ fun QuizRoot(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            brush = Brush.verticalGradient(
+                            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
                                 colors = listOf(
                                     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
                                     MaterialTheme.colorScheme.background
@@ -343,7 +343,7 @@ fun QuizRoot(
 
     ResetLogsConfirmationDialogComposable(
         isVisible = showResetLogsConfirmation,
-        activity = LocalActivity.current as? androidx.appcompat.app.AppCompatActivity,
+        activity = (LocalContext.current as? androidx.activity.ComponentActivity) as? androidx.appcompat.app.AppCompatActivity,
         onConfirm = { showResetLogsConfirmation = false },
         onDismiss = { showResetLogsConfirmation = false }
     )
