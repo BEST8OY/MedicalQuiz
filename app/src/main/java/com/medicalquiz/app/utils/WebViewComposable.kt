@@ -67,6 +67,7 @@ fun WebViewComposable(
                     }
 
                     override fun openMedia(mediaRef: String) {
+                        android.util.Log.d("WebViewComposable", "openMedia Bridge called with: $mediaRef")
                         onOpenMedia(mediaRef)
                     }
                 })

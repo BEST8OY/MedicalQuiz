@@ -1,6 +1,5 @@
 package com.medicalquiz.app.ui
 
-import androidx.activity.compose.BackHandler
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Environment
@@ -38,8 +37,6 @@ import java.io.File
 fun MediaViewerScreen(mediaFiles: List<String>, startIndex: Int) {
     val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { mediaFiles.size })
     var currentIndex by remember { mutableStateOf(startIndex) }
-
-    BackHandler { /* Back handled by hosting activity */ }
 
     Box(modifier = Modifier.fillMaxSize()) {
         HorizontalPager(state = pagerState) { page ->

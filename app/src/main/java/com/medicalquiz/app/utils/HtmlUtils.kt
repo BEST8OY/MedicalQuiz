@@ -105,8 +105,9 @@ object HtmlUtils {
         .replace(IMG_TAG_REGEX) { match ->
             val attrs = match.groupValues[1]
             val src = match.groupValues[2]
-            val dataUri = createImageDataUri(src)
-            if (dataUri != null) "<img$attrs src=\"$dataUri\" data-filename=\"$src\"" else match.value
+            val fileName = normalizeFileName(src)
+            // Convert image references to file:///media/<filename> for clickable media handling
+            "<img$attrs src=\"file:///media/$fileName\""
         }
         // Rewrite anchor links that point to media so they become file:///media/<filename>
         .replace(ANCHOR_TAG_REGEX) { match ->

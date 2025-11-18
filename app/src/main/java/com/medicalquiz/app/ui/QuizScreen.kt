@@ -127,6 +127,7 @@ fun QuizScreen(
                     },
                     onOpenMedia = { mediaRef ->
                         val ref = mediaRef.takeIf { it.isNotBlank() } ?: return@WebViewComposable
+                        android.util.Log.d("QuizScreen", "onOpenMedia called with: $ref")
                         mediaHandler.handleMediaLink(ref)
                     },
                     mediaHandler = mediaHandler

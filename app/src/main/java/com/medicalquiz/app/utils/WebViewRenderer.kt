@@ -78,17 +78,21 @@ object WebViewRenderer {
                         img.style.cursor = 'pointer';
                         img.onclick = function(event) {
                             event.preventDefault();
-                            var filename = this.getAttribute('data-filename') || this.getAttribute('src');
-                            if (filename) {
+                            event.stopPropagation();
+                            // Get filename from src attribute (could be just filename or full path)
+                            var src = this.getAttribute('src');
+                            if (src) {
+                                // Extract just the filename if it's a path
+                                var filename = src.split('/').pop();
                                 try {
                                     if (window.AndroidBridge && window.AndroidBridge.openMedia) {
+                                        console.log('Opening media from image: ' + filename);
                                         window.AndroidBridge.openMedia(String(filename));
                                         return;
                                     }
                                 } catch (e) {
                                     console.error('AndroidBridge.openMedia failed', e);
                                 }
-                                window.location.href = 'file:///media/' + filename;
                             }
                         };
                     });

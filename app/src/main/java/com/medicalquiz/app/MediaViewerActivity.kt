@@ -9,6 +9,7 @@ import com.medicalquiz.app.ui.MediaViewerScreen
 import com.medicalquiz.app.ui.theme.MedicalQuizTheme
 import androidx.core.view.WindowCompat
 import androidx.compose.ui.platform.ComposeView
+import androidx.activity.OnBackPressedCallback
 import java.io.File
 
 class MediaViewerActivity : AppCompatActivity() {
@@ -40,6 +41,13 @@ class MediaViewerActivity : AppCompatActivity() {
         }
 
         val actualStartIndex = mediaFiles.indexOf(allMediaFiles.getOrNull(startIndex)).takeIf { it != -1 } ?: 0
+
+        // Add back press handler to close media viewer and return to quiz
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                finish()
+            }
+        })
 
         setContentView(ComposeView(this).apply {
             setContent {

@@ -34,13 +34,20 @@ class MediaHandler(private val context: Context) {
             return openMediaFromCache(fileName)
         }
 
-        if (!url.startsWith(FILE_SCHEME) || !url.contains(MEDIA_PATH_SEGMENT)) {
-            Log.d(TAG, "URL does not match file:///media/ pattern")
-            return false
+        if (url.startsWith(FILE_SCHEME) && url.contains(MEDIA_PATH_SEGMENT)) {
+            val fileName = url.substringAfterLast('/')
+            Log.d(TAG, "Detected file:///media/ scheme, fileName: $fileName")
+            return openMediaFromCache(fileName)
         }
-        val fileName = url.substringAfterLast('/')
-        Log.d(TAG, "Detected file:///media/ scheme, fileName: $fileName")
-        return openMediaFromCache(fileName)
+
+        // If it's just a filename (from JS bridge or direct call), treat it as a media filename
+        if (!url.contains("/") && !url.startsWith("http") && !url.startsWith("file://")) {
+            Log.d(TAG, "Detected bare filename: $url")
+            return openMediaFromCache(url)
+        }
+
+        Log.d(TAG, "URL does not match any known media pattern")
+        return false
     }
 
     fun showCurrentMediaGallery(startIndex: Int = 0): Boolean = openMediaFromCache(null, startIndex)
