@@ -1,21 +1,21 @@
 package com.medicalquiz.app.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,15 +41,36 @@ fun QuizScreen(
     onNext: () -> Unit,
     onJumpTo: () -> Unit,
     onOpenSettings: () -> Unit,
-    onShowFilterSubject: () -> Unit,
-    onShowFilterSystem: () -> Unit,
-    onSelectPerformance: () -> Unit,
-    onStart: () -> Unit,
-    onClearFilters: () -> Unit,
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    QuestionContent(
+        state = state,
+        viewModel = viewModel,
+        webViewStateFlow = webViewStateFlow,
+        mediaHandler = mediaHandler,
+        contentPadding = contentPadding
+    )
+
+    LaunchedEffect(viewModel, mediaHandler) {
+        viewModel.uiEvents.collect { event ->
+            when (event) {
+                is UiEvent.OpenMedia -> mediaHandler.handleMediaLink(event.url)
+                else -> Unit
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuestionContent(
+    state: QuizState,
+    viewModel: com.medicalquiz.app.viewmodel.QuizViewModel,
+    webViewStateFlow: MutableStateFlow<WebViewState>,
+    mediaHandler: MediaHandler,
+    contentPadding: PaddingValues
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -99,15 +120,6 @@ fun QuizScreen(
                 },
                 mediaHandler = mediaHandler
             )
-        }
-    }
-
-    LaunchedEffect(viewModel, mediaHandler) {
-        viewModel.uiEvents.collect { event ->
-            when (event) {
-                is UiEvent.OpenMedia -> mediaHandler.handleMediaLink(event.url)
-                else -> Unit
-            }
         }
     }
 }
@@ -227,3 +239,4 @@ private fun PerformanceCard(performance: QuestionPerformance?) {
         }
     }
 }
+

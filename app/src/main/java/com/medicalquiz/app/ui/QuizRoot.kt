@@ -16,6 +16,7 @@ import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Button
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -25,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -60,6 +62,8 @@ fun QuizRoot(
     val hostActivity = LocalActivity.current as? AppCompatActivity
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
+    val hasQuestions = state.questionIds.isNotEmpty() && state.currentQuestion != null
+    val performanceLabel = formatPerformanceLabel(state.performanceFilter)
 
     // Dialog states
     var showPerformanceDialog by rememberSaveable { mutableStateOf(false) }
@@ -93,69 +97,83 @@ fun QuizRoot(
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = drawerState.isOpen,
-        drawerContent = {
-            NavigationDrawer(
-                onSubjectFilter = {
-                    showSubjectDialog = true
-                    scope.launch { drawerState.close() }
-                },
-                onSystemFilter = {
-                    showSystemDialog = true
-                    scope.launch { drawerState.close() }
-                },
-                onPerformanceFilter = {
-                    viewModel.openPerformanceDialog()
-                    scope.launch { drawerState.close() }
-                },
-                onClearFilters = {
-                    onClearFilters()
-                    scope.launch { drawerState.close() }
-                },
-                onSettings = {
-                    showSettingsDialog = true
-                    scope.launch { drawerState.close() }
-                }
-            )
-        }
-    ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            topBar = {
-                TopBar(
-                    title = title,
-                    questionIndex = state.currentQuestionIndex,
-                    totalQuestions = state.totalQuestions,
-                    onMenuClick = { scope.launch { drawerState.open() } },
-                    onJumpClick = { showJumpToDialog = true },
-                    onSettingsClick = { showSettingsDialog = true }
-                )
-            },
-            bottomBar = {
-                QuizBottomBar(
-                    viewModel = viewModel,
-                    onJumpTo = { showJumpToDialog = true }
+    if (hasQuestions) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            gesturesEnabled = drawerState.isOpen,
+            drawerContent = {
+                NavigationDrawer(
+                    onSubjectFilter = {
+                        showSubjectDialog = true
+                        scope.launch { drawerState.close() }
+                    },
+                    onSystemFilter = {
+                        showSystemDialog = true
+                        scope.launch { drawerState.close() }
+                    },
+                    onPerformanceFilter = {
+                        viewModel.openPerformanceDialog()
+                        scope.launch { drawerState.close() }
+                    },
+                    onClearFilters = {
+                        onClearFilters()
+                        scope.launch { drawerState.close() }
+                    },
+                    onSettings = {
+                        showSettingsDialog = true
+                        scope.launch { drawerState.close() }
+                    }
                 )
             }
-        ) { padding ->
-            QuizScreen(
-                viewModel = viewModel,
-                webViewStateFlow = webViewStateFlow,
-                mediaHandler = mediaHandler,
-                onPrevious = { viewModel.loadPrevious() },
-                onNext = { viewModel.loadNext() },
-                onJumpTo = { showJumpToDialog = true },
-                onOpenSettings = { showSettingsDialog = true },
-                onShowFilterSubject = { showSubjectDialog = true },
-                onShowFilterSystem = { showSystemDialog = true },
-                onSelectPerformance = { viewModel.openPerformanceDialog() },
-                onStart = onStart,
-                onClearFilters = onClearFilters,
-                contentPadding = padding
-            )
+        ) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                topBar = {
+                    TopBar(
+                        title = title,
+                        questionIndex = state.currentQuestionIndex,
+                        totalQuestions = state.totalQuestions,
+                        onMenuClick = { scope.launch { drawerState.open() } },
+                        onJumpClick = { showJumpToDialog = true },
+                        onSettingsClick = { showSettingsDialog = true }
+                    )
+                },
+                bottomBar = {
+                    QuizBottomBar(
+                        viewModel = viewModel,
+                        onJumpTo = { showJumpToDialog = true }
+                    )
+                }
+            ) { padding ->
+                QuizScreen(
+                    viewModel = viewModel,
+                    webViewStateFlow = webViewStateFlow,
+                    mediaHandler = mediaHandler,
+                    onPrevious = { viewModel.loadPrevious() },
+                    onNext = { viewModel.loadNext() },
+                    onJumpTo = { showJumpToDialog = true },
+                    onOpenSettings = { showSettingsDialog = true },
+                    onShowFilterSubject = { showSubjectDialog = true },
+                    onShowFilterSystem = { showSystemDialog = true },
+                    onSelectPerformance = { viewModel.openPerformanceDialog() },
+                    onStart = onStart,
+                    onClearFilters = onClearFilters,
+                    contentPadding = padding
+                )
+            }
         }
+    } else {
+        FilterScreen(
+            subjectCount = state.selectedSubjectIds.size,
+            systemCount = state.selectedSystemIds.size,
+            performanceLabel = performanceLabel,
+            previewCount = state.previewQuestionCount,
+            onSelectSubjects = { showSubjectDialog = true },
+            onSelectSystems = { showSystemDialog = true },
+            onSelectPerformance = { viewModel.openPerformanceDialog() },
+            onStart = onStart,
+            onClearFilters = onClearFilters
+        )
     }
 
     // Dialogs
@@ -355,4 +373,94 @@ private fun NavigationDrawer(
             )
         }
     }
+}
+
+@Composable
+private fun FilterScreen(
+    subjectCount: Int,
+    systemCount: Int,
+    performanceLabel: String,
+    previewCount: Int,
+    onSelectSubjects: () -> Unit,
+    onSelectSystems: () -> Unit,
+    onSelectPerformance: () -> Unit,
+    onStart: () -> Unit,
+    onClearFilters: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp, vertical = 48.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.FilterList,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary
+        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "Build your quiz",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = "Pick subjects, systems, and performance filters. Preview updates live before starting.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "Current selection",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text("Subjects: $subjectCount", style = MaterialTheme.typography.bodyMedium)
+            Text("Systems: $systemCount", style = MaterialTheme.typography.bodyMedium)
+            Text("Performance: $performanceLabel", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = if (previewCount > 0) "$previewCount questions ready" else "No questions yet",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(onClick = onSelectSubjects, modifier = Modifier.fillMaxWidth()) {
+                Text("Choose subjects")
+            }
+            Button(onClick = onSelectSystems, modifier = Modifier.fillMaxWidth()) {
+                Text("Choose systems")
+            }
+            Button(onClick = onSelectPerformance, modifier = Modifier.fillMaxWidth()) {
+                Text("Performance filter")
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(
+                onClick = onStart,
+                enabled = previewCount > 0,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Start quiz")
+            }
+            OutlinedButton(onClick = onClearFilters, modifier = Modifier.fillMaxWidth()) {
+                Icon(imageVector = Icons.Filled.Refresh, contentDescription = null)
+                Text("Clear filters", modifier = Modifier.padding(start = 8.dp))
+            }
+        }
+    }
+}
+
+private fun formatPerformanceLabel(filter: com.medicalquiz.app.data.database.PerformanceFilter): String = when (filter) {
+    com.medicalquiz.app.data.database.PerformanceFilter.ALL -> "All Questions"
+    com.medicalquiz.app.data.database.PerformanceFilter.UNANSWERED -> "Not Attempted"
+    com.medicalquiz.app.data.database.PerformanceFilter.LAST_CORRECT -> "Last Attempt Correct"
+    com.medicalquiz.app.data.database.PerformanceFilter.LAST_INCORRECT -> "Last Attempt Incorrect"
+    com.medicalquiz.app.data.database.PerformanceFilter.EVER_CORRECT -> "Ever Correct"
+    com.medicalquiz.app.data.database.PerformanceFilter.EVER_INCORRECT -> "Ever Incorrect"
 }
