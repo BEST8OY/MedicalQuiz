@@ -182,7 +182,13 @@ private fun rememberRichTextBlocks(
 private fun rememberLinkHandler(onLinkClick: ((String) -> Unit)?): (String) -> Unit {
     val uriHandler = LocalUriHandler.current
     return remember(onLinkClick, uriHandler) {
-        onLinkClick ?: { url -> runCatching { uriHandler.openUri(url) } }
+        onLinkClick ?: { url ->
+            try {
+                uriHandler.openUri(url)
+            } catch (_: Throwable) {
+                // Ignore failures opening deep links.
+            }
+        }
     }
 }
 
