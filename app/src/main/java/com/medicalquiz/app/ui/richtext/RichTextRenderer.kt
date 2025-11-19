@@ -1,5 +1,6 @@
 package com.medicalquiz.app.ui.richtext
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -50,6 +52,8 @@ import com.medicalquiz.app.utils.HtmlUtils
 import java.io.File
 import kotlin.collections.ArrayDeque
 import kotlin.math.max
+import org.json.JSONArray
+import org.json.JSONObject
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
@@ -121,7 +125,8 @@ private data class InlineStyle(
     val dictionary: Boolean = false,
     val preserveWhitespace: Boolean = false,
     val smallText: Boolean = false,
-    val textColor: Color? = null
+    val textColor: Color? = null,
+    val tooltip: String? = null
 )
 
 private enum class InlineHighlight { IMPORTANT, SELECTED }
@@ -132,11 +137,18 @@ fun RichText(
     modifier: Modifier = Modifier,
     showSelectedHighlight: Boolean = false,
     onLinkClick: ((String) -> Unit)? = null,
-    onMediaClick: ((String) -> Unit)? = null
+    onMediaClick: ((String) -> Unit)? = null,
+    onTooltipClick: ((String) -> Unit)? = null
 ) {
     val palette = rememberRichTextPalette()
     val blocks = rememberRichTextBlocks(html, palette, showSelectedHighlight)
-    RichText(blocks = blocks, modifier = modifier, onLinkClick = onLinkClick, onMediaClick = onMediaClick)
+    RichText(
+        blocks = blocks,
+        modifier = modifier,
+        onLinkClick = onLinkClick,
+        onMediaClick = onMediaClick,
+        onTooltipClick = onTooltipClick
+    )
 }
 
 @Composable
@@ -146,11 +158,13 @@ fun RichText(
     modifier: Modifier = Modifier,
     showSelectedHighlight: Boolean = false,
     onLinkClick: ((String) -> Unit)? = null,
-    onMediaClick: ((String) -> Unit)? = null
+    onMediaClick: ((String) -> Unit)? = null,
+    onTooltipClick: ((String) -> Unit)? = null
 ) {
     if (blocks.isEmpty()) return
     val resolvedLinkHandler = rememberLinkHandler(onLinkClick)
     val resolvedMediaHandler = rememberMediaHandler(onMediaClick)
+    val resolvedTooltipHandler = rememberTooltipHandler(onTooltipClick)
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -159,7 +173,8 @@ fun RichText(
             RichTextBlockRenderer(
                 block = block,
                 onLinkClick = resolvedLinkHandler,
-                onMediaClick = resolvedMediaHandler
+                onMediaClick = resolvedMediaHandler,
+                onTooltipClick = resolvedTooltipHandler
             )
         }
     }
@@ -198,19 +213,64 @@ private fun rememberMediaHandler(onMediaClick: ((String) -> Unit)?): (String) ->
 }
 
 @Composable
+private fun rememberTooltipHandler(onTooltipClick: ((String) -> Unit)?): ((String) -> Unit)? {
+    val context = LocalContext.current
+    return remember(onTooltipClick, context) {
+        onTooltipClick ?: { message ->
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
+    }
+}
+
+@Composable
 private fun RichTextParagraph(
     text: AnnotatedString,
     modifier: Modifier = Modifier,
-    onLinkClick: (String) -> Unit
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((String) -> Unit)?
+) {
+    InteractiveText(
+        text = text,
+        modifier = modifier,
+        style = MaterialTheme.typography.bodyMedium.copy(
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            lineHeight = 22.sp,
+            textIndent = TextIndent.None
+        ),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        onLinkClick = onLinkClick,
+        onTooltipClick = onTooltipClick
+    )
+}
+
+@Composable
+private fun InteractiveText(
+    text: AnnotatedString,
+    modifier: Modifier = Modifier,
+    style: androidx.compose.ui.text.TextStyle,
+    color: Color,
+    textAlign: TextAlign? = null,
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((String) -> Unit)?,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Visible
 ) {
     var layoutResult by remember(text) { mutableStateOf<TextLayoutResult?>(null) }
-    val hasLinks = remember(text) { text.getStringAnnotations(tag = "URL", start = 0, end = text.length).isNotEmpty() }
-    val pointerModifier = if (hasLinks) {
+    val hasInteractiveAnnotations = remember(text) {
+        text.getStringAnnotations("URL", 0, text.length).isNotEmpty() ||
+            text.getStringAnnotations("TOOLTIP", 0, text.length).isNotEmpty()
+    }
+    val pointerModifier = if (hasInteractiveAnnotations) {
         Modifier.pointerInput(text, layoutResult) {
             detectTapGestures { position ->
                 val offset = layoutResult?.getOffsetForPosition(position) ?: return@detectTapGestures
-                text.getStringAnnotations(tag = "URL", start = offset, end = offset)
-                    .firstOrNull()?.let { annotation -> onLinkClick(annotation.item) }
+                text.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
+                    onLinkClick(it.item)
+                    return@detectTapGestures
+                }
+                text.getStringAnnotations("TOOLTIP", offset, offset).firstOrNull()?.let {
+                    onTooltipClick?.invoke(it.item)
+                }
             }
         }
     } else {
@@ -220,11 +280,11 @@ private fun RichTextParagraph(
     androidx.compose.material3.Text(
         text = text,
         modifier = modifier.then(pointerModifier),
-        style = MaterialTheme.typography.bodyMedium.copy(
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = 22.sp,
-            textIndent = TextIndent.None
-        ),
+        style = style,
+        color = color,
+        textAlign = textAlign,
+        maxLines = maxLines,
+        overflow = overflow,
         onTextLayout = { layoutResult = it }
     )
 }
@@ -233,31 +293,38 @@ private fun RichTextParagraph(
 private fun RichTextBlockRenderer(
     block: RichTextBlock,
     onLinkClick: (String) -> Unit,
-    onMediaClick: (String) -> Unit
+    onMediaClick: (String) -> Unit,
+    onTooltipClick: ((String) -> Unit)?
 ) {
     when (block) {
-        is RichTextBlock.Paragraph -> RichTextParagraph(block.text, onLinkClick = onLinkClick)
-        is RichTextBlock.Heading -> RichTextHeading(block)
+        is RichTextBlock.Paragraph -> RichTextParagraph(block.text, onLinkClick = onLinkClick, onTooltipClick = onTooltipClick)
+        is RichTextBlock.Heading -> RichTextHeading(block, onLinkClick, onTooltipClick)
         is RichTextBlock.BulletList -> RichTextList(
             items = block.items,
             markerProvider = { _ -> "\u2022" },
-            onLinkClick = onLinkClick
+            onLinkClick = onLinkClick,
+            onTooltipClick = onTooltipClick
         )
         is RichTextBlock.OrderedList -> RichTextList(
             items = block.items,
             markerProvider = { index -> "${block.start + index}." },
-            onLinkClick = onLinkClick
+            onLinkClick = onLinkClick,
+            onTooltipClick = onTooltipClick
         )
         is RichTextBlock.CodeBlock -> RichTextCodeBlock(block)
-        is RichTextBlock.Table -> RichTextTable(block)
-        is RichTextBlock.AbstractBlock -> AbstractCard(block)
+        is RichTextBlock.Table -> RichTextTable(block, onLinkClick, onTooltipClick)
+        is RichTextBlock.AbstractBlock -> AbstractCard(block, onLinkClick, onTooltipClick)
         is RichTextBlock.Media -> RichMedia(block = block, onMediaClick = onMediaClick)
         RichTextBlock.Divider -> HorizontalDivider()
     }
 }
 
 @Composable
-private fun RichTextHeading(block: RichTextBlock.Heading) {
+private fun RichTextHeading(
+    block: RichTextBlock.Heading,
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((String) -> Unit)?
+) {
     val style = when (block.level) {
         1 -> MaterialTheme.typography.headlineMedium
         2 -> MaterialTheme.typography.headlineSmall
@@ -265,10 +332,12 @@ private fun RichTextHeading(block: RichTextBlock.Heading) {
         4 -> MaterialTheme.typography.titleMedium
         else -> MaterialTheme.typography.titleSmall
     }
-    androidx.compose.material3.Text(
+    InteractiveText(
         text = block.text,
         style = style,
         color = MaterialTheme.colorScheme.onSurface,
+        onLinkClick = onLinkClick,
+        onTooltipClick = onTooltipClick,
         maxLines = Int.MAX_VALUE,
         overflow = TextOverflow.Visible
     )
@@ -278,7 +347,8 @@ private fun RichTextHeading(block: RichTextBlock.Heading) {
 private fun RichTextList(
     items: List<AnnotatedString>,
     markerProvider: (index: Int) -> String,
-    onLinkClick: (String) -> Unit
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((String) -> Unit)?
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.forEachIndexed { index, item ->
@@ -291,7 +361,8 @@ private fun RichTextList(
                 RichTextParagraph(
                     text = item,
                     modifier = Modifier.weight(1f),
-                    onLinkClick = onLinkClick
+                    onLinkClick = onLinkClick,
+                    onTooltipClick = onTooltipClick
                 )
             }
         }
@@ -318,7 +389,11 @@ private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
 }
 
 @Composable
-private fun RichTextTable(block: RichTextBlock.Table) {
+private fun RichTextTable(
+    block: RichTextBlock.Table,
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((String) -> Unit)?
+) {
     if (block.columnCount == 0) return
     val renderModel = remember(block) { block.toRenderModel() }
     val scrollState = rememberScrollState()
@@ -339,7 +414,7 @@ private fun RichTextTable(block: RichTextBlock.Table) {
         ) {
             Column(modifier = tableModifier) {
                 renderModel.rows.forEachIndexed { index, row ->
-                    TableRowContent(row = row)
+                    TableRowContent(row = row, onLinkClick = onLinkClick, onTooltipClick = onTooltipClick)
                     if (index != renderModel.rows.lastIndex) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                     }
@@ -518,7 +593,11 @@ private fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Unit
 }
 
 @Composable
-private fun TableRowContent(row: TableRenderedRow) {
+private fun TableRowContent(
+    row: TableRenderedRow,
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((String) -> Unit)?
+) {
     val baseBackground = when {
         row.isHeaderRow -> MaterialTheme.colorScheme.secondaryContainer
         row.classNames.containsInsensitive("abstract") -> MaterialTheme.colorScheme.surfaceVariant
@@ -556,7 +635,7 @@ private fun TableRowContent(row: TableRenderedRow) {
                     tonalElevation = if (cellBackground == Color.Transparent) 0.dp else 1.dp,
                     shape = MaterialTheme.shapes.extraSmall
                 ) {
-                    androidx.compose.material3.Text(
+                    InteractiveText(
                         text = cell.cell.text,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -564,6 +643,8 @@ private fun TableRowContent(row: TableRenderedRow) {
                         style = textStyle,
                         color = textColor,
                         textAlign = cell.cell.alignment,
+                        onLinkClick = onLinkClick,
+                        onTooltipClick = onTooltipClick,
                         maxLines = Int.MAX_VALUE,
                         overflow = TextOverflow.Visible
                     )
@@ -577,8 +658,17 @@ private fun Set<String>.containsInsensitive(target: String): Boolean {
     return any { it.equals(target, ignoreCase = true) }
 }
 
+private fun Set<String>.containsAnyInsensitive(targets: Set<String>): Boolean {
+    if (isEmpty() || targets.isEmpty()) return false
+    return targets.any { target -> containsInsensitive(target) }
+}
+
 @Composable
-private fun AbstractCard(block: RichTextBlock.AbstractBlock) {
+private fun AbstractCard(
+    block: RichTextBlock.AbstractBlock,
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((String) -> Unit)?
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -594,7 +684,11 @@ private fun AbstractCard(block: RichTextBlock.AbstractBlock) {
                 )
             }
             if (block.blocks.isNotEmpty()) {
-                RichText(blocks = block.blocks)
+                RichText(
+                    blocks = block.blocks,
+                    onLinkClick = onLinkClick,
+                    onTooltipClick = onTooltipClick
+                )
             }
         }
     }
@@ -739,11 +833,14 @@ private object RichTextParser {
         when (node) {
             is TextNode -> {
                 val text = node.text().replace('\u00A0', ' ')
-                if (text.isNotBlank()) {
-                    appendTextWithStyle(text, style, palette)
+                when {
+                    text.isEmpty() -> Unit
+                    text.isBlank() -> appendTextWithStyle(" ", style, palette)
+                    else -> appendTextWithStyle(text, style, palette)
                 }
             }
             is Element -> {
+                if (node.isTooltipContentNode()) return
                 val tag = node.tagName().lowercase()
                 if (tag == "br") {
                     append("\n")
@@ -760,6 +857,9 @@ private object RichTextParser {
                     else -> style
                 }
                 nextStyle = nextStyle.applyClassStyles(node.classNames(), palette, showSelectedHighlight)
+                extractTooltipText(node)?.let { tooltip ->
+                    nextStyle = nextStyle.copy(tooltip = tooltip)
+                }
                 appendNodes(node.childNodes(), nextStyle, palette, showSelectedHighlight)
             }
         }
@@ -821,8 +921,14 @@ private object RichTextParser {
         if (style.link != null) {
             pushStringAnnotation(tag = "URL", annotation = style.link)
         }
+        if (style.tooltip != null) {
+            pushStringAnnotation(tag = "TOOLTIP", annotation = style.tooltip)
+        }
         withStyle(spanStyle) {
             append(displayText)
+        }
+        if (style.tooltip != null) {
+            pop()
         }
         if (style.link != null) {
             pop()
@@ -950,6 +1056,103 @@ private object RichTextParser {
             classNames = element.classNames()
         )
     }
+}
+
+private val tooltipAttributeCandidates = listOf(
+    "data-tooltip",
+    "data-tooltip-text",
+    "data-tooltip-content",
+    "data-smartip",
+    "data-smarttip",
+    "data-description",
+    "data-desc",
+    "data-term-description",
+    "data-info",
+    "data-message",
+    "data-details",
+    "data-content",
+    "data-title",
+    "title"
+)
+
+private val tooltipContentClassNames = setOf(
+    "tooltiptext",
+    "tooltip-text",
+    "tooltip-content",
+    "tooltip__content",
+    "annotation-description",
+    "annotation__description",
+    "smartip-description",
+    "smartip__description",
+    "smartip-content",
+    "smartip__content"
+)
+
+private fun Element.isTooltipContentNode(): Boolean {
+    if (classNames().containsAnyInsensitive(tooltipContentClassNames)) return true
+    val role = attr("data-role")
+    if (role.equals("tooltip", true)) return true
+    val part = attr("data-tooltip-part")
+    if (part.equals("content", true)) return true
+    if (hasAttr("data-tooltip-content") || hasAttr("data-tooltip-text")) return true
+    val tooltipRole = attr("data-tooltip-role")
+    if (tooltipRole.equals("content", true)) return true
+    val type = attr("data-type")
+    if (type.equals("tooltip", true)) return true
+    return false
+}
+
+private fun extractTooltipText(element: Element): String? {
+    tooltipAttributeCandidates.forEach { attrName ->
+        val value = element.attr(attrName)
+        if (value.isNotBlank()) {
+            parseTooltipPayload(value)?.let { return it }
+        }
+    }
+    element.attr("data-tooltip-json").takeIf { it.isNotBlank() }?.let { candidate ->
+        parseTooltipPayload(candidate)?.let { return it }
+    }
+    val inlineNode = element.selectFirst(
+        "[data-tooltip-text],[data-tooltip-content],.tooltip-text,.tooltip__content,.annotation-description,.smartip-description,.smartip__content"
+    )
+    val inlineText = inlineNode?.text()?.trim()
+    return inlineText?.takeIf { it.isNotEmpty() }
+}
+
+private fun parseTooltipPayload(rawValue: String): String? {
+    val trimmed = rawValue.trim()
+    if (trimmed.isEmpty()) return null
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+        runCatching { JSONObject(trimmed) }.getOrNull()?.let { json ->
+            val keys = listOf("description", "text", "content", "value", "body", "tooltip", "message")
+            for (key in keys) {
+                val value = json.optString(key).takeIf { it.isNotBlank() }
+                if (value != null) {
+                    val sanitized = Jsoup.parse(value).text().trim()
+                    if (sanitized.isNotEmpty()) return sanitized
+                }
+            }
+        }
+    } else if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        runCatching { JSONArray(trimmed) }.getOrNull()?.let { array ->
+            for (index in 0 until array.length()) {
+                val element = array.opt(index)
+                val candidate = when (element) {
+                    is JSONObject -> {
+                        val keys = listOf("description", "text", "content", "value", "body", "tooltip", "message")
+                        keys.firstNotNullOfOrNull { key -> element.optString(key).takeIf { it.isNotBlank() } }
+                    }
+                    is String -> element
+                    else -> element?.toString()
+                }
+                if (!candidate.isNullOrBlank()) {
+                    val sanitized = Jsoup.parse(candidate).text().trim()
+                    if (sanitized.isNotEmpty()) return sanitized
+                }
+            }
+        }
+    }
+    return Jsoup.parse(trimmed).text().trim().takeIf { it.isNotEmpty() }
 }
 
 private fun extractMediaRef(source: String): String? {
