@@ -98,4 +98,6 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
     implementation("io.coil-kt.coil3:coil-svg:3.3.0")
     implementation("org.jsoup:jsoup:1.17.2")
+
+    implementation(project(":composeApp"))
 }

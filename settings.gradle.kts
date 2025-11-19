@@ -18,3 +18,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "MedicalQuiz"
 include(":app")
+include(":composeApp")
