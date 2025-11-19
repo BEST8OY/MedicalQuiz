@@ -1,10 +1,10 @@
 plugins {
-    id("org.jetbrains.kotlin.multiplatform")
-    id("com.android.library")
-    id("org.jetbrains.compose")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
-    id("com.google.devtools.ksp")
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.jetbrainsCompose)
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
 
 kotlin {
@@ -15,44 +15,44 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.material3)
-                implementation(compose.ui)
-                implementation(compose.components.resources)
-                implementation(compose.components.uiToolingPreview)
+                implementation(libs.compose.runtime)
+                implementation(libs.compose.foundation)
+                implementation(libs.compose.material3)
+                implementation(libs.compose.ui)
+                implementation(libs.compose.components.resources)
+                implementation(libs.compose.components.uiToolingPreview)
                 
-                implementation("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0-alpha04")
-                implementation("org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.10.0-alpha04")
+                implementation(libs.androidx.lifecycle.viewmodel)
+                implementation(libs.androidx.lifecycle.runtime.compose)
                 
-                implementation("io.coil-kt.coil3:coil-compose:3.3.0")
-                implementation("io.coil-kt.coil3:coil-network-ktor3:3.3.0")
+                implementation(libs.coil.compose)
+                implementation(libs.coil.network.ktor)
                 
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
+                implementation(libs.kotlinx.serialization.json)
+                implementation(libs.kotlinx.coroutines.core)
                 
                 // Ksoup for HTML parsing
-                implementation("com.mohamedrejeb.ksoup:ksoup-html:0.6.0")
+                implementation(libs.ksoup.html)
 
-                implementation("androidx.room:room-runtime:2.8.4")
-                implementation("androidx.sqlite:sqlite-bundled:2.6.1")
+                implementation(libs.room.runtime)
+                implementation(libs.sqlite.bundled)
             }
         }
         
         val androidMain by getting {
             dependencies {
-                implementation(compose.preview)
-                implementation("androidx.activity:activity-compose:1.11.0")
-                implementation("io.coil-kt.coil3:coil-android:3.3.0")
-                implementation("io.ktor:ktor-client-okhttp:3.3.2")
+                implementation(libs.compose.preview)
+                implementation(libs.androidx.activity.compose)
+                implementation(libs.coil.android)
+                implementation(libs.ktor.client.okhttp)
             }
         }
         
         val desktopMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.1")
-                implementation("io.ktor:ktor-client-cio:3.3.2")
+                implementation(libs.kotlinx.coroutines.swing)
+                implementation(libs.ktor.client.cio)
             }
         }
     }

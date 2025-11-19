@@ -1,7 +1,7 @@
 package com.medicalquiz.app.shared.data
 
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
-import androidx.sqlite.SimpleSQLiteQuery
+import androidx.room.RoomRawQuery
 import com.medicalquiz.app.shared.data.database.AppDatabase
 import com.medicalquiz.app.shared.data.database.DatabaseProvider
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
@@ -64,7 +64,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
             append(" ORDER BY q.id")
         }
 
-        val query = SimpleSQLiteQuery(sql, args.toTypedArray())
+        val query = createRoomRawQuery(sql, args)
         return getDatabase().questionDao().getQuestionIds(query)
     }
 
@@ -126,7 +126,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         }
         
         val sql = "SELECT DISTINCT sysId FROM Questions WHERE $subConditions"
-        val query = SimpleSQLiteQuery(sql, args.toTypedArray())
+        val query = createRoomRawQuery(sql, args)
         val rawSysIds = getDatabase().metadataDao().getDistinctSystemIds(query)
         
         val systemIds = mutableSetOf<Long>()
@@ -207,5 +207,26 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         PerformanceFilter.LAST_INCORRECT -> "ls.lastCorrect = 0"
         PerformanceFilter.EVER_CORRECT -> "ls.everCorrect = 1"
         PerformanceFilter.EVER_INCORRECT -> "ls.everIncorrect = 1"
+    }
+
+    private fun createRoomRawQuery(sql: String, args: List<Any>): RoomRawQuery {
+        return RoomRawQuery(
+            sql = sql,
+            onBindStatement = { statement ->
+                args.forEachIndexed { index, arg ->
+                    // SQLite binding is 1-based
+                    val bindIndex = index + 1
+                    when (arg) {
+                        is String -> statement.bindText(bindIndex, arg)
+                        is Long -> statement.bindLong(bindIndex, arg)
+                        is Int -> statement.bindLong(bindIndex, arg.toLong())
+                        is Double -> statement.bindDouble(bindIndex, arg)
+                        is Float -> statement.bindDouble(bindIndex, arg.toDouble())
+                        is Boolean -> statement.bindLong(bindIndex, if (arg) 1L else 0L)
+                        else -> statement.bindText(bindIndex, arg.toString())
+                    }
+                }
+            }
+        )
     }
 }

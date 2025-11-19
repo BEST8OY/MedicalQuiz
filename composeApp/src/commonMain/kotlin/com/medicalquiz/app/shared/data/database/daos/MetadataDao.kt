@@ -3,7 +3,7 @@ package com.medicalquiz.app.shared.data.database.daos
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.RawQuery
-import androidx.sqlite.SQLiteQuery
+import androidx.room.RoomRawQuery
 import com.medicalquiz.app.shared.data.database.entities.SubjectEntity
 import com.medicalquiz.app.shared.data.database.entities.SystemEntity
 
@@ -19,7 +19,7 @@ interface MetadataDao {
     suspend fun getSystemsByIds(ids: List<Long>): List<SystemEntity>
     
     @RawQuery
-    suspend fun getDistinctSystemIds(query: SQLiteQuery): List<String>
+    suspend fun getDistinctSystemIds(query: RoomRawQuery): List<String>
     
     @Query("SELECT name FROM Subjects WHERE id = :id")
     suspend fun getSubjectName(id: Long): String?
