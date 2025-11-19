@@ -366,7 +366,7 @@ private fun RichTextBlock.Table.toRenderModel(): TableRenderModel {
         addAll(headerRows)
         addAll(bodyRows)
     }
-    val renderedRows = orderedRows.map { builder.renderRow(it) }.filter { it.cells.isNotEmpty() }
+    val renderedRows = orderedRows.map { builder.renderRow(it) }
     val columnCount = maxOf(columnCount, builder.columnCount)
     return TableRenderModel(rows = renderedRows, columnCount = columnCount)
 }
