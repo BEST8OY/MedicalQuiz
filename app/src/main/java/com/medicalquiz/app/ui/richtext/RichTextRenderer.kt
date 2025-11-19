@@ -275,12 +275,14 @@ private fun InteractiveText(
         Modifier.pointerInput(text, layoutResult) {
             detectTapGestures { position ->
                 val offset = layoutResult?.getOffsetForPosition(position) ?: return@detectTapGestures
-                text.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
-                    onLinkClick(it.item)
-                    return@detectTapGestures
-                }
                 text.getStringAnnotations("TOOLTIP", offset, offset).firstOrNull()?.let {
                     onTooltipClick?.invoke(it.item)
+                    return@detectTapGestures
+                }
+                text.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
+                    if (it.item.isNotBlank()) {
+                        onLinkClick(it.item)
+                    }
                 }
             }
         }
@@ -864,7 +866,12 @@ private object RichTextParser {
                     "code" -> style.copy(monospace = true)
                     "sup" -> style.copy(superscript = true)
                     "sub" -> style.copy(subscript = true)
-                    "a" -> style.copy(link = node.attr("href"))
+                    "a" -> {
+                        val href = node.attr("href").trim().takeUnless { hrefValue ->
+                            hrefValue.isEmpty() || hrefValue == "#" || hrefValue.startsWith("javascript", ignoreCase = true)
+                        }
+                        if (href != null) style.copy(link = href) else style
+                    }
                     else -> style
                 }
                 nextStyle = nextStyle.applyClassStyles(node.classNames(), palette, showSelectedHighlight)
