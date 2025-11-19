@@ -1064,6 +1064,7 @@ private val tooltipAttributeCandidates = listOf(
     "data-tooltip-content",
     "data-smartip",
     "data-smarttip",
+    "miamed-smartip",
     "data-description",
     "data-desc",
     "data-term-description",
