@@ -54,11 +54,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import android.text.method.LinkMovementMethod
+import android.widget.TextView
 import android.widget.MediaController
 import android.widget.VideoView
 import coil3.compose.AsyncImage
 import coil3.svg.SvgDecoder
 import coil3.request.ImageRequest
+import androidx.core.text.HtmlCompat
 import com.medicalquiz.app.Constants
 import com.medicalquiz.app.MediaType
 import com.medicalquiz.app.data.MediaDescription
@@ -186,6 +189,11 @@ private fun ImageContent(
                 .data(it)
                 .decoderFactory(SvgDecoder.Factory())
                 .build()
+        }
+    }
+    val explanationText = remember(description?.description) {
+        description?.description?.let {
+            HtmlCompat.fromHtml(it, HtmlCompat.FROM_HTML_MODE_COMPACT)
         }
     }
 
@@ -317,7 +325,16 @@ private fun ImageContent(
                 Text(description.title.ifBlank { "Explanation" })
             },
             text = {
-                Text(description.description)
+                AndroidView(
+                    factory = { ctx ->
+                        TextView(ctx).apply {
+                            movementMethod = LinkMovementMethod.getInstance()
+                        }
+                    },
+                    update = { textView ->
+                        textView.text = explanationText ?: description.description
+                    }
+                )
             }
         )
     }
