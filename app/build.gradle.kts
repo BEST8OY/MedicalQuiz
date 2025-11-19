@@ -70,6 +70,7 @@ dependencies {
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
+    implementation(libs.compose.materialIconsExtended)
     implementation(libs.androidx.activity.compose)
 
     implementation(project(":composeApp"))
