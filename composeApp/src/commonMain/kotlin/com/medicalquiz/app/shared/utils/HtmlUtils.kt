@@ -18,6 +18,23 @@ object HtmlUtils {
     private val ANCHOR_TAG_REGEX = Regex("""<a([^>]*?)href=([\"'])([^\"']+)\2([^>]*)>""", setOf(RegexOption.IGNORE_CASE))
     private val MEDIA_LINK_REGEX = Regex("""(?i).*\.(jpg|jpeg|png|gif|bmp|webp|mp4|avi|mkv|mov|webm|3gp|mp3|wav|ogg|m4a|aac|flac|html|htm)(?:$|[?#]).*""")
 
+    data class QuestionParts(
+        val contentHtml: String,
+        val hintHtml: String?
+    )
+
+    fun extractQuestionHtmlParts(rawHtml: String?): QuestionParts {
+        if (rawHtml.isNullOrBlank()) return QuestionParts("", null)
+        
+        // Simple implementation: check for a hint separator if any, otherwise return full content
+        // For now, we'll just return the sanitized content as the question
+        return QuestionParts(sanitizeForWebView(rawHtml), null)
+    }
+
+    fun normalizeAnswerHtml(html: String?): String {
+        return html?.trim() ?: ""
+    }
+
     fun getMediaPath(fileName: String?): String? {
         if (fileName.isNullOrBlank()) return null
         return FileSystemHelper.getMediaFile(fileName)
