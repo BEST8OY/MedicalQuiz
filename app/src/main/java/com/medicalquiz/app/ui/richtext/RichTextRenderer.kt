@@ -1,6 +1,5 @@
 package com.medicalquiz.app.ui.richtext
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,11 +14,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -164,7 +165,11 @@ fun RichText(
     if (blocks.isEmpty()) return
     val resolvedLinkHandler = rememberLinkHandler(onLinkClick)
     val resolvedMediaHandler = rememberMediaHandler(onMediaClick)
-    val resolvedTooltipHandler = rememberTooltipHandler(onTooltipClick)
+    var tooltipMessage by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(blocks) { tooltipMessage = null }
+    val resolvedTooltipHandler = remember(onTooltipClick) {
+        onTooltipClick ?: { message -> tooltipMessage = message }
+    }
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -177,6 +182,22 @@ fun RichText(
                 onTooltipClick = resolvedTooltipHandler
             )
         }
+    }
+    tooltipMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { tooltipMessage = null },
+            confirmButton = {
+                TextButton(onClick = { tooltipMessage = null }) {
+                    androidx.compose.material3.Text(text = "Close")
+                }
+            },
+            text = {
+                androidx.compose.material3.Text(text = message)
+            },
+            title = {
+                androidx.compose.material3.Text(text = "Description")
+            }
+        )
     }
 }
 
@@ -210,16 +231,6 @@ private fun rememberLinkHandler(onLinkClick: ((String) -> Unit)?): (String) -> U
 @Composable
 private fun rememberMediaHandler(onMediaClick: ((String) -> Unit)?): (String) -> Unit {
     return remember(onMediaClick) { onMediaClick ?: {} }
-}
-
-@Composable
-private fun rememberTooltipHandler(onTooltipClick: ((String) -> Unit)?): ((String) -> Unit)? {
-    val context = LocalContext.current
-    return remember(onTooltipClick, context) {
-        onTooltipClick ?: { message ->
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-        }
-    }
 }
 
 @Composable
@@ -894,20 +905,24 @@ private object RichTextParser {
     ) {
         if (text.isEmpty()) return
         val displayText = if (style.preserveWhitespace) text.replace(' ', '\u00A0') else text
-        val textColor = style.textColor ?: when (style.highlight) {
-            InlineHighlight.IMPORTANT -> palette.importantText
-            InlineHighlight.SELECTED -> palette.selectedText
-            null -> if (style.dictionary) palette.dictionaryText else null
+        val textColor = when {
+            style.textColor != null -> style.textColor
+            style.highlight == InlineHighlight.IMPORTANT -> palette.importantText
+            style.highlight == InlineHighlight.SELECTED -> palette.selectedText
+            style.dictionary -> palette.dictionaryText
+            style.tooltip != null -> palette.dictionaryText
+            else -> null
         }
         val backgroundColor = when (style.highlight) {
             InlineHighlight.IMPORTANT -> palette.importantBackground
             InlineHighlight.SELECTED -> palette.selectedBackground
             null -> Color.Unspecified
         }
+        val needsUnderline = style.underline || style.dictionary || style.tooltip != null
         val spanStyle = SpanStyle(
             fontWeight = if (style.bold) FontWeight.SemiBold else null,
             fontStyle = if (style.italic) FontStyle.Italic else null,
-            textDecoration = if (style.underline || style.dictionary) TextDecoration.Underline else null,
+            textDecoration = if (needsUnderline) TextDecoration.Underline else null,
             fontFamily = if (style.monospace) FontFamily.Monospace else FontFamily.Default,
             baselineShift = when {
                 style.superscript -> BaselineShift.Superscript
