@@ -13,8 +13,14 @@ import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.widget.TextView
 import androidx.core.text.HtmlCompat
+import org.jsoup.Jsoup
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+
+data class QuestionHtmlParts(
+    val contentHtml: String,
+    val hintHtml: String?
+)
 
 object HtmlUtils {
 
@@ -119,6 +125,19 @@ object HtmlUtils {
             val newHref = rewriteAnchorHref(href)
             "<a$before href=$quote$newHref$quote$after>"
         }
+
+    fun extractQuestionHtmlParts(rawHtml: String): QuestionHtmlParts {
+        val sanitized = sanitizeForWebView(rawHtml)
+        val document = Jsoup.parseBodyFragment(sanitized)
+        val hintElement = document.getElementById("hintdiv")
+        val hintHtml = hintElement?.html()?.trim()?.takeIf { it.isNotBlank() }
+        hintElement?.remove()
+        val remaining = document.body().html().trim()
+        return QuestionHtmlParts(
+            contentHtml = remaining,
+            hintHtml = hintHtml
+        )
+    }
 
     /**
      * Collect media files from question fields and HTML content.

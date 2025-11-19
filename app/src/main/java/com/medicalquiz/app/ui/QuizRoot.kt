@@ -53,17 +53,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.medicalquiz.app.utils.WebViewState
 import com.medicalquiz.app.viewmodel.QuizViewModel
 import com.medicalquiz.app.viewmodel.UiEvent
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuizRoot(
     viewModel: QuizViewModel,
-    webViewStateFlow: MutableStateFlow<WebViewState>,
     mediaHandler: MediaHandler,
     onClearFilters: () -> Unit,
     onStart: () -> Unit
@@ -158,7 +155,6 @@ fun QuizRoot(
             ) { padding ->
                 QuizScreen(
                     viewModel = viewModel,
-                    webViewStateFlow = webViewStateFlow,
                     mediaHandler = mediaHandler,
                     onPrevious = { viewModel.loadPrevious() },
                     onNext = { viewModel.loadNext() },

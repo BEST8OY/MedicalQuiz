@@ -5,7 +5,9 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -14,33 +16,35 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.medicalquiz.app.data.models.Answer
 import com.medicalquiz.app.data.models.Question
 import com.medicalquiz.app.data.database.QuestionPerformance
-import com.medicalquiz.app.utils.WebViewComposable
-import com.medicalquiz.app.utils.WebViewState
-import com.medicalquiz.app.viewmodel.UiEvent
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.medicalquiz.app.ui.richtext.RichText
+import com.medicalquiz.app.utils.HtmlUtils
 
 @Composable
 fun QuizScreen(
     viewModel: com.medicalquiz.app.viewmodel.QuizViewModel,
-    webViewStateFlow: MutableStateFlow<WebViewState>,
     mediaHandler: MediaHandler,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
@@ -53,26 +57,15 @@ fun QuizScreen(
     QuestionContent(
         state = state,
         viewModel = viewModel,
-        webViewStateFlow = webViewStateFlow,
         mediaHandler = mediaHandler,
         contentPadding = contentPadding
     )
-
-    LaunchedEffect(viewModel, mediaHandler) {
-        viewModel.uiEvents.collect { event ->
-            when (event) {
-                is UiEvent.OpenMedia -> mediaHandler.handleMediaLink(event.url)
-                else -> Unit
-            }
-        }
-    }
 }
 
 @Composable
 private fun QuestionContent(
     state: QuizState,
     viewModel: com.medicalquiz.app.viewmodel.QuizViewModel,
-    webViewStateFlow: MutableStateFlow<WebViewState>,
     mediaHandler: MediaHandler,
     contentPadding: PaddingValues
 ) {
@@ -95,16 +88,9 @@ private fun QuestionContent(
             tonalElevation = 2.dp,
             shape = RoundedCornerShape(20.dp)
         ) {
-            WebViewComposable(
-                stateFlow = webViewStateFlow,
-                onAnswerSelected = { answerId ->
-                    viewModel.onAnswerSelected(answerId)
-                    viewModel.submitAnswer(timeTaken = 0L)
-                },
-                onOpenMedia = { mediaRef ->
-                    val ref = mediaRef.takeIf { it.isNotBlank() } ?: return@WebViewComposable
-                    mediaHandler.handleMediaLink(ref)
-                },
+            QuizQuestionCard(
+                state = state,
+                viewModel = viewModel,
                 mediaHandler = mediaHandler
             )
         }
@@ -125,6 +111,287 @@ private fun QuestionContent(
             exit = fadeOut() + shrinkVertically()
         ) {
             PerformanceCard(performance = state.currentPerformance)
+        }
+    }
+}
+
+@Composable
+private fun HintSection(
+    isVisible: Boolean,
+    canToggle: Boolean,
+    onToggle: () -> Unit,
+    hintHtml: String,
+    linkHandler: (String) -> Unit,
+    mediaClick: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Hint",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (canToggle) {
+                TextButton(onClick = onToggle) {
+                    Text(text = if (isVisible) "Hide" else "Show")
+                }
+            }
+        }
+        AnimatedVisibility(
+            visible = isVisible,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                RichText(
+                    html = hintHtml,
+                    modifier = Modifier.padding(12.dp),
+                    onLinkClick = linkHandler,
+                    onMediaClick = mediaClick
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnswerOptions(
+    answers: List<Answer>,
+    sanitizedAnswers: Map<Long, String>,
+    selectedAnswerId: Int?,
+    correctAnswerId: Int?,
+    answerSubmitted: Boolean,
+    answerPercentages: Map<Long, Int?>,
+    onAnswerSelected: (Long) -> Unit,
+    onLinkClick: (String) -> Unit,
+    onMediaClick: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        answers.forEachIndexed { index, answer ->
+            val label = ('A'.code + index).toChar().toString()
+            val html = sanitizedAnswers[answer.answerId].orEmpty()
+            val isSelected = answer.answerId.toInt() == selectedAnswerId
+            val isCorrect = answer.answerId.toInt() == correctAnswerId
+            val percentage = answerPercentages[answer.answerId]
+            AnswerCard(
+                label = label,
+                html = html,
+                isSelected = isSelected,
+                isCorrect = isCorrect,
+                showResult = answerSubmitted,
+                percentage = percentage,
+                enabled = !answerSubmitted,
+                onClick = { onAnswerSelected(answer.answerId) },
+                onLinkClick = onLinkClick,
+                onMediaClick = onMediaClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun AnswerCard(
+    label: String,
+    html: String,
+    isSelected: Boolean,
+    isCorrect: Boolean,
+    showResult: Boolean,
+    percentage: Int?,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    onLinkClick: (String) -> Unit,
+    onMediaClick: (String) -> Unit
+) {
+    val colors = MaterialTheme.colorScheme
+    val background = when {
+        showResult && isCorrect -> colors.tertiaryContainer
+        showResult && isSelected && !isCorrect -> colors.errorContainer
+        isSelected -> colors.primaryContainer
+        else -> colors.surfaceVariant
+    }
+    val borderColor = when {
+        showResult && isCorrect -> colors.tertiary
+        showResult && isSelected && !isCorrect -> colors.error
+        isSelected -> colors.primary
+        else -> colors.outlineVariant
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        color = background,
+        tonalElevation = if (isSelected) 2.dp else 0.dp,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.onSurface
+                )
+                if (showResult && percentage != null) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = colors.secondaryContainer
+                    ) {
+                        Text(
+                            text = "$percentage%",
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+            RichText(
+                html = html,
+                onLinkClick = onLinkClick,
+                onMediaClick = onMediaClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuizQuestionCard(
+    state: QuizState,
+    viewModel: com.medicalquiz.app.viewmodel.QuizViewModel,
+    mediaHandler: MediaHandler
+) {
+    val question = state.currentQuestion
+    val answers = state.currentAnswers
+    val uriHandler = LocalUriHandler.current
+    val linkHandler: (String) -> Unit = remember(question?.id, mediaHandler) {
+        { url ->
+            if (!mediaHandler.handleMediaLink(url)) {
+                runCatching { uriHandler.openUri(url) }
+            }
+        }
+    }
+    val mediaClick: (String) -> Unit = remember(mediaHandler) { { ref -> mediaHandler.handleMediaLink(ref) } }
+
+    if (question == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(text = "Select a question to begin", style = MaterialTheme.typography.bodyMedium)
+        }
+        return
+    }
+
+    val questionParts = remember(question.id, question.question) {
+        HtmlUtils.extractQuestionHtmlParts(question.question)
+    }
+    val questionHtml = questionParts.contentHtml.ifBlank { "<p>Question content unavailable.</p>" }
+    val hintHtml = questionParts.hintHtml
+    val explanationHtml = remember(question.id, question.explanation) {
+        HtmlUtils.sanitizeForWebView(question.explanation)
+    }
+    val sanitizedAnswers = remember(question.id, answers) {
+        answers.associate { answer ->
+            val normalized = HtmlUtils.normalizeAnswerHtml(answer.answerText)
+            val sanitized = HtmlUtils.sanitizeForWebView(normalized)
+            answer.answerId to sanitized
+        }
+    }
+    val correctAnswerId = remember(question.id, answers) {
+        answers.getOrNull(question.corrAns - 1)?.answerId?.toInt()
+    }
+    val answerPercentages = remember(answers) {
+        val total = answers.sumOf { it.correctPercentage ?: 0 }
+        answers.associate { answer ->
+            val raw = answer.correctPercentage ?: 0
+            val percent = if (total > 0) (raw * 100) / total else null
+            answer.answerId to percent
+        }
+    }
+    var hintExpanded by remember(question.id) { mutableStateOf(false) }
+    val showHint = hintHtml != null && (state.answerSubmitted || hintExpanded)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        question.title?.takeIf { it.isNotBlank() }?.let { title ->
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        RichText(
+            html = questionHtml,
+            onLinkClick = linkHandler,
+            onMediaClick = mediaClick
+        )
+
+        if (hintHtml != null) {
+            HintSection(
+                isVisible = showHint,
+                canToggle = !state.answerSubmitted,
+                onToggle = { hintExpanded = !hintExpanded },
+                hintHtml = hintHtml,
+                linkHandler = linkHandler,
+                mediaClick = mediaClick
+            )
+        }
+
+        AnswerOptions(
+            answers = answers,
+            sanitizedAnswers = sanitizedAnswers,
+            selectedAnswerId = state.selectedAnswerId,
+            correctAnswerId = correctAnswerId,
+            answerSubmitted = state.answerSubmitted,
+            answerPercentages = answerPercentages,
+            onAnswerSelected = { answerId ->
+                if (!state.answerSubmitted) {
+                    viewModel.onAnswerSelected(answerId)
+                    viewModel.submitAnswer(timeTaken = 0L)
+                }
+            },
+            onLinkClick = linkHandler,
+            onMediaClick = mediaClick
+        )
+
+        AnimatedVisibility(
+            visible = state.answerSubmitted && explanationHtml.isNotBlank(),
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Explanation",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                RichText(
+                    html = explanationHtml,
+                    onLinkClick = linkHandler,
+                    onMediaClick = mediaClick
+                )
+            }
         }
     }
 }

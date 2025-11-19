@@ -294,8 +294,6 @@ class QuizViewModel : ViewModel() {
                     logAnswerToDatabase(question.id, selectedAnswerId, question.corrAns, timeTaken)
                     updatePerformanceState(question.id, correctAnswerId, selectedAnswerId)
                 }
-
-                _uiEvents.emit(UiEvent.ShowAnswer(correctAnswerId, selectedAnswerId))
             } catch (e: Exception) {
                 _state.update { it.copy(answerSubmitted = false) }
                 emitToast("Error saving answer: ${e.message}")

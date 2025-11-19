@@ -4,37 +4,23 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.activity.compose.setContent
+import androidx.compose.runtime.getValue
 import androidx.core.view.WindowCompat
-import com.medicalquiz.app.ui.theme.MedicalQuizTheme
-// Drawer gravity & view helpers removed — Compose handles drawer and layout
 import androidx.lifecycle.Lifecycle
-// ViewGroup and other view-specific helpers removed; Compose manages the layout
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.google.android.material.navigation.NavigationView
 import com.medicalquiz.app.data.CacheManager
 import com.medicalquiz.app.data.SettingsRepository
 import com.medicalquiz.app.data.database.PerformanceFilter
-import com.medicalquiz.app.data.database.QuestionPerformance
-import com.medicalquiz.app.data.models.Question
-// MenuItem handled by Compose top bar if needed
-// Activity now uses Compose for its UI; view binding removed
-// Using Compose-based settings dialog instead of XML-based binding
 import com.medicalquiz.app.ui.MediaHandler
 import com.medicalquiz.app.ui.QuizState
-import com.medicalquiz.app.ui.QuizScreen
+import com.medicalquiz.app.ui.theme.MedicalQuizTheme
 import com.medicalquiz.app.utils.HtmlUtils
-import com.medicalquiz.app.utils.QuestionHtmlBuilder
 import com.medicalquiz.app.utils.Resource
-import com.medicalquiz.app.utils.WebViewController
-import com.medicalquiz.app.utils.WebViewState
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import com.medicalquiz.app.utils.WebViewRenderer
 import com.medicalquiz.app.utils.firstMatching
 import com.medicalquiz.app.utils.launchCatching
 import com.medicalquiz.app.viewmodel.QuizViewModel
@@ -42,9 +28,6 @@ import com.medicalquiz.app.viewmodel.UiEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.getValue
-import kotlinx.coroutines.withContext
 
 class QuizActivity : AppCompatActivity() {
     
@@ -55,8 +38,6 @@ class QuizActivity : AppCompatActivity() {
     
     // UI Handlers
     private lateinit var mediaHandler: MediaHandler
-    // Compose manages toolbar state through view model; remove `topBarTitle`/`topBarSubtitle`.
-    private val webViewStateFlow = MutableStateFlow(WebViewState())
     
     // Repositories
     private lateinit var settingsRepository: SettingsRepository
@@ -194,7 +175,6 @@ class QuizActivity : AppCompatActivity() {
             MedicalQuizTheme {
                 com.medicalquiz.app.ui.QuizRoot(
                     viewModel = viewModel,
-                    webViewStateFlow = webViewStateFlow,
                     mediaHandler = mediaHandler,
                     onClearFilters = { clearFilters() },
                     onStart = { startQuiz() }
@@ -202,12 +182,6 @@ class QuizActivity : AppCompatActivity() {
             }
         }
     }
-
-    // ============================================================================
-    // WebView Setup
-    // ============================================================================
-    // Compose host is set after the database is initialized (see `initializeDatabaseAsync`)
-
     // ============================================================================
     // ViewModel State Observation
     // ============================================================================
@@ -294,18 +268,12 @@ class QuizActivity : AppCompatActivity() {
                     when (event) {
                         is UiEvent.ShowToast -> showToast(event.message)
                         is UiEvent.OpenMedia -> mediaHandler.handleMediaLink(event.url)
-                        is UiEvent.ShowAnswer -> handleShowAnswer(event)
                         else -> { /* Other events handled elsewhere */ }
                     }
                 }
             }
         }
     }
-
-    private fun handleShowAnswer(event: UiEvent.ShowAnswer) {
-        updateWebViewAnswerState(event.correctAnswerId, event.selectedAnswerId)
-    }
-
     // ============================================================================
     // Question Display
     // ============================================================================
@@ -315,24 +283,18 @@ class QuizActivity : AppCompatActivity() {
         startTime = java.lang.System.currentTimeMillis()
 
         launchCatching(
-                dispatcher = Dispatchers.Default,
-                block = {
-                    val quizHtml = QuestionHtmlBuilder.build(question, state.currentAnswers)
-                    val mediaFiles = HtmlUtils.collectMediaFiles(question)
-                    quizHtml to mediaFiles
-                },
-                onSuccess = { (quizHtml, mediaFiles) ->
-                    // Use Compose WebView composable via state flow for HTML content
-                    webViewStateFlow.value = WebViewState(html = quizHtml)
-                    updateMediaInfo(question.id, mediaFiles)
-                    loadPerformanceForQuestion(question.id)
-                },
-                onFailure = { showToast("Failed to load question: ${it.message}") }
+            dispatcher = Dispatchers.Default,
+            block = { HtmlUtils.collectMediaFiles(question) },
+            onSuccess = { mediaFiles ->
+                updateMediaInfo(question.id, mediaFiles)
+            },
+            onFailure = { throwable ->
+                Log.e(TAG, "Failed to collect media for question ${question.id}", throwable)
+                updateMediaInfo(question.id, emptyList())
+            }
         )
-    }
 
-    private fun updateWebViewAnswerState(correctAnswerId: Int, selectedAnswerId: Int) {
-        webViewStateFlow.value = webViewStateFlow.value.copy(correctAnswerId = correctAnswerId, selectedAnswerId = selectedAnswerId)
+        loadPerformanceForQuestion(question.id)
     }
 
     // ============================================================================
@@ -356,8 +318,6 @@ class QuizActivity : AppCompatActivity() {
                 ids
             },
             onSuccess = { ids ->
-                // Hide filter panel first to ensure WebView is visible
-                // Compose `StartFiltersPanel` displayed in `QuizRoot`.
                 // Compose handles filter panel visibility; nothing to do
                 
                 if (ids.isNotEmpty()) {

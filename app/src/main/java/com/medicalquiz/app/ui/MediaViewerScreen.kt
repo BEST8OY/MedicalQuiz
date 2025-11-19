@@ -4,17 +4,19 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Environment
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -54,18 +56,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import android.text.method.LinkMovementMethod
-import android.widget.TextView
 import android.widget.MediaController
 import android.widget.VideoView
 import coil3.compose.AsyncImage
-import coil3.svg.SvgDecoder
 import coil3.request.ImageRequest
-import androidx.core.text.HtmlCompat
+import coil3.svg.SvgDecoder
 import com.medicalquiz.app.Constants
 import com.medicalquiz.app.MediaType
 import com.medicalquiz.app.data.MediaDescription
-import com.medicalquiz.app.utils.WebViewRenderer
+import com.medicalquiz.app.ui.richtext.RichText
+import com.medicalquiz.app.utils.HtmlUtils
 import java.io.File
 
 private const val TAG = "MediaViewerScreen"
@@ -191,12 +191,6 @@ private fun ImageContent(
                 .build()
         }
     }
-    val explanationText = remember(description?.description) {
-        description?.description?.let {
-            HtmlCompat.fromHtml(it, HtmlCompat.FROM_HTML_MODE_COMPACT)
-        }
-    }
-
     LaunchedEffect(fileName) {
         scale = 1f
         offset = Offset.Zero
@@ -325,15 +319,12 @@ private fun ImageContent(
                 Text(description.title.ifBlank { "Explanation" })
             },
             text = {
-                AndroidView(
-                    factory = { ctx ->
-                        TextView(ctx).apply {
-                            movementMethod = LinkMovementMethod.getInstance()
-                        }
-                    },
-                    update = { textView ->
-                        textView.text = explanationText ?: description.description
-                    }
+                RichText(
+                    html = description.description,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(top = 4.dp)
                 )
             }
         )
@@ -453,16 +444,32 @@ private fun HtmlContent(fileName: String) {
         Environment.getExternalStorageDirectory(),
         "${Constants.MEDIA_FOLDER}/$fileName"
     )
-    
-    AndroidView(
-        factory = { ctx ->
-            android.webkit.WebView(ctx).apply {
-                WebViewRenderer.setupWebView(this)
-                WebViewRenderer.loadContent(ctx, this, htmlFile.readText())
+    val htmlContent = remember(fileName) {
+        runCatching {
+            if (htmlFile.exists()) {
+                HtmlUtils.sanitizeForWebView(htmlFile.readText())
+            } else {
+                null
             }
-        },
-        modifier = Modifier.fillMaxSize()
-    )
+        }.getOrNull()
+    }
+
+    if (htmlContent == null) {
+        ErrorMessage("HTML not found:\n${'$'}{htmlFile.absolutePath}")
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            RichText(
+                html = htmlContent,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
 }
 
 @Composable
