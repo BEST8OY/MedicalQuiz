@@ -402,6 +402,10 @@ class QuizViewModel : ViewModel() {
         }
     }
 
+    fun setPerformanceFilterSilently(filter: PerformanceFilter) {
+        _state.update { it.copy(performanceFilter = filter) }
+    }
+
     fun openPerformanceDialog() {
         viewModelScope.launch {
             _uiEvents.emit(UiEvent.OpenPerformanceDialog)
@@ -457,6 +461,10 @@ class QuizViewModel : ViewModel() {
         viewModelScope.launch {
             _uiEvents.emit(UiEvent.OpenMedia(urls, startIndex))
         }
+    }
+
+    fun clearPendingLogsBuffer() {
+        // No-op: Logs are currently written directly to database
     }
 
     private fun observeSettings(repo: SettingsRepository): Job {
