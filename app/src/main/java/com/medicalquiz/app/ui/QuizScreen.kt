@@ -124,7 +124,8 @@ private fun HintSection(
     onToggle: () -> Unit,
     hintHtml: String,
     linkHandler: (String) -> Unit,
-    mediaClick: (String) -> Unit
+    mediaClick: (String) -> Unit,
+    showSelectedHighlight: Boolean
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -157,7 +158,8 @@ private fun HintSection(
                     html = hintHtml,
                     modifier = Modifier.padding(12.dp),
                     onLinkClick = linkHandler,
-                    onMediaClick = mediaClick
+                    onMediaClick = mediaClick,
+                    showSelectedHighlight = showSelectedHighlight
                 )
             }
         }
@@ -353,6 +355,7 @@ private fun QuizQuestionCard(
 
         RichText(
             html = questionHtml,
+            showSelectedHighlight = state.answerSubmitted,
             onLinkClick = linkHandler,
             onMediaClick = mediaClick
         )
@@ -364,7 +367,8 @@ private fun QuizQuestionCard(
                 onToggle = { hintExpanded = !hintExpanded },
                 hintHtml = hintHtml,
                 linkHandler = linkHandler,
-                mediaClick = mediaClick
+                mediaClick = mediaClick,
+                showSelectedHighlight = state.answerSubmitted
             )
         }
 

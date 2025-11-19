@@ -132,6 +132,7 @@ object HtmlUtils {
         val hintElement = document.getElementById("hintdiv")
         val hintHtml = hintElement?.html()?.trim()?.takeIf { it.isNotBlank() }
         hintElement?.remove()
+        document.select("*[onclick*=hintdiv]").forEach { it.remove() }
         val remaining = document.body().html().trim()
         return QuestionHtmlParts(
             contentHtml = remaining,
