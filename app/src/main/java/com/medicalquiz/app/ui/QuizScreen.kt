@@ -260,6 +260,7 @@ private fun AnswerCard(
                     RichText(
                         html = html,
                         modifier = Modifier.weight(1f),
+                        showSelectedHighlight = showResult,
                         onLinkClick = onLinkClick,
                         onMediaClick = onMediaClick
                     )
@@ -397,6 +398,7 @@ private fun QuizQuestionCard(
                 )
                 RichText(
                     html = explanationHtml,
+                    showSelectedHighlight = state.answerSubmitted,
                     onLinkClick = linkHandler,
                     onMediaClick = mediaClick
                 )

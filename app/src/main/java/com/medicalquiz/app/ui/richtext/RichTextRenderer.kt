@@ -117,11 +117,14 @@ private enum class InlineHighlight { IMPORTANT, SELECTED }
 fun RichText(
     html: String,
     modifier: Modifier = Modifier,
+    showSelectedHighlight: Boolean = false,
     onLinkClick: ((String) -> Unit)? = null,
     onMediaClick: ((String) -> Unit)? = null
 ) {
     val palette = rememberRichTextPalette()
-    val blocks = remember(html, palette) { parseRichText(html, palette) }
+    val blocks = remember(html, palette, showSelectedHighlight) {
+        parseRichText(html, palette, showSelectedHighlight)
+    }
     RichText(blocks = blocks, modifier = modifier, onLinkClick = onLinkClick, onMediaClick = onMediaClick)
 }
 
@@ -129,6 +132,7 @@ fun RichText(
 fun RichText(
     blocks: List<RichTextBlock>,
     modifier: Modifier = Modifier,
+    showSelectedHighlight: Boolean = false,
     onLinkClick: ((String) -> Unit)? = null,
     onMediaClick: ((String) -> Unit)? = null
 ) {
@@ -410,12 +414,20 @@ private fun rememberRichTextPalette(): RichTextPalette {
     }
 }
 
-private fun parseRichText(html: String, palette: RichTextPalette): List<RichTextBlock> {
+private fun parseRichText(
+    html: String,
+    palette: RichTextPalette,
+    showSelectedHighlight: Boolean
+): List<RichTextBlock> {
     val document = Jsoup.parseBodyFragment(html)
-    return parseNodes(document.body().childNodes(), palette)
+    return parseNodes(document.body().childNodes(), palette, showSelectedHighlight)
 }
 
-private fun parseNodes(nodes: List<Node>, palette: RichTextPalette): List<RichTextBlock> {
+private fun parseNodes(
+    nodes: List<Node>,
+    palette: RichTextPalette,
+    showSelectedHighlight: Boolean
+): List<RichTextBlock> {
     val blocks = mutableListOf<RichTextBlock>()
     nodes.forEach { node ->
         when (node) {
@@ -431,7 +443,7 @@ private fun parseNodes(nodes: List<Node>, palette: RichTextPalette): List<RichTe
                         val mediaElements = node.select("img")
                         val textOnly = node.clone()
                         textOnly.select("img").remove()
-                        buildAnnotatedBlock(textOnly, palette)?.let { paragraph ->
+                        buildAnnotatedBlock(textOnly, palette, showSelectedHighlight)?.let { paragraph ->
                             if (paragraph.text.isNotBlank()) blocks += RichTextBlock.Paragraph(paragraph)
                         }
                         mediaElements.forEach { image ->
@@ -440,14 +452,14 @@ private fun parseNodes(nodes: List<Node>, palette: RichTextPalette): List<RichTe
                     }
                     "h1", "h2", "h3", "h4", "h5", "h6" -> {
                         val level = tag.removePrefix("h").toIntOrNull() ?: 6
-                        buildAnnotatedBlock(node, palette)?.let { heading ->
+                        buildAnnotatedBlock(node, palette, showSelectedHighlight)?.let { heading ->
                             if (heading.text.isNotBlank()) blocks += RichTextBlock.Heading(level, heading)
                         }
                     }
                     "ul" -> {
                         val items = node.children()
                             .mapNotNull { child ->
-                                if (child.tagName().equals("li", ignoreCase = true)) buildAnnotatedBlock(child, palette) else null
+                                if (child.tagName().equals("li", ignoreCase = true)) buildAnnotatedBlock(child, palette, showSelectedHighlight) else null
                             }
                             .filter { it.text.isNotBlank() }
                         if (items.isNotEmpty()) blocks += RichTextBlock.BulletList(items)
@@ -456,7 +468,7 @@ private fun parseNodes(nodes: List<Node>, palette: RichTextPalette): List<RichTe
                         val start = node.attr("start").toIntOrNull() ?: 1
                         val items = node.children()
                             .mapNotNull { child ->
-                                if (child.tagName().equals("li", ignoreCase = true)) buildAnnotatedBlock(child, palette) else null
+                                if (child.tagName().equals("li", ignoreCase = true)) buildAnnotatedBlock(child, palette, showSelectedHighlight) else null
                             }
                             .filter { it.text.isNotBlank() }
                         if (items.isNotEmpty()) blocks += RichTextBlock.OrderedList(items, start)
@@ -466,17 +478,17 @@ private fun parseNodes(nodes: List<Node>, palette: RichTextPalette): List<RichTe
                         val codeText = node.text().trim()
                         if (codeText.isNotEmpty()) blocks += RichTextBlock.CodeBlock(codeText)
                     }
-                    "table" -> parseTable(node, palette)?.let(blocks::add)
+                    "table" -> parseTable(node, palette, showSelectedHighlight)?.let(blocks::add)
                     "div", "section", "article" -> {
                         if (node.classNames().any { it.equals("abstract", ignoreCase = true) }) {
-                            parseAbstractBlock(node, palette)?.let(blocks::add)
+                            parseAbstractBlock(node, palette, showSelectedHighlight)?.let(blocks::add)
                         } else {
-                            blocks += parseNodes(node.childNodes(), palette)
+                            blocks += parseNodes(node.childNodes(), palette, showSelectedHighlight)
                         }
                     }
                     "img" -> parseMediaElement(node)?.let(blocks::add)
                     else -> {
-                        buildAnnotatedBlock(node, palette)?.let { paragraph ->
+                        buildAnnotatedBlock(node, palette, showSelectedHighlight)?.let { paragraph ->
                             if (paragraph.text.isNotBlank()) blocks += RichTextBlock.Paragraph(paragraph)
                         }
                     }
@@ -487,19 +499,33 @@ private fun parseNodes(nodes: List<Node>, palette: RichTextPalette): List<RichTe
     return blocks
 }
 
-private fun buildAnnotatedBlock(element: Element, palette: RichTextPalette): AnnotatedString? {
-    val baseStyle = InlineStyle().applyClassStyles(element.classNames(), palette)
+private fun buildAnnotatedBlock(
+    element: Element,
+    palette: RichTextPalette,
+    showSelectedHighlight: Boolean
+): AnnotatedString? {
+    val baseStyle = InlineStyle().applyClassStyles(element.classNames(), palette, showSelectedHighlight)
     val builder = buildAnnotatedString {
-        appendNodes(element.childNodes(), baseStyle, palette)
+        appendNodes(element.childNodes(), baseStyle, palette, showSelectedHighlight)
     }
     return builder.takeIf { it.text.isNotBlank() }
 }
 
-private fun AnnotatedString.Builder.appendNodes(nodes: List<Node>, style: InlineStyle, palette: RichTextPalette) {
-    nodes.forEach { node -> appendNode(node, style, palette) }
+private fun AnnotatedString.Builder.appendNodes(
+    nodes: List<Node>,
+    style: InlineStyle,
+    palette: RichTextPalette,
+    showSelectedHighlight: Boolean
+) {
+    nodes.forEach { node -> appendNode(node, style, palette, showSelectedHighlight) }
 }
 
-private fun AnnotatedString.Builder.appendNode(node: Node, style: InlineStyle, palette: RichTextPalette) {
+private fun AnnotatedString.Builder.appendNode(
+    node: Node,
+    style: InlineStyle,
+    palette: RichTextPalette,
+    showSelectedHighlight: Boolean
+) {
     when (node) {
         is TextNode -> {
             val text = node.text().replace('\u00A0', ' ')
@@ -523,19 +549,25 @@ private fun AnnotatedString.Builder.appendNode(node: Node, style: InlineStyle, p
                 "a" -> style.copy(link = node.attr("href"))
                 else -> style
             }
-            nextStyle = nextStyle.applyClassStyles(node.classNames(), palette)
-            appendNodes(node.childNodes(), nextStyle, palette)
+            nextStyle = nextStyle.applyClassStyles(node.classNames(), palette, showSelectedHighlight)
+            appendNodes(node.childNodes(), nextStyle, palette, showSelectedHighlight)
         }
     }
 }
 
-private fun InlineStyle.applyClassStyles(classes: Set<String>, palette: RichTextPalette): InlineStyle {
+private fun InlineStyle.applyClassStyles(
+    classes: Set<String>,
+    palette: RichTextPalette,
+    showSelectedHighlight: Boolean
+): InlineStyle {
     if (classes.isEmpty()) return this
     var updated = this
     classes.forEach { rawClass ->
         when (rawClass.lowercase()) {
             "wichtig" -> updated = updated.copy(highlight = InlineHighlight.IMPORTANT)
-            "selected" -> updated = updated.copy(highlight = InlineHighlight.SELECTED)
+            "selected" -> if (showSelectedHighlight) {
+                updated = updated.copy(highlight = InlineHighlight.SELECTED)
+            }
             "dictionary" -> updated = updated.copy(dictionary = true, underline = true)
             "nowrap" -> updated = updated.copy(preserveWhitespace = true)
             "scientific-name" -> updated = updated.copy(italic = true)
@@ -583,11 +615,15 @@ private fun AnnotatedString.Builder.appendTextWithStyle(text: String, style: Inl
     }
 }
 
-private fun parseTable(element: Element, palette: RichTextPalette): RichTextBlock.Table? {
-    val headerRow = element.selectFirst("thead tr")?.let { parseTableRow(it, true, palette) }
-    val bodyRows = element.select("tbody tr").map { parseTableRow(it, false, palette) }.toMutableList()
+private fun parseTable(
+    element: Element,
+    palette: RichTextPalette,
+    showSelectedHighlight: Boolean
+): RichTextBlock.Table? {
+    val headerRow = element.selectFirst("thead tr")?.let { parseTableRow(it, true, palette, showSelectedHighlight) }
+    val bodyRows = element.select("tbody tr").map { parseTableRow(it, false, palette, showSelectedHighlight) }.toMutableList()
     val fallbackRows = if (bodyRows.isEmpty()) {
-        element.select("tr").map { parseTableRow(it, false, palette) }.toMutableList()
+        element.select("tr").map { parseTableRow(it, false, palette, showSelectedHighlight) }.toMutableList()
     } else {
         bodyRows
     }
@@ -609,7 +645,12 @@ private fun parseTable(element: Element, palette: RichTextPalette): RichTextBloc
     )
 }
 
-private fun parseTableRow(row: Element, headerContext: Boolean, palette: RichTextPalette): RichTextTableRow {
+private fun parseTableRow(
+    row: Element,
+    headerContext: Boolean,
+    palette: RichTextPalette,
+    showSelectedHighlight: Boolean
+): RichTextTableRow {
     val cellElements = row.children().filter { child ->
         val tag = child.tagName().lowercase()
         tag == "td" || tag == "th"
@@ -619,13 +660,17 @@ private fun parseTableRow(row: Element, headerContext: Boolean, palette: RichTex
         return RichTextTableRow(emptyList(), isHeader)
     }
     val cells = cellElements.map { cell ->
-        buildAnnotatedBlock(cell, palette) ?: AnnotatedString("")
+        buildAnnotatedBlock(cell, palette, showSelectedHighlight) ?: AnnotatedString("")
     }
     return RichTextTableRow(cells = cells, isHeader = isHeader)
 }
 
-private fun parseAbstractBlock(element: Element, palette: RichTextPalette): RichTextBlock.AbstractBlock? {
-    val childBlocks = parseNodes(element.childNodes(), palette).toMutableList()
+private fun parseAbstractBlock(
+    element: Element,
+    palette: RichTextPalette,
+    showSelectedHighlight: Boolean
+): RichTextBlock.AbstractBlock? {
+    val childBlocks = parseNodes(element.childNodes(), palette, showSelectedHighlight).toMutableList()
     if (childBlocks.isEmpty()) return null
     var title: AnnotatedString? = null
     if (childBlocks.firstOrNull() is RichTextBlock.Heading) {
