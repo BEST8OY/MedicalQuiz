@@ -72,6 +72,6 @@ android {
 }
 
 dependencies {
-    add("kspAndroid", "androidx.room:room-compiler:2.8.4")
-    add("kspDesktop", "androidx.room:room-compiler:2.8.4")
+    add("kspAndroid", libs.room.compiler)
+    add("kspDesktop", libs.room.compiler)
 }

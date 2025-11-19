@@ -9,6 +9,7 @@ androidx-core-ktx = "1.17.0"
 androidx-lifecycle = "2.10.0-alpha04"
 androidx-material = "1.12.0"
 compose-plugin = "1.10.0-beta01"
+compose-material3-version = "1.10.0-alpha04"
 kotlin = "2.2.20"
 coroutines = "1.10.1"
 coil = "3.3.0"
@@ -47,7 +48,7 @@ ksoup-html = { module = "com.mohamedrejeb.ksoup:ksoup-html", version.ref = "ksou
 # Compose Libraries
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose-plugin" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose-plugin" }
-compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-plugin" }
+compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3-version" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-plugin" }
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose-plugin" }
 compose-components-uiToolingPreview = { module = "org.jetbrains.compose.components:components-ui-tooling-preview", version.ref = "compose-plugin" }
