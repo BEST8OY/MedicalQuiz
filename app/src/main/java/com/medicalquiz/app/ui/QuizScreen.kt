@@ -227,13 +227,13 @@ private fun AnswerCard(
     }
 
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled) { onClick() },
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         color = background,
         tonalElevation = if (isSelected) 2.dp else 0.dp,
-        border = BorderStroke(1.dp, borderColor)
+        border = BorderStroke(1.dp, borderColor),
+        enabled = enabled,
+        onClick = onClick
     ) {
         Column(
             modifier = Modifier
@@ -244,14 +244,26 @@ private fun AnswerCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface
-                )
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = "$label.",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.onSurface
+                    )
+                    RichText(
+                        html = html,
+                        modifier = Modifier.weight(1f),
+                        onLinkClick = onLinkClick,
+                        onMediaClick = onMediaClick
+                    )
+                }
                 if (showResult && percentage != null) {
                     Surface(
                         shape = RoundedCornerShape(50),
@@ -265,11 +277,6 @@ private fun AnswerCard(
                     }
                 }
             }
-            RichText(
-                html = html,
-                onLinkClick = onLinkClick,
-                onMediaClick = onMediaClick
-            )
         }
     }
 }

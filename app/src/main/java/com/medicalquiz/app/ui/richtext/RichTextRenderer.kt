@@ -3,28 +3,34 @@ package com.medicalquiz.app.ui.richtext
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.ClickableText
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -221,7 +227,7 @@ fun RichText(
                 is RichTextBlock.Media -> {
                     RichMedia(block = block, onMediaClick = resolvedMediaHandler)
                 }
-                RichTextBlock.Divider -> Divider()
+                RichTextBlock.Divider -> HorizontalDivider()
             }
         }
     }
@@ -233,20 +239,30 @@ private fun RichTextParagraph(
     modifier: Modifier = Modifier,
     onLinkClick: (String) -> Unit
 ) {
-    ClickableText(
+    var layoutResult by remember(text) { mutableStateOf<TextLayoutResult?>(null) }
+    val hasLinks = remember(text) { text.getStringAnnotations(tag = "URL", start = 0, end = text.length).isNotEmpty() }
+    val pointerModifier = if (hasLinks) {
+        Modifier.pointerInput(text, layoutResult) {
+            detectTapGestures { position ->
+                val offset = layoutResult?.getOffsetForPosition(position) ?: return@detectTapGestures
+                text.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                    .firstOrNull()?.let { annotation -> onLinkClick(annotation.item) }
+            }
+        }
+    } else {
+        Modifier
+    }
+
+    androidx.compose.material3.Text(
         text = text,
-        modifier = modifier,
+        modifier = modifier.then(pointerModifier),
         style = MaterialTheme.typography.bodyMedium.copy(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = 22.sp,
             textIndent = TextIndent.None
-        )
-    ) { offset ->
-        text.getStringAnnotations(tag = "URL", start = offset, end = offset)
-            .firstOrNull()?.let { annotation ->
-                onLinkClick(annotation.item)
-            }
-    }
+        ),
+        onTextLayout = { layoutResult = it }
+    )
 }
 
 @Composable
@@ -254,24 +270,32 @@ private fun RichTextTable(block: RichTextBlock.Table) {
     if (block.columnCount == 0) return
     val scrollState = rememberScrollState()
     val minWidth = 120.dp * block.columnCount
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(scrollState),
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Column(modifier = Modifier.widthIn(min = minWidth)) {
-            block.header?.let { header ->
-                TableRowContent(row = header, columnCount = block.columnCount, isHeader = true)
-                if (block.rows.isNotEmpty()) {
-                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+    BoxWithConstraints {
+        val needsScroll = minWidth > maxWidth
+        val tableModifier = if (needsScroll) {
+            Modifier
+                .horizontalScroll(scrollState)
+                .width(minWidth)
+        } else {
+            Modifier.fillMaxWidth()
+        }
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Column(modifier = tableModifier) {
+                block.header?.let { header ->
+                    TableRowContent(row = header, columnCount = block.columnCount, isHeader = true)
+                    if (block.rows.isNotEmpty()) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    }
                 }
-            }
-            block.rows.forEachIndexed { index, row ->
-                TableRowContent(row = row, columnCount = block.columnCount, isHeader = false)
-                if (index != block.rows.lastIndex) {
-                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                block.rows.forEachIndexed { index, row ->
+                    TableRowContent(row = row, columnCount = block.columnCount, isHeader = false)
+                    if (index != block.rows.lastIndex) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                    }
                 }
             }
         }
