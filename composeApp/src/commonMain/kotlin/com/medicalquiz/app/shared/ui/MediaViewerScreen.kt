@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.platform.StorageProvider
-import com.medicalquiz.app.shared.ui.richtext.RichTextRenderer
+import com.medicalquiz.app.shared.ui.richtext.RichText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -161,7 +161,7 @@ private fun ImageContent(
                 Text(description.title.ifBlank { "Explanation" })
             },
             text = {
-                RichTextRenderer(
+                RichText(
                     html = description.description,
                     modifier = Modifier.fillMaxWidth()
                 )

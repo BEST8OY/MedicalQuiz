@@ -27,6 +27,15 @@ data class QuizState(
     val isLoggingEnabled: Boolean = true,
     val autoLoadFirstQuestion: Boolean = false
 ) {
+    val totalQuestions: Int
+        get() = questionIds.size
+
+    val hasPreviousQuestion: Boolean
+        get() = currentQuestionIndex > 0
+
+    val hasNextQuestion: Boolean
+        get() = currentQuestionIndex < questionIds.size - 1
+
     companion object {
         val EMPTY = QuizState()
     }
