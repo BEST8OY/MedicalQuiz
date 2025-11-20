@@ -26,4 +26,10 @@ interface MetadataDao {
 
     @Query("SELECT name FROM Systems WHERE id = :id")
     suspend fun getSystemName(id: Long): String?
+
+    @Query("SELECT DISTINCT sysId FROM SubjectsSystems WHERE subId IN (:subjectIds)")
+    suspend fun getSystemIdsForSubjects(subjectIds: List<Long>): List<Long>
+
+    @Query("SELECT type FROM pragma_table_info('Questions') WHERE name = :columnName")
+    suspend fun getColumnType(columnName: String): String?
 }

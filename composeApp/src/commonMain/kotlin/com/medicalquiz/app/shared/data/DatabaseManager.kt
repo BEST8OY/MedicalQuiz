@@ -20,12 +20,26 @@ import kotlinx.datetime.toLocalDateTime
 
 class DatabaseManager(private val dbPath: String) : DatabaseProvider {
     private var database: AppDatabase? = null
+    private var isStringIds: Boolean = true
 
-    fun init() {
+    suspend fun init() {
         database = getDatabaseBuilder(dbPath)
             .setDriver(BundledSQLiteDriver())
             .setQueryCoroutineContext(Dispatchers.IO)
             .build()
+        checkSchema()
+    }
+
+    private suspend fun checkSchema() {
+        try {
+            val type = getDatabase().metadataDao().getColumnType("subId")
+            isStringIds = type?.contains("char", ignoreCase = true) == true || 
+                          type?.contains("text", ignoreCase = true) == true
+        } catch (e: Exception) {
+            // Fallback to string IDs if check fails, as it's the safer default for existing logic
+            isStringIds = true
+            println("Schema check failed: ${e.message}")
+        }
     }
 
     private fun getDatabase(): AppDatabase {
@@ -128,27 +142,12 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
             }
         }
 
-        // Complex query for systems filtered by subjects
-        // We need to find distinct sysIds from Questions where subId matches
-        val args = mutableListOf<Any>()
-        val subConditions = buildMultiValueCondition("subId", subjectIds, args)
-        
-        val sql = "SELECT DISTINCT sysId FROM Questions WHERE $subConditions"
-        val query = createRoomRawQuery(sql, args)
-        val rawSysIds = getDatabase().metadataDao().getDistinctSystemIds(query)
-        
-        val systemIds = mutableSetOf<Long>()
-        rawSysIds.forEach { sysIdStr ->
-            if (sysIdStr.isNotBlank()) {
-                sysIdStr.split(",").forEach { id ->
-                    id.trim().toLongOrNull()?.let { systemIds.add(it) }
-                }
-            }
-        }
+        // Use SubjectsSystems table for efficient lookup
+        val systemIds = getDatabase().metadataDao().getSystemIdsForSubjects(subjectIds)
         
         if (systemIds.isEmpty()) return emptyList()
         
-        return getDatabase().metadataDao().getSystemsByIds(systemIds.toList()).map {
+        return getDatabase().metadataDao().getSystemsByIds(systemIds).map {
             System(it.id, it.name ?: "", it.count)
         }
     }
@@ -198,18 +197,27 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         args: MutableList<Any>
     ): String {
         val normalizedIds = ids.distinct()
-        return when (normalizedIds.size) {
-            0 -> "1=1"
-            1 -> {
-                args.add(normalizedIds[0].toString())
-                "instr(',' || $columnAlias || ',', ',' || ? || ',') > 0"
-            }
-            else -> {
-                val conditions = normalizedIds.map { id ->
-                    args.add(id.toString())
+        if (normalizedIds.isEmpty()) return "1=1"
+
+        if (!isStringIds) {
+            // Integer IDs: use IN clause
+            val placeholders = normalizedIds.joinToString(",") { "?" }
+            args.addAll(normalizedIds)
+            return "$columnAlias IN ($placeholders)"
+        } else {
+            // String IDs (comma separated): use instr
+            return when (normalizedIds.size) {
+                1 -> {
+                    args.add(normalizedIds[0].toString())
                     "instr(',' || $columnAlias || ',', ',' || ? || ',') > 0"
                 }
-                "(${conditions.joinToString(" OR ")})"
+                else -> {
+                    val conditions = normalizedIds.map { id ->
+                        args.add(id.toString())
+                        "instr(',' || $columnAlias || ',', ',' || ? || ',') > 0"
+                    }
+                    "(${conditions.joinToString(" OR ")})"
+                }
             }
         }
     }
