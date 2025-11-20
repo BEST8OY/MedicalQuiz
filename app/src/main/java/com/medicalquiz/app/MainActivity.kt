@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.medicalquiz.app.shared.App
-import com.medicalquiz.app.shared.data.database.AppContext
+import com.medicalquiz.app.shared.platform.AppContext
 import com.medicalquiz.app.shared.ui.AppTheme
 
 class MainActivity : AppCompatActivity() {
