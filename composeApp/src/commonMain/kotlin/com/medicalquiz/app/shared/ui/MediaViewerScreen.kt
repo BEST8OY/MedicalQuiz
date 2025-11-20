@@ -206,7 +206,7 @@ private fun ImageContent(
                             }
                             
                             event.changes.forEach { 
-                                if (it.positionChanged()) {
+                                if (it.position != it.previousPosition) {
                                     it.consume() 
                                 }
                             }
