@@ -43,6 +43,7 @@ private const val MAX_TITLE_LENGTH = 200
 private const val BOLD_FONT_WEIGHT_THRESHOLD = 600
 private const val BOLD_CHECK_MAX_DEPTH = 4
 private const val EM_TO_DP_MULTIPLIER = 16f
+private const val ALIGNMENT_DESCENT_MAX_DEPTH = 3
 
 /** Configuration container for parser tag and attribute metadata. */
 private object RichTextParserConfig {
@@ -964,8 +965,29 @@ private class RichTextDomParser(
         return 0.dp
     }
 
+    private fun KsoupElement.findAlignmentFromDescendants(
+        remainingDepth: Int = ALIGNMENT_DESCENT_MAX_DEPTH
+    ): TextAlign? {
+        if (remainingDepth <= 0) return null
+        children.forEach { child ->
+            if (child is KsoupElement) {
+                parseTextAlign(child)?.let { return it }
+                val childClasses = child.classNames()
+                if (childClasses.matchesAnyMarker(RichTextParserConfig.centerAlignmentClassMarkers)) {
+                    return TextAlign.Center
+                }
+                if (childClasses.matchesAnyMarker(RichTextParserConfig.endAlignmentClassMarkers)) {
+                    return TextAlign.End
+                }
+                child.findAlignmentFromDescendants(remainingDepth - 1)?.let { return it }
+            }
+        }
+        return null
+    }
+
     private fun resolveCellAlignment(cell: KsoupElement, classes: Set<String>): TextAlign {
         parseTextAlign(cell)?.let { return it }
+        cell.findAlignmentFromDescendants()?.let { return it }
         if (classes.matchesAnyMarker(RichTextParserConfig.centerAlignmentClassMarkers)) return TextAlign.Center
         if (classes.matchesAnyMarker(RichTextParserConfig.endAlignmentClassMarkers)) return TextAlign.End
         return TextAlign.Start
