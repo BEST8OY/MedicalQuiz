@@ -41,11 +41,11 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         val whereClauses = mutableListOf<String>()
 
         subjectIds?.takeIf { it.isNotEmpty() }?.let {
-            whereClauses.add(buildMultiValueCondition("q.subId", it, args))
+            whereClauses.add(buildSingleValueCondition("q.subId", it, args))
         }
 
         systemIds?.takeIf { it.isNotEmpty() }?.let {
-            whereClauses.add(buildMultiValueCondition("q.sysId", it, args))
+            whereClauses.add(buildSingleValueCondition("q.sysId", it, args))
         }
 
         buildPerformanceClause(performanceFilter)?.let { whereClauses.add(it) }
@@ -70,8 +70,8 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
 
     override suspend fun getQuestionById(id: Long): Question? {
         val entity = getDatabase().questionDao().getQuestionById(id) ?: return null
-        val subName = entity.subId?.let { getDatabase().metadataDao().getSubjectName(it.toLongOrNull() ?: -1) }
-        val sysName = entity.sysId?.let { getDatabase().metadataDao().getSystemName(it.toLongOrNull() ?: -1) }
+        val subName = entity.subId?.let { getDatabase().metadataDao().getSubjectName(it) }
+        val sysName = entity.sysId?.let { getDatabase().metadataDao().getSystemName(it) }
         
         return Question(
             id = entity.id,
@@ -83,8 +83,8 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
             otherMedias = entity.otherMedias,
             pplTaken = entity.pplTaken?.toDouble(),
             corrTaken = entity.corrTaken?.toDouble(),
-            subId = entity.subId,
-            sysId = entity.sysId,
+            subId = entity.subId?.toString(),
+            sysId = entity.sysId?.toString(),
             subName = subName,
             sysName = sysName
         )
@@ -117,13 +117,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         // Complex query for systems filtered by subjects
         // We need to find distinct sysIds from Questions where subId matches
         val args = mutableListOf<Any>()
-        val subConditions = subjectIds.joinToString(" OR ") { id ->
-            args.add(id.toString())
-            args.add("$id,%")
-            args.add("%,$id,%")
-            args.add("%,$id")
-            "(subId = ? OR subId LIKE ? OR subId LIKE ? OR subId LIKE ?)"
-        }
+        val subConditions = buildSingleValueCondition("subId", subjectIds, args)
         
         val sql = "SELECT DISTINCT sysId FROM Questions WHERE $subConditions"
         val query = createRoomRawQuery(sql, args)
@@ -176,6 +170,26 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
             everIncorrect = summary.everIncorrect == 1,
             attempts = 0
         )
+    }
+
+    private fun buildSingleValueCondition(
+        columnAlias: String,
+        ids: List<Long>,
+        args: MutableList<Any>
+    ): String {
+        val normalizedIds = ids.distinct()
+        return when (normalizedIds.size) {
+            0 -> "1=1"
+            1 -> {
+                args.add(normalizedIds[0])
+                "$columnAlias = ?"
+            }
+            else -> {
+                val placeholders = normalizedIds.joinToString(",") { "?" }
+                args.addAll(normalizedIds)
+                "$columnAlias IN ($placeholders)"
+            }
+        }
     }
 
     private fun buildMultiValueCondition(
