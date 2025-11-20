@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.unit.max
 import kotlin.collections.ArrayDeque
 import kotlin.collections.buildList
 import kotlin.math.max
@@ -40,19 +42,21 @@ internal fun RichTextTable(
     if (block.columnCount == 0) return
     val renderModel = remember(block) { block.toRenderModel() }
     val scrollState = rememberScrollState()
-    val minWidth = 120.dp * renderModel.columnCount
+    val minTableWidth = 120.dp * renderModel.columnCount
     
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Column(
-            modifier = Modifier
-                .horizontalScroll(scrollState)
-                .width(minWidth)
-        ) {
-            renderModel.rows.forEachIndexed { index, row ->
+        BoxWithConstraints {
+            val tableWidth = max(minTableWidth, maxWidth)
+            Column(
+                modifier = Modifier
+                    .horizontalScroll(scrollState)
+                    .width(tableWidth)
+            ) {
+                renderModel.rows.forEachIndexed { index, row ->
                 TableRowContent(
                     row = row,
                     tableClassNames = block.classNames,
@@ -63,6 +67,9 @@ internal fun RichTextTable(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                 }
             }
+        }
+    }
+}
         }
     }
 }

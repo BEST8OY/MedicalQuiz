@@ -703,7 +703,15 @@ private class RichTextDomParser(
                 }
 
                 if (tag == "li") {
-                    append("\n• ")
+                    val parent = node.parent
+                    if (parent != null && parent.tagName.equals("ol", ignoreCase = true)) {
+                        val index = parent.children
+                            .filter { it is KsoupElement && it.tagName.equals("li", ignoreCase = true) }
+                            .indexOf(node)
+                        append("\n${index + 1}. ")
+                    } else {
+                        append("\n• ")
+                    }
                 }
 
                 var nextStyle = when (tag) {
@@ -1062,6 +1070,7 @@ private class RichTextDomParser(
         val numeric = fontWeight.filter { it.isDigit() }
         return numeric.toIntOrNull()?.let { it >= BOLD_FONT_WEIGHT_THRESHOLD } == true
     }
+    private fun parseAbstractBlock(element: KsoupElement, depth: Int): RichTextBlock.AbstractBlock? {
         val childBlocks = parse(element.children, depth = depth + 1).toMutableList()
         if (childBlocks.isEmpty()) return null
         var title: AnnotatedString? = null
