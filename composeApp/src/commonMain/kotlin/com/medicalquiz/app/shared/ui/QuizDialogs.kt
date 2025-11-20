@@ -79,7 +79,6 @@ fun SettingsDialogComposable(
                     initialLoggingEnabled = loggingEnabled,
                     onLoggingChanged = { enabled ->
                         viewModel.settingsRepository?.setLoggingEnabled(enabled)
-                        if (!enabled) viewModel.clearPendingLogsBuffer()
                     },
                     onResetLogs = {
                         onDismiss()

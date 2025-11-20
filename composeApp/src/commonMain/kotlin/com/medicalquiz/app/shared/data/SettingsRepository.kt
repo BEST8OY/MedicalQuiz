@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Simple settings repository that exposes flows for settings that affect ViewModel behavior.
- * TODO: Implement persistence (DataStore or MultiplatformSettings)
  */
 class SettingsRepository {
     private val _isLoggingEnabled = MutableStateFlow(true)

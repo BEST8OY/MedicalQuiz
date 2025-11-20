@@ -177,16 +177,8 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         getDatabase().logSummaryDao().insertLog(log)
     }
 
-    override suspend fun flushLogs(): Int {
-        return 0
-    }
-
     override suspend fun clearLogs() {
         getDatabase().logSummaryDao().clearLogs()
-    }
-
-    override suspend fun clearPendingLogsBuffer() {
-        // TODO
     }
 
     override suspend fun getQuestionPerformance(qid: Long): QuestionPerformance? {
@@ -205,22 +197,6 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         ids: List<Long>,
         args: MutableList<Any>
     ): String {
-        val normalizedIds = ids.distinct()
-        return when (normalizedIds.size) {
-            0 -> "1=1"
-            1 -> {
-                args.add(normalizedIds[0].toString())
-                "instr(',' || $columnAlias || ',', ',' || ? || ',') > 0"
-            }
-            else -> {
-                val conditions = normalizedIds.map { id ->
-                    args.add(id.toString())
-                    "instr(',' || $columnAlias || ',', ',' || ? || ',') > 0"
-                }
-                "(${conditions.joinToString(" OR ")})"
-            }
-        }
-    }
         val normalizedIds = ids.distinct()
         return when (normalizedIds.size) {
             0 -> "1=1"

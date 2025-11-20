@@ -28,8 +28,6 @@ interface DatabaseProvider {
         testId: String
     )
     
-    suspend fun flushLogs(): Int
     suspend fun clearLogs()
-    suspend fun clearPendingLogsBuffer()
     suspend fun getQuestionPerformance(qid: Long): QuestionPerformance?
 }

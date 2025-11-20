@@ -463,10 +463,6 @@ class QuizViewModel : ViewModel() {
         }
     }
 
-    fun clearPendingLogsBuffer() {
-        // No-op: Logs are currently written directly to database
-    }
-
     private fun observeSettings(repo: SettingsRepository): Job {
         return viewModelScope.launch {
             launch {
