@@ -430,7 +430,12 @@ private fun RichTextTable(
         ) {
             Column(modifier = tableModifier) {
                 renderModel.rows.forEachIndexed { index, row ->
-                    TableRowContent(row = row, onLinkClick = onLinkClick, onTooltipClick = onTooltipClick)
+                    TableRowContent(
+                        row = row,
+                        tableClassNames = block.classNames,
+                        onLinkClick = onLinkClick,
+                        onTooltipClick = onTooltipClick
+                    )
                     if (index != renderModel.rows.lastIndex) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                     }
@@ -611,12 +616,14 @@ private fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Unit
 @Composable
 private fun TableRowContent(
     row: TableRenderedRow,
+    tableClassNames: Set<String>,
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((String) -> Unit)?
 ) {
+    val effectiveRowClasses = row.classNames + tableClassNames
     val baseBackground = when {
         row.isHeaderRow -> MaterialTheme.colorScheme.secondaryContainer
-        row.classNames.containsInsensitive("abstract") -> MaterialTheme.colorScheme.surfaceVariant
+        effectiveRowClasses.containsInsensitive("abstract") -> MaterialTheme.colorScheme.surfaceVariant
         else -> MaterialTheme.colorScheme.surface
     }
     Row(
@@ -624,7 +631,7 @@ private fun TableRowContent(
             .fillMaxWidth()
             .background(baseBackground)
             .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.Top
     ) {
         row.cells.forEach { cell ->
             val weight = cell.cell.width ?: cell.columnSpan.coerceAtLeast(1).toFloat()
@@ -745,40 +752,58 @@ private object RichTextParser {
     }
 }
 
+private sealed interface KsoupNode {
+    val parent: KsoupElement?
+}
+
+private class KsoupTextNode(val text: String, override val parent: KsoupElement?) : KsoupNode
+
+private class KsoupElement(
+    val tagName: String,
+    val attributes: Map<String, String>,
+    override val parent: KsoupElement?
+) : KsoupNode {
+    val children = mutableListOf<KsoupNode>()
+
+    fun attr(name: String): String = attributes[name] ?: ""
+    fun hasAttr(name: String): Boolean = attributes.containsKey(name)
+    fun classNames(): Set<String> = attributes["class"]?.split(" ")?.toSet() ?: emptySet()
+
+    fun text(): String {
+        val sb = StringBuilder()
+        collectText(this, sb)
+        return sb.toString()
+    }
+
+    private fun collectText(node: KsoupNode, sb: StringBuilder) {
+        when (node) {
+            is KsoupTextNode -> sb.append(node.text)
+            is KsoupElement -> node.children.forEach { collectText(it, sb) }
+        }
+    }
+}
+
+private fun KsoupElement.collectAncestorClasses(stopAt: KsoupElement?): Set<String> {
+    val classes = mutableSetOf<String>()
+    var cursor = parent
+    while (cursor != null && cursor != stopAt) {
+        cursor.classNames()
+            .filter { it.isNotBlank() }
+            .forEach { classes += it }
+        cursor = cursor.parent
+    }
+    return classes
+}
+
 private class RichTextHandler(
     private val palette: RichTextPalette,
     private val showSelectedHighlight: Boolean
 ) : KsoupHtmlHandler {
 
     val blocks = mutableListOf<RichTextBlock>()
-    
-    // We need to maintain state to build blocks.
-    // This is a simplified SAX-like handler.
-    // However, Ksoup 0.3.0 also supports a DOM-like structure if we use KsoupHtmlParser with a different approach
-    // or if we build our own DOM.
-    // Given the complexity of the original Jsoup logic (nested structures, tables, lists),
-    // implementing a full DOM builder or using Ksoup's DOM (if available and stable) is better.
-    
-    // Since I cannot easily verify Ksoup's DOM API details in this environment without docs,
-    // I will assume a DOM-like usage is possible or I will build a simple one.
-    // Actually, Ksoup 0.3.0 DOES have a DOM.
-    // Let's try to use the DOM API if possible.
-    // If not, I'll implement a simple stack-based builder.
-    
-    // Wait, the dependency is `com.mohamedrejeb.ksoup:ksoup-html:0.3.0`.
-    // It provides `KsoupHtmlParser` which is SAX-like.
-    // It also provides `KsoupHtmlOptions` etc.
-    // There is a `KsoupHtmlParser` that takes a `KsoupHtmlHandler`.
-    
-    // To properly port the Jsoup logic which relies on `Node` traversal,
-    // I should probably use a library that gives me a DOM.
-    // Ksoup has `com.mohamedrejeb.ksoup.html.parser.KsoupHtmlParser`
-    
-    // Let's implement a simple DOM builder using the Handler, then traverse it like Jsoup.
-    
     private var currentElement: KsoupElement? = null
     private val rootElements = mutableListOf<KsoupNode>()
-    
+
     override fun onOpenTag(name: String, attributes: Map<String, String>, isImplied: Boolean) {
         val newElement = KsoupElement(name, attributes, currentElement)
         if (currentElement == null) {
@@ -788,71 +813,123 @@ private class RichTextHandler(
         }
         currentElement = newElement
     }
-    
+
     override fun onText(text: String) {
-        if (text.isNotEmpty()) {
-            val textNode = KsoupTextNode(text, currentElement)
-            if (currentElement == null) {
-                rootElements.add(textNode)
-            } else {
-                currentElement?.children?.add(textNode)
-            }
+        if (text.isEmpty()) return
+        val textNode = KsoupTextNode(text, currentElement)
+        if (currentElement == null) {
+            rootElements.add(textNode)
+        } else {
+            currentElement?.children?.add(textNode)
         }
     }
-    
+
     override fun onCloseTag(name: String, isImplied: Boolean) {
         if (currentElement?.tagName == name) {
             currentElement = currentElement?.parent
         }
     }
-    
-    override fun onEnd() {
-        // Now we have a DOM in rootElements. Parse it.
-        blocks.addAll(parseNodes(rootElements, palette, showSelectedHighlight))
-    }
 
-    // -------------------------------------------------------------------------
-    // DOM Nodes
-    // -------------------------------------------------------------------------
-    
-    interface KsoupNode {
-        val parent: KsoupElement?
+    override fun onEnd() {
+        val domParser = RichTextDomParser(palette, showSelectedHighlight)
+        blocks.addAll(domParser.parse(rootElements))
     }
-    
-    class KsoupTextNode(val text: String, override val parent: KsoupElement?) : KsoupNode
-    
-    class KsoupElement(
-        val tagName: String,
-        val attributes: Map<String, String>,
-        override val parent: KsoupElement?
-    ) : KsoupNode {
-        val children = mutableListOf<KsoupNode>()
-        
-        fun attr(name: String): String = attributes[name] ?: ""
-        fun hasAttr(name: String): Boolean = attributes.containsKey(name)
-        fun classNames(): Set<String> = attributes["class"]?.split(" ")?.toSet() ?: emptySet()
-        
-        fun text(): String {
-            val sb = StringBuilder()
-            collectText(this, sb)
-            return sb.toString()
-        }
-        
-        private fun collectText(node: KsoupNode, sb: StringBuilder) {
+}
+
+private class RichTextDomParser(
+    private val palette: RichTextPalette,
+    private val showSelectedHighlight: Boolean
+) {
+
+    private data class InheritedStyles(val textAlign: TextAlign? = null)
+    private val ignoredTagNames = setOf("style", "script", "head", "meta", "link", "title")
+
+    fun parse(
+        nodes: List<KsoupNode>,
+        inheritedStyles: InheritedStyles = InheritedStyles()
+    ): List<RichTextBlock> {
+        val blocks = mutableListOf<RichTextBlock>()
+        nodes.forEach { node ->
             when (node) {
-                is KsoupTextNode -> sb.append(node.text)
-                is KsoupElement -> node.children.forEach { collectText(it, sb) }
+                is KsoupTextNode -> {
+                    val text = node.text.trim()
+                    if (text.isNotEmpty()) {
+                        blocks += RichTextBlock.Paragraph(
+                            text = buildAnnotatedString { append(text) },
+                            textAlign = inheritedStyles.textAlign ?: TextAlign.Start
+                        )
+                    }
+                }
+                is KsoupElement -> {
+                    val tag = node.tagName.lowercase()
+                    if (ignoredTagNames.contains(tag)) return@forEach
+                    val elementTextAlign = parseTextAlign(node)
+                    val currentTextAlign = elementTextAlign ?: inheritedStyles.textAlign
+                    val nextStyles = inheritedStyles.copy(textAlign = currentTextAlign)
+
+                    when (tag) {
+                        "p" -> handleParagraph(node, blocks, nextStyles)
+                        "h1", "h2", "h3", "h4", "h5", "h6" -> {
+                            val level = tag.removePrefix("h").toIntOrNull() ?: 6
+                            buildAnnotatedBlock(node)?.let { heading ->
+                                if (heading.text.isNotBlank()) {
+                                    blocks += RichTextBlock.Heading(
+                                        level = level,
+                                        text = heading,
+                                        textAlign = currentTextAlign ?: TextAlign.Start
+                                    )
+                                }
+                            }
+                        }
+                        "ul" -> {
+                            val items = node.children
+                                .mapNotNull { child ->
+                                    if (child is KsoupElement && child.tagName.equals("li", ignoreCase = true)) buildAnnotatedBlock(child)
+                                    else null
+                                }
+                                .filter { it.text.isNotBlank() }
+                            if (items.isNotEmpty()) blocks += RichTextBlock.BulletList(items)
+                        }
+                        "ol" -> {
+                            val start = node.attr("start").toIntOrNull() ?: 1
+                            val items = node.children
+                                .mapNotNull { child ->
+                                    if (child is KsoupElement && child.tagName.equals("li", ignoreCase = true)) buildAnnotatedBlock(child)
+                                    else null
+                                }
+                                .filter { it.text.isNotBlank() }
+                            if (items.isNotEmpty()) blocks += RichTextBlock.OrderedList(items, start)
+                        }
+                        "hr" -> blocks += RichTextBlock.Divider
+                        "pre", "code" -> {
+                            val codeText = node.text().trim()
+                            if (codeText.isNotEmpty()) blocks += RichTextBlock.CodeBlock(codeText)
+                        }
+                        "table" -> parseTable(node)?.let(blocks::add)
+                        "div", "section", "article" -> {
+                            if (node.classNames().any { it.equals("abstract", ignoreCase = true) }) {
+                                parseAbstractBlock(node)?.let(blocks::add)
+                            } else {
+                                blocks += parse(node.children, nextStyles)
+                            }
+                        }
+                        "img" -> parseMediaElement(node, currentTextAlign)?.let(blocks::add)
+                        else -> {
+                            buildAnnotatedBlock(node)?.let { paragraph ->
+                                if (paragraph.text.isNotBlank()) {
+                                    blocks += RichTextBlock.Paragraph(
+                                        text = paragraph,
+                                        textAlign = currentTextAlign ?: TextAlign.Start
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
+        return blocks
     }
-
-    // -------------------------------------------------------------------------
-    // Parsing Logic (Ported from Jsoup)
-    // -------------------------------------------------------------------------
-
-    private data class InheritedStyles(
-        val textAlign: TextAlign? = null
-    )
 
     private fun parseTextAlign(element: KsoupElement): TextAlign? {
         val align = element.attr("align").lowercase()
@@ -877,109 +954,15 @@ private class RichTextHandler(
         return null
     }
 
-    private fun parseNodes(
-        nodes: List<KsoupNode>,
-        palette: RichTextPalette,
-        showSelectedHighlight: Boolean,
-        inheritedStyles: InheritedStyles = InheritedStyles()
-    ): List<RichTextBlock> {
-        val blocks = mutableListOf<RichTextBlock>()
-        nodes.forEach { node ->
-            when (node) {
-                is KsoupTextNode -> {
-                    val text = node.text.trim()
-                    if (text.isNotEmpty()) {
-                        blocks += RichTextBlock.Paragraph(
-                            text = buildAnnotatedString { append(text) },
-                            textAlign = inheritedStyles.textAlign ?: TextAlign.Start
-                        )
-                    }
-                }
-                is KsoupElement -> {
-                    val elementTextAlign = parseTextAlign(node)
-                    val currentTextAlign = elementTextAlign ?: inheritedStyles.textAlign
-                    val nextStyles = inheritedStyles.copy(textAlign = currentTextAlign)
-
-                    when (val tag = node.tagName.lowercase()) {
-                        "p" -> handleParagraph(node, blocks, palette, showSelectedHighlight, nextStyles)
-                        "h1", "h2", "h3", "h4", "h5", "h6" -> {
-                            val level = tag.removePrefix("h").toIntOrNull() ?: 6
-                            buildAnnotatedBlock(node, palette, showSelectedHighlight)?.let { heading ->
-                                if (heading.text.isNotBlank()) {
-                                    blocks += RichTextBlock.Heading(
-                                        level = level,
-                                        text = heading,
-                                        textAlign = currentTextAlign ?: TextAlign.Start
-                                    )
-                                }
-                            }
-                        }
-                        "ul" -> {
-                            val items = node.children
-                                .mapNotNull { child ->
-                                    if (child is KsoupElement && child.tagName.equals("li", ignoreCase = true)) 
-                                        buildAnnotatedBlock(child, palette, showSelectedHighlight) 
-                                    else null
-                                }
-                                .filter { it.text.isNotBlank() }
-                            if (items.isNotEmpty()) blocks += RichTextBlock.BulletList(items)
-                        }
-                        "ol" -> {
-                            val start = node.attr("start").toIntOrNull() ?: 1
-                            val items = node.children
-                                .mapNotNull { child ->
-                                    if (child is KsoupElement && child.tagName.equals("li", ignoreCase = true)) 
-                                        buildAnnotatedBlock(child, palette, showSelectedHighlight) 
-                                    else null
-                                }
-                                .filter { it.text.isNotBlank() }
-                            if (items.isNotEmpty()) blocks += RichTextBlock.OrderedList(items, start)
-                        }
-                        "hr" -> blocks += RichTextBlock.Divider
-                        "pre", "code" -> {
-                            val codeText = node.text().trim()
-                            if (codeText.isNotEmpty()) blocks += RichTextBlock.CodeBlock(codeText)
-                        }
-                        "table" -> parseTable(node, palette, showSelectedHighlight)?.let(blocks::add)
-                        "div", "section", "article" -> {
-                            if (node.classNames().any { it.equals("abstract", ignoreCase = true) }) {
-                                parseAbstractBlock(node, palette, showSelectedHighlight)?.let(blocks::add)
-                            } else {
-                                blocks += parseNodes(node.children, palette, showSelectedHighlight, nextStyles)
-                            }
-                        }
-                        "img" -> parseMediaElement(node, currentTextAlign)?.let(blocks::add)
-                        else -> {
-                            buildAnnotatedBlock(node, palette, showSelectedHighlight)?.let { paragraph ->
-                                if (paragraph.text.isNotBlank()) {
-                                    blocks += RichTextBlock.Paragraph(
-                                        text = paragraph,
-                                        textAlign = currentTextAlign ?: TextAlign.Start
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return blocks
-    }
-
     private fun handleParagraph(
         node: KsoupElement,
         blocks: MutableList<RichTextBlock>,
-        palette: RichTextPalette,
-        showSelectedHighlight: Boolean,
         inheritedStyles: InheritedStyles
     ) {
-        // Separate images from text
-        // This is a simplification. Jsoup logic cloned the node.
-        // Here we will just iterate children.
-        
         val paragraphNodes = mutableListOf<KsoupNode>()
         val mediaElements = mutableListOf<KsoupElement>()
-        
+        val paragraphAlignment = parseTextAlign(node) ?: inheritedStyles.textAlign
+
         node.children.forEach { child ->
             if (child is KsoupElement && child.tagName.equals("img", ignoreCase = true)) {
                 mediaElements.add(child)
@@ -987,51 +970,41 @@ private class RichTextHandler(
                 paragraphNodes.add(child)
             }
         }
-        
-        // Build text paragraph
+
         val builder = buildAnnotatedString {
             val baseStyle = InlineStyle().applyClassStyles(node.classNames(), palette, showSelectedHighlight)
-            appendNodes(paragraphNodes, baseStyle, palette, showSelectedHighlight)
+            appendNodes(paragraphNodes, baseStyle)
         }
         if (builder.text.isNotBlank()) {
             blocks += RichTextBlock.Paragraph(
                 text = builder,
-                textAlign = parseTextAlign(node) ?: inheritedStyles.textAlign ?: TextAlign.Start
+                textAlign = paragraphAlignment ?: TextAlign.Start
             )
         }
-        
-        // Add media blocks
+
         mediaElements.forEach { image ->
-            parseMediaElement(image, parseTextAlign(node) ?: inheritedStyles.textAlign)?.let(blocks::add)
+            parseMediaElement(image, paragraphAlignment)?.let(blocks::add)
         }
     }
 
-    private fun buildAnnotatedBlock(
-        element: KsoupElement,
-        palette: RichTextPalette,
-        showSelectedHighlight: Boolean
-    ): AnnotatedString? {
+    private fun buildAnnotatedBlock(element: KsoupElement): AnnotatedString? {
         val baseStyle = InlineStyle().applyClassStyles(element.classNames(), palette, showSelectedHighlight)
         val builder = buildAnnotatedString {
-            appendNodes(element.children, baseStyle, palette, showSelectedHighlight)
+            appendNodes(element.children, baseStyle)
         }
         return builder.takeIf { it.text.isNotBlank() }
     }
 
     private fun AnnotatedString.Builder.appendNodes(
         nodes: List<KsoupNode>,
-        style: InlineStyle,
-        palette: RichTextPalette,
-        showSelectedHighlight: Boolean
+        style: InlineStyle
     ) {
-        nodes.forEach { node -> appendNode(node, style, palette, showSelectedHighlight) }
+        nodes.forEach { node -> appendNode(node, style) }
     }
 
     private fun AnnotatedString.Builder.appendNode(
         node: KsoupNode,
-        style: InlineStyle,
-        palette: RichTextPalette,
-        showSelectedHighlight: Boolean
+        style: InlineStyle
     ) {
         when (node) {
             is KsoupTextNode -> {
@@ -1045,19 +1018,17 @@ private class RichTextHandler(
             is KsoupElement -> {
                 if (node.isTooltipContentNode()) return
                 val tag = node.tagName.lowercase()
-                
-                // Handle block elements
-                val isBlock = tag in setOf("p", "div", "li", "ul", "ol", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6")
-                
+                if (ignoredTagNames.contains(tag)) return
+
                 if (tag == "br") {
                     append("\n")
                     return
                 }
-                
+
                 if (tag == "li") {
                     append("\n• ")
                 }
-                
+
                 var nextStyle = when (tag) {
                     "strong", "b" -> style.copy(bold = true)
                     "em", "i" -> style.copy(italic = true)
@@ -1077,8 +1048,8 @@ private class RichTextHandler(
                 extractTooltipText(node)?.let { tooltip ->
                     nextStyle = nextStyle.copy(tooltip = tooltip)
                 }
-                appendNodes(node.children, nextStyle, palette, showSelectedHighlight)
-                
+                appendNodes(node.children, nextStyle)
+
                 if (tag == "p" || tag == "div") {
                     append("\n")
                 }
@@ -1086,88 +1057,9 @@ private class RichTextHandler(
         }
     }
 
-    private fun InlineStyle.applyClassStyles(
-        classes: Set<String>,
-        palette: RichTextPalette,
-        showSelectedHighlight: Boolean
-    ): InlineStyle {
-        if (classes.isEmpty()) return this
-        var updated = this
-        classes.forEach { rawClass ->
-            when (rawClass.lowercase()) {
-                "wichtig" -> updated = updated.copy(highlight = InlineHighlight.IMPORTANT, bold = true)
-                "selected" -> if (showSelectedHighlight) {
-                    updated = updated.copy(highlight = InlineHighlight.SELECTED)
-                }
-                "dictionary" -> updated = updated.copy(dictionary = true, underline = true)
-                "nowrap" -> updated = updated.copy(preserveWhitespace = true)
-                "scientific-name" -> updated = updated.copy(italic = true)
-                "abstract" -> updated = updated.copy(smallText = true, textColor = palette.abstractText)
-                "metalink" -> updated = updated.copy(textColor = Color(0xFFE91E63), italic = true)
-            }
-        }
-        return updated
-    }
-
-    private fun AnnotatedString.Builder.appendTextWithStyle(
-        text: String,
-        style: InlineStyle,
-        palette: RichTextPalette
-    ) {
-        if (text.isEmpty()) return
-        val displayText = if (style.preserveWhitespace) text.replace(' ', '\u00A0') else text
-        val textColor = when {
-            style.textColor != null -> style.textColor
-            style.highlight == InlineHighlight.IMPORTANT -> palette.importantText
-            style.highlight == InlineHighlight.SELECTED -> palette.selectedText
-            style.dictionary -> palette.dictionaryText
-            style.tooltip != null -> palette.dictionaryText
-            else -> null
-        }
-        val backgroundColor = when (style.highlight) {
-            InlineHighlight.IMPORTANT -> palette.importantBackground
-            InlineHighlight.SELECTED -> palette.selectedBackground
-            null -> Color.Unspecified
-        }
-        val needsUnderline = style.underline || style.dictionary || style.tooltip != null
-        val spanStyle = SpanStyle(
-            fontWeight = if (style.bold) FontWeight.SemiBold else null,
-            fontStyle = if (style.italic) FontStyle.Italic else null,
-            textDecoration = if (needsUnderline) TextDecoration.Underline else null,
-            fontFamily = if (style.monospace) FontFamily.Monospace else FontFamily.Default,
-            baselineShift = when {
-                style.superscript -> BaselineShift.Superscript
-                style.subscript -> BaselineShift.Subscript
-                else -> BaselineShift.None
-            },
-            background = backgroundColor,
-            color = textColor ?: Color.Unspecified,
-            fontSize = if (style.smallText) 12.sp else TextUnit.Unspecified
-        )
-        if (style.link != null) {
-            pushStringAnnotation(tag = "URL", annotation = style.link)
-        }
-        if (style.tooltip != null) {
-            pushStringAnnotation(tag = "TOOLTIP", annotation = style.tooltip)
-        }
-        withStyle(spanStyle) {
-            append(displayText)
-        }
-        if (style.tooltip != null) {
-            pop()
-        }
-        if (style.link != null) {
-            pop()
-        }
-    }
-
-    private fun parseTable(
-        element: KsoupElement,
-        palette: RichTextPalette,
-        showSelectedHighlight: Boolean
-    ): RichTextBlock.Table? {
+    private fun parseTable(element: KsoupElement): RichTextBlock.Table? {
         val allRows = mutableListOf<KsoupElement>()
-        
+
         fun collectRows(el: KsoupElement) {
             if (el.tagName.equals("tr", ignoreCase = true)) {
                 allRows.add(el)
@@ -1176,12 +1068,12 @@ private class RichTextHandler(
             }
         }
         collectRows(element)
-        
+
         if (allRows.isEmpty()) return null
-        
+
         val headerRows = mutableListOf<RichTextTableRow>()
         val bodyRows = mutableListOf<RichTextTableRow>()
-        
+
         allRows.forEach { tr ->
             var isHeaderContext = false
             var parent = tr.parent
@@ -1192,8 +1084,8 @@ private class RichTextHandler(
                 }
                 parent = parent.parent
             }
-            
-            val parsedRow = parseTableRow(tr, isHeaderContext, palette, showSelectedHighlight)
+
+            val parsedRow = parseTableRow(tr, element, isHeaderContext)
             if (parsedRow.isHeader) {
                 headerRows.add(parsedRow)
             } else {
@@ -1206,7 +1098,7 @@ private class RichTextHandler(
                 row.cells.sumOf { cell -> cell.columnSpan.coerceAtLeast(1) }
             } ?: 0
         if (columnCount == 0) return null
-        
+
         return RichTextBlock.Table(
             headerRows = headerRows,
             bodyRows = bodyRows,
@@ -1217,12 +1109,11 @@ private class RichTextHandler(
 
     private fun parseTableRow(
         row: KsoupElement,
-        headerContext: Boolean,
-        palette: RichTextPalette,
-        showSelectedHighlight: Boolean
+        tableElement: KsoupElement,
+        headerContext: Boolean
     ): RichTextTableRow {
         val cellElements = mutableListOf<KsoupElement>()
-        
+
         fun collectCells(el: KsoupElement) {
             el.children.filterIsInstance<KsoupElement>().forEach { child ->
                 val tag = child.tagName.lowercase()
@@ -1237,10 +1128,10 @@ private class RichTextHandler(
 
         val isHeaderRow = headerContext || cellElements.all { it.tagName.equals("th", ignoreCase = true) }
         if (cellElements.isEmpty()) {
-            return RichTextTableRow(emptyList(), isHeaderRow, row.classNames())
+            return RichTextTableRow(emptyList(), isHeaderRow, buildRowClassSet(row, tableElement))
         }
         val cells = cellElements.map { cell ->
-            val text = buildAnnotatedBlock(cell, palette, showSelectedHighlight) ?: AnnotatedString("")
+            val text = buildAnnotatedBlock(cell) ?: AnnotatedString("")
             val columnSpan = cell.attr("colspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
             val rowSpan = cell.attr("rowspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
             val alignment = when (cell.attr("align").lowercase()) {
@@ -1260,7 +1151,15 @@ private class RichTextHandler(
                 width = width
             )
         }
-        return RichTextTableRow(cells = cells, isHeader = isHeaderRow, classNames = row.classNames())
+        return RichTextTableRow(cells = cells, isHeader = isHeaderRow, classNames = buildRowClassSet(row, tableElement))
+    }
+
+    private fun buildRowClassSet(row: KsoupElement, tableElement: KsoupElement): Set<String> {
+        return buildSet {
+            row.classNames().forEach { if (it.isNotBlank()) add(it) }
+            row.collectAncestorClasses(tableElement).forEach { if (it.isNotBlank()) add(it) }
+            tableElement.classNames().forEach { if (it.isNotBlank()) add(it) }
+        }
     }
 
     private fun parseWidth(widthAttr: String, styleAttr: String): Float? {
@@ -1285,12 +1184,8 @@ private class RichTextHandler(
         return clean.toFloatOrNull()
     }
 
-    private fun parseAbstractBlock(
-        element: KsoupElement,
-        palette: RichTextPalette,
-        showSelectedHighlight: Boolean
-    ): RichTextBlock.AbstractBlock? {
-        val childBlocks = parseNodes(element.children, palette, showSelectedHighlight).toMutableList()
+    private fun parseAbstractBlock(element: KsoupElement): RichTextBlock.AbstractBlock? {
+        val childBlocks = parse(element.children).toMutableList()
         if (childBlocks.isEmpty()) return null
         var title: AnnotatedString? = null
         if (childBlocks.firstOrNull() is RichTextBlock.Heading) {
@@ -1327,37 +1222,6 @@ private class RichTextHandler(
         )
     }
 
-    private val tooltipAttributeCandidates = listOf(
-        "data-tooltip",
-        "data-tooltip-text",
-        "data-tooltip-content",
-        "data-smartip",
-        "data-smarttip",
-        "miamed-smartip",
-        "data-description",
-        "data-desc",
-        "data-term-description",
-        "data-info",
-        "data-message",
-        "data-details",
-        "data-content",
-        "data-title",
-        "title"
-    )
-
-    private val tooltipContentClassNames = setOf(
-        "tooltiptext",
-        "tooltip-text",
-        "tooltip-content",
-        "tooltip__content",
-        "annotation-description",
-        "annotation__description",
-        "smartip-description",
-        "smartip__description",
-        "smartip-content",
-        "smartip__content"
-    )
-
     private fun KsoupElement.isTooltipContentNode(): Boolean {
         if (classNames().containsAnyInsensitive(tooltipContentClassNames)) return true
         val role = attr("data-role")
@@ -1382,8 +1246,7 @@ private class RichTextHandler(
         element.attr("data-tooltip-json").takeIf { it.isNotBlank() }?.let { candidate ->
             parseTooltipPayload(candidate)?.let { return it }
         }
-        
-        // Search children for inline tooltip
+
         val inlineNode = findInlineTooltipNode(element)
         val inlineText = inlineNode?.text()?.trim()
         return inlineText?.takeIf { it.isNotEmpty() }
@@ -1403,7 +1266,7 @@ private class RichTextHandler(
     private fun parseTooltipPayload(rawValue: String): String? {
         val trimmed = rawValue.trim()
         if (trimmed.isEmpty()) return null
-        
+
         try {
             if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
                 val json = Json.parseToJsonElement(trimmed).jsonObject
@@ -1411,7 +1274,6 @@ private class RichTextHandler(
                 for (key in keys) {
                     val value = json[key]?.jsonPrimitive?.contentOrNull
                     if (!value.isNullOrBlank()) {
-                        // Sanitize HTML in tooltip
                         return stripHtml(value)
                     }
                 }
@@ -1429,15 +1291,14 @@ private class RichTextHandler(
                     }
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Ignore json errors
         }
-        
+
         return stripHtml(trimmed).takeIf { it.isNotEmpty() }
     }
-    
+
     private fun stripHtml(html: String): String {
-        // Simple strip using Ksoup
         val handler = object : KsoupHtmlHandler {
             val sb = StringBuilder()
             override fun onText(text: String) {
@@ -1448,6 +1309,114 @@ private class RichTextHandler(
         parser.write(html)
         parser.end()
         return handler.sb.toString().trim()
+    }
+
+    companion object {
+        private val tooltipAttributeCandidates = listOf(
+            "data-tooltip",
+            "data-tooltip-text",
+            "data-tooltip-content",
+            "data-smartip",
+            "data-smarttip",
+            "miamed-smartip",
+            "data-description",
+            "data-desc",
+            "data-term-description",
+            "data-info",
+            "data-message",
+            "data-details",
+            "data-content",
+            "data-title",
+            "title"
+        )
+
+        private val tooltipContentClassNames = setOf(
+            "tooltiptext",
+            "tooltip-text",
+            "tooltip-content",
+            "tooltip__content",
+            "annotation-description",
+            "annotation__description",
+            "smartip-description",
+            "smartip__description",
+            "smartip-content",
+            "smartip__content"
+        )
+    }
+}
+
+private fun InlineStyle.applyClassStyles(
+    classes: Set<String>,
+    palette: RichTextPalette,
+    showSelectedHighlight: Boolean
+): InlineStyle {
+    if (classes.isEmpty()) return this
+    var updated = this
+    classes.forEach { rawClass ->
+        when (rawClass.lowercase()) {
+            "wichtig" -> updated = updated.copy(highlight = InlineHighlight.IMPORTANT, bold = true)
+            "selected" -> if (showSelectedHighlight) {
+                updated = updated.copy(highlight = InlineHighlight.SELECTED)
+            }
+            "dictionary" -> updated = updated.copy(dictionary = true, underline = true)
+            "nowrap" -> updated = updated.copy(preserveWhitespace = true)
+            "scientific-name" -> updated = updated.copy(italic = true)
+            "abstract" -> updated = updated.copy(smallText = true, textColor = palette.abstractText)
+            "metalink" -> updated = updated.copy(textColor = Color(0xFFE91E63), italic = true)
+        }
+    }
+    return updated
+}
+
+private fun AnnotatedString.Builder.appendTextWithStyle(
+    text: String,
+    style: InlineStyle,
+    palette: RichTextPalette
+) {
+    if (text.isEmpty()) return
+    val displayText = if (style.preserveWhitespace) text.replace(' ', '\u00A0') else text
+    val textColor = when {
+        style.textColor != null -> style.textColor
+        style.highlight == InlineHighlight.IMPORTANT -> palette.importantText
+        style.highlight == InlineHighlight.SELECTED -> palette.selectedText
+        style.dictionary -> palette.dictionaryText
+        style.tooltip != null -> palette.dictionaryText
+        else -> null
+    }
+    val backgroundColor = when (style.highlight) {
+        InlineHighlight.IMPORTANT -> palette.importantBackground
+        InlineHighlight.SELECTED -> palette.selectedBackground
+        null -> Color.Unspecified
+    }
+    val needsUnderline = style.underline || style.dictionary || style.tooltip != null
+    val spanStyle = SpanStyle(
+        fontWeight = if (style.bold) FontWeight.SemiBold else null,
+        fontStyle = if (style.italic) FontStyle.Italic else null,
+        textDecoration = if (needsUnderline) TextDecoration.Underline else null,
+        fontFamily = if (style.monospace) FontFamily.Monospace else FontFamily.Default,
+        baselineShift = when {
+            style.superscript -> BaselineShift.Superscript
+            style.subscript -> BaselineShift.Subscript
+            else -> BaselineShift.None
+        },
+        background = backgroundColor,
+        color = textColor ?: Color.Unspecified,
+        fontSize = if (style.smallText) 12.sp else TextUnit.Unspecified
+    )
+    if (style.link != null) {
+        pushStringAnnotation(tag = "URL", annotation = style.link)
+    }
+    if (style.tooltip != null) {
+        pushStringAnnotation(tag = "TOOLTIP", annotation = style.tooltip)
+    }
+    withStyle(spanStyle) {
+        append(displayText)
+    }
+    if (style.tooltip != null) {
+        pop()
+    }
+    if (style.link != null) {
+        pop()
     }
 }
 

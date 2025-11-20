@@ -5,19 +5,17 @@ import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlParser
 import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlHandler
 
 object HtmlUtils {
-    private const val MEDIA_FOLDER = "media"
+    private const val MEDIA_URI_PREFIX = "file:///media/"
     
     // Regex patterns
     private val STYLE_REGEX = Regex("<style[\\s\\S]*?</style>", setOf(RegexOption.IGNORE_CASE))
-    private val DATA_ATTR_REGEX = Regex("\\sdata-[a-z0-9-]+=\"[^\"]*\"", setOf(RegexOption.IGNORE_CASE))
-    private val CLASS_ATTR_REGEX = Regex("\\sclass=\"[^\"]*\"", setOf(RegexOption.IGNORE_CASE))
     // Updated to handle both single and double quotes for style attributes
     private val STYLE_ATTR_REGEX = Regex("\\sstyle=(?:\"[^\"]*\"|'[^']*')", setOf(RegexOption.IGNORE_CASE))
-    private val EMPTY_SPAN_REGEX = Regex("<span[^>]*>(.*?)</span>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
-    private val TABLE_REGEX = Regex("<table[\\s\\S]*?</table>", setOf(RegexOption.IGNORE_CASE))
     private val IMG_TAG_REGEX = Regex("""<img([^>]*)\s+src=['\"]([^'\"]+)['\"]""", setOf(RegexOption.IGNORE_CASE))
     private val ANCHOR_TAG_REGEX = Regex("""<a([^>]*?)href=([\"'])([^\"']+)\2([^>]*)>""", setOf(RegexOption.IGNORE_CASE))
     private val MEDIA_LINK_REGEX = Regex("""(?i).*\.(jpg|jpeg|png|gif|bmp|webp|mp4|avi|mkv|mov|webm|3gp|mp3|wav|ogg|m4a|aac|flac)(?:$|[?#]).*""")
+    private val GENERIC_SRC_REGEX = Regex("""src=\s*['\"]([^'\"]+)['\"]""", setOf(RegexOption.IGNORE_CASE))
+    private val CLASS_ATTR_CAPTURE_REGEX = Regex("class=([\"'])(.*?)\1", RegexOption.IGNORE_CASE)
 
     data class QuestionParts(
         val contentHtml: String,
@@ -155,8 +153,7 @@ object HtmlUtils {
         }
 
         // Extract generic src attributes (video/source/audio)
-        val srcRegex = Regex("""src=\s*['\"]([^'\"]+)['\"]""", setOf(RegexOption.IGNORE_CASE))
-        srcRegex.findAll(combined).forEach { match ->
+        GENERIC_SRC_REGEX.findAll(combined).forEach { match ->
             val src = match.groupValues[1]
             if (!isSpecialProtocol(src)) addCandidate(src)
         }
@@ -185,57 +182,71 @@ object HtmlUtils {
         .substringBefore('#')
         .trim()
 
-    fun sanitizeForWebView(html: String): String = html
-        .replace(STYLE_REGEX, "")
-        //.replace(DATA_ATTR_REGEX, "") // Keep data attributes for tooltips and links
-        .replace(STYLE_ATTR_REGEX, "")
-        .replace(IMG_TAG_REGEX) { match ->
-            val attrs = match.groupValues[1]
-            val src = match.groupValues[2]
-            val fileName = normalizeFileName(src)
-            "<img$attrs src=\"file:///media/$fileName\""
-        }
-        .replace(ANCHOR_TAG_REGEX) { match ->
-            val before = match.groupValues[1]
-            val quote = match.groupValues[2]
-            val href = match.groupValues[3]
-            val after = match.groupValues[4]
-            val newHref = rewriteAnchorHref(href)
-            
-            var newBefore = before
-            var newAfter = after
-            
-            if (newHref.startsWith("file:///media/") || newHref.startsWith("media://")) {
-                 val classRegex = Regex("class=([\"'])(.*?)\\1", RegexOption.IGNORE_CASE)
-                 if (classRegex.containsMatchIn(newBefore)) {
-                     newBefore = newBefore.replace(classRegex) { m ->
-                         val q = m.groupValues[1]
-                         val c = m.groupValues[2]
-                         "class=$q$c metalink$q"
-                     }
-                 } else if (classRegex.containsMatchIn(newAfter)) {
-                     newAfter = newAfter.replace(classRegex) { m ->
-                         val q = m.groupValues[1]
-                         val c = m.groupValues[2]
-                         "class=$q$c metalink$q"
-                     }
-                 } else {
-                     newBefore += " class=\"metalink\""
-                 }
-            }
+    fun sanitizeForWebView(html: String): String {
+        if (html.isBlank()) return ""
+        val withoutStyles = removeStyleArtifacts(html)
+        val withNormalizedImages = rewriteImageSources(withoutStyles)
+        return rewriteAnchorTags(withNormalizedImages)
+    }
 
-            "<a$newBefore href=$quote$newHref$quote$newAfter>"
+    private fun removeStyleArtifacts(html: String): String = html
+        .replace(STYLE_REGEX, "")
+        .replace(STYLE_ATTR_REGEX, "")
+
+    private fun rewriteImageSources(html: String): String = html.replace(IMG_TAG_REGEX) { match ->
+        val attrs = match.groupValues[1]
+        val src = match.groupValues[2]
+        "<img$attrs src=\"${mediaFileUriFromSource(src)}\""
+    }
+
+    private fun rewriteAnchorTags(html: String): String = html.replace(ANCHOR_TAG_REGEX) { match ->
+        val before = match.groupValues[1]
+        val quote = match.groupValues[2]
+        val href = match.groupValues[3]
+        val after = match.groupValues[4]
+        val newHref = rewriteAnchorHref(href)
+
+        val (finalBefore, finalAfter) = if (newHref.startsWith(MEDIA_URI_PREFIX) || newHref.startsWith("media://")) {
+            ensureMetalinkClass(before, after)
+        } else {
+            before to after
         }
+
+        "<a$finalBefore href=$quote$newHref$quote$finalAfter>"
+    }
+
+    private fun ensureMetalinkClass(before: String, after: String): Pair<String, String> {
+        var updatedBefore = before
+        var updatedAfter = after
+        when {
+            CLASS_ATTR_CAPTURE_REGEX.containsMatchIn(updatedBefore) -> updatedBefore = appendMetalinkClass(updatedBefore)
+            CLASS_ATTR_CAPTURE_REGEX.containsMatchIn(updatedAfter) -> updatedAfter = appendMetalinkClass(updatedAfter)
+            else -> updatedBefore += " class=\"metalink\""
+        }
+        return updatedBefore to updatedAfter
+    }
+
+    private fun appendMetalinkClass(target: String): String = CLASS_ATTR_CAPTURE_REGEX.replace(target) { match ->
+        val quote = match.groupValues[1]
+        val classes = match.groupValues[2]
+        val normalized = if (classes.contains("metalink")) classes else "$classes metalink"
+        "class=$quote$normalized$quote"
+    }
+
+    private fun mediaFileUriFromSource(source: String): String {
+        val fileName = normalizeFileName(source)
+        return "$MEDIA_URI_PREFIX$fileName"
+    }
 
     private fun rewriteAnchorHref(href: String): String {
         val lower = href.lowercase()
         if (isSpecialProtocol(href)) return href
-        if (lower.startsWith("media://")) return "file:///media/" + normalizeFileName(href.substringAfter("media://"))
+        if (lower.startsWith("media://")) return mediaFileUriFromSource(href.substringAfter("media://"))
         if (href.contains("/media/") && !lower.startsWith("file://")) {
             return if (href.startsWith("/")) "file://$href" else "file:///$href"
         }
         if (MEDIA_LINK_REGEX.containsMatchIn(href)) {
-            return "file:///media/" + normalizeFileName(href)
+            return mediaFileUriFromSource(href)
         }
         return href
     }
