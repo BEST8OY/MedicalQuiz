@@ -188,7 +188,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
             lastCorrect = summary.lastCorrect == 1,
             everCorrect = summary.everCorrect == 1,
             everIncorrect = summary.everIncorrect == 1,
-            attempts = 0
+            attempts = summary.attempts
         )
     }
 

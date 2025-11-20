@@ -51,8 +51,14 @@ class QuizViewModel : ViewModel() {
     private var lastFetchedSubjectIds: List<Long>? = null
 
     fun setDatabaseManager(db: DatabaseProvider) {
+        val oldDb = databaseManager
         databaseManager = db
         viewModelScope.launch(Dispatchers.IO) {
+            try {
+                oldDb?.closeDatabase()
+            } catch (e: Exception) {
+                println("Error closing old database: ${e.message}")
+            }
             initializeAfterDatabaseSwitch()
         }
     }
