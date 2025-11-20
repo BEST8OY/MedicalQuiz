@@ -11,6 +11,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import com.medicalquiz.app.shared.generateImageLoader
 import com.medicalquiz.app.shared.data.CacheManager
 import com.medicalquiz.app.shared.data.DatabaseManager
 import com.medicalquiz.app.shared.data.SettingsRepository
