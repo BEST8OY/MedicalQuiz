@@ -14,6 +14,8 @@ on:
 
 env:
   GRADLE_OPTS: "-Xmx4096m -XX:+UseG1GC"
+  # Disable KSP incremental to prevent cache corruption issues in CI
+  ORG_GRADLE_PROJECT_ksp_incremental: "false"
 
 jobs:
   build:
