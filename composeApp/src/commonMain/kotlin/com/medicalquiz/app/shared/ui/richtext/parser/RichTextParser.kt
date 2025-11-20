@@ -44,54 +44,9 @@ internal object RichTextParser {
         val parser = KsoupHtmlParser(handler = handler)
         parser.write(html)
         parser.end()
-        palette: RichTextPalette
-        if (text.isEmpty()) return
-        val displayText = if (style.preserveWhitespace) text.replace(' ', '\u00A0') else text
-        val textColor = when {
-            style.textColor != null -> style.textColor
-            style.highlight == InlineHighlight.IMPORTANT -> palette.importantText
-            style.highlight == InlineHighlight.SELECTED -> palette.selectedText
-            style.dictionary -> palette.dictionaryText
-            style.tooltip != null -> palette.dictionaryText
-            else -> null
-        }
-        val backgroundColor = when (style.highlight) {
-            InlineHighlight.IMPORTANT -> palette.importantBackground
-            InlineHighlight.SELECTED -> palette.selectedBackground
-            null -> Color.Unspecified
-        }
-        val needsUnderline = style.underline || style.dictionary || style.tooltip != null
-        val spanStyle = SpanStyle(
-            fontWeight = if (style.bold) FontWeight.SemiBold else null,
-            fontStyle = if (style.italic) FontStyle.Italic else null,
-            textDecoration = if (needsUnderline) TextDecoration.Underline else null,
-            fontFamily = if (style.monospace) FontFamily.Monospace else FontFamily.Default,
-            baselineShift = when {
-                style.superscript -> BaselineShift.Superscript
-                style.subscript -> BaselineShift.Subscript
-                else -> BaselineShift.None
-            },
-            background = backgroundColor,
-            color = textColor ?: Color.Unspecified,
-            fontSize = if (style.smallText) 12.sp else TextUnit.Unspecified
-        )
-        if (style.link != null) {
-            pushStringAnnotation(tag = "URL", annotation = style.link)
-        }
-        if (style.tooltip != null) {
-            pushStringAnnotation(tag = "TOOLTIP", annotation = style.tooltip)
-        }
-        withStyle(spanStyle) {
-            append(displayText)
-        }
-        if (style.tooltip != null) {
-            pop()
-        }
-        if (style.link != null) {
-            pop()
-        }
+        return handler.blocks
 }
-
+}
 private class RichTextHandler(
     private val palette: RichTextPalette,
     private val showSelectedHighlight: Boolean
