@@ -30,12 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
-import coil3.ImageLoader
 import coil3.compose.LocalImageLoader
-import coil3.memory.MemoryCache
-import coil3.request.crossfade
-import coil3.svg.SvgDecoder
 import com.medicalquiz.app.shared.App
+import com.medicalquiz.app.shared.generateImageLoader
 import com.medicalquiz.app.shared.platform.AppContext
 import com.medicalquiz.app.shared.ui.AppTheme
 
@@ -68,17 +65,7 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             val imageLoader = remember {
-                ImageLoader.Builder(this@MainActivity)
-                    .components {
-                        add(SvgDecoder.Factory())
-                    }
-                    .memoryCache {
-                        MemoryCache.Builder()
-                            .maxSizePercent(this@MainActivity, 0.25)
-                            .build()
-                    }
-                    .crossfade(true)
-                    .build()
+                generateImageLoader(this@MainActivity)
             }
 
             CompositionLocalProvider(LocalImageLoader provides imageLoader) {
