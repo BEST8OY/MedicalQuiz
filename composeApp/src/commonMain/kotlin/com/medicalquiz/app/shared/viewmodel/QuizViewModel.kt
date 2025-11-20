@@ -211,7 +211,7 @@ class QuizViewModel : ViewModel() {
                 val correctAnswerId = correctAnswer?.answerId?.toInt() ?: -1
 
                 if (isLoggingEnabled) {
-                    logAnswerToDatabase(question.id, selectedAnswerId, question.corrAns, timeTaken)
+                    logAnswerToDatabase(question.id, selectedAnswerId, correctAnswerId, timeTaken)
                     updatePerformanceState(question.id, correctAnswerId, selectedAnswerId)
                 }
             } catch (e: Exception) {
