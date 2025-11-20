@@ -16,13 +16,22 @@ fun AppTheme(
     content: @Composable () -> Unit
 ) {
     val colorScheme = getPlatformColorScheme(useDarkTheme) ?: if (useDarkTheme) {
-        darkColorScheme()
+        darkColorScheme(
+            primary = Purple80,
+            secondary = PurpleGrey80,
+            tertiary = Pink80
+        )
     } else {
-        lightColorScheme()
+        lightColorScheme(
+            primary = Purple40,
+            secondary = PurpleGrey40,
+            tertiary = Pink40
+        )
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
+        typography = Typography,
         content = content
     )
 }

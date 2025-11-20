@@ -112,9 +112,11 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
+import com.medicalquiz.app.shared.ui.AppTheme
+
 @Composable
 fun PermissionScreen(onGrantPermission: () -> Unit) {
-    MaterialTheme {
+    AppTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
