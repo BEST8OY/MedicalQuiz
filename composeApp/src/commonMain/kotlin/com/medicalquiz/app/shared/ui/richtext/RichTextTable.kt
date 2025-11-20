@@ -57,19 +57,17 @@ internal fun RichTextTable(
                     .width(tableWidth)
             ) {
                 renderModel.rows.forEachIndexed { index, row ->
-                TableRowContent(
-                    row = row,
-                    tableClassNames = block.classNames,
-                    onLinkClick = onLinkClick,
-                    onTooltipClick = onTooltipClick
-                )
-                if (index != renderModel.rows.lastIndex) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                    TableRowContent(
+                        row = row,
+                        tableClassNames = block.classNames,
+                        onLinkClick = onLinkClick,
+                        onTooltipClick = onTooltipClick
+                    )
+                    if (index != renderModel.rows.lastIndex) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                    }
                 }
             }
-        }
-    }
-}
         }
     }
 }
