@@ -20,8 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -30,7 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
-import coil3.compose.LocalImageLoader
+import coil3.setSingletonImageLoaderFactory
 import com.medicalquiz.app.shared.App
 import com.medicalquiz.app.shared.generateImageLoader
 import com.medicalquiz.app.shared.platform.AppContext
@@ -57,6 +55,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         AppContext.init(this)
         WindowCompat.enableEdgeToEdge(window)
+        setSingletonImageLoaderFactory { context ->
+            generateImageLoader(context)
+        }
         
         val isDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES
@@ -64,18 +65,12 @@ class MainActivity : AppCompatActivity() {
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = !isDark
 
         setContent {
-            val imageLoader = remember {
-                generateImageLoader(this@MainActivity)
-            }
-
-            CompositionLocalProvider(LocalImageLoader provides imageLoader) {
-                if (isPermissionGranted) {
-                    App()
-                } else {
-                    PermissionScreen(
-                        onGrantPermission = { openManageStorageSettings() }
-                    )
-                }
+            if (isPermissionGranted) {
+                App()
+            } else {
+                PermissionScreen(
+                    onGrantPermission = { openManageStorageSettings() }
+                )
             }
         }
 
