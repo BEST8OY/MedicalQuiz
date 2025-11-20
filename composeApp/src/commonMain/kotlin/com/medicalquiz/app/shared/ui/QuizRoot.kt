@@ -62,7 +62,8 @@ fun QuizRoot(
     viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
     onClearFilters: () -> Unit,
-    onStart: () -> Unit
+    onStart: () -> Unit,
+    onChangeDatabase: () -> Unit
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -145,6 +146,10 @@ fun QuizRoot(
                     },
                     onSettings = {
                         showSettingsDialog = true
+                        scope.launch { drawerState.close() }
+                    },
+                    onChangeDatabase = {
+                        onChangeDatabase()
                         scope.launch { drawerState.close() }
                     }
                 )
@@ -330,7 +335,8 @@ private fun NavigationDrawer(
     onSystemFilter: () -> Unit,
     onPerformanceFilter: () -> Unit,
     onClearFilters: () -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onChangeDatabase: () -> Unit
 ) {
     ModalDrawerSheet {
         Column(
@@ -387,6 +393,14 @@ private fun NavigationDrawer(
                 icon = { Icon(Icons.Rounded.Settings, null) },
                 selected = false,
                 onClick = onSettings,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+
+            NavigationDrawerItem(
+                label = { Text("Change Database") },
+                icon = { Icon(Icons.Filled.Storage, null) },
+                selected = false,
+                onClick = onChangeDatabase,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
         }
