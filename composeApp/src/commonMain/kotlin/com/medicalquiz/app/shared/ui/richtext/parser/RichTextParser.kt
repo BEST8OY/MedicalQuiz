@@ -44,51 +44,52 @@ internal object RichTextParser {
         val parser = KsoupHtmlParser(handler = handler)
         parser.write(html)
         parser.end()
-        return handler.blocks
-    }
-}
-
-private sealed interface KsoupNode {
-    val parent: KsoupElement?
-}
-
-private class KsoupTextNode(val text: String, override val parent: KsoupElement?) : KsoupNode
-
-private class KsoupElement(
-    val tagName: String,
-    val attributes: Map<String, String>,
-    override val parent: KsoupElement?
-) : KsoupNode {
-    val children = mutableListOf<KsoupNode>()
-
-    fun attr(name: String): String = attributes[name] ?: ""
-    fun hasAttr(name: String): Boolean = attributes.containsKey(name)
-    fun classNames(): Set<String> = attributes["class"]?.split(" ")?.toSet() ?: emptySet()
-
-    fun text(): String {
-        val sb = StringBuilder()
-        collectText(this, sb)
-        return sb.toString()
-    }
-
-    private fun collectText(node: KsoupNode, sb: StringBuilder) {
-        when (node) {
-            is KsoupTextNode -> sb.append(node.text)
-            is KsoupElement -> node.children.forEach { collectText(it, sb) }
+        palette: RichTextPalette
+        if (text.isEmpty()) return
+        val displayText = if (style.preserveWhitespace) text.replace(' ', '\u00A0') else text
+        val textColor = when {
+            style.textColor != null -> style.textColor
+            style.highlight == InlineHighlight.IMPORTANT -> palette.importantText
+            style.highlight == InlineHighlight.SELECTED -> palette.selectedText
+            style.dictionary -> palette.dictionaryText
+            style.tooltip != null -> palette.dictionaryText
+            else -> null
         }
-    }
-}
-
-private fun KsoupElement.collectAncestorClasses(stopAt: KsoupElement?): Set<String> {
-    val classes = mutableSetOf<String>()
-    var cursor = parent
-    while (cursor != null && cursor != stopAt) {
-        cursor.classNames()
-            .filter { it.isNotBlank() }
-            .forEach { classes += it }
-        cursor = cursor.parent
-    }
-    return classes
+        val backgroundColor = when (style.highlight) {
+            InlineHighlight.IMPORTANT -> palette.importantBackground
+            InlineHighlight.SELECTED -> palette.selectedBackground
+            null -> Color.Unspecified
+        }
+        val needsUnderline = style.underline || style.dictionary || style.tooltip != null
+        val spanStyle = SpanStyle(
+            fontWeight = if (style.bold) FontWeight.SemiBold else null,
+            fontStyle = if (style.italic) FontStyle.Italic else null,
+            textDecoration = if (needsUnderline) TextDecoration.Underline else null,
+            fontFamily = if (style.monospace) FontFamily.Monospace else FontFamily.Default,
+            baselineShift = when {
+                style.superscript -> BaselineShift.Superscript
+                style.subscript -> BaselineShift.Subscript
+                else -> BaselineShift.None
+            },
+            background = backgroundColor,
+            color = textColor ?: Color.Unspecified,
+            fontSize = if (style.smallText) 12.sp else TextUnit.Unspecified
+        )
+        if (style.link != null) {
+            pushStringAnnotation(tag = "URL", annotation = style.link)
+        }
+        if (style.tooltip != null) {
+            pushStringAnnotation(tag = "TOOLTIP", annotation = style.tooltip)
+        }
+        withStyle(spanStyle) {
+            append(displayText)
+        }
+        if (style.tooltip != null) {
+            pop()
+        }
+        if (style.link != null) {
+            pop()
+        }
 }
 
 private class RichTextHandler(
@@ -264,7 +265,7 @@ private class RichTextDomParser(
         fun flushInlineParagraph() {
             if (inlineNodes.isEmpty()) return
             val builder = buildAnnotatedString {
-                appendNodes(inlineNodes, paragraphBaseStyle)
+                appendNodes(inlineNodes, paragraphBaseStyle, palette)
             }
             inlineNodes.clear()
             if (builder.text.isNotBlank()) {
@@ -301,21 +302,23 @@ private class RichTextDomParser(
     private fun buildAnnotatedBlock(element: KsoupElement): AnnotatedString? {
         val baseStyle = InlineStyle().applyClassStyles(element.classNames(), palette, showSelectedHighlight)
         val builder = buildAnnotatedString {
-            appendNodes(element.children, baseStyle)
+            appendNodes(element.children, baseStyle, palette)
         }
         return builder.takeIf { it.text.isNotBlank() }
     }
 
     private fun AnnotatedString.Builder.appendNodes(
         nodes: List<KsoupNode>,
-        style: InlineStyle
+        style: InlineStyle,
+        palette: RichTextPalette
     ) {
-        nodes.forEach { node -> appendNode(node, style) }
+        nodes.forEach { node -> appendNode(node, style, palette) }
     }
 
     private fun AnnotatedString.Builder.appendNode(
         node: KsoupNode,
-        style: InlineStyle
+        style: InlineStyle,
+        palette: RichTextPalette
     ) {
         when (node) {
             is KsoupTextNode -> {
@@ -359,7 +362,7 @@ private class RichTextDomParser(
                 extractTooltipText(node)?.let { tooltip ->
                     nextStyle = nextStyle.copy(tooltip = tooltip)
                 }
-                appendNodes(node.children, nextStyle)
+                appendNodes(node.children, nextStyle, palette)
 
                 if (tag == "p" || tag == "div") {
                     append("\n")
@@ -1001,7 +1004,8 @@ private fun InlineStyle.applyClassStyles(
 
 private fun AnnotatedString.Builder.appendTextWithStyle(
     text: String,
-    style: InlineStyle
+    style: InlineStyle,
+    palette: RichTextPalette
 ) {
     if (text.isEmpty()) return
     val displayText = if (style.preserveWhitespace) text.replace(' ', '\u00A0') else text
@@ -1032,8 +1036,7 @@ private fun AnnotatedString.Builder.appendTextWithStyle(
         background = backgroundColor,
         color = textColor ?: Color.Unspecified,
         fontSize = if (style.smallText) 12.sp else TextUnit.Unspecified
-        palette: RichTextPalette
-    ) {
+    )
     if (style.link != null) {
         pushStringAnnotation(tag = "URL", annotation = style.link)
     }
