@@ -2,10 +2,10 @@ package com.medicalquiz.app.shared
 
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import coil3.setSingletonImageLoaderFactory
+import coil3.SingletonImageLoader
 
 fun main() = application {
-    setSingletonImageLoaderFactory { context ->
+    SingletonImageLoader.setSafe { context ->
         generateImageLoader(context)
     }
 

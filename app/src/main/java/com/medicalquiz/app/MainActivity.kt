@@ -28,7 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
-import coil3.setSingletonImageLoaderFactory
+import coil3.SingletonImageLoader
 import com.medicalquiz.app.shared.App
 import com.medicalquiz.app.shared.generateImageLoader
 import com.medicalquiz.app.shared.platform.AppContext
@@ -55,7 +55,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         AppContext.init(this)
         WindowCompat.enableEdgeToEdge(window)
-        setSingletonImageLoaderFactory { context ->
+        SingletonImageLoader.setSafe { context ->
             generateImageLoader(context)
         }
         
