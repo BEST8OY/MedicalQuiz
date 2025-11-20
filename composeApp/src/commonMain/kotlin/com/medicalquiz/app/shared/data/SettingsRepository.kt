@@ -6,6 +6,10 @@ import com.medicalquiz.app.shared.platform.StorageProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 /**
  * Simple settings repository that exposes flows for settings that affect ViewModel behavior.
@@ -14,11 +18,16 @@ class SettingsRepository {
     private val _isLoggingEnabled = MutableStateFlow(true)
     val isLoggingEnabled: StateFlow<Boolean> = _isLoggingEnabled.asStateFlow()
 
+    private val _showMetadata = MutableStateFlow(true)
+    val showMetadata: StateFlow<Boolean> = _showMetadata.asStateFlow()
+
     private val _performanceFilter = MutableStateFlow(PerformanceFilter.ALL)
     val performanceFilter: StateFlow<PerformanceFilter> = _performanceFilter.asStateFlow()
 
     private val settingsFile: String
         get() = "${StorageProvider.getAppStorageDirectory()}/settings.json"
+
+    private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
     init {
         loadSettings()
@@ -26,6 +35,11 @@ class SettingsRepository {
 
     fun setLoggingEnabled(enabled: Boolean) {
         _isLoggingEnabled.value = enabled
+        saveSettings()
+    }
+
+    fun setShowMetadata(enabled: Boolean) {
+        _showMetadata.value = enabled
         saveSettings()
     }
 
@@ -37,10 +51,9 @@ class SettingsRepository {
         try {
             val content = FileSystemHelper.readText(settingsFile)
             if (content != null) {
-                // Simple manual JSON parsing
-                if (content.contains("\"isLoggingEnabled\": false")) {
-                    _isLoggingEnabled.value = false
-                }
+                val payload = json.decodeFromString(SettingsPayload.serializer(), content)
+                _isLoggingEnabled.value = payload.isLoggingEnabled
+                _showMetadata.value = payload.showMetadata
             }
         } catch (e: Exception) {
             println("Error loading settings: ${e.message}")
@@ -49,15 +62,20 @@ class SettingsRepository {
 
     private fun saveSettings() {
         try {
-            // Simple manual JSON generation
-            val json = """
-                {
-                    "isLoggingEnabled": ${_isLoggingEnabled.value}
-                }
-            """.trimIndent()
-            FileSystemHelper.writeText(settingsFile, json)
+            val payload = SettingsPayload(
+                isLoggingEnabled = _isLoggingEnabled.value,
+                showMetadata = _showMetadata.value
+            )
+            val jsonString = json.encodeToString(payload)
+            FileSystemHelper.writeText(settingsFile, jsonString)
         } catch (e: Exception) {
             println("Error saving settings: ${e.message}")
         }
     }
+
+    @Serializable
+    private data class SettingsPayload(
+        val isLoggingEnabled: Boolean = true,
+        val showMetadata: Boolean = true
+    )
 }

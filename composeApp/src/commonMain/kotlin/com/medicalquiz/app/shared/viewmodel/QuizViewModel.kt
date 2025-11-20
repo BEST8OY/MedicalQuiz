@@ -71,6 +71,7 @@ class QuizViewModel : ViewModel() {
             // Reset to empty state but preserve settings that shouldn't change
             QuizState.EMPTY.copy(
                 isLoggingEnabled = currentState.isLoggingEnabled,
+                showMetadata = currentState.showMetadata,
                 databaseName = "" // Will be set shortly after
             )
         }
@@ -491,6 +492,11 @@ class QuizViewModel : ViewModel() {
             launch {
                 repo.isLoggingEnabled.collect { enabled ->
                     _state.update { it.copy(isLoggingEnabled = enabled) }
+                }
+            }
+            launch {
+                repo.showMetadata.collect { visible ->
+                    _state.update { it.copy(showMetadata = visible) }
                 }
             }
         }

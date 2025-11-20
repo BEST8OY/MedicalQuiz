@@ -25,6 +25,7 @@ data class QuizState(
     val previewQuestionCount: Int = 0,
     val currentPerformance: QuestionPerformance? = null,
     val isLoggingEnabled: Boolean = true,
+    val showMetadata: Boolean = true,
     val autoLoadFirstQuestion: Boolean = false
 ) {
     val totalQuestions: Int

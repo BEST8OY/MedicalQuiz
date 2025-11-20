@@ -137,7 +137,7 @@ private fun HtmlContent(fileName: String) {
     val filePath = "$storageDir/media/$fileName"
     val htmlContent = remember(fileName) {
         FileSystemHelper.readText(filePath)?.let { 
-            HtmlUtils.sanitizeForWebView(it) 
+            HtmlUtils.sanitizeForRichText(it) 
         }
     }
 

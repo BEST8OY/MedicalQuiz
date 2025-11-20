@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -101,7 +102,8 @@ data class RichTextTableCell(
     val alignment: TextAlign = TextAlign.Start,
     val isHeader: Boolean = false,
     val classNames: Set<String> = emptySet(),
-    val width: Float? = null
+    val width: Float? = null,
+    val paddingStart: Dp = 0.dp
 )
 
 @Immutable
@@ -662,7 +664,8 @@ private fun TableRowContent(
                         text = cell.cell.text,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 4.dp),
+                            .padding(horizontal = 4.dp)
+                            .padding(start = cell.cell.paddingStart),
                         style = textStyle,
                         color = textColor,
                         textAlign = cell.cell.alignment,
@@ -684,6 +687,27 @@ private fun Set<String>.containsInsensitive(target: String): Boolean {
 private fun Set<String>.containsAnyInsensitive(targets: Set<String>): Boolean {
     if (isEmpty() || targets.isEmpty()) return false
     return targets.any { target -> containsInsensitive(target) }
+}
+
+private fun Set<String>.matchesAnyMarker(markers: Set<String>): Boolean {
+    if (isEmpty() || markers.isEmpty()) return false
+    return any { candidate -> markers.contains(normalizeMarker(candidate)) }
+}
+
+private fun normalizeMarker(value: String): String {
+    if (value.isEmpty()) return value
+    val sb = StringBuilder(value.length)
+    value.forEach { char ->
+        if (!char.isWhitespace() && char != '-' && char != '_') {
+            sb.append(char.lowercaseChar())
+        }
+    }
+    return sb.toString()
+}
+
+private fun normalizedMarkers(vararg markers: String): Set<String> {
+    if (markers.isEmpty()) return emptySet()
+    return markers.mapTo(mutableSetOf()) { marker -> normalizeMarker(marker) }
 }
 
 @Composable
@@ -1089,7 +1113,7 @@ private class RichTextDomParser(
         val headerRows = mutableListOf<RichTextTableRow>()
         val bodyRows = mutableListOf<RichTextTableRow>()
 
-        allRows.forEach { tr ->
+        allRows.forEachIndexed { index, tr ->
             var isHeaderContext = false
             var parent = tr.parent
             while (parent != null && parent != element) {
@@ -1100,7 +1124,7 @@ private class RichTextDomParser(
                 parent = parent.parent
             }
 
-            val parsedRow = parseTableRow(tr, element, isHeaderContext)
+            val parsedRow = parseTableRow(tr, element, isHeaderContext, index == 0)
             if (parsedRow.isHeader) {
                 headerRows.add(parsedRow)
             } else {
@@ -1125,7 +1149,8 @@ private class RichTextDomParser(
     private fun parseTableRow(
         row: KsoupElement,
         tableElement: KsoupElement,
-        headerContext: Boolean
+        headerContext: Boolean,
+        isFirstRow: Boolean
     ): RichTextTableRow {
         val cellElements = mutableListOf<KsoupElement>()
 
@@ -1141,32 +1166,85 @@ private class RichTextDomParser(
         }
         collectCells(row)
 
-        val isHeaderRow = headerContext || cellElements.all { it.tagName.equals("th", ignoreCase = true) }
+        val rowClasses = buildRowClassSet(row, tableElement)
         if (cellElements.isEmpty()) {
-            return RichTextTableRow(emptyList(), isHeaderRow, buildRowClassSet(row, tableElement))
+            val hasHeaderMarkers = headerContext ||
+                row.classNames().matchesAnyMarker(headerRowClassMarkers) ||
+                row.hasHeaderAttributeMarker(headerRowAttributeNames)
+            return RichTextTableRow(emptyList(), hasHeaderMarkers, rowClasses)
         }
-        val cells = cellElements.map { cell ->
+
+        data class CellInfo(
+            val text: AnnotatedString,
+            val rawText: String,
+            val columnSpan: Int,
+            val rowSpan: Int,
+            val alignment: TextAlign,
+            val width: Float?,
+            val paddingStart: Dp,
+            val classNames: Set<String>,
+            val hasHeaderTraits: Boolean
+        )
+
+        val cellInfos = cellElements.map { cell ->
+            val classes = cell.classNames()
             val text = buildAnnotatedBlock(cell) ?: AnnotatedString("")
             val columnSpan = cell.attr("colspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
             val rowSpan = cell.attr("rowspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
-            val alignment = when (cell.attr("align").lowercase()) {
-                "center" -> TextAlign.Center
-                "right" -> TextAlign.End
-                else -> TextAlign.Start
-            }
+            val alignment = resolveCellAlignment(cell, classes)
             val width = parseWidth(cell.attr("width"), cell.attr("style"))
-            val isHeaderCell = headerContext || cell.tagName.equals("th", ignoreCase = true)
-            RichTextTableCell(
+            val paddingStart = parsePaddingStart(cell.attr("style"))
+            val hasHeaderTraits = cell.isHeaderCellCandidate(classes)
+            CellInfo(
                 text = text,
+                rawText = cell.text().trim(),
                 columnSpan = columnSpan,
                 rowSpan = rowSpan,
                 alignment = alignment,
-                isHeader = isHeaderCell,
-                classNames = cell.classNames(),
-                width = width
+                width = width,
+                paddingStart = paddingStart,
+                classNames = classes,
+                hasHeaderTraits = hasHeaderTraits
             )
         }
-        return RichTextTableRow(cells = cells, isHeader = isHeaderRow, classNames = buildRowClassSet(row, tableElement))
+
+        val rowHasExplicitHeaderClass = row.classNames().matchesAnyMarker(headerRowClassMarkers)
+        val rowHasHeaderAttributes = row.hasHeaderAttributeMarker(headerRowAttributeNames)
+        val rowHasTitleClass = row.classNames().matchesAnyMarker(titleRowClassMarkers)
+        val rowAlignment = parseTextAlign(row)
+        val rowLooksLikeStandaloneTitle = cellInfos.size == 1 && cellInfos.first().let { info ->
+            val textLength = info.rawText.length
+            if (textLength == 0) {
+                false
+            } else {
+                val centerAligned = info.alignment == TextAlign.Center || rowAlignment == TextAlign.Center
+                val spansMultipleColumns = info.columnSpan >= 2
+                val emphasised = info.hasHeaderTraits || rowHasTitleClass || rowHasHeaderAttributes
+                val shortEnough = textLength <= 200
+                shortEnough && (centerAligned || emphasised) && (spansMultipleColumns || isFirstRow)
+            }
+        }
+        val allCellsMarkedHeader = cellInfos.all { it.hasHeaderTraits }
+        val isHeaderRow = headerContext ||
+            rowHasExplicitHeaderClass ||
+            rowHasHeaderAttributes ||
+            rowHasTitleClass ||
+            rowLooksLikeStandaloneTitle ||
+            allCellsMarkedHeader
+
+        val cells = cellInfos.map { info ->
+            RichTextTableCell(
+                text = info.text,
+                columnSpan = info.columnSpan,
+                rowSpan = info.rowSpan,
+                alignment = info.alignment,
+                isHeader = isHeaderRow || info.hasHeaderTraits,
+                classNames = info.classNames,
+                width = info.width,
+                paddingStart = info.paddingStart
+            )
+        }
+        return RichTextTableRow(cells = cells, isHeader = isHeaderRow, classNames = rowClasses)
     }
 
     private fun buildRowClassSet(row: KsoupElement, tableElement: KsoupElement): Set<String> {
@@ -1178,12 +1256,29 @@ private class RichTextDomParser(
     }
 
     private fun parseWidth(widthAttr: String, styleAttr: String): Float? {
-        if (styleAttr.contains("width")) {
-            val styleVal = styleAttr.substringAfter("width").substringAfter(":").substringBefore(";").trim()
-            parseDimension(styleVal)?.let { return it }
+        extractCssValue(styleAttr, "width")?.let { value ->
+            parseDimension(value)?.let { return it }
+        }
+        extractCssValue(styleAttr, "min-width")?.let { value ->
+            parseDimension(value)?.let { return it }
+        }
+        extractCssValue(styleAttr, "max-width")?.let { value ->
+            parseDimension(value)?.let { return it }
         }
         if (widthAttr.isNotBlank()) {
             parseDimension(widthAttr)?.let { return it }
+        }
+        return null
+    }
+
+    private fun extractCssValue(styleAttr: String, property: String): String? {
+        if (styleAttr.isBlank()) return null
+        styleAttr.split(";").forEach { declaration ->
+            val name = declaration.substringBefore(":").trim()
+            if (name.equals(property, ignoreCase = true)) {
+                val rawValue = declaration.substringAfter(":", "").substringBefore("!important").trim()
+                if (rawValue.isNotEmpty()) return rawValue
+            }
         }
         return null
     }
@@ -1197,6 +1292,74 @@ private class RichTextDomParser(
             return clean.removeSuffix("px").toFloatOrNull()
         }
         return clean.toFloatOrNull()
+    }
+
+    private fun resolveCellAlignment(cell: KsoupElement, classes: Set<String>): TextAlign {
+        parseTextAlign(cell)?.let { return it }
+        if (classes.matchesAnyMarker(centerAlignmentClassMarkers)) return TextAlign.Center
+        if (classes.matchesAnyMarker(endAlignmentClassMarkers)) return TextAlign.End
+        return TextAlign.Start
+    }
+
+    private fun KsoupElement.isHeaderCellCandidate(classNames: Set<String>): Boolean {
+        if (tagName.equals("th", ignoreCase = true)) return true
+        if (classNames.matchesAnyMarker(headerCellClassMarkers)) return true
+        if (hasHeaderAttributeMarker(headerCellAttributeNames)) return true
+        val scope = attr("scope")
+        if (scope.equals("col", true) || scope.equals("colgroup", true) || scope.equals("row", true) || scope.equals("rowgroup", true)) return true
+        val role = attr("role")
+        if (role.equals("columnheader", true) || role.equals("rowheader", true)) return true
+        if (containsBoldContent()) return true
+        return false
+    }
+
+    private fun KsoupElement.hasHeaderAttributeMarker(attributeNames: List<String>): Boolean {
+        attributeNames.forEach { attrName ->
+            val value = attr(attrName)
+            if (value.isBlank()) return@forEach
+            if (attrName.equals("scope", true)) {
+                if (value.equals("col", true) || value.equals("colgroup", true) || value.equals("row", true) || value.equals("rowgroup", true)) {
+                    return true
+                }
+            }
+            val normalizedValue = value.trim()
+            val attrImpliesHeader = attrName.contains("header", true) ||
+                attrName.contains("title", true) ||
+                attrName.contains("caption", true) ||
+                attrName.contains("heading", true)
+            if (attrImpliesHeader) {
+                if (normalizedValue.equals("false", true) || normalizedValue.equals("0")) return@forEach
+                if (attrName.contains("title", true) || attrName.contains("caption", true) || attrName.contains("heading", true)) {
+                    if (normalizedValue.isNotEmpty()) return true
+                }
+                if (normalizedValue.equals("true", true) || normalizedValue.equals("1") || normalizedValue.equals("yes", true)) return true
+            }
+            if (headerAttributeValues.any { candidate -> normalizedValue.contains(candidate, ignoreCase = true) }) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun KsoupElement.containsBoldContent(maxDepth: Int = 4): Boolean {
+        if (maxDepth <= 0) return false
+        if (tagName.equals("strong", true) || tagName.equals("b", true)) return true
+        if (styleIndicatesBold(attr("style"))) return true
+        if (classNames().matchesAnyMarker(boldClassMarkers)) return true
+        children.forEach { child ->
+            if (child is KsoupElement && child.containsBoldContent(maxDepth - 1)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun styleIndicatesBold(styleAttr: String): Boolean {
+        if (styleAttr.isBlank()) return false
+        val fontWeight = extractCssValue(styleAttr, "font-weight")?.lowercase()?.trim() ?: return false
+        if (fontWeight.startsWith("bold") || fontWeight.startsWith("bolder")) return true
+        val numeric = fontWeight.filter { it.isDigit() }
+        return numeric.toIntOrNull()?.let { it >= 600 } == true
     }
 
     private fun parseAbstractBlock(element: KsoupElement): RichTextBlock.AbstractBlock? {
@@ -1358,6 +1521,126 @@ private class RichTextDomParser(
             "smartip__content"
         )
 
+        private val headerRowClassMarkers = normalizedMarkers(
+            "header",
+            "table-header",
+            "table_header",
+            "tableheader",
+            "table-header-row",
+            "tableheaderrow",
+            "thead",
+            "tablehead",
+            "column-header-row",
+            "columnheaderrow",
+            "ueberschrift",
+            "titelzeile",
+            "section-header",
+            "subheader",
+            "table-heading",
+            "tableheading"
+        )
+
+        private val titleRowClassMarkers = normalizedMarkers(
+            "table-title",
+            "tabletitle",
+            "table-caption",
+            "tablecaption",
+            "caption-row",
+            "captionrow",
+            "legend-row",
+            "legendrow",
+            "data-table-title",
+            "datatabletitle"
+        )
+
+        private val headerCellClassMarkers = normalizedMarkers(
+            "header",
+            "table-header",
+            "tableheader",
+            "column-header",
+            "columnheader",
+            "row-header",
+            "rowheader",
+            "table-head",
+            "tablehead",
+            "col-header",
+            "colheader",
+            "ueberschrift",
+            "title-cell",
+            "titlecell",
+            "label-cell",
+            "labelcell"
+        )
+
+        private val boldClassMarkers = normalizedMarkers(
+            "bold",
+            "text-bold",
+            "fw-bold",
+            "fwbold",
+            "font-weight-bold",
+            "fontweightbold",
+            "strong",
+            "important"
+        )
+
+        private val centerAlignmentClassMarkers = normalizedMarkers(
+            "text-center",
+            "text-centre",
+            "align-center",
+            "centered",
+            "centre-text",
+            "ta-center",
+            "tacentre",
+            "center-text"
+        )
+
+        private val endAlignmentClassMarkers = normalizedMarkers(
+            "text-right",
+            "text-end",
+            "align-right",
+            "align-end",
+            "ta-right",
+            "taright",
+            "text-right-align",
+            "textright"
+        )
+
+        private val headerAttributeValues = setOf(
+            "header",
+            "heading",
+            "title",
+            "label",
+            "legend",
+            "summary",
+            "caption",
+            "topic",
+            "thead"
+        )
+
+        private val headerRowAttributeNames = listOf(
+            "data-row-type",
+            "data-type",
+            "role",
+            "data-role",
+            "aria-role",
+            "data-section",
+            "data-header",
+            "data-caption",
+            "data-title",
+            "data-heading"
+        )
+
+        private val headerCellAttributeNames = listOf(
+            "data-cell-type",
+            "data-type",
+            "role",
+            "data-role",
+            "data-header",
+            "data-heading",
+            "headers",
+            "scope"
+        )
+
         private val blockLevelChildTags = setOf(
             "div",
             "section",
@@ -1478,3 +1761,32 @@ private fun mediaModelForSource(source: String, mediaRef: String?): Any? {
 private fun extractMediaRef(source: String): String? {
     return source.substringAfterLast('/', "").takeIf { it.isNotBlank() }
 }
+
+private fun parsePaddingStart(styleAttr: String): Dp {
+        val padding = extractCssValue(styleAttr, "padding-left") ?: return 0.dp
+        if (padding.endsWith("em")) {
+            val value = padding.removeSuffix("em").toFloatOrNull() ?: 0f
+            return (value * 16).dp
+        }
+        if (padding.endsWith("px")) {
+            val value = padding.removeSuffix("px").toFloatOrNull() ?: 0f
+            return value.dp
+        }
+        return 0.dp
+    }
+
+private fun parseWidth(widthAttr: String, styleAttr: String): Float? {
+        extractCssValue(styleAttr, "width")?.let { value ->
+            parseDimension(value)?.let { return it }
+        }
+        extractCssValue(styleAttr, "min-width")?.let { value ->
+            parseDimension(value)?.let { return it }
+        }
+        extractCssValue(styleAttr, "max-width")?.let { value ->
+            parseDimension(value)?.let { return it }
+        }
+        if (widthAttr.isNotBlank()) {
+            parseDimension(widthAttr)?.let { return it }
+        }
+        return null
+    }

@@ -9,8 +9,6 @@ object HtmlUtils {
     
     // Regex patterns
     private val STYLE_REGEX = Regex("<style[\\s\\S]*?</style>", setOf(RegexOption.IGNORE_CASE))
-    // Updated to handle both single and double quotes for style attributes
-    private val STYLE_ATTR_REGEX = Regex("\\sstyle=(?:\"[^\"]*\"|'[^']*')", setOf(RegexOption.IGNORE_CASE))
     private val IMG_TAG_REGEX = Regex("""<img([^>]*)\s+src=['\"]([^'\"]+)['\"]""", setOf(RegexOption.IGNORE_CASE))
     private val ANCHOR_TAG_REGEX = Regex("""<a([^>]*?)href=([\"'])([^\"']+)\2([^>]*)>""", setOf(RegexOption.IGNORE_CASE))
     private val MEDIA_LINK_REGEX = Regex("""(?i).*\.(jpg|jpeg|png|gif|bmp|webp|mp4|avi|mkv|mov|webm|3gp|mp3|wav|ogg|m4a|aac|flac)(?:$|[?#]).*""")
@@ -25,7 +23,7 @@ object HtmlUtils {
     fun extractQuestionHtmlParts(rawHtml: String?): QuestionParts {
         if (rawHtml.isNullOrBlank()) return QuestionParts("", null)
         
-        val sanitized = sanitizeForWebView(rawHtml)
+        val sanitized = sanitizeForRichText(rawHtml)
         val handler = HintExtractionHandler()
         val parser = KsoupHtmlParser(handler)
         parser.write(sanitized)
@@ -168,7 +166,9 @@ object HtmlUtils {
     }
 
     fun normalizeAnswerHtml(html: String?): String {
-        return html?.trim() ?: ""
+        val trimmed = html?.trim().orEmpty()
+        if (trimmed.isEmpty()) return ""
+        return ensureHtmlStructure(trimmed)
     }
 
     fun getMediaPath(fileName: String?): String? {
@@ -182,16 +182,16 @@ object HtmlUtils {
         .substringBefore('#')
         .trim()
 
-    fun sanitizeForWebView(html: String): String {
+    fun sanitizeForRichText(html: String): String {
         if (html.isBlank()) return ""
         val withoutStyles = removeStyleArtifacts(html)
         val withNormalizedImages = rewriteImageSources(withoutStyles)
-        return rewriteAnchorTags(withNormalizedImages)
+        val rewritten = rewriteAnchorTags(withNormalizedImages)
+        return ensureHtmlStructure(rewritten.trim())
     }
 
     private fun removeStyleArtifacts(html: String): String = html
         .replace(STYLE_REGEX, "")
-        .replace(STYLE_ATTR_REGEX, "")
 
     private fun rewriteImageSources(html: String): String = html.replace(IMG_TAG_REGEX) { match ->
         val attrs = match.groupValues[1]
@@ -262,5 +262,23 @@ object HtmlUtils {
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinct()
+    }
+
+    private val HTML_TAG_REGEX = Regex("<\\w+[^>]*?>")
+
+    private fun ensureHtmlStructure(input: String): String {
+        if (input.isBlank() || HTML_TAG_REGEX.containsMatchIn(input)) return input
+
+        val normalizedNewlines = input.replace("\r\n", "\n")
+        val paragraphs = normalizedNewlines.split(Regex("\n{2,}"))
+            .mapNotNull { paragraph ->
+                val content = paragraph.trim()
+                if (content.isEmpty()) null else {
+                    val withLineBreaks = content.replace("\n", "<br />")
+                    "<p>$withLineBreaks</p>"
+                }
+            }
+
+        return if (paragraphs.isEmpty()) "" else paragraphs.joinToString(separator = "")
     }
 }

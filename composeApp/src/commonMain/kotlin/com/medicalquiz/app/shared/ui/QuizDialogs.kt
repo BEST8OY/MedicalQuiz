@@ -71,14 +71,19 @@ fun SettingsDialogComposable(
 ) {
     if (isVisible) {
         val loggingEnabled = viewModel.settingsRepository?.isLoggingEnabled?.collectAsStateWithLifecycle(false)?.value ?: false
+        val showMetadata = viewModel.settingsRepository?.showMetadata?.collectAsStateWithLifecycle(true)?.value ?: true
         AlertDialog(
             onDismissRequest = onDismiss,
             confirmButton = { },
             text = {
                 SettingsDialog(
                     initialLoggingEnabled = loggingEnabled,
+                    initialShowMetadata = showMetadata,
                     onLoggingChanged = { enabled ->
                         viewModel.settingsRepository?.setLoggingEnabled(enabled)
+                    },
+                    onShowMetadataChanged = { visible ->
+                        viewModel.settingsRepository?.setShowMetadata(visible)
                     },
                     onResetLogs = {
                         onDismiss()
@@ -345,11 +350,14 @@ private fun JumpToQuestionDialog(
 @Composable
 private fun SettingsDialog(
     initialLoggingEnabled: Boolean,
+    initialShowMetadata: Boolean,
     onLoggingChanged: (Boolean) -> Unit,
+    onShowMetadataChanged: (Boolean) -> Unit,
     onResetLogs: () -> Unit,
     onDismiss: () -> Unit = {}
 ) {
     var loggingEnabled by rememberSaveable(initialLoggingEnabled) { mutableStateOf(initialLoggingEnabled) }
+    var showMetadata by rememberSaveable(initialShowMetadata) { mutableStateOf(initialShowMetadata) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -390,6 +398,32 @@ private fun SettingsDialog(
                             )
                         }
                         Switch(
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Show metadata",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Display subject/system chips after answering",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = showMetadata,
+                            onCheckedChange = { visible ->
+                                showMetadata = visible
+                                onShowMetadataChanged(visible)
+                            }
+                        )
+                    }
                             checked = loggingEnabled,
                             onCheckedChange = { enabled ->
                                 loggingEnabled = enabled

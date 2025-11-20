@@ -100,7 +100,7 @@ private fun QuestionContent(
 
         // Question metadata - shown after answering
         AnimatedVisibility(
-            visible = state.answerSubmitted && metadataSections.isNotEmpty(),
+            visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
@@ -329,12 +329,12 @@ private fun QuizQuestionCard(
     val questionHtml = questionParts.contentHtml.ifBlank { "<p>Question content unavailable.</p>" }
     val hintHtml = questionParts.hintHtml
     val explanationHtml = remember(question.id, question.explanation) {
-        HtmlUtils.sanitizeForWebView(question.explanation)
+        HtmlUtils.sanitizeForRichText(question.explanation)
     }
     val sanitizedAnswers = remember(question.id, answers) {
         answers.associate { answer ->
             val normalized = HtmlUtils.normalizeAnswerHtml(answer.answerText)
-            val sanitized = HtmlUtils.sanitizeForWebView(normalized)
+            val sanitized = HtmlUtils.sanitizeForRichText(normalized)
             answer.answerId to sanitized
         }
     }
