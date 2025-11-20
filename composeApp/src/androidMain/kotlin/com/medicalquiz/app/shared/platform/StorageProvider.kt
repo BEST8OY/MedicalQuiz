@@ -9,7 +9,7 @@ actual object StorageProvider {
         if (legacyDir.exists()) return legacyDir.absolutePath
         
         // Fallback to scoped storage if legacy dir doesn't exist or isn't accessible
-        return com.medicalquiz.app.shared.data.database.AppContext.context.getExternalFilesDir(null)?.absolutePath 
-            ?: com.medicalquiz.app.shared.data.database.AppContext.context.filesDir.absolutePath
+        return AppContext.context.getExternalFilesDir(null)?.absolutePath 
+            ?: AppContext.context.filesDir.absolutePath
     }
 }

@@ -302,6 +302,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
                 }
                 stmt.step()
             }
+            Unit
         }
     }
 
@@ -310,6 +311,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
             getConnection().prepare("DELETE FROM logs").use { stmt ->
                 stmt.step()
             }
+            Unit
         }
     }
 

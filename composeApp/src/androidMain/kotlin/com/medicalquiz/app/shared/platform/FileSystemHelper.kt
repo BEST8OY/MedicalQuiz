@@ -1,6 +1,5 @@
 package com.medicalquiz.app.shared.platform
 
-import com.medicalquiz.app.shared.data.database.AppContext
 import java.io.File
 
 actual object FileSystemHelper {
