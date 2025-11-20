@@ -33,6 +33,17 @@ import kotlinx.serialization.json.jsonPrimitive
 import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlHandler
 import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlParser
 
+// Parsing limits to prevent resource exhaustion
+private const val MAX_RECURSION_DEPTH = 100
+private const val MAX_TABLE_ROWS = 1000
+private const val MAX_TABLE_COLUMNS = 50
+
+// Magic numbers for heuristics
+private const val MAX_TITLE_LENGTH = 200
+private const val BOLD_FONT_WEIGHT_THRESHOLD = 600
+private const val BOLD_CHECK_MAX_DEPTH = 4
+private const val EM_TO_DP_MULTIPLIER = 16f
+
 /**
  * Decodes HTML entities (both named and numeric) to their character equivalents.
  * 
@@ -124,17 +135,6 @@ private fun decodeHtmlEntities(text: String): String {
  * tooltips, media elements, and various semantic class markers.
  */
 internal object RichTextParser {
-    
-    // Parsing limits to prevent resource exhaustion
-    private const val MAX_RECURSION_DEPTH = 100
-    private const val MAX_TABLE_ROWS = 1000
-    private const val MAX_TABLE_COLUMNS = 50
-    
-    // Magic numbers for heuristics
-    private const val MAX_TITLE_LENGTH = 200
-    private const val BOLD_FONT_WEIGHT_THRESHOLD = 600
-    private const val BOLD_CHECK_MAX_DEPTH = 4
-    private const val EM_TO_DP_MULTIPLIER = 16f
 
     /**
      * Parses HTML string into a list of RichTextBlock elements.
@@ -259,7 +259,7 @@ private class RichTextDomParser(
         depth: Int = 0
     ): List<RichTextBlock> {
         // Prevent stack overflow from deeply nested or malicious HTML
-        if (depth >= RichTextParser.MAX_RECURSION_DEPTH) {
+        if (depth >= MAX_RECURSION_DEPTH) {
             println("RichText: Maximum recursion depth reached at $depth levels")
             return emptyList()
         }
@@ -505,9 +505,9 @@ private class RichTextDomParser(
         if (allRows.isEmpty()) return null
         
         // Prevent memory exhaustion from excessively large tables
-        if (allRows.size > RichTextParser.MAX_TABLE_ROWS) {
-            println("RichText: Table has ${allRows.size} rows, limiting to ${RichTextParser.MAX_TABLE_ROWS}")
-            while (allRows.size > RichTextParser.MAX_TABLE_ROWS) {
+        if (allRows.size > MAX_TABLE_ROWS) {
+            println("RichText: Table has ${allRows.size} rows, limiting to $MAX_TABLE_ROWS")
+            while (allRows.size > MAX_TABLE_ROWS) {
                 allRows.removeLast()
             }
         }
@@ -541,9 +541,9 @@ private class RichTextDomParser(
         if (columnCount == 0) return null
         
         // Prevent memory exhaustion from tables with too many columns
-        if (columnCount > RichTextParser.MAX_TABLE_COLUMNS) {
-            println("RichText: Table has $columnCount columns, limiting to ${RichTextParser.MAX_TABLE_COLUMNS}")
-            columnCount = RichTextParser.MAX_TABLE_COLUMNS
+        if (columnCount > MAX_TABLE_COLUMNS) {
+            println("RichText: Table has $columnCount columns, limiting to $MAX_TABLE_COLUMNS")
+            columnCount = MAX_TABLE_COLUMNS
         }
 
         return RichTextBlock.Table(
@@ -649,7 +649,7 @@ private class RichTextDomParser(
         if (cellInfos.size == 1) {
             val info = getCellInfo(0) ?: return false
             val textLength = info.rawText.length
-            if (textLength > 0 && textLength <= RichTextParser.MAX_TITLE_LENGTH) {
+            if (textLength > 0 && textLength <= MAX_TITLE_LENGTH) {
                 val rowAlignment = parseTextAlign(row)
                 val centerAligned = info.alignment == TextAlign.Center || rowAlignment == TextAlign.Center
                 val spansMultiple = info.columnSpan >= 2
@@ -732,7 +732,7 @@ private class RichTextDomParser(
         val padding = extractCssValue(styleAttr, "padding-left") ?: return 0.dp
         if (padding.endsWith("em")) {
             val value = padding.removeSuffix("em").toFloatOrNull() ?: 0f
-            return (value * RichTextParser.EM_TO_DP_MULTIPLIER).dp
+            return (value * EM_TO_DP_MULTIPLIER).dp
         }
         if (padding.endsWith("px")) {
             val value = padding.removeSuffix("px").toFloatOrNull() ?: 0f
@@ -788,7 +788,7 @@ private class RichTextDomParser(
         return false
     }
 
-    private fun KsoupElement.containsBoldContent(maxDepth: Int = RichTextParser.BOLD_CHECK_MAX_DEPTH): Boolean {
+    private fun KsoupElement.containsBoldContent(maxDepth: Int = BOLD_CHECK_MAX_DEPTH): Boolean {
         if (maxDepth <= 0) return false
         if (tagName.equals("strong", true) || tagName.equals("b", true)) return true
         if (styleIndicatesBold(attr("style"))) return true
@@ -806,7 +806,7 @@ private class RichTextDomParser(
         val fontWeight = extractCssValue(styleAttr, "font-weight")?.lowercase()?.trim() ?: return false
         if (fontWeight.startsWith("bold") || fontWeight.startsWith("bolder")) return true
         val numeric = fontWeight.filter { it.isDigit() }
-        return numeric.toIntOrNull()?.let { it >= RichTextParser.BOLD_FONT_WEIGHT_THRESHOLD } == true
+        return numeric.toIntOrNull()?.let { it >= BOLD_FONT_WEIGHT_THRESHOLD } == true
     }
 
     private fun parseAbstractBlock(element: KsoupElement, depth: Int): RichTextBlock.AbstractBlock? {
