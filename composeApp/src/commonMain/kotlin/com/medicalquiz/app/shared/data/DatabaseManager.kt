@@ -322,7 +322,9 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
                    (CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as lastCorrect,
                    MAX(CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as everCorrect,
                    MAX(CASE WHEN selectedAnswer != corrAnswer THEN 1 ELSE 0 END) as everIncorrect,
-                   COUNT(*) as attempts
+                   COUNT(*) as attempts,
+                   SUM(CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as correctCount,
+                   SUM(CASE WHEN selectedAnswer != corrAnswer THEN 1 ELSE 0 END) as incorrectCount
                 FROM logs
                 WHERE qid = ?
                 GROUP BY qid
@@ -337,7 +339,9 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
                         lastCorrect = stmt.getLong(0) == 1L,
                         everCorrect = stmt.getLong(1) == 1L,
                         everIncorrect = stmt.getLong(2) == 1L,
-                        attempts = stmt.getLong(3).toInt()
+                        attempts = stmt.getLong(3).toInt(),
+                        correctCount = stmt.getLong(4).toInt(),
+                        incorrectCount = stmt.getLong(5).toInt()
                     )
                 }
             }

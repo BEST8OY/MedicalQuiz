@@ -19,6 +19,12 @@ actual object FileSystemHelper {
         return if (file.exists() && file.canRead()) file.readText() else null
     }
 
+    actual fun writeText(path: String, content: String) {
+        val file = File(path)
+        file.parentFile?.mkdirs()
+        file.writeText(content)
+    }
+
     actual fun getDatabasePath(dbName: String): String {
         val storageRoot = StorageProvider.getAppStorageDirectory()
         val dbFile = File(File(storageRoot, "databases"), dbName)

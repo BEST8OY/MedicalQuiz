@@ -11,7 +11,8 @@ object HtmlUtils {
     private val STYLE_REGEX = Regex("<style[\\s\\S]*?</style>", setOf(RegexOption.IGNORE_CASE))
     private val DATA_ATTR_REGEX = Regex("\\sdata-[a-z0-9-]+=\"[^\"]*\"", setOf(RegexOption.IGNORE_CASE))
     private val CLASS_ATTR_REGEX = Regex("\\sclass=\"[^\"]*\"", setOf(RegexOption.IGNORE_CASE))
-    private val STYLE_ATTR_REGEX = Regex("\\sstyle=\"[^\"]*\"", setOf(RegexOption.IGNORE_CASE))
+    // Updated to handle both single and double quotes for style attributes
+    private val STYLE_ATTR_REGEX = Regex("\\sstyle=(?:\"[^\"]*\"|'[^']*')", setOf(RegexOption.IGNORE_CASE))
     private val EMPTY_SPAN_REGEX = Regex("<span[^>]*>(.*?)</span>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
     private val TABLE_REGEX = Regex("<table[\\s\\S]*?</table>", setOf(RegexOption.IGNORE_CASE))
     private val IMG_TAG_REGEX = Regex("""<img([^>]*)\s+src=['\"]([^'\"]+)['\"]""", setOf(RegexOption.IGNORE_CASE))
@@ -45,6 +46,14 @@ object HtmlUtils {
         private var hintDivDepth = 0
         private var skipDepth = 0
 
+        private fun appendAttributes(attributes: Map<String, String>, builder: StringBuilder) {
+            attributes.forEach { (k, v) ->
+                // Escape double quotes to &quot; to ensure valid HTML attribute syntax
+                val escaped = v.replace("\"", "&quot;")
+                builder.append(" $k=\"$escaped\"")
+            }
+        }
+
         override fun onOpenTag(name: String, attributes: Map<String, String>, isImplied: Boolean) {
             if (skipDepth > 0) {
                 skipDepth++
@@ -65,7 +74,7 @@ object HtmlUtils {
             if (inHintDiv) {
                 if (name.equals("div", ignoreCase = true)) hintDivDepth++
                 hintBuilder.append("<$name")
-                attributes.forEach { (k, v) -> hintBuilder.append(" $k=\"$v\"") }
+                appendAttributes(attributes, hintBuilder)
                 hintBuilder.append(">")
             } else {
                 // Remove onclick handlers that toggle hint
@@ -84,7 +93,7 @@ object HtmlUtils {
                 }
 
                 contentBuilder.append("<$name")
-                finalAttrs.forEach { (k, v) -> contentBuilder.append(" $k=\"$v\"") }
+                appendAttributes(finalAttrs, contentBuilder)
                 contentBuilder.append(">")
             }
         }
@@ -192,7 +201,30 @@ object HtmlUtils {
             val href = match.groupValues[3]
             val after = match.groupValues[4]
             val newHref = rewriteAnchorHref(href)
-            "<a$before href=$quote$newHref$quote$after>"
+            
+            var newBefore = before
+            var newAfter = after
+            
+            if (newHref.startsWith("file:///media/") || newHref.startsWith("media://")) {
+                 val classRegex = Regex("class=([\"'])(.*?)\\1", RegexOption.IGNORE_CASE)
+                 if (classRegex.containsMatchIn(newBefore)) {
+                     newBefore = newBefore.replace(classRegex) { m ->
+                         val q = m.groupValues[1]
+                         val c = m.groupValues[2]
+                         "class=$q$c metalink$q"
+                     }
+                 } else if (classRegex.containsMatchIn(newAfter)) {
+                     newAfter = newAfter.replace(classRegex) { m ->
+                         val q = m.groupValues[1]
+                         val c = m.groupValues[2]
+                         "class=$q$c metalink$q"
+                     }
+                 } else {
+                     newBefore += " class=\"metalink\""
+                 }
+            }
+
+            "<a$newBefore href=$quote$newHref$quote$newAfter>"
         }
 
     private fun rewriteAnchorHref(href: String): String {

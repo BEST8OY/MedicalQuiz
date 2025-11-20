@@ -100,7 +100,8 @@ data class RichTextTableCell(
     val rowSpan: Int = 1,
     val alignment: TextAlign = TextAlign.Start,
     val isHeader: Boolean = false,
-    val classNames: Set<String> = emptySet()
+    val classNames: Set<String> = emptySet(),
+    val width: Float? = null
 )
 
 @Immutable
@@ -626,7 +627,7 @@ private fun TableRowContent(
         verticalAlignment = Alignment.CenterVertically
     ) {
         row.cells.forEach { cell ->
-            val weight = cell.columnSpan.coerceAtLeast(1).toFloat()
+            val weight = cell.cell.width ?: cell.columnSpan.coerceAtLeast(1).toFloat()
             if (!cell.isVisible) {
                 Spacer(modifier = Modifier.weight(weight))
             } else {
@@ -1102,6 +1103,7 @@ private class RichTextHandler(
                 "nowrap" -> updated = updated.copy(preserveWhitespace = true)
                 "scientific-name" -> updated = updated.copy(italic = true)
                 "abstract" -> updated = updated.copy(smallText = true, textColor = palette.abstractText)
+                "metalink" -> updated = updated.copy(textColor = Color(0xFFE91E63), italic = true)
             }
         }
         return updated
@@ -1246,6 +1248,7 @@ private class RichTextHandler(
                 "right" -> TextAlign.End
                 else -> TextAlign.Start
             }
+            val width = parseWidth(cell.attr("width"), cell.attr("style"))
             val isHeaderCell = headerContext || cell.tagName.equals("th", ignoreCase = true)
             RichTextTableCell(
                 text = text,
@@ -1253,10 +1256,33 @@ private class RichTextHandler(
                 rowSpan = rowSpan,
                 alignment = alignment,
                 isHeader = isHeaderCell,
-                classNames = cell.classNames()
+                classNames = cell.classNames(),
+                width = width
             )
         }
         return RichTextTableRow(cells = cells, isHeader = isHeaderRow, classNames = row.classNames())
+    }
+
+    private fun parseWidth(widthAttr: String, styleAttr: String): Float? {
+        if (styleAttr.contains("width")) {
+            val styleVal = styleAttr.substringAfter("width").substringAfter(":").substringBefore(";").trim()
+            parseDimension(styleVal)?.let { return it }
+        }
+        if (widthAttr.isNotBlank()) {
+            parseDimension(widthAttr)?.let { return it }
+        }
+        return null
+    }
+
+    private fun parseDimension(value: String): Float? {
+        val clean = value.trim().lowercase()
+        if (clean.endsWith("%")) {
+            return clean.removeSuffix("%").toFloatOrNull()?.div(100f)
+        }
+        if (clean.endsWith("px")) {
+            return clean.removeSuffix("px").toFloatOrNull()
+        }
+        return clean.toFloatOrNull()
     }
 
     private fun parseAbstractBlock(

@@ -262,7 +262,9 @@ class QuizViewModel : ViewModel() {
                 lastCorrect = wasCorrect,
                 everCorrect = previous.everCorrect || wasCorrect,
                 everIncorrect = previous.everIncorrect || !wasCorrect,
-                attempts = previous.attempts + 1
+                attempts = previous.attempts + 1,
+                correctCount = previous.correctCount + (if (wasCorrect) 1 else 0),
+                incorrectCount = previous.incorrectCount + (if (!wasCorrect) 1 else 0)
             )
         } else {
             QuestionPerformance(
@@ -270,7 +272,9 @@ class QuizViewModel : ViewModel() {
                 lastCorrect = wasCorrect,
                 everCorrect = wasCorrect,
                 everIncorrect = !wasCorrect,
-                attempts = 1
+                attempts = 1,
+                correctCount = if (wasCorrect) 1 else 0,
+                incorrectCount = if (!wasCorrect) 1 else 0
             )
         }
 

@@ -566,10 +566,8 @@ private fun PerformanceCard(performance: QuestionPerformance?) {
                 color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
             )
             
-            val correct = if (performance.everCorrect) 1 else 0
-            val incorrect = if (performance.everIncorrect) 1 else 0
             Text(
-                text = "Ratio: $correct/$incorrect",
+                text = "Ratio: ${performance.correctCount}/${performance.incorrectCount}",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer

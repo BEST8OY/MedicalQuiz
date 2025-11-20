@@ -5,5 +5,7 @@ data class QuestionPerformance(
     val lastCorrect: Boolean,
     val everCorrect: Boolean,
     val everIncorrect: Boolean,
-    val attempts: Int
+    val attempts: Int,
+    val correctCount: Int = 0,
+    val incorrectCount: Int = 0
 )
