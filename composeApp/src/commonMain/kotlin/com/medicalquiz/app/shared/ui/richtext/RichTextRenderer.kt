@@ -841,7 +841,7 @@ private class RichTextDomParser(
     private val showSelectedHighlight: Boolean
 ) {
 
-    private data class InheritedStyles(val textAlign: TextAlign? = null)
+    data class InheritedStyles(val textAlign: TextAlign? = null)
     private val ignoredTagNames = setOf("style", "script", "head", "meta", "link", "title")
 
     fun parse(

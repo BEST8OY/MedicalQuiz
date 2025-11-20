@@ -15,7 +15,7 @@ object HtmlUtils {
     private val ANCHOR_TAG_REGEX = Regex("""<a([^>]*?)href=([\"'])([^\"']+)\2([^>]*)>""", setOf(RegexOption.IGNORE_CASE))
     private val MEDIA_LINK_REGEX = Regex("""(?i).*\.(jpg|jpeg|png|gif|bmp|webp|mp4|avi|mkv|mov|webm|3gp|mp3|wav|ogg|m4a|aac|flac)(?:$|[?#]).*""")
     private val GENERIC_SRC_REGEX = Regex("""src=\s*['\"]([^'\"]+)['\"]""", setOf(RegexOption.IGNORE_CASE))
-    private val CLASS_ATTR_CAPTURE_REGEX = Regex("class=([\"'])(.*?)\1", RegexOption.IGNORE_CASE)
+    private val CLASS_ATTR_CAPTURE_REGEX = Regex("""class=(['"])(.*?)\1""", RegexOption.IGNORE_CASE)
 
     data class QuestionParts(
         val contentHtml: String,
