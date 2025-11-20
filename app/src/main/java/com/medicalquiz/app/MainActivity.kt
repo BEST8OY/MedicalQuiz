@@ -28,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
-import coil3.SingletonImageLoader
 import com.medicalquiz.app.shared.App
 import com.medicalquiz.app.shared.generateImageLoader
 import com.medicalquiz.app.shared.platform.AppContext
@@ -55,9 +54,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         AppContext.init(this)
         WindowCompat.enableEdgeToEdge(window)
-        SingletonImageLoader.setSafe { context ->
-            generateImageLoader(context)
-        }
         
         val isDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES

@@ -8,6 +8,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil3.compose.setSingletonImageLoaderFactory
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
 import com.medicalquiz.app.shared.data.CacheManager
 import com.medicalquiz.app.shared.data.DatabaseManager
 import com.medicalquiz.app.shared.data.SettingsRepository
@@ -20,6 +23,10 @@ import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 
 @Composable
 fun App() {
+    setSingletonImageLoaderFactory { context ->
+        generateImageLoader(context)
+    }
+
     AppTheme {
         val viewModel = viewModel { QuizViewModel() }
         val settingsRepository = remember { SettingsRepository() }
