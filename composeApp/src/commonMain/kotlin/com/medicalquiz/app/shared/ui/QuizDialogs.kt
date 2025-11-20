@@ -398,6 +398,13 @@ private fun SettingsDialog(
                             )
                         }
                         Switch(
+                            checked = loggingEnabled,
+                            onCheckedChange = { enabled ->
+                                loggingEnabled = enabled
+                                onLoggingChanged(enabled)
+                            }
+                        )
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -421,13 +428,6 @@ private fun SettingsDialog(
                             onCheckedChange = { visible ->
                                 showMetadata = visible
                                 onShowMetadataChanged(visible)
-                            }
-                        )
-                    }
-                            checked = loggingEnabled,
-                            onCheckedChange = { enabled ->
-                                loggingEnabled = enabled
-                                onLoggingChanged(enabled)
                             }
                         )
                     }

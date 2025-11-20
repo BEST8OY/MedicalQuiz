@@ -1,40 +1,8 @@
-package com.medicalquiz.app.shared.ui.richtext
+package com.medicalquiz.app.shared.ui.richtext.parser
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -42,732 +10,36 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextIndent
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
-import com.medicalquiz.app.shared.utils.HtmlUtils
-import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlParser
-import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlHandler
+import com.medicalquiz.app.shared.ui.richtext.RichTextBlock
+import com.medicalquiz.app.shared.ui.richtext.RichTextPalette
+import com.medicalquiz.app.shared.ui.richtext.RichTextTableCell
+import com.medicalquiz.app.shared.ui.richtext.RichTextTableRow
+import com.medicalquiz.app.shared.ui.richtext.extractMediaRef
+import com.medicalquiz.app.shared.ui.richtext.matchesAnyMarker
+import com.medicalquiz.app.shared.ui.richtext.normalizedMarkers
+import com.medicalquiz.app.shared.ui.richtext.containsAnyInsensitive
+import com.medicalquiz.app.shared.ui.richtext.containsInsensitive
+import com.medicalquiz.app.shared.ui.richtext.normalizeMarker
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.contentOrNull
-import kotlin.math.max
+import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlHandler
+import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlParser
 
-sealed interface RichTextBlock {
-    data class Paragraph(val text: AnnotatedString, val textAlign: TextAlign = TextAlign.Start) : RichTextBlock
-    data class Heading(val level: Int, val text: AnnotatedString, val textAlign: TextAlign = TextAlign.Start) : RichTextBlock
-    data class BulletList(val items: List<AnnotatedString>) : RichTextBlock
-    data class OrderedList(val items: List<AnnotatedString>, val start: Int) : RichTextBlock
-    data class CodeBlock(val text: String) : RichTextBlock
-    data class Table(
-        val headerRows: List<RichTextTableRow>,
-        val bodyRows: List<RichTextTableRow>,
-        val columnCount: Int,
-        val classNames: Set<String> = emptySet()
-    ) : RichTextBlock
-    data class AbstractBlock(
-        val title: AnnotatedString?,
-        val blocks: List<RichTextBlock>,
-        val classNames: Set<String> = emptySet()
-    ) : RichTextBlock
-    data class Media(
-        val source: String,
-        val mediaRef: String?,
-        val description: String?,
-        val width: Int?,
-        val height: Int?,
-        val alignment: TextAlign,
-        val classNames: Set<String> = emptySet()
-    ) : RichTextBlock
-    data object Divider : RichTextBlock
-}
-
-data class RichTextTableRow(
-    val cells: List<RichTextTableCell>,
-    val isHeader: Boolean,
-    val classNames: Set<String> = emptySet()
-)
-
-data class RichTextTableCell(
-    val text: AnnotatedString,
-    val columnSpan: Int = 1,
-    val rowSpan: Int = 1,
-    val alignment: TextAlign = TextAlign.Start,
-    val isHeader: Boolean = false,
-    val classNames: Set<String> = emptySet(),
-    val width: Float? = null,
-    val paddingStart: Dp = 0.dp
-)
-
-@Immutable
-data class RichTextPalette(
-    val importantBackground: Color,
-    val importantText: Color,
-    val selectedBackground: Color,
-    val selectedText: Color,
-    val dictionaryText: Color,
-    val abstractText: Color
-)
-
-private data class InlineStyle(
-    val bold: Boolean = false,
-    val italic: Boolean = false,
-    val underline: Boolean = false,
-    val monospace: Boolean = false,
-    val superscript: Boolean = false,
-    val subscript: Boolean = false,
-    val link: String? = null,
-    val highlight: InlineHighlight? = null,
-    val dictionary: Boolean = false,
-    val preserveWhitespace: Boolean = false,
-    val smallText: Boolean = false,
-    val textColor: Color? = null,
-    val tooltip: String? = null
-)
-
-private enum class InlineHighlight { IMPORTANT, SELECTED }
-
-@Composable
-fun RichText(
-    html: String,
-    modifier: Modifier = Modifier,
-    showSelectedHighlight: Boolean = false,
-    onLinkClick: ((String) -> Unit)? = null,
-    onMediaClick: ((String) -> Unit)? = null,
-    onTooltipClick: ((String) -> Unit)? = null
-) {
-    val palette = rememberRichTextPalette()
-    val blocks = rememberRichTextBlocks(html, palette, showSelectedHighlight)
-    RichText(
-        blocks = blocks,
-        modifier = modifier,
-        onLinkClick = onLinkClick,
-        onMediaClick = onMediaClick,
-        onTooltipClick = onTooltipClick
-    )
-}
-
-@Composable
-@Suppress("UNUSED_PARAMETER")
-fun RichText(
-    blocks: List<RichTextBlock>,
-    modifier: Modifier = Modifier,
-    showSelectedHighlight: Boolean = false,
-    onLinkClick: ((String) -> Unit)? = null,
-    onMediaClick: ((String) -> Unit)? = null,
-    onTooltipClick: ((String) -> Unit)? = null
-) {
-    if (blocks.isEmpty()) return
-    val resolvedLinkHandler = rememberLinkHandler(onLinkClick)
-    val resolvedMediaHandler = rememberMediaHandler(onMediaClick)
-    var tooltipMessage by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(blocks) { tooltipMessage = null }
-    val resolvedTooltipHandler = remember(onTooltipClick) {
-        onTooltipClick ?: { message -> tooltipMessage = message }
-    }
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        blocks.forEach { block ->
-            RichTextBlockRenderer(
-                block = block,
-                onLinkClick = resolvedLinkHandler,
-                onMediaClick = resolvedMediaHandler,
-                onTooltipClick = resolvedTooltipHandler
-            )
-        }
-    }
-    tooltipMessage?.let { message ->
-        AlertDialog(
-            onDismissRequest = { tooltipMessage = null },
-            confirmButton = {
-                TextButton(onClick = { tooltipMessage = null }) {
-                    androidx.compose.material3.Text(text = "Close")
-                }
-            },
-            text = {
-                androidx.compose.material3.Text(text = message)
-            },
-            title = {
-                androidx.compose.material3.Text(text = "Description")
-            }
-        )
-    }
-}
-
-@Composable
-private fun rememberRichTextBlocks(
-    rawHtml: String,
-    palette: RichTextPalette,
-    showSelectedHighlight: Boolean
-): List<RichTextBlock> {
-    val sanitizedHtml = remember(rawHtml) { rawHtml.trim() }
-    return remember(sanitizedHtml, palette, showSelectedHighlight) {
-        if (sanitizedHtml.isEmpty()) emptyList()
-        else RichTextParser.parse(sanitizedHtml, palette, showSelectedHighlight)
-    }
-}
-
-@Composable
-private fun rememberLinkHandler(onLinkClick: ((String) -> Unit)?): (String) -> Unit {
-    val uriHandler = LocalUriHandler.current
-    return remember(onLinkClick, uriHandler) {
-        onLinkClick ?: { url ->
-            try {
-                uriHandler.openUri(url)
-            } catch (_: Throwable) {
-                // Ignore failures opening deep links.
-            }
-        }
-    }
-}
-
-@Composable
-private fun rememberMediaHandler(onMediaClick: ((String) -> Unit)?): (String) -> Unit {
-    return remember(onMediaClick) { onMediaClick ?: {} }
-}
-
-@Composable
-private fun RichTextParagraph(
-    text: AnnotatedString,
-    textAlign: TextAlign = TextAlign.Start,
-    modifier: Modifier = Modifier,
-    onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
-) {
-    InteractiveText(
-        text = text,
-        modifier = modifier,
-        style = MaterialTheme.typography.bodyMedium.copy(
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = 22.sp,
-            textIndent = TextIndent.None
-        ),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = textAlign,
-        onLinkClick = onLinkClick,
-        onTooltipClick = onTooltipClick
-    )
-}
-
-@Composable
-private fun InteractiveText(
-    text: AnnotatedString,
-    modifier: Modifier = Modifier,
-    style: androidx.compose.ui.text.TextStyle,
-    color: Color,
-    textAlign: TextAlign? = null,
-    onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?,
-    maxLines: Int = Int.MAX_VALUE,
-    overflow: TextOverflow = TextOverflow.Visible
-) {
-    var layoutResult by remember(text) { mutableStateOf<TextLayoutResult?>(null) }
-    val hasInteractiveAnnotations = remember(text) {
-        text.getStringAnnotations("URL", 0, text.length).isNotEmpty() ||
-            text.getStringAnnotations("TOOLTIP", 0, text.length).isNotEmpty()
-    }
-    val pointerModifier = if (hasInteractiveAnnotations) {
-        Modifier.pointerInput(text, layoutResult) {
-            detectTapGestures { position ->
-                val offset = layoutResult?.getOffsetForPosition(position) ?: return@detectTapGestures
-                text.getStringAnnotations("TOOLTIP", offset, offset).firstOrNull()?.let {
-                    onTooltipClick?.invoke(it.item)
-                    return@detectTapGestures
-                }
-                text.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
-                    if (it.item.isNotBlank()) {
-                        onLinkClick(it.item)
-                    }
-                }
-            }
-        }
-    } else {
-        Modifier
-    }
-
-    androidx.compose.material3.Text(
-        text = text,
-        modifier = modifier.then(pointerModifier),
-        style = style,
-        color = color,
-        textAlign = textAlign,
-        maxLines = maxLines,
-        overflow = overflow,
-        onTextLayout = { layoutResult = it }
-    )
-}
-
-@Composable
-private fun RichTextBlockRenderer(
-    block: RichTextBlock,
-    onLinkClick: (String) -> Unit,
-    onMediaClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
-) {
-    when (block) {
-        is RichTextBlock.Paragraph -> RichTextParagraph(block.text, textAlign = block.textAlign, onLinkClick = onLinkClick, onTooltipClick = onTooltipClick)
-        is RichTextBlock.Heading -> RichTextHeading(block, onLinkClick, onTooltipClick)
-        is RichTextBlock.BulletList -> RichTextList(
-            items = block.items,
-            markerProvider = { _ -> "\u2022" },
-            onLinkClick = onLinkClick,
-            onTooltipClick = onTooltipClick
-        )
-        is RichTextBlock.OrderedList -> RichTextList(
-            items = block.items,
-            markerProvider = { index -> "${block.start + index}." },
-            onLinkClick = onLinkClick,
-            onTooltipClick = onTooltipClick
-        )
-        is RichTextBlock.CodeBlock -> RichTextCodeBlock(block)
-        is RichTextBlock.Table -> RichTextTable(block, onLinkClick, onTooltipClick)
-        is RichTextBlock.AbstractBlock -> AbstractCard(block, onLinkClick, onTooltipClick)
-        is RichTextBlock.Media -> RichMedia(block = block, onMediaClick = onMediaClick)
-        RichTextBlock.Divider -> HorizontalDivider()
-    }
-}
-
-@Composable
-private fun RichTextHeading(
-    block: RichTextBlock.Heading,
-    onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
-) {
-    val style = when (block.level) {
-        1 -> MaterialTheme.typography.headlineMedium
-        2 -> MaterialTheme.typography.headlineSmall
-        3 -> MaterialTheme.typography.titleLarge
-        4 -> MaterialTheme.typography.titleMedium
-        else -> MaterialTheme.typography.titleSmall
-    }
-    InteractiveText(
-        text = block.text,
-        style = style,
-        color = MaterialTheme.colorScheme.onSurface,
-        textAlign = block.textAlign,
-        onLinkClick = onLinkClick,
-        onTooltipClick = onTooltipClick,
-        maxLines = Int.MAX_VALUE,
-        overflow = TextOverflow.Visible
-    )
-}
-
-@Composable
-private fun RichTextList(
-    items: List<AnnotatedString>,
-    markerProvider: (index: Int) -> String,
-    onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items.forEachIndexed { index, item ->
-            Row(modifier = Modifier.fillMaxWidth()) {
-                androidx.compose.material3.Text(
-                    text = markerProvider(index),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(end = 12.dp)
-                )
-                RichTextParagraph(
-                    text = item,
-                    modifier = Modifier.weight(1f),
-                    onLinkClick = onLinkClick,
-                    onTooltipClick = onTooltipClick
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant
-    ) {
-        androidx.compose.material3.Text(
-            text = block.text,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontFamily = FontFamily.Monospace,
-                fontSize = 14.sp
-            ),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(12.dp)
-        )
-    }
-}
-
-@Composable
-private fun RichTextTable(
-    block: RichTextBlock.Table,
-    onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
-) {
-    if (block.columnCount == 0) return
-    val renderModel = remember(block) { block.toRenderModel() }
-    val scrollState = rememberScrollState()
-    val minWidth = 120.dp * renderModel.columnCount
-    BoxWithConstraints {
-        val needsScroll = minWidth > maxWidth
-        val tableModifier = if (needsScroll) {
-            Modifier
-                .horizontalScroll(scrollState)
-                .width(minWidth)
-        } else {
-            Modifier.fillMaxWidth()
-        }
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-        ) {
-            Column(modifier = tableModifier) {
-                renderModel.rows.forEachIndexed { index, row ->
-                    TableRowContent(
-                        row = row,
-                        tableClassNames = block.classNames,
-                        onLinkClick = onLinkClick,
-                        onTooltipClick = onTooltipClick
-                    )
-                    if (index != renderModel.rows.lastIndex) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-                    }
-                }
-            }
-        }
-    }
-}
-
-private data class TableRenderModel(
-    val rows: List<TableRenderedRow>,
-    val columnCount: Int
-)
-
-private data class TableRenderedRow(
-    val cells: List<TableRenderedCell>,
-    val isHeaderRow: Boolean,
-    val classNames: Set<String>
-)
-
-private data class TableRenderedCell(
-    val cell: RichTextTableCell,
-    val columnSpan: Int,
-    val isVisible: Boolean
-)
-
-private fun RichTextBlock.Table.toRenderModel(): TableRenderModel {
-    val builder = TableGridBuilder()
-    val orderedRows = buildList {
-        addAll(headerRows)
-        addAll(bodyRows)
-    }
-    val renderedRows = orderedRows.map { builder.renderRow(it) }
-    val columnCount = maxOf(columnCount, builder.columnCount)
-    return TableRenderModel(rows = renderedRows, columnCount = columnCount)
-}
-
-private class TableGridBuilder {
-    private val spanSlots = mutableListOf<ColumnSpan?>()
-    var columnCount: Int = 0
-        private set
-
-    fun renderRow(row: RichTextTableRow): TableRenderedRow {
-        val pendingCells = ArrayDeque(row.cells)
-        val renderedCells = mutableListOf<TableRenderedCell>()
-        var columnIndex = 0
-        while (pendingCells.isNotEmpty() || hasAnchorsFrom(columnIndex)) {
-            when (val occupancy = spanSlots.getOrNull(columnIndex)) {
-                is ColumnSpan.Anchor -> {
-                    val tracker = occupancy.tracker
-                    renderedCells += TableRenderedCell(
-                        cell = tracker.cell,
-                        columnSpan = tracker.spanWidth,
-                        isVisible = false
-                    )
-                    tracker.remainingRows -= 1
-                    if (tracker.remainingRows == 0) {
-                        clearTracker(tracker)
-                    }
-                    columnIndex += tracker.spanWidth
-                }
-                is ColumnSpan.Continuation -> {
-                    columnIndex += 1
-                }
-                null -> {
-                    val cell = if (pendingCells.isEmpty()) {
-                        columnIndex += 1
-                        continue
-                    } else {
-                        pendingCells.removeFirst()
-                    }
-                    val spanWidth = cell.columnSpan.coerceAtLeast(1)
-                    ensureSlots(columnIndex + spanWidth)
-                    renderedCells += TableRenderedCell(
-                        cell = cell,
-                        columnSpan = spanWidth,
-                        isVisible = true
-                    )
-                    if (cell.rowSpan > 1) {
-                        val tracker = RowSpanTracker(
-                            cell = cell,
-                            remainingRows = cell.rowSpan - 1,
-                            spanWidth = spanWidth,
-                            startColumn = columnIndex
-                        )
-                        spanSlots[columnIndex] = ColumnSpan.Anchor(tracker)
-                        for (offset in 1 until spanWidth) {
-                            spanSlots[columnIndex + offset] = ColumnSpan.Continuation(tracker)
-                        }
-                    }
-                    columnIndex += spanWidth
-                }
-            }
-        }
-        columnCount = max(columnCount, columnIndex)
-        return TableRenderedRow(
-            cells = renderedCells,
-            isHeaderRow = row.isHeader,
-            classNames = row.classNames
-        )
-    }
-
-    private fun hasAnchorsFrom(startIndex: Int): Boolean {
-        for (index in startIndex until spanSlots.size) {
-            if (spanSlots[index] is ColumnSpan.Anchor) return true
-        }
-        return false
-    }
-
-    private fun ensureSlots(requiredSize: Int) {
-        if (requiredSize <= spanSlots.size) return
-        repeat(requiredSize - spanSlots.size) { spanSlots.add(null) }
-    }
-
-    private fun clearTracker(tracker: RowSpanTracker) {
-        val end = tracker.startColumn + tracker.spanWidth
-        for (index in tracker.startColumn until end) {
-            if (index in spanSlots.indices) {
-                spanSlots[index] = null
-            }
-        }
-    }
-
-    private sealed interface ColumnSpan {
-        val tracker: RowSpanTracker
-
-        data class Anchor(override val tracker: RowSpanTracker) : ColumnSpan
-        data class Continuation(override val tracker: RowSpanTracker) : ColumnSpan
-    }
-
-    private data class RowSpanTracker(
-        val cell: RichTextTableCell,
-        var remainingRows: Int,
-        val spanWidth: Int,
-        val startColumn: Int
-    )
-}
-
-@Composable
-private fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Unit) {
-    val mediaModel = remember(block.source, block.mediaRef) {
-        mediaModelForSource(block.source, block.mediaRef)
-    }
-    if (mediaModel == null) return
-    val clickTarget = block.mediaRef ?: block.source
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalAlignment = when (block.alignment) {
-            TextAlign.End -> Alignment.End
-            TextAlign.Center -> Alignment.CenterHorizontally
-            else -> Alignment.Start
-        }
-    ) {
-        AsyncImage(
-            model = mediaModel,
-            contentDescription = block.description,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onMediaClick(clickTarget) }
-        )
-        block.description?.let {
-            androidx.compose.material3.Text(
-                text = it,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                textAlign = block.alignment
-            )
-        }
-    }
-}
-
-@Composable
-private fun TableRowContent(
-    row: TableRenderedRow,
-    tableClassNames: Set<String>,
-    onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
-) {
-    val effectiveRowClasses = row.classNames + tableClassNames
-    val baseBackground = when {
-        row.isHeaderRow -> MaterialTheme.colorScheme.secondaryContainer
-        effectiveRowClasses.containsInsensitive("abstract") -> MaterialTheme.colorScheme.surfaceVariant
-        else -> MaterialTheme.colorScheme.surface
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(baseBackground)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        row.cells.forEach { cell ->
-            val weight = cell.cell.width ?: cell.columnSpan.coerceAtLeast(1).toFloat()
-            if (!cell.isVisible) {
-                Spacer(modifier = Modifier.weight(weight))
-            } else {
-                val isHeaderCell = row.isHeaderRow || cell.cell.isHeader
-                val textStyle = if (isHeaderCell) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium
-                val textColor = when {
-                    isHeaderCell -> MaterialTheme.colorScheme.onSecondaryContainer
-                    cell.cell.classNames.containsInsensitive("abstract") -> MaterialTheme.colorScheme.onSurfaceVariant
-                    else -> MaterialTheme.colorScheme.onSurface
-                }
-                val cellBackground = when {
-                    cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                    cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer
-                    else -> Color.Transparent
-                }
-                Surface(
-                    modifier = Modifier
-                        .weight(weight)
-                        .padding(horizontal = 4.dp),
-                    color = cellBackground,
-                    tonalElevation = if (cellBackground == Color.Transparent) 0.dp else 1.dp,
-                    shape = MaterialTheme.shapes.extraSmall
-                ) {
-                    InteractiveText(
-                        text = cell.cell.text,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp)
-                            .padding(start = cell.cell.paddingStart),
-                        style = textStyle,
-                        color = textColor,
-                        textAlign = cell.cell.alignment,
-                        onLinkClick = onLinkClick,
-                        onTooltipClick = onTooltipClick,
-                        maxLines = Int.MAX_VALUE,
-                        overflow = TextOverflow.Visible
-                    )
-                }
-            }
-        }
-    }
-}
-
-private fun Set<String>.containsInsensitive(target: String): Boolean {
-    return any { it.equals(target, ignoreCase = true) }
-}
-
-private fun Set<String>.containsAnyInsensitive(targets: Set<String>): Boolean {
-    if (isEmpty() || targets.isEmpty()) return false
-    return targets.any { target -> containsInsensitive(target) }
-}
-
-private fun Set<String>.matchesAnyMarker(markers: Set<String>): Boolean {
-    if (isEmpty() || markers.isEmpty()) return false
-    return any { candidate -> markers.contains(normalizeMarker(candidate)) }
-}
-
-private fun normalizeMarker(value: String): String {
-    if (value.isEmpty()) return value
-    val sb = StringBuilder(value.length)
-    value.forEach { char ->
-        if (!char.isWhitespace() && char != '-' && char != '_') {
-            sb.append(char.lowercaseChar())
-        }
-    }
-    return sb.toString()
-}
-
-private fun normalizedMarkers(vararg markers: String): Set<String> {
-    if (markers.isEmpty()) return emptySet()
-    return markers.mapTo(mutableSetOf()) { marker -> normalizeMarker(marker) }
-}
-
-@Composable
-private fun AbstractCard(
-    block: RichTextBlock.AbstractBlock,
-    onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            block.title?.let {
-                androidx.compose.material3.Text(
-                    text = it,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            if (block.blocks.isNotEmpty()) {
-                RichText(
-                    blocks = block.blocks,
-                    onLinkClick = onLinkClick,
-                    onTooltipClick = onTooltipClick
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun rememberRichTextPalette(): RichTextPalette {
-    val colors = MaterialTheme.colorScheme
-    return remember(colors) {
-        RichTextPalette(
-            importantBackground = colors.tertiaryContainer,
-            importantText = colors.onTertiaryContainer,
-            selectedBackground = colors.primaryContainer,
-            selectedText = colors.onPrimaryContainer,
-            dictionaryText = colors.primary,
-            abstractText = colors.onSurfaceVariant
-        )
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Ksoup Parser Implementation
-// -----------------------------------------------------------------------------
-
-private object RichTextParser {
+internal object RichTextParser {
 
     fun parse(
         html: String,
         palette: RichTextPalette,
         showSelectedHighlight: Boolean
     ): List<RichTextBlock> {
-        // Ksoup parser usage
         val handler = RichTextHandler(palette, showSelectedHighlight)
         val parser = KsoupHtmlParser(handler = handler)
         parser.write(html)
@@ -1276,7 +548,9 @@ private class RichTextDomParser(
         styleAttr.split(";").forEach { declaration ->
             val name = declaration.substringBefore(":").trim()
             if (name.equals(property, ignoreCase = true)) {
-                val rawValue = declaration.substringAfter(":", "").substringBefore("!important").trim()
+                val rawValue = declaration.substringAfter(":", "")
+                    .substringBefore("!important")
+                    .trim()
                 if (rawValue.isNotEmpty()) return rawValue
             }
         }
@@ -1286,12 +560,27 @@ private class RichTextDomParser(
     private fun parseDimension(value: String): Float? {
         val clean = value.trim().lowercase()
         if (clean.endsWith("%")) {
-            return clean.removeSuffix("%").toFloatOrNull()?.div(100f)
+            return clean.removeSuffix("%")
+                .toFloatOrNull()
+                ?.div(100f)
         }
         if (clean.endsWith("px")) {
             return clean.removeSuffix("px").toFloatOrNull()
         }
         return clean.toFloatOrNull()
+    }
+
+    private fun parsePaddingStart(styleAttr: String): Dp {
+        val padding = extractCssValue(styleAttr, "padding-left") ?: return 0.dp
+        if (padding.endsWith("em")) {
+            val value = padding.removeSuffix("em").toFloatOrNull() ?: 0f
+            return (value * 16).dp
+        }
+        if (padding.endsWith("px")) {
+            val value = padding.removeSuffix("px").toFloatOrNull() ?: 0f
+            return value.dp
+        }
+        return 0.dp
     }
 
     private fun resolveCellAlignment(cell: KsoupElement, classes: Set<String>): TextAlign {
@@ -1669,6 +958,24 @@ private class RichTextDomParser(
     }
 }
 
+private data class InlineStyle(
+    val bold: Boolean = false,
+    val italic: Boolean = false,
+    val underline: Boolean = false,
+    val monospace: Boolean = false,
+    val superscript: Boolean = false,
+    val subscript: Boolean = false,
+    val link: String? = null,
+    val highlight: InlineHighlight? = null,
+    val dictionary: Boolean = false,
+    val preserveWhitespace: Boolean = false,
+    val smallText: Boolean = false,
+    val textColor: Color? = null,
+    val tooltip: String? = null
+)
+
+private enum class InlineHighlight { IMPORTANT, SELECTED }
+
 private fun InlineStyle.applyClassStyles(
     classes: Set<String>,
     palette: RichTextPalette,
@@ -1694,8 +1001,7 @@ private fun InlineStyle.applyClassStyles(
 
 private fun AnnotatedString.Builder.appendTextWithStyle(
     text: String,
-    style: InlineStyle,
-    palette: RichTextPalette
+    style: InlineStyle
 ) {
     if (text.isEmpty()) return
     val displayText = if (style.preserveWhitespace) text.replace(' ', '\u00A0') else text
@@ -1726,7 +1032,8 @@ private fun AnnotatedString.Builder.appendTextWithStyle(
         background = backgroundColor,
         color = textColor ?: Color.Unspecified,
         fontSize = if (style.smallText) 12.sp else TextUnit.Unspecified
-    )
+        palette: RichTextPalette
+    ) {
     if (style.link != null) {
         pushStringAnnotation(tag = "URL", annotation = style.link)
     }
@@ -1744,49 +1051,3 @@ private fun AnnotatedString.Builder.appendTextWithStyle(
     }
 }
 
-private fun mediaModelForSource(source: String, mediaRef: String?): Any? {
-    val filename = mediaRef ?: extractMediaRef(source)
-    if (filename != null) {
-        HtmlUtils.getMediaPath(filename)?.let { path ->
-            // Coil 3 supports file paths as strings
-            return path
-        }
-    }
-    if (source.startsWith("file://")) {
-        return source.removePrefix("file://")
-    }
-    return source
-}
-
-private fun extractMediaRef(source: String): String? {
-    return source.substringAfterLast('/', "").takeIf { it.isNotBlank() }
-}
-
-private fun parsePaddingStart(styleAttr: String): Dp {
-        val padding = extractCssValue(styleAttr, "padding-left") ?: return 0.dp
-        if (padding.endsWith("em")) {
-            val value = padding.removeSuffix("em").toFloatOrNull() ?: 0f
-            return (value * 16).dp
-        }
-        if (padding.endsWith("px")) {
-            val value = padding.removeSuffix("px").toFloatOrNull() ?: 0f
-            return value.dp
-        }
-        return 0.dp
-    }
-
-private fun parseWidth(widthAttr: String, styleAttr: String): Float? {
-        extractCssValue(styleAttr, "width")?.let { value ->
-            parseDimension(value)?.let { return it }
-        }
-        extractCssValue(styleAttr, "min-width")?.let { value ->
-            parseDimension(value)?.let { return it }
-        }
-        extractCssValue(styleAttr, "max-width")?.let { value ->
-            parseDimension(value)?.let { return it }
-        }
-        if (widthAttr.isNotBlank()) {
-            parseDimension(widthAttr)?.let { return it }
-        }
-        return null
-    }
