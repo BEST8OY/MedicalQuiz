@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.ksp)
 }
 
 kotlin {
@@ -37,7 +36,6 @@ kotlin {
                 // Ksoup for HTML parsing
                 implementation(libs.ksoup.html)
 
-                implementation(libs.room.runtime)
                 implementation(libs.sqlite.bundled)
             }
         }
@@ -72,15 +70,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-}
-
-dependencies {
-    add("kspAndroid", libs.room.compiler)
-    add("kspDesktop", libs.room.compiler)
-}
-
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 compose.desktop {

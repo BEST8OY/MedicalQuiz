@@ -6,11 +6,14 @@ on:
     paths-ignore:
       - 'README.md'
       - 'docs/**'
+      - '.github/**'
+      - '!.github/workflows/**'
   pull_request:
     branches: [ "main" ]
     paths-ignore:
       - 'README.md'
       - 'docs/**'
+  workflow_dispatch: # Allow manual triggering
 
 # Cancel in-progress runs for the same workflow and PR/branch
 concurrency:
@@ -21,51 +24,42 @@ env:
   GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.configuration-cache=true -Dorg.gradle.caching=true -Xmx4096m -XX:+UseG1GC -XX:MaxMetaspaceSize=1g"
   # Disable KSP incremental to prevent cache corruption issues in CI
   ORG_GRADLE_PROJECT_ksp_incremental: "false"
+  JAVA_VERSION: '21'
 
 permissions:
   contents: read
 
 jobs:
-  # Validate and setup - runs once, shared by all jobs
-  setup:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Validate Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v4
-
   # Android build and test
   android:
     runs-on: ubuntu-latest
-    needs: setup
+    timeout-minutes: 30
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for better caching
 
-      - name: Set up JDK 21
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v5
+
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           add-job-summary: on-failure
-          gradle-home-cache-cleanup: true
+          cache-cleanup: on-success
+          validate-wrappers: false # Already validated above
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Assemble Debug APK
-        run: ./gradlew assembleDebug --parallel --build-cache --no-daemon
-
-      - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --parallel --build-cache --no-daemon
+      - name: Build and test
+        run: ./gradlew assembleDebug testDebugUnitTest --parallel --build-cache --no-daemon --stacktrace
 
       - name: Upload Test Results
         if: always()
@@ -89,30 +83,29 @@ jobs:
   # Android lint - runs in parallel with desktop
   lint:
     runs-on: ubuntu-latest
-    needs: setup
+    timeout-minutes: 20
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Set up JDK 21
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           add-job-summary: on-failure
-          gradle-home-cache-cleanup: true
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+          cache-cleanup: on-success
 
       - name: Run Lint
-        run: ./gradlew lint --parallel --build-cache --no-daemon
+        run: ./gradlew lint --parallel --build-cache --no-daemon --stacktrace
 
       - name: Upload Lint Reports
         if: always()
@@ -128,39 +121,33 @@ jobs:
   # Desktop build and test - runs in parallel with lint
   desktop:
     runs-on: ubuntu-latest
-    needs: setup
+    timeout-minutes: 30
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Set up JDK 21
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           add-job-summary: on-failure
-          gradle-home-cache-cleanup: true
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+          cache-cleanup: on-success
 
       # Linux dependencies for Compose Desktop
       - name: Install Linux Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgl1 libxrender1 libxrandr2 xvfb
+        run: sudo apt-get update && sudo apt-get install -y libgl1 libxrender1 libxrandr2 xvfb
 
-      - name: Run Checks
-        run: ./gradlew check --parallel --build-cache --no-daemon
-
-      - name: Run Desktop Tests
-        run: xvfb-run -a ./gradlew :composeApp:desktopTest --parallel --build-cache --no-daemon
+      - name: Run Checks and Tests
+        run: xvfb-run -a ./gradlew check :composeApp:desktopTest --parallel --build-cache --no-daemon --stacktrace
 
       - name: Upload Test Results
         if: always()
@@ -173,22 +160,24 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Package Desktop Application (Linux)
-        run: xvfb-run -a ./gradlew :composeApp:packageDistributionForCurrentOS --parallel --build-cache --no-daemon
+      - name: Package Desktop Application
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: xvfb-run -a ./gradlew :composeApp:packageDistributionForCurrentOS --parallel --build-cache --no-daemon --stacktrace
 
       - name: Upload Desktop Distribution
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: desktop-linux-dist
           path: composeApp/build/compose/binaries/main/deb/
           retention-days: 30
-          compression-level: 6  # Good compression for binaries
+          compression-level: 6
 
   # Submit dependencies to GitHub for Dependabot alerts
   dependency-submission:
     runs-on: ubuntu-latest
-    needs: setup
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 15
     permissions:
       contents: write
     
@@ -196,14 +185,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: true
-          dependency-graph: generate-and-submit
+      - name: Generate and Submit Dependency Graph
+        uses: gradle/actions/dependency-submission@v5
