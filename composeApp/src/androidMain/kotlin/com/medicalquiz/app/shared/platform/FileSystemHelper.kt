@@ -14,6 +14,11 @@ actual object FileSystemHelper {
         return null
     }
 
+    actual fun readText(path: String): String? {
+        val file = File(path)
+        return if (file.exists() && file.canRead()) file.readText() else null
+    }
+
     actual fun getDatabasePath(dbName: String): String {
         val storageRoot = StorageProvider.getAppStorageDirectory()
         val dbFile = File(File(storageRoot, "databases"), dbName)

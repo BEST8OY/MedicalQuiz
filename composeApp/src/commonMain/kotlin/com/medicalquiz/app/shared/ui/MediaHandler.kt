@@ -30,7 +30,24 @@ class MediaHandler(
             return openMediaFromCache(fileName)
         }
 
+        if (url.startsWith("media/", ignoreCase = true)) {
+            val fileName = url.substringAfterLast('/')
+            return openMediaFromCache(fileName)
+        }
+
+        if (url.endsWith(".jpg", ignoreCase = true) || 
+            url.endsWith(".jpeg", ignoreCase = true) || 
+            url.endsWith(".png", ignoreCase = true) ||
+            url.endsWith(".gif", ignoreCase = true) ||
+            url.endsWith(".webp", ignoreCase = true)) {
+            val fileName = url.substringAfterLast('/')
+            return openMediaFromCache(fileName)
+        }
+
         if (!url.contains("/") && !url.startsWith("http") && !url.startsWith("file://")) {
+            if (url.endsWith(".html", ignoreCase = true) || url.endsWith(".htm", ignoreCase = true)) {
+                return false
+            }
             return openMediaFromCache(url)
         }
 

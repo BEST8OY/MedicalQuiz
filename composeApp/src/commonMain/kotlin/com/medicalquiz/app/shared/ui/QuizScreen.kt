@@ -108,7 +108,7 @@ private fun QuestionContent(
 
         // Performance logs - shown after answering if logs enabled
         AnimatedVisibility(
-            visible = state.answerSubmitted && state.currentPerformance != null,
+            visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
@@ -306,6 +306,15 @@ private fun QuizQuestionCard(
     }
     val mediaClick: (String) -> Unit = remember(mediaHandler) { { ref -> mediaHandler.handleMediaLink(ref) } }
 
+    LaunchedEffect(question?.id) {
+        if (question != null) {
+            val mediaFiles = HtmlUtils.collectMediaFiles(question)
+            mediaHandler.updateMedia(question.id, mediaFiles)
+        } else {
+            mediaHandler.reset()
+        }
+    }
+
     if (question == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(text = "Select a question to begin", style = MaterialTheme.typography.bodyMedium)
@@ -349,14 +358,6 @@ private fun QuizQuestionCard(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        question.title?.takeIf { it.isNotBlank() }?.let { title ->
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-
         RichText(
             html = questionHtml,
             showSelectedHighlight = state.answerSubmitted,

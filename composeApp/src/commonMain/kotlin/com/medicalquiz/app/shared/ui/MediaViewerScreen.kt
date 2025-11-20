@@ -37,6 +37,18 @@ import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
 
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.medicalquiz.app.shared.platform.FileSystemHelper
+import com.medicalquiz.app.shared.utils.HtmlUtils
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MediaViewerScreen(
@@ -111,7 +123,36 @@ private fun MediaContent(
     
     when (mediaType) {
         MediaType.IMAGE -> ImageContent(fileName, description)
+        MediaType.HTML -> HtmlContent(fileName)
         else -> UnsupportedContent(fileName, mediaType)
+    }
+}
+
+@Composable
+private fun HtmlContent(fileName: String) {
+    val storageDir = StorageProvider.getAppStorageDirectory()
+    val filePath = "$storageDir/media/$fileName"
+    val htmlContent = remember(fileName) {
+        FileSystemHelper.readText(filePath)?.let { 
+            HtmlUtils.sanitizeForWebView(it) 
+        }
+    }
+
+    if (htmlContent == null) {
+        UnsupportedContent(fileName, MediaType.HTML)
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            RichText(
+                html = htmlContent,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
 
@@ -122,16 +163,60 @@ private fun ImageContent(
 ) {
     var showExplanation by remember { mutableStateOf(false) }
     val storageDir = StorageProvider.getAppStorageDirectory()
-    // Assuming media is in a "media" subdirectory
     val filePath = "$storageDir/media/$fileName"
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        AsyncImage(
-            model = filePath,
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Fit
-        )
+    // Zoom state
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+
+    // Overlay state
+    val overlayName = if (fileName.startsWith("big_", ignoreCase = true)) {
+        fileName.substringBeforeLast('.') + ".svg"
+    } else null
+    val overlayPath = overlayName?.let { "$storageDir/media/$it" }
+    var showOverlay by remember { mutableStateOf(true) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    scale = (scale * zoom).coerceIn(1f, 5f)
+                    if (scale == 1f) offset = Offset.Zero
+                    else {
+                        val newOffset = offset + pan
+                        // Simple bound check could be added here
+                        offset = newOffset
+                    }
+                }
+            }
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationX = offset.x,
+                    translationY = offset.y
+                )
+        ) {
+            AsyncImage(
+                model = filePath,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+
+            if (overlayPath != null && showOverlay) {
+                AsyncImage(
+                    model = overlayPath,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
 
         if (description != null) {
             IconButton(
@@ -143,6 +228,21 @@ private fun ImageContent(
                 Icon(
                     imageVector = Icons.Filled.Info,
                     contentDescription = "Show explanation",
+                    tint = Color.White
+                )
+            }
+        }
+
+        if (overlayPath != null) {
+            IconButton(
+                onClick = { showOverlay = !showOverlay },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp)
+            ) {
+                Icon(
+                    imageVector = if (showOverlay) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                    contentDescription = "Toggle overlay",
                     tint = Color.White
                 )
             }

@@ -51,6 +51,9 @@ class QuizViewModel : ViewModel() {
     private var lastFetchedSubjectIds: List<Long>? = null
 
     fun setDatabaseManager(db: DatabaseProvider) {
+        // 1. Reset state immediately so UI clears old data
+        resetState()
+        
         val oldDb = databaseManager
         databaseManager = db
         viewModelScope.launch(Dispatchers.IO) {
@@ -60,6 +63,16 @@ class QuizViewModel : ViewModel() {
                 println("Error closing old database: ${e.message}")
             }
             initializeAfterDatabaseSwitch()
+        }
+    }
+
+    private fun resetState() {
+        _state.update { currentState ->
+            // Reset to empty state but preserve settings that shouldn't change
+            QuizState.EMPTY.copy(
+                isLoggingEnabled = currentState.isLoggingEnabled,
+                databaseName = "" // Will be set shortly after
+            )
         }
     }
 
@@ -93,25 +106,22 @@ class QuizViewModel : ViewModel() {
     private suspend fun initializeAfterDatabaseSwitch() {
         try {
             println("Initializing after database switch")
-            val validSubjects = pruneInvalidSubjects().toSet()
-            val validSystems = if (validSubjects.isEmpty()) {
-                emptySet()
-            } else {
-                pruneInvalidSystems()
-            }
-
+            
+            // Start fresh with new database
             _state.update {
                 it.copy(
-                    selectedSubjectIds = validSubjects,
-                    selectedSystemIds = validSystems,
-                    questionIds = emptyList()
+                    selectedSubjectIds = emptySet(),
+                    selectedSystemIds = emptySet(),
+                    questionIds = emptyList(),
+                    performanceFilter = PerformanceFilter.ALL,
+                    previewQuestionCount = 0
                 )
             }
 
             lastFetchedSubjectIds = null
 
             fetchSubjects()
-            fetchSystemsForSubjects(validSubjects.takeIf { it.isNotEmpty() }?.toList())
+            // No subjects selected initially, so no systems to fetch
             println("Database initialization completed")
         } catch (e: Exception) {
             println("Error during post-switch initialization: ${e.message}")
@@ -132,7 +142,7 @@ class QuizViewModel : ViewModel() {
         val questionId = ids.getOrNull(index) ?: return
 
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isLoading = true) }
+            _state.update { it.copy(isLoading = true, currentPerformance = null) }
             try {
                 val question = databaseManager?.getQuestionById(questionId)
                 val answers = databaseManager?.getAnswersForQuestion(questionId) ?: emptyList()
@@ -143,6 +153,9 @@ class QuizViewModel : ViewModel() {
                           answers = answers,
                           resetAnswerState = resetAnswerState
                       )
+                }
+                if (question != null) {
+                    loadPerformanceForQuestion(question.id)
                 }
             } catch (e: Exception) {
                 println("Error loading question $questionId: ${e.message}")
@@ -207,10 +220,10 @@ class QuizViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val isLoggingEnabled = settingsRepository?.isLoggingEnabled?.value ?: true
-                val correctAnswer = currentState.currentAnswers.getOrNull(question.corrAns - 1)
-                val correctAnswerId = correctAnswer?.answerId?.toInt() ?: -1
-
+                
                 if (isLoggingEnabled) {
+                    val correctAnswer = currentState.currentAnswers.getOrNull(question.corrAns - 1)
+                    val correctAnswerId = correctAnswer?.answerId?.toInt() ?: -1
                     logAnswerToDatabase(question.id, selectedAnswerId, correctAnswerId, timeTaken)
                     updatePerformanceState(question.id, correctAnswerId, selectedAnswerId)
                 }
