@@ -32,7 +32,9 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
 
     private suspend fun checkSchema() {
         try {
-            val type = getDatabase().metadataDao().getColumnType("subId")
+            val sql = "SELECT type FROM pragma_table_info('Questions') WHERE name = ?"
+            val query = createRoomRawQuery(sql, listOf("subId"))
+            val type = getDatabase().metadataDao().getColumnType(query)
             isStringIds = type?.contains("char", ignoreCase = true) == true || 
                           type?.contains("text", ignoreCase = true) == true
         } catch (e: Exception) {

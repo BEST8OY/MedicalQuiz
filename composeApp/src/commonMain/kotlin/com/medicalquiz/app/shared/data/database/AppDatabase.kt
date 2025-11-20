@@ -13,7 +13,8 @@ import com.medicalquiz.app.shared.data.database.entities.*
         AnswerEntity::class,
         SubjectEntity::class,
         SystemEntity::class,
-        LogEntity::class
+        LogEntity::class,
+        SubjectsSystemsEntity::class
     ],
     views = [
         LogSummaryEntity::class
