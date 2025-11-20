@@ -73,10 +73,10 @@ dependencies {
     implementation(libs.compose.materialIconsExtended)
     implementation(libs.androidx.activity.compose)
 
-   // implementation(libs.coil.compose)
-   // implementation(libs.coil.network.ktor)
-   // implementation(libs.coil.svg)
-   // implementation(libs.coil.android)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.ktor)
+    implementation(libs.coil.svg)
+    implementation(libs.coil.android)
 
     implementation(project(":composeApp"))
 }
