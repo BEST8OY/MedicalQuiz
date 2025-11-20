@@ -24,10 +24,10 @@ internal fun Set<String>.containsAnyInsensitive(targets: Set<String>): Boolean {
 /**
  * Checks if this set contains any normalized marker matching the provided markers.
  * 
- * @param markers The set of normalized markers to match against
+ * @param markers The list of normalized markers to match against
  * @return true if any normalized marker matches
  */
-internal fun Set<String>.matchesAnyMarker(markers: Set<String>): Boolean {
+internal fun Set<String>.matchesAnyMarker(markers: List<String>): Boolean {
     if (isEmpty() || markers.isEmpty()) return false
     return any { candidate -> markers.contains(normalizeMarker(candidate)) }
 }

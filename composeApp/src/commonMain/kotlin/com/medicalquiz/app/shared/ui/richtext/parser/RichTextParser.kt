@@ -420,6 +420,28 @@ private class KsoupElement(
             }
         }
     }
+
+    private fun styleIndicatesBold(styleAttr: String): Boolean {
+        if (styleAttr.isBlank()) return false
+        val fontWeight = extractCssValue(styleAttr, "font-weight")?.lowercase()?.trim() ?: return false
+        if (fontWeight.startsWith("bold") || fontWeight.startsWith("bolder")) return true
+        val numeric = fontWeight.filter { it.isDigit() }
+        return numeric.toIntOrNull()?.let { it >= BOLD_FONT_WEIGHT_THRESHOLD } == true
+    }
+
+    private fun extractCssValue(styleAttr: String, property: String): String? {
+        if (styleAttr.isBlank()) return null
+        styleAttr.split(";").forEach { declaration ->
+            val name = declaration.substringBefore(":").trim()
+            if (name.equals(property, ignoreCase = true)) {
+                val rawValue = declaration.substringAfter(":", "")
+                    .substringBefore("!important")
+                    .trim()
+                if (rawValue.isNotEmpty()) return rawValue
+            }
+        }
+        return null
+    }
 }
 
 private class RichTextHandler(
@@ -1005,7 +1027,7 @@ private class RichTextDomParser(
         return false
     }
 
-    private fun KsoupElement.hasHeaderAttributeMarker(attributeNames: List<String>): Boolean {
+    private fun KsoupElement.hasHeaderAttributeMarker(attributeNames: Set<String>): Boolean {
         attributeNames.forEach { attrName ->
             val value = attr(attrName)
             if (value.isBlank()) return@forEach
@@ -1040,8 +1062,6 @@ private class RichTextDomParser(
         val numeric = fontWeight.filter { it.isDigit() }
         return numeric.toIntOrNull()?.let { it >= BOLD_FONT_WEIGHT_THRESHOLD } == true
     }
-
-    private fun parseAbstractBlock(element: KsoupElement, depth: Int): RichTextBlock.AbstractBlock? {
         val childBlocks = parse(element.children, depth = depth + 1).toMutableList()
         if (childBlocks.isEmpty()) return null
         var title: AnnotatedString? = null
