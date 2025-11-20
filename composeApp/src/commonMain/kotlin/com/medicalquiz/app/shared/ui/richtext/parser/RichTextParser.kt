@@ -33,8 +33,117 @@ import kotlinx.serialization.json.jsonPrimitive
 import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlHandler
 import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlParser
 
-internal object RichTextParser {
+/**
+ * Decodes HTML entities (both named and numeric) to their character equivalents.
+ * 
+ * Handles common entities like &amp;, &lt;, &gt;, &quot;, &#39;, and numeric entities like &#39; and &#x27;.
+ * 
+ * @param text The text containing HTML entities
+ * @return Text with entities decoded to characters
+ */
+private fun decodeHtmlEntities(text: String): String {
+    if (!text.contains('&')) return text
+    
+    var result = text
+    
+    // Common named entities
+    val namedEntities = mapOf(
+        "&amp;" to "&",
+        "&lt;" to "<",
+        "&gt;" to ">",
+        "&quot;" to "\"",
+        "&apos;" to "'",
+        "&#39;" to "'",
+        "&#x27;" to "'",
+        "&nbsp;" to "\u00A0",
+        "&ndash;" to "–",
+        "&mdash;" to "—",
+        "&lsquo;" to "'",
+        "&rsquo;" to "'",
+        "&ldquo;" to "\"",
+        "&rdquo;" to "\"",
+        "&hellip;" to "…",
+        "&copy;" to "©",
+        "&reg;" to "®",
+        "&trade;" to "™",
+        "&euro;" to "€",
+        "&pound;" to "£",
+        "&yen;" to "¥",
+        "&cent;" to "¢",
+        "&deg;" to "°",
+        "&plusmn;" to "±",
+        "&times;" to "×",
+        "&divide;" to "÷",
+        "&frac12;" to "½",
+        "&frac14;" to "¼",
+        "&frac34;" to "¾"
+    )
+    
+    // Replace named entities
+    namedEntities.forEach { (entity, char) ->
+        result = result.replace(entity, char)
+    }
+    
+    // Decode numeric entities (decimal): &#123;
+    val decimalPattern = "&#(\\d+);"
+    result = Regex(decimalPattern).replace(result) { matchResult ->
+        val codePoint = matchResult.groupValues[1].toIntOrNull()
+        if (codePoint != null && codePoint in 1..0x10FFFF) {
+            try {
+                codePoint.toChar().toString()
+            } catch (e: Exception) {
+                matchResult.value // Keep original if conversion fails
+            }
+        } else {
+            matchResult.value
+        }
+    }
+    
+    // Decode numeric entities (hexadecimal): &#x1F; or &#X1F;
+    val hexPattern = "&#[xX]([0-9a-fA-F]+);"
+    result = Regex(hexPattern).replace(result) { matchResult ->
+        val codePoint = matchResult.groupValues[1].toIntOrNull(16)
+        if (codePoint != null && codePoint in 1..0x10FFFF) {
+            try {
+                codePoint.toChar().toString()
+            } catch (e: Exception) {
+                matchResult.value
+            }
+        } else {
+            matchResult.value
+        }
+    }
+    
+    return result
+}
 
+/**
+ * Parser for converting HTML to RichTextBlock elements.
+ * 
+ * This parser handles nested HTML structures, inline styles, tables with rowspan/colspan,
+ * tooltips, media elements, and various semantic class markers.
+ */
+internal object RichTextParser {
+    
+    // Parsing limits to prevent resource exhaustion
+    private const val MAX_RECURSION_DEPTH = 100
+    private const val MAX_TABLE_ROWS = 1000
+    private const val MAX_TABLE_COLUMNS = 50
+    
+    // Magic numbers for heuristics
+    private const val MAX_TITLE_LENGTH = 200
+    private const val BOLD_FONT_WEIGHT_THRESHOLD = 600
+    private const val BOLD_CHECK_MAX_DEPTH = 4
+    private const val EM_TO_DP_MULTIPLIER = 16f
+
+    /**
+     * Parses HTML string into a list of RichTextBlock elements.
+     * 
+     * @param html The HTML content to parse
+     * @param palette Color palette for styling
+     * @param showSelectedHighlight Whether to apply visual highlighting to selected elements
+     * @return List of parsed RichTextBlock elements
+     */
     fun parse(
         html: String,
         palette: RichTextPalette,
@@ -101,7 +210,9 @@ private class RichTextHandler(
     private val rootElements = mutableListOf<KsoupNode>()
 
     override fun onOpenTag(name: String, attributes: Map<String, String>, isImplied: Boolean) {
-        val newElement = KsoupElement(name, attributes, currentElement)
+        // Decode HTML entities in attribute values
+        val decodedAttributes = attributes.mapValues { (_, value) -> decodeHtmlEntities(value) }
+        val newElement = KsoupElement(name, decodedAttributes, currentElement)
         if (currentElement == null) {
             rootElements.add(newElement)
         } else {
@@ -112,7 +223,9 @@ private class RichTextHandler(
 
     override fun onText(text: String) {
         if (text.isEmpty()) return
-        val textNode = KsoupTextNode(text, currentElement)
+        // Decode HTML entities like &#39; to ' and &amp; to &
+        val decodedText = decodeHtmlEntities(text)
+        val textNode = KsoupTextNode(decodedText, currentElement)
         if (currentElement == null) {
             rootElements.add(textNode)
         } else {
@@ -142,8 +255,14 @@ private class RichTextDomParser(
 
     fun parse(
         nodes: List<KsoupNode>,
-        inheritedStyles: InheritedStyles = InheritedStyles()
+        inheritedStyles: InheritedStyles = InheritedStyles(),
+        depth: Int = 0
     ): List<RichTextBlock> {
+        // Prevent stack overflow from deeply nested or malicious HTML
+        if (depth >= RichTextParser.MAX_RECURSION_DEPTH) {
+            println("RichText: Maximum recursion depth reached at $depth levels")
+            return emptyList()
+        }
         val blocks = mutableListOf<RichTextBlock>()
         nodes.forEach { node ->
             when (node) {
@@ -164,7 +283,7 @@ private class RichTextDomParser(
                     val nextStyles = inheritedStyles.copy(textAlign = currentTextAlign)
 
                     when (tag) {
-                        "p" -> handleParagraph(node, blocks, nextStyles)
+                        "p" -> handleParagraph(node, blocks, nextStyles, depth)
                         "h1", "h2", "h3", "h4", "h5", "h6" -> {
                             val level = tag.removePrefix("h").toIntOrNull() ?: 6
                             buildAnnotatedBlock(node)?.let { heading ->
@@ -204,9 +323,9 @@ private class RichTextDomParser(
                         "table" -> parseTable(node)?.let(blocks::add)
                         "div", "section", "article" -> {
                             if (node.classNames().any { it.equals("abstract", ignoreCase = true) }) {
-                                parseAbstractBlock(node)?.let(blocks::add)
+                                parseAbstractBlock(node, depth + 1)?.let(blocks::add)
                             } else {
-                                blocks += parse(node.children, nextStyles)
+                                blocks += parse(node.children, nextStyles, depth + 1)
                             }
                         }
                         "img" -> parseMediaElement(node, currentTextAlign)?.let(blocks::add)
@@ -253,7 +372,8 @@ private class RichTextDomParser(
     private fun handleParagraph(
         node: KsoupElement,
         blocks: MutableList<RichTextBlock>,
-        inheritedStyles: InheritedStyles
+        inheritedStyles: InheritedStyles,
+        depth: Int
     ) {
         val inlineNodes = mutableListOf<KsoupNode>()
         val mediaElements = mutableListOf<KsoupElement>()
@@ -280,7 +400,7 @@ private class RichTextDomParser(
                 child is KsoupElement && child.tagName.equals("img", ignoreCase = true) -> mediaElements.add(child)
                 child is KsoupElement && child.isBlockLikeChild() -> {
                     flushInlineParagraph()
-                    blocks.addAll(parse(listOf(child), nestedInheritedStyles))
+                    blocks.addAll(parse(listOf(child), nestedInheritedStyles, depth + 1))
                 }
                 else -> inlineNodes.add(child)
             }
@@ -383,6 +503,14 @@ private class RichTextDomParser(
         collectRows(element)
 
         if (allRows.isEmpty()) return null
+        
+        // Prevent memory exhaustion from excessively large tables
+        if (allRows.size > RichTextParser.MAX_TABLE_ROWS) {
+            println("RichText: Table has ${allRows.size} rows, limiting to ${RichTextParser.MAX_TABLE_ROWS}")
+            while (allRows.size > RichTextParser.MAX_TABLE_ROWS) {
+                allRows.removeLast()
+            }
+        }
 
         val headerRows = mutableListOf<RichTextTableRow>()
         val bodyRows = mutableListOf<RichTextTableRow>()
@@ -406,11 +534,17 @@ private class RichTextDomParser(
             }
         }
 
-        val columnCount = (headerRows + bodyRows)
+        var columnCount = (headerRows + bodyRows)
             .maxOfOrNull { row ->
                 row.cells.sumOf { cell -> cell.columnSpan.coerceAtLeast(1) }
             } ?: 0
         if (columnCount == 0) return null
+        
+        // Prevent memory exhaustion from tables with too many columns
+        if (columnCount > RichTextParser.MAX_TABLE_COLUMNS) {
+            println("RichText: Table has $columnCount columns, limiting to ${RichTextParser.MAX_TABLE_COLUMNS}")
+            columnCount = RichTextParser.MAX_TABLE_COLUMNS
+        }
 
         return RichTextBlock.Table(
             headerRows = headerRows,
@@ -448,18 +582,6 @@ private class RichTextDomParser(
             return RichTextTableRow(emptyList(), hasHeaderMarkers, rowClasses)
         }
 
-        data class CellInfo(
-            val text: AnnotatedString,
-            val rawText: String,
-            val columnSpan: Int,
-            val rowSpan: Int,
-            val alignment: TextAlign,
-            val width: Float?,
-            val paddingStart: Dp,
-            val classNames: Set<String>,
-            val hasHeaderTraits: Boolean
-        )
-
         val cellInfos = cellElements.map { cell ->
             val classes = cell.classNames()
             val text = buildAnnotatedBlock(cell) ?: AnnotatedString("")
@@ -482,29 +604,7 @@ private class RichTextDomParser(
             )
         }
 
-        val rowHasExplicitHeaderClass = row.classNames().matchesAnyMarker(headerRowClassMarkers)
-        val rowHasHeaderAttributes = row.hasHeaderAttributeMarker(headerRowAttributeNames)
-        val rowHasTitleClass = row.classNames().matchesAnyMarker(titleRowClassMarkers)
-        val rowAlignment = parseTextAlign(row)
-        val rowLooksLikeStandaloneTitle = cellInfos.size == 1 && cellInfos.first().let { info ->
-            val textLength = info.rawText.length
-            if (textLength == 0) {
-                false
-            } else {
-                val centerAligned = info.alignment == TextAlign.Center || rowAlignment == TextAlign.Center
-                val spansMultipleColumns = info.columnSpan >= 2
-                val emphasised = info.hasHeaderTraits || rowHasTitleClass || rowHasHeaderAttributes
-                val shortEnough = textLength <= 200
-                shortEnough && (centerAligned || emphasised) && (spansMultipleColumns || isFirstRow)
-            }
-        }
-        val allCellsMarkedHeader = cellInfos.all { it.hasHeaderTraits }
-        val isHeaderRow = headerContext ||
-            rowHasExplicitHeaderClass ||
-            rowHasHeaderAttributes ||
-            rowHasTitleClass ||
-            rowLooksLikeStandaloneTitle ||
-            allCellsMarkedHeader
+        val isHeaderRow = isTableRowHeader(row, cellInfos, headerContext, isFirstRow)
 
         val cells = cellInfos.map { info ->
             RichTextTableCell(
@@ -520,6 +620,62 @@ private class RichTextDomParser(
         }
         return RichTextTableRow(cells = cells, isHeader = isHeaderRow, classNames = rowClasses)
     }
+
+    /**
+     * Determines if a table row should be treated as a header row.
+     * Uses multiple heuristics including explicit markers, cell traits, and layout patterns.
+     */
+    private fun isTableRowHeader(
+        row: KsoupElement,
+        cellInfos: List<*>,
+        headerContext: Boolean,
+        isFirstRow: Boolean
+    ): Boolean {
+        // Type-safe access to CellInfo - we know this is the actual type from parseTableRow
+        @Suppress("UNCHECKED_CAST")
+        fun getCellInfo(index: Int): CellInfo? = cellInfos.getOrNull(index) as? CellInfo
+        
+        // Explicit header markers
+        if (headerContext) return true
+        if (row.classNames().matchesAnyMarker(headerRowClassMarkers)) return true
+        if (row.hasHeaderAttributeMarker(headerRowAttributeNames)) return true
+        if (row.classNames().matchesAnyMarker(titleRowClassMarkers)) return true
+        
+        // All cells are marked as headers
+        val allCellsHeader = cellInfos.all { (it as? CellInfo)?.hasHeaderTraits == true }
+        if (allCellsHeader && cellInfos.isNotEmpty()) return true
+        
+        // Single-cell title row heuristic
+        if (cellInfos.size == 1) {
+            val info = getCellInfo(0) ?: return false
+            val textLength = info.rawText.length
+            if (textLength > 0 && textLength <= RichTextParser.MAX_TITLE_LENGTH) {
+                val rowAlignment = parseTextAlign(row)
+                val centerAligned = info.alignment == TextAlign.Center || rowAlignment == TextAlign.Center
+                val spansMultiple = info.columnSpan >= 2
+                val rowHasTitleClass = row.classNames().matchesAnyMarker(titleRowClassMarkers)
+                val rowHasHeaderAttrs = row.hasHeaderAttributeMarker(headerRowAttributeNames)
+                val emphasised = info.hasHeaderTraits || rowHasTitleClass || rowHasHeaderAttrs
+                
+                return (centerAligned || emphasised) && (spansMultiple || isFirstRow)
+            }
+        }
+        
+        return false
+    }
+    
+    // CellInfo data class moved from local scope to be accessible to helper method
+    private data class CellInfo(
+        val text: AnnotatedString,
+        val rawText: String,
+        val columnSpan: Int,
+        val rowSpan: Int,
+        val alignment: TextAlign,
+        val width: Float?,
+        val paddingStart: Dp,
+        val classNames: Set<String>,
+        val hasHeaderTraits: Boolean
+    )
 
     private fun buildRowClassSet(row: KsoupElement, tableElement: KsoupElement): Set<String> {
         return buildSet {
@@ -576,7 +732,7 @@ private class RichTextDomParser(
         val padding = extractCssValue(styleAttr, "padding-left") ?: return 0.dp
         if (padding.endsWith("em")) {
             val value = padding.removeSuffix("em").toFloatOrNull() ?: 0f
-            return (value * 16).dp
+            return (value * RichTextParser.EM_TO_DP_MULTIPLIER).dp
         }
         if (padding.endsWith("px")) {
             val value = padding.removeSuffix("px").toFloatOrNull() ?: 0f
@@ -632,7 +788,7 @@ private class RichTextDomParser(
         return false
     }
 
-    private fun KsoupElement.containsBoldContent(maxDepth: Int = 4): Boolean {
+    private fun KsoupElement.containsBoldContent(maxDepth: Int = RichTextParser.BOLD_CHECK_MAX_DEPTH): Boolean {
         if (maxDepth <= 0) return false
         if (tagName.equals("strong", true) || tagName.equals("b", true)) return true
         if (styleIndicatesBold(attr("style"))) return true
@@ -650,11 +806,11 @@ private class RichTextDomParser(
         val fontWeight = extractCssValue(styleAttr, "font-weight")?.lowercase()?.trim() ?: return false
         if (fontWeight.startsWith("bold") || fontWeight.startsWith("bolder")) return true
         val numeric = fontWeight.filter { it.isDigit() }
-        return numeric.toIntOrNull()?.let { it >= 600 } == true
+        return numeric.toIntOrNull()?.let { it >= RichTextParser.BOLD_FONT_WEIGHT_THRESHOLD } == true
     }
 
-    private fun parseAbstractBlock(element: KsoupElement): RichTextBlock.AbstractBlock? {
-        val childBlocks = parse(element.children).toMutableList()
+    private fun parseAbstractBlock(element: KsoupElement, depth: Int): RichTextBlock.AbstractBlock? {
+        val childBlocks = parse(element.children, depth = depth + 1).toMutableList()
         if (childBlocks.isEmpty()) return null
         var title: AnnotatedString? = null
         if (childBlocks.firstOrNull() is RichTextBlock.Heading) {
@@ -987,7 +1143,7 @@ private fun InlineStyle.applyClassStyles(
     var updated = this
     classes.forEach { rawClass ->
         when (rawClass.lowercase()) {
-            "wichtig" -> updated = updated.copy(highlight = InlineHighlight.IMPORTANT, bold = true)
+            "important", "wichtig" -> updated = updated.copy(highlight = InlineHighlight.IMPORTANT, bold = true)
             "selected" -> if (showSelectedHighlight) {
                 updated = updated.copy(highlight = InlineHighlight.SELECTED)
             }

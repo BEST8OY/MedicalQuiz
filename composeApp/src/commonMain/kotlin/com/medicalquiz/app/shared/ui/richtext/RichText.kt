@@ -16,6 +16,19 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.ui.richtext.parser.RichTextParser
 
+/**
+ * Renders HTML content as styled Compose UI elements.
+ * 
+ * This composable parses HTML and displays it using Material Design 3 components,
+ * supporting paragraphs, headings, lists, tables, code blocks, images, and more.
+ * 
+ * @param html The HTML string to render
+ * @param modifier Modifier to apply to the root layout
+ * @param showSelectedHighlight Whether to highlight elements marked with 'selected' class
+ * @param onLinkClick Optional callback when a link is clicked (null uses default URI handler)
+ * @param onMediaClick Optional callback when media is clicked
+ * @param onTooltipClick Optional callback when tooltip is triggered
+ */
 @Composable
 fun RichText(
     html: String,
@@ -105,8 +118,12 @@ private fun rememberLinkHandler(onLinkClick: ((String) -> Unit)?): (String) -> U
         onLinkClick ?: { url ->
             try {
                 uriHandler.openUri(url)
-            } catch (_: Throwable) {
-                // Ignore failures opening deep links.
+            } catch (e: Exception) {
+                // Log the failure for debugging
+                println("RichText: Failed to open URL '$url': ${e.message}")
+            } catch (e: Error) {
+                // Log critical errors but don't crash
+                println("RichText: Critical error opening URL '$url': ${e.message}")
             }
         }
     }

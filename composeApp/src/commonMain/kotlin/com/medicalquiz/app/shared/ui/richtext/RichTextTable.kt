@@ -6,6 +6,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,6 +27,18 @@ import kotlin.collections.ArrayDeque
 import kotlin.collections.buildList
 import kotlin.math.max
 
+// Configuration for lazy rendering
+private const val LAZY_RENDERING_ROW_THRESHOLD = 50
+
+/**
+ * Renders a table with support for rowspan/colspan and lazy rendering for large tables.
+ * 
+ * Tables with more than 50 rows use lazy rendering to improve performance.
+ * 
+ * @param block The table block containing rows and column information
+ * @param onLinkClick Callback for link clicks within table cells
+ * @param onTooltipClick Optional callback for tooltip interactions
+ */
 @Composable
 internal fun RichTextTable(
     block: RichTextBlock.Table,
@@ -35,6 +49,7 @@ internal fun RichTextTable(
     val renderModel = remember(block) { block.toRenderModel() }
     val scrollState = rememberScrollState()
     val minWidth = 120.dp * renderModel.columnCount
+    
     BoxWithConstraints {
         val needsScroll = minWidth > maxWidth
         val tableModifier = if (needsScroll) {
@@ -44,21 +59,37 @@ internal fun RichTextTable(
         } else {
             Modifier.fillMaxWidth()
         }
+        
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
-            Column(modifier = tableModifier) {
-                renderModel.rows.forEachIndexed { index, row ->
-                    TableRowContent(
-                        row = row,
-                        tableClassNames = block.classNames,
-                        onLinkClick = onLinkClick,
-                        onTooltipClick = onTooltipClick
-                    )
-                    if (index != renderModel.rows.lastIndex) {
+            // Use lazy rendering for large tables
+            if (renderModel.rows.size > LAZY_RENDERING_ROW_THRESHOLD) {
+                LazyColumn(modifier = tableModifier) {
+                    items(renderModel.rows) { row ->
+                        TableRowContent(
+                            row = row,
+                            tableClassNames = block.classNames,
+                            onLinkClick = onLinkClick,
+                            onTooltipClick = onTooltipClick
+                        )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                    }
+                }
+            } else {
+                Column(modifier = tableModifier) {
+                    renderModel.rows.forEachIndexed { index, row ->
+                        TableRowContent(
+                            row = row,
+                            tableClassNames = block.classNames,
+                            onLinkClick = onLinkClick,
+                            onTooltipClick = onTooltipClick
+                        )
+                        if (index != renderModel.rows.lastIndex) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                        }
                     }
                 }
             }
@@ -66,6 +97,9 @@ internal fun RichTextTable(
     }
 }
 
+/**
+ * Represents a table prepared for rendering with processed rowspan/colspan.
+ */
 internal data class TableRenderModel(
     val rows: List<TableRenderedRow>,
     val columnCount: Int
@@ -83,6 +117,9 @@ internal data class TableRenderedCell(
     val isVisible: Boolean
 )
 
+/**
+ * Converts a table block to a render model, processing rowspan and colspan.
+ */
 internal fun RichTextBlock.Table.toRenderModel(): TableRenderModel {
     val builder = TableGridBuilder()
     val orderedRows = buildList {
@@ -195,6 +232,14 @@ private class TableGridBuilder {
     )
 }
 
+/**
+ * Renders a single table row with proper styling based on header status and classes.
+ * 
+ * @param row The rendered row data
+ * @param tableClassNames Class names from the parent table element
+ * @param onLinkClick Callback for link clicks
+ * @param onTooltipClick Optional callback for tooltips
+ */
 @Composable
 internal fun TableRowContent(
     row: TableRenderedRow,

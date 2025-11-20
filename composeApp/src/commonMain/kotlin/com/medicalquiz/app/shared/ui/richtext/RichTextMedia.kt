@@ -14,6 +14,12 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.medicalquiz.app.shared.utils.HtmlUtils
 
+/**
+ * Renders a media element (image) with optional description.
+ * 
+ * @param block The media block containing source, description, and layout information
+ * @param onMediaClick Callback invoked when the media is clicked
+ */
 @Composable
 internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Unit) {
     val mediaModel = remember(block.source, block.mediaRef) {
@@ -53,6 +59,14 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     }
 }
 
+/**
+ * Resolves the media source to a Coil-compatible model.
+ * Tries to use mediaRef first, falls back to extracting from source path.
+ * 
+ * @param source The source URL or path
+ * @param mediaRef Optional explicit media reference/filename
+ * @return Coil model (file path string or URL), or null if resolution fails
+ */
 internal fun mediaModelForSource(source: String, mediaRef: String?): Any? {
     val filename = mediaRef ?: extractMediaRef(source)
     if (filename != null) {
@@ -67,6 +81,12 @@ internal fun mediaModelForSource(source: String, mediaRef: String?): Any? {
     return source
 }
 
+/**
+ * Extracts the filename from a path or URL.
+ * 
+ * @param source The source path or URL
+ * @return The filename portion after the last '/', or null if blank
+ */
 internal fun extractMediaRef(source: String): String? {
     return source.substringAfterLast('/', "").takeIf { it.isNotBlank() }
 }
