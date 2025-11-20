@@ -45,7 +45,51 @@ internal object RichTextParser {
         parser.write(html)
         parser.end()
         return handler.blocks
+    }
 }
+
+private sealed interface KsoupNode {
+    val parent: KsoupElement?
+}
+
+private class KsoupTextNode(
+    val text: String,
+    override val parent: KsoupElement?
+) : KsoupNode
+
+private class KsoupElement(
+    val tagName: String,
+    val attributes: Map<String, String>,
+    override val parent: KsoupElement?
+) : KsoupNode {
+    val children = mutableListOf<KsoupNode>()
+
+    fun attr(name: String): String = attributes[name] ?: ""
+    fun hasAttr(name: String): Boolean = attributes.containsKey(name)
+    fun classNames(): Set<String> = attributes["class"]?.split(" ")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+
+    fun text(): String {
+        val sb = StringBuilder()
+        collectText(this, sb)
+        return sb.toString()
+    }
+
+    private fun collectText(node: KsoupNode, sb: StringBuilder) {
+        when (node) {
+            is KsoupTextNode -> sb.append(node.text)
+            is KsoupElement -> node.children.forEach { collectText(it, sb) }
+        }
+    }
+}
+
+private fun KsoupElement.collectAncestorClasses(stopAt: KsoupElement?): Set<String> {
+    val classes = mutableSetOf<String>()
+    var cursor = parent
+    while (cursor != null && cursor != stopAt) {
+        cursor.classNames().forEach { if (it.isNotBlank()) classes += it }
+        cursor = cursor.parent
+    }
+    return classes
 }
 private class RichTextHandler(
     private val palette: RichTextPalette,
