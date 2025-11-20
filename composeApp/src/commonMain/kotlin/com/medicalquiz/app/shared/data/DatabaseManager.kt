@@ -103,7 +103,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
 
     override suspend fun getSubjects(): List<Subject> {
         return getDatabase().metadataDao().getSubjects().map {
-            Subject(it.id, it.name, it.count)
+            Subject(it.id, it.name ?: "", it.count)
         }
     }
 
