@@ -233,7 +233,7 @@ internal fun TableRowContent(
             .fillMaxWidth()
             .background(baseBackground)
             .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.Top
+        verticalAlignment = Alignment.CenterVertically
     ) {
         row.cells.forEach { cell ->
             val weight = cell.cell.width ?: cell.columnSpan.coerceAtLeast(1).toFloat()

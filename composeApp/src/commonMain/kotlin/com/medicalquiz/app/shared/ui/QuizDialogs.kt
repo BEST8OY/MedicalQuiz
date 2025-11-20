@@ -432,33 +432,7 @@ private fun SettingsDialog(
                         )
                     }
 
-                    HorizontalDivider()
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        AssistChip(
-                            onClick = {},
-                            enabled = false,
-                            label = { Text("Private") },
-                            leadingIcon = {
-                                Icon(Icons.Rounded.CheckCircle, null)
-                            }
-                        )
-                        AssistChip(
-                            onClick = {},
-                            enabled = false,
-                            label = { Text("On-device") }
-                        )
-                        AssistChip(
-                            onClick = {},
-                            enabled = false,
-                            label = { Text("No sync") }
-                        )
-                    }
                 }
 
                 AnimatedVisibility(
@@ -478,12 +452,6 @@ private fun SettingsDialog(
                         Text("Clear log history", modifier = Modifier.padding(start = 8.dp))
                     }
                 }
-
-                Text(
-                    text = "Data stays on your device only",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         },
         confirmButton = {

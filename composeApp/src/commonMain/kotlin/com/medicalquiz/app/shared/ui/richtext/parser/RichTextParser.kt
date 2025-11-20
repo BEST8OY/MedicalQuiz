@@ -778,7 +778,7 @@ private class RichTextDomParser(
                 parent = parent.parent
             }
 
-            val parsedRow = parseTableRow(tr, element, isHeaderContext, index == 0, index == allRows.lastIndex)
+            val parsedRow = parseTableRow(tr, element, isHeaderContext, index == 0)
             if (parsedRow.isHeader) {
                 headerRows.add(parsedRow)
             } else {
@@ -810,8 +810,7 @@ private class RichTextDomParser(
         row: KsoupElement,
         tableElement: KsoupElement,
         headerContext: Boolean,
-        isFirstRow: Boolean,
-        isLastRow: Boolean
+        isFirstRow: Boolean
     ): RichTextTableRow {
         val cellElements = mutableListOf<KsoupElement>()
 
@@ -857,7 +856,7 @@ private class RichTextDomParser(
             )
         }
 
-        val isHeaderRow = isTableRowHeader(row, cellInfos, headerContext, isFirstRow, isLastRow)
+        val isHeaderRow = isTableRowHeader(row, cellInfos, headerContext, isFirstRow)
 
         val cells = cellInfos.map { info ->
             RichTextTableCell(
@@ -874,16 +873,11 @@ private class RichTextDomParser(
         return RichTextTableRow(cells = cells, isHeader = isHeaderRow, classNames = rowClasses)
     }
 
-    /**
-     * Determines if a table row should be treated as a header row.
-     * Uses multiple heuristics including explicit markers, cell traits, and layout patterns.
-     */
     private fun isTableRowHeader(
         row: KsoupElement,
         cellInfos: List<CellInfo>,
         headerContext: Boolean,
-        isFirstRow: Boolean,
-        isLastRow: Boolean
+        isFirstRow: Boolean
     ): Boolean {
         // Explicit header markers
         if (headerContext) return true
@@ -896,7 +890,7 @@ private class RichTextDomParser(
         if (allCellsHeader && cellInfos.isNotEmpty()) return true
         
         // Single-cell title row heuristic
-        if (cellInfos.size == 1 && !isLastRow) {
+        if (cellInfos.size == 1) {
             val info = cellInfos.first()
             val rawText = info.rawText.trim()
             val textLength = rawText.length
@@ -910,7 +904,7 @@ private class RichTextDomParser(
                 val rowHasHeaderAttrs = row.hasHeaderAttributeMarker(RichTextParserConfig.headerRowAttributeNames)
                 val emphasised = info.hasHeaderTraits || rowHasTitleClass || rowHasHeaderAttrs
                 
-                return (centerAligned || emphasised) && (spansMultiple || isFirstRow)
+                return (centerAligned || emphasised) && isFirstRow
             }
         }
         
