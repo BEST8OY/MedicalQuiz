@@ -1027,7 +1027,6 @@ private class RichTextDomParser(
         if (scope.equals("col", true) || scope.equals("colgroup", true) || scope.equals("row", true) || scope.equals("rowgroup", true)) return true
         val role = attr("role")
         if (role.equals("columnheader", true) || role.equals("rowheader", true)) return true
-        if (containsBoldContent()) return true
         return false
     }
 
