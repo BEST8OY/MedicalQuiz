@@ -6,6 +6,6 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "Systems")
 data class SystemEntity(
     @PrimaryKey val id: Long,
-    val name: String,
+    val name: String?,
     val count: Int?
 )

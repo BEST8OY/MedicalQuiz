@@ -110,7 +110,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
     override suspend fun getSystems(subjectIds: List<Long>?): List<System> {
         if (subjectIds.isNullOrEmpty()) {
             return getDatabase().metadataDao().getSystems().map {
-                System(it.id, it.name, it.count)
+                System(it.id, it.name ?: "", it.count)
             }
         }
 
@@ -141,7 +141,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         if (systemIds.isEmpty()) return emptyList()
         
         return getDatabase().metadataDao().getSystemsByIds(systemIds.toList()).map {
-            System(it.id, it.name, it.count)
+            System(it.id, it.name ?: "", it.count)
         }
     }
 
