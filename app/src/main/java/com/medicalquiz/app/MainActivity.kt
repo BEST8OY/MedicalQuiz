@@ -20,6 +20,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -28,6 +30,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import coil3.ImageLoader
+import coil3.compose.LocalImageLoader
+import coil3.memory.MemoryCache
+import coil3.request.crossfade
+import coil3.svg.SvgDecoder
 import com.medicalquiz.app.shared.App
 import com.medicalquiz.app.shared.platform.AppContext
 import com.medicalquiz.app.shared.ui.AppTheme
@@ -60,12 +67,28 @@ class MainActivity : AppCompatActivity() {
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = !isDark
 
         setContent {
-            if (isPermissionGranted) {
-                App()
-            } else {
-                PermissionScreen(
-                    onGrantPermission = { openManageStorageSettings() }
-                )
+            val imageLoader = remember {
+                ImageLoader.Builder(this@MainActivity)
+                    .components {
+                        add(SvgDecoder.Factory())
+                    }
+                    .memoryCache {
+                        MemoryCache.Builder()
+                            .maxSizePercent(this@MainActivity, 0.25)
+                            .build()
+                    }
+                    .crossfade(true)
+                    .build()
+            }
+
+            CompositionLocalProvider(LocalImageLoader provides imageLoader) {
+                if (isPermissionGranted) {
+                    App()
+                } else {
+                    PermissionScreen(
+                        onGrantPermission = { openManageStorageSettings() }
+                    )
+                }
             }
         }
 
