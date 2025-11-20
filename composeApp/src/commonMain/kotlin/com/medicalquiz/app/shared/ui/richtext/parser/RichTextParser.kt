@@ -968,9 +968,7 @@ private class RichTextDomParser(
     private fun parseDimension(value: String): Float? {
         val clean = value.trim().lowercase()
         if (clean.endsWith("%")) {
-            return clean.removeSuffix("%")
-                .toFloatOrNull()
-                ?.div(100f)
+            return null // Ignore percentages to avoid clamping narrow cells
         }
         if (clean.endsWith("px")) {
             return clean.removeSuffix("px").toFloatOrNull()
