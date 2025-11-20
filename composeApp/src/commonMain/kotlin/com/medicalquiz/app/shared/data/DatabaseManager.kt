@@ -11,8 +11,12 @@ import com.medicalquiz.app.shared.data.models.Answer
 import com.medicalquiz.app.shared.data.models.Question
 import com.medicalquiz.app.shared.data.models.Subject
 import com.medicalquiz.app.shared.data.models.System
+import com.medicalquiz.app.shared.data.database.entities.LogEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 class DatabaseManager(private val dbPath: String) : DatabaseProvider {
     private var database: AppDatabase? = null
@@ -41,11 +45,11 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         val whereClauses = mutableListOf<String>()
 
         subjectIds?.takeIf { it.isNotEmpty() }?.let {
-            whereClauses.add(buildSingleValueCondition("q.subId", it, args))
+            whereClauses.add(buildMultiValueCondition("q.subId", it, args))
         }
 
         systemIds?.takeIf { it.isNotEmpty() }?.let {
-            whereClauses.add(buildSingleValueCondition("q.sysId", it, args))
+            whereClauses.add(buildMultiValueCondition("q.sysId", it, args))
         }
 
         buildPerformanceClause(performanceFilter)?.let { whereClauses.add(it) }
@@ -70,8 +74,18 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
 
     override suspend fun getQuestionById(id: Long): Question? {
         val entity = getDatabase().questionDao().getQuestionById(id) ?: return null
-        val subName = entity.subId?.let { getDatabase().metadataDao().getSubjectName(it) }
-        val sysName = entity.sysId?.let { getDatabase().metadataDao().getSystemName(it) }
+        
+        val subName = entity.subId?.let { ids ->
+             ids.split(",").mapNotNull { 
+                 it.trim().toLongOrNull()?.let { id -> getDatabase().metadataDao().getSubjectName(id) }
+             }.joinToString(", ")
+        }
+        
+        val sysName = entity.sysId?.let { ids ->
+             ids.split(",").mapNotNull { 
+                 it.trim().toLongOrNull()?.let { id -> getDatabase().metadataDao().getSystemName(id) }
+             }.joinToString(", ")
+        }
         
         return Question(
             id = entity.id,
@@ -81,10 +95,10 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
             title = entity.title,
             mediaName = entity.mediaName,
             otherMedias = entity.otherMedias,
-            pplTaken = entity.pplTaken?.toDouble(),
-            corrTaken = entity.corrTaken?.toDouble(),
-            subId = entity.subId?.toString(),
-            sysId = entity.sysId?.toString(),
+            pplTaken = entity.pplTaken,
+            corrTaken = entity.corrTaken,
+            subId = entity.subId,
+            sysId = entity.sysId,
             subName = subName,
             sysName = sysName
         )
@@ -117,7 +131,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         // Complex query for systems filtered by subjects
         // We need to find distinct sysIds from Questions where subId matches
         val args = mutableListOf<Any>()
-        val subConditions = buildSingleValueCondition("subId", subjectIds, args)
+        val subConditions = buildMultiValueCondition("subId", subjectIds, args)
         
         val sql = "SELECT DISTINCT sysId FROM Questions WHERE $subConditions"
         val query = createRoomRawQuery(sql, args)
@@ -146,7 +160,21 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         time: Long,
         testId: String
     ) {
-        // TODO: Implement logging
+        val now = Clock.System.now()
+        val dateTime = now.toLocalDateTime(TimeZone.currentSystemDefault())
+        // Format: YYYY-MM-DD HH:MM:SS
+        val dateString = "${dateTime.year}-${dateTime.monthNumber.toString().padStart(2, '0')}-${dateTime.dayOfMonth.toString().padStart(2, '0')} ${dateTime.hour.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')}:${dateTime.second.toString().padStart(2, '0')}"
+        
+        val log = LogEntity(
+            qid = qid,
+            selectedAnswer = selectedAnswer,
+            corrAnswer = corrAnswer,
+            time = time,
+            answerDate = dateString,
+            testId = testId.toLongOrNull()
+        )
+        
+        getDatabase().logSummaryDao().insertLog(log)
     }
 
     override suspend fun flushLogs(): Int {
@@ -172,7 +200,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         )
     }
 
-    private fun buildSingleValueCondition(
+    private fun buildMultiValueCondition(
         columnAlias: String,
         ids: List<Long>,
         args: MutableList<Any>
@@ -181,22 +209,18 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         return when (normalizedIds.size) {
             0 -> "1=1"
             1 -> {
-                args.add(normalizedIds[0])
-                "$columnAlias = ?"
+                args.add(normalizedIds[0].toString())
+                "instr(',' || $columnAlias || ',', ',' || ? || ',') > 0"
             }
             else -> {
-                val placeholders = normalizedIds.joinToString(",") { "?" }
-                args.addAll(normalizedIds)
-                "$columnAlias IN ($placeholders)"
+                val conditions = normalizedIds.map { id ->
+                    args.add(id.toString())
+                    "instr(',' || $columnAlias || ',', ',' || ? || ',') > 0"
+                }
+                "(${conditions.joinToString(" OR ")})"
             }
         }
     }
-
-    private fun buildMultiValueCondition(
-        columnAlias: String,
-        ids: List<Long>,
-        args: MutableList<Any>
-    ): String {
         val normalizedIds = ids.distinct()
         return when (normalizedIds.size) {
             0 -> "1=1"
