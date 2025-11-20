@@ -44,6 +44,262 @@ private const val BOLD_FONT_WEIGHT_THRESHOLD = 600
 private const val BOLD_CHECK_MAX_DEPTH = 4
 private const val EM_TO_DP_MULTIPLIER = 16f
 
+/** Configuration container for parser tag and attribute metadata. */
+private object RichTextParserConfig {
+    val tooltipAttributeCandidates = setOf(
+        "data-tooltip",
+        "data-tooltip-text",
+        "data-tooltip-content",
+        "data-smartip",
+        "data-smarttip",
+        "miamed-smartip",
+        "data-description",
+        "data-desc",
+        "data-term-description",
+        "data-info",
+        "data-message",
+        "data-details",
+        "data-content",
+        "data-title",
+        "title"
+    )
+
+    val tooltipContentClassNames = setOf(
+        "tooltiptext",
+        "tooltip-text",
+        "tooltip-content",
+        "tooltip__content",
+        "annotation-description",
+        "annotation__description",
+        "smartip-description",
+        "smartip__description",
+        "smartip-content",
+        "smartip__content"
+    )
+
+    val headerRowClassMarkers = normalizedMarkers(
+        "header",
+        "table-header",
+        "table_header",
+        "tableheader",
+        "table-header-row",
+        "tableheaderrow",
+        "thead",
+        "tablehead",
+        "column-header-row",
+        "columnheaderrow",
+        "ueberschrift",
+        "titelzeile",
+        "section-header",
+        "subheader",
+        "table-heading",
+        "tableheading"
+    )
+
+    val titleRowClassMarkers = normalizedMarkers(
+        "table-title",
+        "tabletitle",
+        "table-caption",
+        "tablecaption",
+        "caption-row",
+        "captionrow",
+        "legend-row",
+        "legendrow",
+        "data-table-title",
+        "datatabletitle"
+    )
+
+    val headerCellClassMarkers = normalizedMarkers(
+        "header",
+        "table-header",
+        "tableheader",
+        "column-header",
+        "columnheader",
+        "row-header",
+        "rowheader",
+        "table-head",
+        "tablehead",
+        "col-header",
+        "colheader",
+        "ueberschrift",
+        "title-cell",
+        "titlecell",
+        "label-cell",
+        "labelcell"
+    )
+
+    val boldClassMarkers = normalizedMarkers(
+        "bold",
+        "text-bold",
+        "fw-bold",
+        "fwbold",
+        "font-weight-bold",
+        "fontweightbold",
+        "strong",
+        "important"
+    )
+
+    val centerAlignmentClassMarkers = normalizedMarkers(
+        "text-center",
+        "text-centre",
+        "align-center",
+        "centered",
+        "centre-text",
+        "ta-center",
+        "tacentre",
+        "center-text"
+    )
+
+    val endAlignmentClassMarkers = normalizedMarkers(
+        "text-right",
+        "text-end",
+        "align-right",
+        "align-end",
+        "ta-right",
+        "taright",
+        "text-right-align",
+        "textright"
+    )
+
+    val headerAttributeValues = setOf(
+        "header",
+        "heading",
+        "title",
+        "label",
+        "legend",
+        "summary",
+        "caption",
+        "topic",
+        "thead"
+    )
+
+    val headerRowAttributeNames = setOf(
+        "data-row-type",
+        "data-type",
+        "role",
+        "data-role",
+        "aria-role",
+        "data-section",
+        "data-header",
+        "data-caption",
+        "data-title",
+        "data-heading"
+    )
+
+    val headerCellAttributeNames = setOf(
+        "data-cell-type",
+        "data-type",
+        "role",
+        "data-role",
+        "data-header",
+        "data-heading",
+        "headers",
+        "scope"
+    )
+
+    val blockLevelChildTags = setOf(
+        "div",
+        "section",
+        "article",
+        "table",
+        "ul",
+        "ol",
+        "dl",
+        "figure",
+        "figcaption",
+        "blockquote",
+        "pre",
+        "form",
+        "header",
+        "footer",
+        "nav",
+        "aside",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "hr",
+        "svg",
+        "canvas",
+        "iframe",
+        "object"
+    )
+}
+
+internal object RichTextParserLogger {
+    var isEnabled: Boolean = false
+
+    fun log(message: String) {
+        if (isEnabled) {
+            println("RichTextParser: $message")
+        }
+    }
+}
+
+private val namedHtmlEntities = mapOf(
+    "amp" to "&",
+    "lt" to "<",
+    "gt" to ">",
+    "quot" to "\"",
+    "apos" to "'",
+    "nbsp" to "\u00A0",
+    "ndash" to "–",
+    "mdash" to "—",
+    "lsquo" to "'",
+    "rsquo" to "'",
+    "ldquo" to "\"",
+    "rdquo" to "\"",
+    "hellip" to "…",
+    "copy" to "©",
+    "reg" to "®",
+    "trade" to "™",
+    "euro" to "€",
+    "pound" to "£",
+    "yen" to "¥",
+    "cent" to "¢",
+    "deg" to "°",
+    "plusmn" to "±",
+    "times" to "×",
+    "divide" to "÷",
+    "frac12" to "½",
+    "frac14" to "¼",
+    "frac34" to "¾"
+)
+
+private val htmlEntityPattern = Regex("&(#x?[0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);")
+
+private object StringBuilderPool {
+    private const val MAX_POOL_SIZE = 8
+    private val pool = ArrayDeque<StringBuilder>(MAX_POOL_SIZE)
+
+    fun obtain(): StringBuilder = synchronized(pool) {
+        pool.removeLastOrNull()?.apply { setLength(0) } ?: StringBuilder()
+    }
+
+    fun recycle(builder: StringBuilder) {
+        builder.setLength(0)
+        synchronized(pool) {
+            if (pool.size < MAX_POOL_SIZE) {
+                pool.addLast(builder)
+            }
+        }
+    }
+}
+
+private fun codePointToString(codePoint: Int): String {
+    if (codePoint in 1..0xFFFF) {
+        return codePoint.toChar().toString()
+    }
+    if (codePoint in 0x10000..0x10FFFF) {
+        val high = ((codePoint - 0x10000) shr 10) + 0xD800
+        val low = ((codePoint - 0x10000) and 0x3FF) + 0xDC00
+        return charArrayOf(high.toChar(), low.toChar()).concatToString()
+    }
+    return ""
+}
+
 /**
  * Decodes HTML entities (both named and numeric) to their character equivalents.
  * 
@@ -54,78 +310,20 @@ private const val EM_TO_DP_MULTIPLIER = 16f
  */
 private fun decodeHtmlEntities(text: String): String {
     if (!text.contains('&')) return text
-    
-    var result = text
-    
-    // Common named entities
-    val namedEntities = mapOf(
-        "&amp;" to "&",
-        "&lt;" to "<",
-        "&gt;" to ">",
-        "&quot;" to "\"",
-        "&apos;" to "'",
-        "&#39;" to "'",
-        "&#x27;" to "'",
-        "&nbsp;" to "\u00A0",
-        "&ndash;" to "–",
-        "&mdash;" to "—",
-        "&lsquo;" to "'",
-        "&rsquo;" to "'",
-        "&ldquo;" to "\"",
-        "&rdquo;" to "\"",
-        "&hellip;" to "…",
-        "&copy;" to "©",
-        "&reg;" to "®",
-        "&trade;" to "™",
-        "&euro;" to "€",
-        "&pound;" to "£",
-        "&yen;" to "¥",
-        "&cent;" to "¢",
-        "&deg;" to "°",
-        "&plusmn;" to "±",
-        "&times;" to "×",
-        "&divide;" to "÷",
-        "&frac12;" to "½",
-        "&frac14;" to "¼",
-        "&frac34;" to "¾"
-    )
-    
-    // Replace named entities
-    namedEntities.forEach { (entity, char) ->
-        result = result.replace(entity, char)
-    }
-    
-    // Decode numeric entities (decimal): &#123;
-    val decimalPattern = "&#(\\d+);"
-    result = Regex(decimalPattern).replace(result) { matchResult ->
-        val codePoint = matchResult.groupValues[1].toIntOrNull()
-        if (codePoint != null && codePoint in 1..0x10FFFF) {
-            try {
-                codePoint.toChar().toString()
-            } catch (e: Exception) {
-                matchResult.value // Keep original if conversion fails
+    return htmlEntityPattern.replace(text) { matchResult ->
+        val body = matchResult.groupValues[1]
+        when {
+            body.startsWith("#x", ignoreCase = true) -> {
+                val codePoint = body.substring(2).toIntOrNull(16)
+                codePoint?.let { codePointToString(it).ifEmpty { matchResult.value } } ?: matchResult.value
             }
-        } else {
-            matchResult.value
+            body.startsWith("#") -> {
+                val codePoint = body.substring(1).toIntOrNull()
+                codePoint?.let { codePointToString(it).ifEmpty { matchResult.value } } ?: matchResult.value
+            }
+            else -> namedHtmlEntities[body] ?: matchResult.value
         }
     }
-    
-    // Decode numeric entities (hexadecimal): &#x1F; or &#X1F;
-    val hexPattern = "&#[xX]([0-9a-fA-F]+);"
-    result = Regex(hexPattern).replace(result) { matchResult ->
-        val codePoint = matchResult.groupValues[1].toIntOrNull(16)
-        if (codePoint != null && codePoint in 1..0x10FFFF) {
-            try {
-                codePoint.toChar().toString()
-            } catch (e: Exception) {
-                matchResult.value
-            }
-        } else {
-            matchResult.value
-        }
-    }
-    
-    return result
 }
 
 /**
@@ -172,15 +370,19 @@ private class KsoupElement(
     override val parent: KsoupElement?
 ) : KsoupNode {
     val children = mutableListOf<KsoupNode>()
+    private val ancestorClassCache = mutableMapOf<KsoupElement?, Set<String>>()
+    private val boldContentCache = mutableMapOf<Int, Boolean>()
 
     fun attr(name: String): String = attributes[name] ?: ""
     fun hasAttr(name: String): Boolean = attributes.containsKey(name)
     fun classNames(): Set<String> = attributes["class"]?.split(" ")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
 
     fun text(): String {
-        val sb = StringBuilder()
+        val sb = StringBuilderPool.obtain()
         collectText(this, sb)
-        return sb.toString()
+        val text = sb.toString()
+        StringBuilderPool.recycle(sb)
+        return text
     }
 
     private fun collectText(node: KsoupNode, sb: StringBuilder) {
@@ -189,17 +391,36 @@ private class KsoupElement(
             is KsoupElement -> node.children.forEach { collectText(it, sb) }
         }
     }
+
+    fun ancestorClasses(stopAt: KsoupElement?): Set<String> {
+        return ancestorClassCache.getOrPut(stopAt) {
+            val classes = LinkedHashSet<String>()
+            var cursor = parent
+            while (cursor != null && cursor != stopAt) {
+                cursor.classNames().forEach { if (it.isNotBlank()) classes += it }
+                cursor = cursor.parent
+            }
+            classes
+        }
+    }
+
+    fun containsBoldContent(maxDepth: Int = BOLD_CHECK_MAX_DEPTH): Boolean {
+        return boldContentCache.getOrPut(maxDepth) {
+            when {
+                maxDepth <= 0 -> false
+                tagName.equals("strong", true) || tagName.equals("b", true) -> true
+                styleIndicatesBold(attr("style")) -> true
+                classNames().matchesAnyMarker(RichTextParserConfig.boldClassMarkers) -> true
+                else -> {
+                    children.any { child ->
+                        child is KsoupElement && child.containsBoldContent(maxDepth - 1)
+                    }
+                }
+            }
+        }
+    }
 }
 
-private fun KsoupElement.collectAncestorClasses(stopAt: KsoupElement?): Set<String> {
-    val classes = mutableSetOf<String>()
-    var cursor = parent
-    while (cursor != null && cursor != stopAt) {
-        cursor.classNames().forEach { if (it.isNotBlank()) classes += it }
-        cursor = cursor.parent
-    }
-    return classes
-}
 private class RichTextHandler(
     private val palette: RichTextPalette,
     private val showSelectedHighlight: Boolean
@@ -415,7 +636,7 @@ private class RichTextDomParser(
 
     private fun KsoupElement.isBlockLikeChild(): Boolean {
         val tag = tagName.lowercase()
-        return blockLevelChildTags.contains(tag)
+        return RichTextParserConfig.blockLevelChildTags.contains(tag)
     }
 
     private fun buildAnnotatedBlock(element: KsoupElement): AnnotatedString? {
@@ -577,8 +798,8 @@ private class RichTextDomParser(
         val rowClasses = buildRowClassSet(row, tableElement)
         if (cellElements.isEmpty()) {
             val hasHeaderMarkers = headerContext ||
-                row.classNames().matchesAnyMarker(headerRowClassMarkers) ||
-                row.hasHeaderAttributeMarker(headerRowAttributeNames)
+                row.classNames().matchesAnyMarker(RichTextParserConfig.headerRowClassMarkers) ||
+                row.hasHeaderAttributeMarker(RichTextParserConfig.headerRowAttributeNames)
             return RichTextTableRow(emptyList(), hasHeaderMarkers, rowClasses)
         }
 
@@ -627,34 +848,33 @@ private class RichTextDomParser(
      */
     private fun isTableRowHeader(
         row: KsoupElement,
-        cellInfos: List<*>,
+        cellInfos: List<CellInfo>,
         headerContext: Boolean,
         isFirstRow: Boolean
     ): Boolean {
-        // Type-safe access to CellInfo - we know this is the actual type from parseTableRow
-        @Suppress("UNCHECKED_CAST")
-        fun getCellInfo(index: Int): CellInfo? = cellInfos.getOrNull(index) as? CellInfo
-        
         // Explicit header markers
         if (headerContext) return true
-        if (row.classNames().matchesAnyMarker(headerRowClassMarkers)) return true
-        if (row.hasHeaderAttributeMarker(headerRowAttributeNames)) return true
-        if (row.classNames().matchesAnyMarker(titleRowClassMarkers)) return true
+        if (row.classNames().matchesAnyMarker(RichTextParserConfig.headerRowClassMarkers)) return true
+        if (row.hasHeaderAttributeMarker(RichTextParserConfig.headerRowAttributeNames)) return true
+        if (row.classNames().matchesAnyMarker(RichTextParserConfig.titleRowClassMarkers)) return true
         
         // All cells are marked as headers
-        val allCellsHeader = cellInfos.all { (it as? CellInfo)?.hasHeaderTraits == true }
+        val allCellsHeader = cellInfos.all { it.hasHeaderTraits }
         if (allCellsHeader && cellInfos.isNotEmpty()) return true
         
         // Single-cell title row heuristic
         if (cellInfos.size == 1) {
-            val info = getCellInfo(0) ?: return false
-            val textLength = info.rawText.length
-            if (textLength > 0 && textLength <= MAX_TITLE_LENGTH) {
+            val info = cellInfos.first()
+            val rawText = info.rawText.trim()
+            val textLength = rawText.length
+            val alphanumericCount = rawText.count { it.isLetterOrDigit() }
+            val isMeaningfulTitle = textLength in 1..MAX_TITLE_LENGTH && alphanumericCount > 0 && alphanumericCount * 2 >= textLength
+            if (isMeaningfulTitle) {
                 val rowAlignment = parseTextAlign(row)
                 val centerAligned = info.alignment == TextAlign.Center || rowAlignment == TextAlign.Center
                 val spansMultiple = info.columnSpan >= 2
-                val rowHasTitleClass = row.classNames().matchesAnyMarker(titleRowClassMarkers)
-                val rowHasHeaderAttrs = row.hasHeaderAttributeMarker(headerRowAttributeNames)
+                val rowHasTitleClass = row.classNames().matchesAnyMarker(RichTextParserConfig.titleRowClassMarkers)
+                val rowHasHeaderAttrs = row.hasHeaderAttributeMarker(RichTextParserConfig.headerRowAttributeNames)
                 val emphasised = info.hasHeaderTraits || rowHasTitleClass || rowHasHeaderAttrs
                 
                 return (centerAligned || emphasised) && (spansMultiple || isFirstRow)
@@ -678,11 +898,14 @@ private class RichTextDomParser(
     )
 
     private fun buildRowClassSet(row: KsoupElement, tableElement: KsoupElement): Set<String> {
-        return buildSet {
-            row.classNames().forEach { if (it.isNotBlank()) add(it) }
-            row.collectAncestorClasses(tableElement).forEach { if (it.isNotBlank()) add(it) }
-            tableElement.classNames().forEach { if (it.isNotBlank()) add(it) }
+        val collected = LinkedHashSet<String>()
+        fun addClasses(source: Set<String>) {
+            source.forEach { if (it.isNotBlank()) collected += it }
         }
+        addClasses(row.classNames())
+        addClasses(row.ancestorClasses(tableElement))
+        addClasses(tableElement.classNames())
+        return collected
     }
 
     private fun parseWidth(widthAttr: String, styleAttr: String): Float? {
@@ -743,15 +966,15 @@ private class RichTextDomParser(
 
     private fun resolveCellAlignment(cell: KsoupElement, classes: Set<String>): TextAlign {
         parseTextAlign(cell)?.let { return it }
-        if (classes.matchesAnyMarker(centerAlignmentClassMarkers)) return TextAlign.Center
-        if (classes.matchesAnyMarker(endAlignmentClassMarkers)) return TextAlign.End
+        if (classes.matchesAnyMarker(RichTextParserConfig.centerAlignmentClassMarkers)) return TextAlign.Center
+        if (classes.matchesAnyMarker(RichTextParserConfig.endAlignmentClassMarkers)) return TextAlign.End
         return TextAlign.Start
     }
 
     private fun KsoupElement.isHeaderCellCandidate(classNames: Set<String>): Boolean {
         if (tagName.equals("th", ignoreCase = true)) return true
-        if (classNames.matchesAnyMarker(headerCellClassMarkers)) return true
-        if (hasHeaderAttributeMarker(headerCellAttributeNames)) return true
+        if (classNames.matchesAnyMarker(RichTextParserConfig.headerCellClassMarkers)) return true
+        if (hasHeaderAttributeMarker(RichTextParserConfig.headerCellAttributeNames)) return true
         val scope = attr("scope")
         if (scope.equals("col", true) || scope.equals("colgroup", true) || scope.equals("row", true) || scope.equals("rowgroup", true)) return true
         val role = attr("role")
@@ -781,20 +1004,7 @@ private class RichTextDomParser(
                 }
                 if (normalizedValue.equals("true", true) || normalizedValue.equals("1") || normalizedValue.equals("yes", true)) return true
             }
-            if (headerAttributeValues.any { candidate -> normalizedValue.contains(candidate, ignoreCase = true) }) {
-                return true
-            }
-        }
-        return false
-    }
-
-    private fun KsoupElement.containsBoldContent(maxDepth: Int = BOLD_CHECK_MAX_DEPTH): Boolean {
-        if (maxDepth <= 0) return false
-        if (tagName.equals("strong", true) || tagName.equals("b", true)) return true
-        if (styleIndicatesBold(attr("style"))) return true
-        if (classNames().matchesAnyMarker(boldClassMarkers)) return true
-        children.forEach { child ->
-            if (child is KsoupElement && child.containsBoldContent(maxDepth - 1)) {
+            if (RichTextParserConfig.headerAttributeValues.any { candidate -> normalizedValue.contains(candidate, ignoreCase = true) }) {
                 return true
             }
         }
@@ -848,7 +1058,7 @@ private class RichTextDomParser(
     }
 
     private fun KsoupElement.isTooltipContentNode(): Boolean {
-        if (classNames().containsAnyInsensitive(tooltipContentClassNames)) return true
+        if (classNames().containsAnyInsensitive(RichTextParserConfig.tooltipContentClassNames)) return true
         val role = attr("data-role")
         if (role.equals("tooltip", true)) return true
         val part = attr("data-tooltip-part")
@@ -862,7 +1072,7 @@ private class RichTextDomParser(
     }
 
     private fun extractTooltipText(element: KsoupElement): String? {
-        tooltipAttributeCandidates.forEach { attrName ->
+        RichTextParserConfig.tooltipAttributeCandidates.forEach { attrName ->
             val value = element.attr(attrName)
             if (value.isNotBlank()) {
                 parseTooltipPayload(value)?.let { return it }
@@ -935,185 +1145,6 @@ private class RichTextDomParser(
         parser.end()
         return handler.sb.toString().trim()
     }
-
-    companion object {
-        private val tooltipAttributeCandidates = listOf(
-            "data-tooltip",
-            "data-tooltip-text",
-            "data-tooltip-content",
-            "data-smartip",
-            "data-smarttip",
-            "miamed-smartip",
-            "data-description",
-            "data-desc",
-            "data-term-description",
-            "data-info",
-            "data-message",
-            "data-details",
-            "data-content",
-            "data-title",
-            "title"
-        )
-
-        private val tooltipContentClassNames = setOf(
-            "tooltiptext",
-            "tooltip-text",
-            "tooltip-content",
-            "tooltip__content",
-            "annotation-description",
-            "annotation__description",
-            "smartip-description",
-            "smartip__description",
-            "smartip-content",
-            "smartip__content"
-        )
-
-        private val headerRowClassMarkers = normalizedMarkers(
-            "header",
-            "table-header",
-            "table_header",
-            "tableheader",
-            "table-header-row",
-            "tableheaderrow",
-            "thead",
-            "tablehead",
-            "column-header-row",
-            "columnheaderrow",
-            "ueberschrift",
-            "titelzeile",
-            "section-header",
-            "subheader",
-            "table-heading",
-            "tableheading"
-        )
-
-        private val titleRowClassMarkers = normalizedMarkers(
-            "table-title",
-            "tabletitle",
-            "table-caption",
-            "tablecaption",
-            "caption-row",
-            "captionrow",
-            "legend-row",
-            "legendrow",
-            "data-table-title",
-            "datatabletitle"
-        )
-
-        private val headerCellClassMarkers = normalizedMarkers(
-            "header",
-            "table-header",
-            "tableheader",
-            "column-header",
-            "columnheader",
-            "row-header",
-            "rowheader",
-            "table-head",
-            "tablehead",
-            "col-header",
-            "colheader",
-            "ueberschrift",
-            "title-cell",
-            "titlecell",
-            "label-cell",
-            "labelcell"
-        )
-
-        private val boldClassMarkers = normalizedMarkers(
-            "bold",
-            "text-bold",
-            "fw-bold",
-            "fwbold",
-            "font-weight-bold",
-            "fontweightbold",
-            "strong",
-            "important"
-        )
-
-        private val centerAlignmentClassMarkers = normalizedMarkers(
-            "text-center",
-            "text-centre",
-            "align-center",
-            "centered",
-            "centre-text",
-            "ta-center",
-            "tacentre",
-            "center-text"
-        )
-
-        private val endAlignmentClassMarkers = normalizedMarkers(
-            "text-right",
-            "text-end",
-            "align-right",
-            "align-end",
-            "ta-right",
-            "taright",
-            "text-right-align",
-            "textright"
-        )
-
-        private val headerAttributeValues = setOf(
-            "header",
-            "heading",
-            "title",
-            "label",
-            "legend",
-            "summary",
-            "caption",
-            "topic",
-            "thead"
-        )
-
-        private val headerRowAttributeNames = listOf(
-            "data-row-type",
-            "data-type",
-            "role",
-            "data-role",
-            "aria-role",
-            "data-section",
-            "data-header",
-            "data-caption",
-            "data-title",
-            "data-heading"
-        )
-
-        private val headerCellAttributeNames = listOf(
-            "data-cell-type",
-            "data-type",
-            "role",
-            "data-role",
-            "data-header",
-            "data-heading",
-            "headers",
-            "scope"
-        )
-
-        private val blockLevelChildTags = setOf(
-            "div",
-            "section",
-            "article",
-            "table",
-            "ul",
-            "ol",
-            "dl",
-            "figure",
-            "figcaption",
-            "blockquote",
-            "pre",
-            "form",
-            "header",
-            "footer",
-            "nav",
-            "aside",
-            "h1",
-            "h2",
-            "h3",
-            "h4",
-            "h5",
-            "h6",
-            "hr"
-        )
-    }
 }
 
 private data class InlineStyle(
@@ -1134,27 +1165,71 @@ private data class InlineStyle(
 
 private enum class InlineHighlight { IMPORTANT, SELECTED }
 
+private class InlineStyleBuilder(initial: InlineStyle = InlineStyle()) {
+    var bold: Boolean = initial.bold
+    var italic: Boolean = initial.italic
+    var underline: Boolean = initial.underline
+    var monospace: Boolean = initial.monospace
+    var superscript: Boolean = initial.superscript
+    var subscript: Boolean = initial.subscript
+    var link: String? = initial.link
+    var highlight: InlineHighlight? = initial.highlight
+    var dictionary: Boolean = initial.dictionary
+    var preserveWhitespace: Boolean = initial.preserveWhitespace
+    var smallText: Boolean = initial.smallText
+    var textColor: Color? = initial.textColor
+    var tooltip: String? = initial.tooltip
+
+    fun build(): InlineStyle = InlineStyle(
+        bold = bold,
+        italic = italic,
+        underline = underline,
+        monospace = monospace,
+        superscript = superscript,
+        subscript = subscript,
+        link = link,
+        highlight = highlight,
+        dictionary = dictionary,
+        preserveWhitespace = preserveWhitespace,
+        smallText = smallText,
+        textColor = textColor,
+        tooltip = tooltip
+    )
+}
+
 private fun InlineStyle.applyClassStyles(
     classes: Set<String>,
     palette: RichTextPalette,
     showSelectedHighlight: Boolean
 ): InlineStyle {
     if (classes.isEmpty()) return this
-    var updated = this
+    val builder = InlineStyleBuilder(this)
     classes.forEach { rawClass ->
         when (rawClass.lowercase()) {
-            "important", "wichtig" -> updated = updated.copy(highlight = InlineHighlight.IMPORTANT, bold = true)
-            "selected" -> if (showSelectedHighlight) {
-                updated = updated.copy(highlight = InlineHighlight.SELECTED)
+            "important", "wichtig" -> {
+                builder.highlight = InlineHighlight.IMPORTANT
+                builder.bold = true
             }
-            "dictionary" -> updated = updated.copy(dictionary = true, underline = true)
-            "nowrap" -> updated = updated.copy(preserveWhitespace = true)
-            "scientific-name" -> updated = updated.copy(italic = true)
-            "abstract" -> updated = updated.copy(smallText = true, textColor = palette.abstractText)
-            "metalink" -> updated = updated.copy(textColor = Color(0xFFE91E63), italic = true)
+            "selected" -> if (showSelectedHighlight) {
+                builder.highlight = InlineHighlight.SELECTED
+            }
+            "dictionary" -> {
+                builder.dictionary = true
+                builder.underline = true
+            }
+            "nowrap" -> builder.preserveWhitespace = true
+            "scientific-name" -> builder.italic = true
+            "abstract" -> {
+                builder.smallText = true
+                builder.textColor = palette.abstractText
+            }
+            "metalink" -> {
+                builder.textColor = Color(0xFFE91E63)
+                builder.italic = true
+            }
         }
     }
-    return updated
+    return builder.build()
 }
 
 private fun AnnotatedString.Builder.appendTextWithStyle(
