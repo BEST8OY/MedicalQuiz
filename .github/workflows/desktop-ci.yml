@@ -42,17 +42,17 @@ jobs:
           key: gradle-${{ runner.os }}-desktop-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties','**/build.gradle*','**/build.gradle.kts') }}
           restore-keys: gradle-${{ runner.os }}-desktop-
 
-      # Linux dependencies for Compose Desktop (if needed for specific features, usually basic build is fine)
+      # Linux dependencies for Compose Desktop
       - name: Install Linux Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1
+          sudo apt-get install -y libgl1 libxrender1 libxrandr2 xvfb
 
       - name: Run Desktop Tests
-        run: ./gradlew :composeApp:desktopTest --parallel
+        run: xvfb-run -a ./gradlew :composeApp:desktopTest --parallel
 
       - name: Package Desktop Application (Linux)
-        run: ./gradlew :composeApp:packageDistributionForCurrentOS --parallel --build-cache
+        run: xvfb-run -a ./gradlew :composeApp:packageDistributionForCurrentOS --parallel --build-cache
 
       - name: Upload Desktop Distribution
         uses: actions/upload-artifact@v4

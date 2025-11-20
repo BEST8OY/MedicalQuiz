@@ -93,10 +93,10 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
     override suspend fun getAnswersForQuestion(questionId: Long): List<Answer> {
         return getDatabase().questionDao().getAnswersForQuestion(questionId).map {
             Answer(
-                answerId = it.answerId,
-                answerText = it.answerText,
+                answerId = it.answerId ?: it.id,
+                answerText = it.answerText ?: "",
                 correctPercentage = it.correctPercentage,
-                qId = it.qId
+                qId = it.qId ?: -1L
             )
         }
     }

@@ -5,8 +5,9 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "Answers")
 data class AnswerEntity(
-    @PrimaryKey val answerId: Long,
-    val answerText: String,
+    @PrimaryKey val id: Long,
+    val answerId: Long?,
+    val answerText: String?,
     val correctPercentage: Int?,
-    val qId: Long
+    val qId: Long?
 )
