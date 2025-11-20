@@ -48,6 +48,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgl1 libxrender1 libxrandr2 xvfb
 
+      - name: Run Checks
+        run: ./gradlew check --parallel
+
       - name: Run Desktop Tests
         run: xvfb-run -a ./gradlew :composeApp:desktopTest --parallel
 

@@ -90,8 +90,12 @@ compose.desktop {
             packageName = "MedicalQuiz"
             packageVersion = "1.0.0"
         }
-        // Enable experimental native Wayland support
-        // Note: This requires a JetBrains Runtime with Wayland support (bundled by default in recent versions)
-        jvmArgs("-Dawt.toolkit.name=WLToolkit")
+        // Enable native Wayland support
+        // Wayland uses a different rendering pipeline than X11 for better performance and security
+        jvmArgs(
+            "-Dawt.toolkit.name=WLToolkit",
+            "-Dwayland.enabled=true",
+            "-Djava.awt.headless=false"
+        )
     }
 }
