@@ -35,7 +35,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+          cache-disabled: true
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -53,7 +53,7 @@ jobs:
         run: xvfb-run -a ./gradlew :composeApp:desktopTest --parallel
 
       - name: Package Desktop Application (Linux)
-        run: xvfb-run -a ./gradlew :composeApp:packageDistributionForCurrentOS --parallel --build-cache
+        run: xvfb-run -a ./gradlew :composeApp:packageDistributionForCurrentOS --parallel
 
       - name: Upload Desktop Distribution
         uses: actions/upload-artifact@v4
