@@ -8,6 +8,7 @@ plugins {
 }
 
 kotlin {
+    jvmToolchain(21)
     androidTarget()
     
     jvm("desktop")
@@ -64,7 +65,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        minSdk = 24
+        minSdk = 31
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -89,5 +90,8 @@ compose.desktop {
             packageName = "MedicalQuiz"
             packageVersion = "1.0.0"
         }
+        // Enable experimental native Wayland support
+        // Note: This requires a JetBrains Runtime with Wayland support (bundled by default in recent versions)
+        jvmArgs("-Dawt.toolkit.name=WLToolkit")
     }
 }
