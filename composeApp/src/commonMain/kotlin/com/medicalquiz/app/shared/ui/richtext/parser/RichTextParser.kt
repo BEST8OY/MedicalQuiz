@@ -778,7 +778,7 @@ private class RichTextDomParser(
                 parent = parent.parent
             }
 
-            val parsedRow = parseTableRow(tr, element, isHeaderContext, index == 0)
+            val parsedRow = parseTableRow(tr, element, isHeaderContext, index == 0, index == allRows.lastIndex)
             if (parsedRow.isHeader) {
                 headerRows.add(parsedRow)
             } else {
@@ -810,7 +810,8 @@ private class RichTextDomParser(
         row: KsoupElement,
         tableElement: KsoupElement,
         headerContext: Boolean,
-        isFirstRow: Boolean
+        isFirstRow: Boolean,
+        isLastRow: Boolean
     ): RichTextTableRow {
         val cellElements = mutableListOf<KsoupElement>()
 
@@ -856,7 +857,7 @@ private class RichTextDomParser(
             )
         }
 
-        val isHeaderRow = isTableRowHeader(row, cellInfos, headerContext, isFirstRow)
+        val isHeaderRow = isTableRowHeader(row, cellInfos, headerContext, isFirstRow, isLastRow)
 
         val cells = cellInfos.map { info ->
             RichTextTableCell(
@@ -881,7 +882,8 @@ private class RichTextDomParser(
         row: KsoupElement,
         cellInfos: List<CellInfo>,
         headerContext: Boolean,
-        isFirstRow: Boolean
+        isFirstRow: Boolean,
+        isLastRow: Boolean
     ): Boolean {
         // Explicit header markers
         if (headerContext) return true
@@ -894,7 +896,7 @@ private class RichTextDomParser(
         if (allCellsHeader && cellInfos.isNotEmpty()) return true
         
         // Single-cell title row heuristic
-        if (cellInfos.size == 1) {
+        if (cellInfos.size == 1 && !isLastRow) {
             val info = cellInfos.first()
             val rawText = info.rawText.trim()
             val textLength = rawText.length
