@@ -349,7 +349,7 @@ private fun SettingsDialog(
     onResetLogs: () -> Unit,
     onDismiss: () -> Unit = {}
 ) {
-    var loggingEnabled by rememberSaveable { mutableStateOf(initialLoggingEnabled) }
+    var loggingEnabled by rememberSaveable(initialLoggingEnabled) { mutableStateOf(initialLoggingEnabled) }
 
     AlertDialog(
         onDismissRequest = onDismiss,

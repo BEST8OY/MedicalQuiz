@@ -277,7 +277,10 @@ fun QuizRoot(
         ResetLogsConfirmationDialogComposable(
             isVisible = true,
             activity = null, // hostActivity
-            onConfirm = { showResetLogsConfirmation = false },
+            onConfirm = {
+                showResetLogsConfirmation = false
+                viewModel.clearLogsFromDb()
+            },
             onDismiss = { showResetLogsConfirmation = false }
         )
     }

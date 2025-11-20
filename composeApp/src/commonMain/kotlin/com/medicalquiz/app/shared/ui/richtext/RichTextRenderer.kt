@@ -959,32 +959,47 @@ private class RichTextDomParser(
         blocks: MutableList<RichTextBlock>,
         inheritedStyles: InheritedStyles
     ) {
-        val paragraphNodes = mutableListOf<KsoupNode>()
+        val inlineNodes = mutableListOf<KsoupNode>()
         val mediaElements = mutableListOf<KsoupElement>()
         val paragraphAlignment = parseTextAlign(node) ?: inheritedStyles.textAlign
+        val paragraphBaseStyle = InlineStyle().applyClassStyles(node.classNames(), palette, showSelectedHighlight)
+        val nestedInheritedStyles = inheritedStyles.copy(textAlign = paragraphAlignment)
 
-        node.children.forEach { child ->
-            if (child is KsoupElement && child.tagName.equals("img", ignoreCase = true)) {
-                mediaElements.add(child)
-            } else {
-                paragraphNodes.add(child)
+        fun flushInlineParagraph() {
+            if (inlineNodes.isEmpty()) return
+            val builder = buildAnnotatedString {
+                appendNodes(inlineNodes, paragraphBaseStyle)
+            }
+            inlineNodes.clear()
+            if (builder.text.isNotBlank()) {
+                blocks += RichTextBlock.Paragraph(
+                    text = builder,
+                    textAlign = paragraphAlignment ?: TextAlign.Start
+                )
             }
         }
 
-        val builder = buildAnnotatedString {
-            val baseStyle = InlineStyle().applyClassStyles(node.classNames(), palette, showSelectedHighlight)
-            appendNodes(paragraphNodes, baseStyle)
+        node.children.forEach { child ->
+            when {
+                child is KsoupElement && child.tagName.equals("img", ignoreCase = true) -> mediaElements.add(child)
+                child is KsoupElement && child.isBlockLikeChild() -> {
+                    flushInlineParagraph()
+                    blocks.addAll(parse(listOf(child), nestedInheritedStyles))
+                }
+                else -> inlineNodes.add(child)
+            }
         }
-        if (builder.text.isNotBlank()) {
-            blocks += RichTextBlock.Paragraph(
-                text = builder,
-                textAlign = paragraphAlignment ?: TextAlign.Start
-            )
-        }
+
+        flushInlineParagraph()
 
         mediaElements.forEach { image ->
             parseMediaElement(image, paragraphAlignment)?.let(blocks::add)
         }
+    }
+
+    private fun KsoupElement.isBlockLikeChild(): Boolean {
+        val tag = tagName.lowercase()
+        return blockLevelChildTags.contains(tag)
     }
 
     private fun buildAnnotatedBlock(element: KsoupElement): AnnotatedString? {
@@ -1341,6 +1356,32 @@ private class RichTextDomParser(
             "smartip__description",
             "smartip-content",
             "smartip__content"
+        )
+
+        private val blockLevelChildTags = setOf(
+            "div",
+            "section",
+            "article",
+            "table",
+            "ul",
+            "ol",
+            "dl",
+            "figure",
+            "figcaption",
+            "blockquote",
+            "pre",
+            "form",
+            "header",
+            "footer",
+            "nav",
+            "aside",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "hr"
         )
     }
 }
