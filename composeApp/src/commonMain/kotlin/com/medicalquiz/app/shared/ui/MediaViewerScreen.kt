@@ -126,7 +126,7 @@ fun MediaViewerScreen(
                 val file = mediaFiles[page]
                 MediaContent(
                     fileName = file,
-                    description = mediaDescriptions[page],
+                    description = mediaDescriptions[file],
                     onZoomChanged = { isZoomed = it },
                 )
             }
@@ -241,18 +241,13 @@ private fun ImageContent(
 
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
             val newScale = (scale.value * zoomChange).coerceIn(1f, 5f)
-            if (scale.value != newScale) {
-                scale.value = newScale
-            }
+            scale.value = newScale
             val newOffset = offset.value + panChange
-            val clampedOffset = clampOffsetForScale(newOffset, newScale)
-            if (offset.value != clampedOffset) {
-                offset.value = clampedOffset
-            }
+            offset.value = clampOffsetForScale(newOffset, newScale)
         }
 
         // Double-tap zoom handling
-        val doubleTapModifier = Modifier.pointerInput(Unit) {
+        val doubleTapModifier = Modifier.pointerInput(coroutineScope) {
             detectTapGestures(onDoubleTap = { tapOffset ->
                 if (scale.value > 1f) {
                     // Reset to 1x with animation
