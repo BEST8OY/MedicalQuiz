@@ -35,6 +35,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -49,12 +50,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import coil3.compose.AsyncImage
 import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
 import com.medicalquiz.app.shared.utils.HtmlUtils
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -195,18 +198,18 @@ private fun ImageContent(
     val storageDir = StorageProvider.getAppStorageDirectory()
     val filePath = remember(fileName) { "$storageDir/media/$fileName" }
 
-    val coroutineScope = rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
 
-    // Animated states
-    val scale = remember { Animatable(1f) }
-    val offset = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+    // STATE MANAGEMENT: Use mutableState for UI-driven updates (Gestures)
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
 
     // Notify parent of zoom state
-    LaunchedEffect(scale.value) {
-        onZoomChanged(scale.value > 1f)
+    LaunchedEffect(scale) {
+        onZoomChanged(scale > 1f)
     }
 
-    // Overlay state - memoize with both dependencies for stability
+    // Overlay state
     val overlayName = remember(fileName) {
         if (fileName.startsWith("big_", ignoreCase = true)) {
             fileName.substringBeforeLast('.') + ".svg"
@@ -222,68 +225,86 @@ private fun ImageContent(
 
     var showOverlay by remember { mutableStateOf(true) }
 
-    // Boundaries (in px) - computed from container size
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val containerWidth = density.run { maxWidth.toPx() }
         val containerHeight = density.run { maxHeight.toPx() }
 
-        fun clampOffsetForScale(offset: Offset, scaleVal: Float): Offset {
-            // Allow panning only when scaled size > container
-            val scaledWidth = containerWidth * scaleVal
-            val scaledHeight = containerHeight * scaleVal
+        // Helper to keep image within bounds
+        fun clampOffset(proposedOffset: Offset, currentScale: Float): Offset {
+            val scaledWidth = containerWidth * currentScale
+            val scaledHeight = containerHeight * currentScale
+
             val maxX = maxOf(0f, (scaledWidth - containerWidth) / 2f)
             val maxY = maxOf(0f, (scaledHeight - containerHeight) / 2f)
-            val clampedX = offset.x.coerceIn(-maxX, maxX)
-            val clampedY = offset.y.coerceIn(-maxY, maxY)
-            return Offset(clampedX, clampedY)
+
+            return Offset(
+                proposedOffset.x.coerceIn(-maxX, maxX),
+                proposedOffset.y.coerceIn(-maxY, maxY),
+            )
         }
 
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-            val newScale = (scale.value * zoomChange).coerceIn(1f, 5f)
-            scale.value = newScale
-            val newOffset = offset.value + panChange
-            offset.value = clampOffsetForScale(newOffset, newScale)
+            val newScale = (scale * zoomChange).coerceIn(1f, 5f)
+            val newOffset = offset + panChange
+
+            scale = newScale
+            offset = clampOffset(newOffset, newScale)
         }
 
-        // Double-tap zoom handling - use a scope variable that can be captured
-        val doubleTabCoroutineScope = coroutineScope
-        val doubleTapModifier = Modifier.pointerInput(scale, offset) {
-            detectTapGestures(onDoubleTap = { tapOffset ->
-                if (scale.value > 1f) {
-                    // Reset to 1x with animation
-                    doubleTabCoroutineScope.launch {
-                        scale.animateTo(1f)
-                        offset.animateTo(Offset.Zero)
+        // Gesture Modifier
+        val gestureModifier = Modifier.pointerInput(Unit) {
+            detectTapGestures(
+                onDoubleTap = { tapOffset ->
+                    scope.launch {
+                        if (scale > 1f) {
+                            // Zoom Out Animation
+                            val startScale = scale
+                            val startOffset = offset
+
+                            Animatable(0f).animateTo(1f) {
+                                val t = this.value
+                                scale = lerp(startScale, 1f, t)
+                                offset = Offset.lerp(startOffset, Offset.Zero, t)
+                            }
+                        } else {
+                            // Zoom In Animation
+                            val targetScale = 2.5f
+                            val centerX = containerWidth / 2f
+                            val centerY = containerHeight / 2f
+
+                            // Calculate where we want to end up
+                            val targetOffset = Offset(
+                                x = (centerX - tapOffset.x) * (targetScale - 1f),
+                                y = (centerY - tapOffset.y) * (targetScale - 1f),
+                            )
+                            val clampedTarget = clampOffset(targetOffset, targetScale)
+
+                            val startScale = scale
+                            val startOffset = offset
+
+                            Animatable(0f).animateTo(1f) {
+                                val t = this.value
+                                scale = lerp(startScale, targetScale, t)
+                                offset = Offset.lerp(startOffset, clampedTarget, t)
+                            }
+                        }
                     }
-                } else {
-                    // Zoom in to 2.5x, center on tapped position
-                    val targetScale = 2.5f
-                    val centerX = containerWidth / 2f
-                    val centerY = containerHeight / 2f
-                    val centeredOffset = Offset(
-                        x = (centerX - tapOffset.x) * (targetScale - 1f),
-                        y = (centerY - tapOffset.y) * (targetScale - 1f),
-                    )
-                    doubleTabCoroutineScope.launch {
-                        scale.animateTo(targetScale)
-                        offset.animateTo(clampOffsetForScale(centeredOffset, targetScale))
-                    }
-                }
-            })
+                },
+            )
         }
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .then(doubleTapModifier)
+                .then(gestureModifier)
                 .transformable(transformState)
-                .graphicsLayer(
-                    scaleX = scale.value,
-                    scaleY = scale.value,
-                    translationX = offset.value.x,
-                    translationY = offset.value.y,
-                ),
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationX = offset.x
+                    translationY = offset.y
+                },
         ) {
             AsyncImage(
                 model = filePath,
@@ -301,6 +322,7 @@ private fun ImageContent(
                 )
             }
 
+            // Control Buttons
             if (description != null) {
                 IconButton(
                     onClick = { showExplanation = true },
