@@ -1,7 +1,6 @@
 package com.medicalquiz.app.shared.ui
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
@@ -135,9 +134,9 @@ fun MediaViewerScreen(
                         .fillMaxSize()
                         .graphicsLayer {
                             // Fade effect as page transitions
-                            alpha = 1f - (pageOffset.coerceIn(-1f, 1f).absoluteValue * 0.5f)
+                            alpha = 1f - (pageOffset.coerceIn(-1f, 1f).absoluteValue * FADE_INTENSITY)
                             // Optional: Add subtle scale/translation for parallax feel
-                            translationX = pageOffset * 50f
+                            translationX = pageOffset * PAGE_TRANSITION_TRANSLATION
                         },
                 ) {
                     MediaContent(
@@ -208,6 +207,13 @@ private fun ImageContent(
     description: MediaDescription?,
     onZoomChanged: (Boolean) -> Unit,
 ) {
+    // Constants for animation and interaction
+    val MAX_SCALE = 5f
+    val DOUBLE_TAP_ZOOM = 2.5f
+    val PAGE_TRANSITION_TRANSLATION = 50f
+    val FADE_INTENSITY = 0.5f
+    val MIN_SCALE = 1f
+
     var showExplanation by remember { mutableStateOf(false) }
     val storageDir = StorageProvider.getAppStorageDirectory()
     val filePath = remember(fileName) { "$storageDir/media/$fileName" }
@@ -215,7 +221,7 @@ private fun ImageContent(
     val scope = rememberCoroutineScope()
 
     // STATE MANAGEMENT: Use mutableState for UI-driven updates (Gestures)
-    var scale by remember { mutableFloatStateOf(1f) }
+    var scale by remember { mutableFloatStateOf(MIN_SCALE) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
     // Notify parent of zoom state
@@ -259,22 +265,25 @@ private fun ImageContent(
         }
 
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-            val newScale = (scale * zoomChange).coerceIn(1f, 5f)
+            val newScale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
             val newOffset = offset + panChange
 
             scale = newScale
             offset = clampOffset(newOffset, newScale)
         }
 
-        // Gesture Modifier - Only handle gestures when not zoomed
-        // When zoomed, let pager handle swipes by not consuming pointer events
-        val gestureModifier = if (scale <= 1f) {
-            Modifier.pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = { tapOffset ->
-                        scope.launch {
+        // Gesture Modifier - Handle double-tap zoom in/out
+        // Single modifier for both states avoids recomposition issues
+        val gestureModifier = Modifier.pointerInput(Unit) {
+            detectTapGestures(
+                onDoubleTap = { tapOffset ->
+                    scope.launch {
+                        val startScale = scale
+                        val startOffset = offset
+
+                        if (scale <= MIN_SCALE) {
                             // Zoom In Animation
-                            val targetScale = 2.5f
+                            val targetScale = DOUBLE_TAP_ZOOM
                             val centerX = containerWidth / 2f
                             val centerY = containerHeight / 2f
 
@@ -285,9 +294,6 @@ private fun ImageContent(
                             )
                             val clampedTarget = clampOffset(targetOffset, targetScale)
 
-                            val startScale = scale
-                            val startOffset = offset
-
                             Animatable(0f).animateTo(1f) {
                                 val t = this.value
                                 scale = lerp(startScale, targetScale, t)
@@ -296,31 +302,20 @@ private fun ImageContent(
                                     y = lerp(startOffset.y, clampedTarget.y, t),
                                 )
                             }
-                        }
-                    },
-                )
-            }
-        } else {
-            Modifier.pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = { _ ->
-                        scope.launch {
+                        } else {
                             // Zoom Out Animation
-                            val startScale = scale
-                            val startOffset = offset
-
                             Animatable(0f).animateTo(1f) {
                                 val t = this.value
-                                scale = lerp(startScale, 1f, t)
+                                scale = lerp(startScale, MIN_SCALE, t)
                                 offset = Offset(
                                     x = lerp(startOffset.x, 0f, t),
                                     y = lerp(startOffset.y, 0f, t),
                                 )
                             }
                         }
-                    },
-                )
-            }
+                    }
+                },
+            )
         }
 
         Box(
