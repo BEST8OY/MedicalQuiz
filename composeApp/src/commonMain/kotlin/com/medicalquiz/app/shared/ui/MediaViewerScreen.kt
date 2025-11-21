@@ -61,7 +61,6 @@ import kotlin.math.absoluteValue
 // Animation and interaction constants
 private const val MAX_SCALE = 5f
 private const val DOUBLE_TAP_ZOOM = 2.5f
-private const val PAGE_TRANSITION_TRANSLATION = 50f
 private const val FADE_INTENSITY = 0.5f
 private const val MIN_SCALE = 1f
 
@@ -142,8 +141,6 @@ fun MediaViewerScreen(
                         .graphicsLayer {
                             // Fade effect as page transitions
                             alpha = 1f - (pageOffset.coerceIn(-1f, 1f).absoluteValue * FADE_INTENSITY)
-                            // Optional: Add subtle scale/translation for parallax feel
-                            translationX = pageOffset * PAGE_TRANSITION_TRANSLATION
                         },
                 ) {
                     MediaContent(
