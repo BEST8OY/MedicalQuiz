@@ -299,15 +299,14 @@ class QuizViewModel : ViewModel() {
                     currentState.selectedSystemIds.toList(),
                     currentState.performanceFilter
                 )
-                _state.update { latestState ->
-                    if (latestState.selectedSubjectIds == currentState.selectedSubjectIds &&
-                        latestState.selectedSystemIds == currentState.selectedSystemIds &&
-                        latestState.performanceFilter == currentState.performanceFilter) {
-                        latestState.copy(questionIds = ids)
-                    } else {
-                        latestState
-                    }
+                val currentQuestionId = currentState.questionIds.getOrNull(currentState.currentQuestionIndex)
+                val newIndex = if (currentQuestionId != null && currentQuestionId in ids) {
+                    ids.indexOf(currentQuestionId)
+                } else {
+                    0
                 }
+                _state.update { it.copy(questionIds = ids, currentQuestionIndex = newIndex) }
+                loadQuestion(newIndex)
             } catch (e: Exception) {
                 println("Error loading filtered questions: ${e.message}")
             }

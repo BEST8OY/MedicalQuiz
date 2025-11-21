@@ -37,18 +37,18 @@ import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.utils.HtmlUtils
 
@@ -60,6 +60,8 @@ fun MediaViewerScreen(
     mediaDescriptions: Map<String, MediaDescription>,
     onBack: () -> Unit
 ) {
+    BackHandler(onBack = onBack)
+
     val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { mediaFiles.size })
     var currentIndex by remember { mutableStateOf(startIndex) }
 
