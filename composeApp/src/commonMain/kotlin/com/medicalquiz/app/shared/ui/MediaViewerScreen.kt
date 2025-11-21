@@ -22,9 +22,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,10 +40,11 @@ import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Visibility
@@ -49,6 +52,8 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.BoxWithConstraints
+import androidx.compose.ui.platform.LocalDensity
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.utils.HtmlUtils
 
@@ -64,6 +69,7 @@ fun MediaViewerScreen(
 
     val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { mediaFiles.size })
     var currentIndex by remember { mutableStateOf(startIndex) }
+    var isZoomed by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -106,13 +112,15 @@ fun MediaViewerScreen(
         ) {
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = !isZoomed
             ) { page ->
                 currentIndex = page
                 val file = mediaFiles[page]
                 MediaContent(
                     fileName = file,
-                    description = mediaDescriptions[file]
+                    description = mediaDescriptions[file],
+                    onZoomChanged = { isZoomed = it }
                 )
             }
         }
@@ -122,12 +130,13 @@ fun MediaViewerScreen(
 @Composable
 private fun MediaContent(
     fileName: String,
-    description: MediaDescription?
+    description: MediaDescription?,
+    onZoomChanged: (Boolean) -> Unit
 ) {
     val mediaType = getMediaType(fileName)
     
     when (mediaType) {
-        MediaType.IMAGE -> ImageContent(fileName, description)
+        MediaType.IMAGE -> ImageContent(fileName, description, onZoomChanged)
         MediaType.HTML -> HtmlContent(fileName)
         else -> UnsupportedContent(fileName, mediaType)
     }
@@ -164,15 +173,23 @@ private fun HtmlContent(fileName: String) {
 @Composable
 private fun ImageContent(
     fileName: String,
-    description: MediaDescription?
+    description: MediaDescription?,
+    onZoomChanged: (Boolean) -> Unit
 ) {
     var showExplanation by remember { mutableStateOf(false) }
     val storageDir = StorageProvider.getAppStorageDirectory()
     val filePath = "$storageDir/media/$fileName"
 
-    // Zoom state
-    var scale by remember { mutableStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Animated states
+    val scale = remember { Animatable(1f) }
+    val offset = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+
+    // Notify parent of zoom state
+    LaunchedEffect(scale.value) {
+        onZoomChanged(scale.value > 1f)
+    }
 
     // Overlay state
     val overlayName = if (fileName.startsWith("big_", ignoreCase = true)) {
@@ -187,44 +204,66 @@ private fun ImageContent(
     }
     var showOverlay by remember { mutableStateOf(true) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    awaitFirstDown()
-                    do {
-                        val event = awaitPointerEvent()
-                        val pan = event.calculatePan()
-                        val zoom = event.calculateZoom()
-                        
-                        if (scale > 1f || zoom != 1f) {
-                            scale = (scale * zoom).coerceIn(1f, 5f)
-                            if (scale == 1f) offset = Offset.Zero
-                            else {
-                                val newOffset = offset + pan
-                                // Optional: Add bounds checking here to prevent panning too far
-                                offset = newOffset
-                            }
-                            
-                            event.changes.forEach { 
-                                if (it.position != it.previousPosition) {
-                                    it.consume() 
-                                }
-                            }
-                        }
-                    } while (event.changes.any { it.pressed })
-                }
+    // Boundaries (in px) - computed from container size
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val containerWidth = with(LocalDensity.current) { maxWidth.toPx() }
+        val containerHeight = with(LocalDensity.current) { maxHeight.toPx() }
+
+        fun clampOffsetForScale(offset: Offset, scaleVal: Float): Offset {
+            // Allow panning only when scaled size > container
+            val scaledWidth = containerWidth * scaleVal
+            val scaledHeight = containerHeight * scaleVal
+            val maxX = maxOf(0f, (scaledWidth - containerWidth) / 2f)
+            val maxY = maxOf(0f, (scaledHeight - containerHeight) / 2f)
+            val clampedX = offset.x.coerceIn(-maxX, maxX)
+            val clampedY = offset.y.coerceIn(-maxY, maxY)
+            return Offset(clampedX, clampedY)
+        }
+
+        val transformState = rememberTransformableState { zoomChange, panChange, _ ->
+            // apply zoom/pan quickly
+            coroutineScope.launch {
+                val newScale = (scale.value * zoomChange).coerceIn(1f, 5f)
+                scale.snapTo(newScale)
+                val newOffset = offset.value + panChange
+                offset.snapTo(clampOffsetForScale(newOffset, newScale))
             }
-    ) {
+        }
+
+        // Double-tap zoom handling
+        val doubleTapModifier = Modifier.pointerInput(Unit) {
+            detectTapGestures(onDoubleTap = { tapOffset ->
+                coroutineScope.launch {
+                    if (scale.value > 1f) {
+                        // Reset to 1x with animation
+                        scale.animateTo(1f)
+                        offset.animateTo(Offset.Zero)
+                    } else {
+                        // Zoom in to 2.5x, center on tapped position
+                        val targetScale = 2.5f
+                        val centerX = containerWidth / 2f
+                        val centerY = containerHeight / 2f
+                        val centeredOffset = Offset(
+                            x = (centerX - tapOffset.x) * (targetScale - 1f),
+                            y = (centerY - tapOffset.y) * (targetScale - 1f)
+                        )
+                        scale.animateTo(targetScale)
+                        offset.animateTo(clampOffsetForScale(centeredOffset, targetScale))
+                    }
+                }
+            })
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .then(doubleTapModifier)
+                .transformable(transformState)
                 .graphicsLayer(
-                    scaleX = scale,
-                    scaleY = scale,
-                    translationX = offset.x,
-                    translationY = offset.y
+                    scaleX = scale.value,
+                    scaleY = scale.value,
+                    translationX = offset.value.x,
+                    translationY = offset.value.y
                 )
         ) {
             AsyncImage(
