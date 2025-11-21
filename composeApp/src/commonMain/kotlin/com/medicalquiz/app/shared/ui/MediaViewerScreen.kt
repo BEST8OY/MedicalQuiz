@@ -70,8 +70,14 @@ fun MediaViewerScreen(
         initialPage = startIndex,
         pageCount = { mediaFiles.size }
     )
-    var currentIndex by remember(startIndex) { mutableStateOf(startIndex) }
+    // Sync currentIndex with pagerState to avoid duplication
+    val currentIndex = pagerState.currentPage
     var isZoomed by remember { mutableStateOf(false) }
+
+    // Reset zoom when page changes
+    LaunchedEffect(currentIndex) {
+        isZoomed = false
+    }
 
     Scaffold(
         topBar = {
@@ -159,14 +165,17 @@ private fun HtmlContent(fileName: String) {
         }
     }
 
-    if (htmlContent == null) {
+    // Memoize scroll state to preserve scroll position across recompositions
+    val scrollState = rememberScrollState()
+
+    if (htmlContent.isNullOrBlank()) {
         UnsupportedContent(fileName = fileName, type = MediaType.HTML)
     } else {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(16.dp),
         ) {
             RichText(
@@ -198,17 +207,17 @@ private fun ImageContent(
         onZoomChanged(scale.value > 1f)
     }
 
-    // Overlay state
+    // Overlay state - memoize with both dependencies for stability
     val overlayName = remember(fileName) {
         if (fileName.startsWith("big_", ignoreCase = true)) {
             fileName.substringBeforeLast('.') + ".svg"
         } else null
     }
 
-    val overlayPath = remember(overlayName) {
+    val overlayPath = remember(overlayName, storageDir) {
         overlayName?.let { name ->
             val path = "$storageDir/media/$name"
-            if (FileSystemHelper.exists(path)) path else null
+            path.takeIf { FileSystemHelper.exists(it) }
         }
     }
 
