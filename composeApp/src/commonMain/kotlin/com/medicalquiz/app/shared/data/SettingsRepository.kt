@@ -43,10 +43,6 @@ class SettingsRepository {
         saveSettings()
     }
 
-    fun setPerformanceFilter(filter: PerformanceFilter) {
-        _performanceFilter.value = filter
-    }
-
     fun setFontSize(size: Float) {
         _fontSize.value = size
         saveSettings()
