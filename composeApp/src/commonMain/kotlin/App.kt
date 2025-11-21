@@ -48,55 +48,56 @@ fun App() {
                 viewModel.setCacheManager(cacheManager)
             }
 
-        DisposableEffect(Unit) {
-            onDispose {
-                viewModel.closeDatabase()
-            }
-        }
-        
-        if (selectedDatabase == null) {
-            DatabaseSelectionScreen(
-                onDatabaseSelected = { dbName ->
-                    selectedDatabase = dbName
-                }
-            )
-        } else {
-            // Initialize DB when selected
-            LaunchedEffect(selectedDatabase) {
-                selectedDatabase?.let { dbName ->
-                    val dbPath = FileSystemHelper.getDatabasePath(dbName)
-                    val databaseManager = DatabaseManager(dbPath)
-                    databaseManager.init()
-                    
-                    viewModel.setDatabaseManager(databaseManager)
-                    viewModel.setDatabaseName(dbName.removeSuffix(".db"))
+            DisposableEffect(Unit) {
+                onDispose {
+                    viewModel.closeDatabase()
                 }
             }
             
-            val mediaHandler = remember { 
-                MediaHandler(
-                    onOpenMedia = { files, index ->
-                        viewModel.openMedia(files, index)
+            if (selectedDatabase == null) {
+                DatabaseSelectionScreen(
+                    onDatabaseSelected = { dbName ->
+                        selectedDatabase = dbName
                     }
-                ) 
-            }
-
-            QuizRoot(
-                viewModel = viewModel,
-                mediaHandler = mediaHandler,
-                onClearFilters = {
-                    viewModel.setSelectedSubjects(emptySet())
-                    viewModel.setSelectedSystems(emptySet())
-                },
-                onStart = {
-                    viewModel.loadFilteredQuestionIds()
-                    viewModel.loadQuestion(0)
-                },
-                onChangeDatabase = {
-                    selectedDatabase = null
-                    viewModel.closeDatabase()
+                )
+            } else {
+                // Initialize DB when selected
+                LaunchedEffect(selectedDatabase) {
+                    selectedDatabase?.let { dbName ->
+                        val dbPath = FileSystemHelper.getDatabasePath(dbName)
+                        val databaseManager = DatabaseManager(dbPath)
+                        databaseManager.init()
+                        
+                        viewModel.setDatabaseManager(databaseManager)
+                        viewModel.setDatabaseName(dbName.removeSuffix(".db"))
+                    }
                 }
-            )
+                
+                val mediaHandler = remember { 
+                    MediaHandler(
+                        onOpenMedia = { files, index ->
+                            viewModel.openMedia(files, index)
+                        }
+                    ) 
+                }
+
+                QuizRoot(
+                    viewModel = viewModel,
+                    mediaHandler = mediaHandler,
+                    onClearFilters = {
+                        viewModel.setSelectedSubjects(emptySet())
+                        viewModel.setSelectedSystems(emptySet())
+                    },
+                    onStart = {
+                        viewModel.loadFilteredQuestionIds()
+                        viewModel.loadQuestion(0)
+                    },
+                    onChangeDatabase = {
+                        selectedDatabase = null
+                        viewModel.closeDatabase()
+                    }
+                )
+            }
         }
     }
 }
