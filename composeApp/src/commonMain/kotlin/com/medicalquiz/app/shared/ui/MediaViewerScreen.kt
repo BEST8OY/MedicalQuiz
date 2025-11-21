@@ -268,7 +268,7 @@ private fun ImageContent(
 
         // Gesture Modifier - Only handle gestures when not zoomed
         // When zoomed, let pager handle swipes by not consuming pointer events
-        val gestureModifier = if (!isZoomed) {
+        val gestureModifier = if (scale <= 1f) {
             Modifier.pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { tapOffset ->
