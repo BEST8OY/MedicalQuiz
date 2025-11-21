@@ -123,11 +123,10 @@ fun MediaViewerScreen(
                 modifier = Modifier.fillMaxSize(),
                 userScrollEnabled = !isZoomed,
             ) { page ->
-                currentIndex = page
                 val file = mediaFiles[page]
                 MediaContent(
                     fileName = file,
-                    description = mediaDescriptions[file],
+                    description = mediaDescriptions[page],
                     onZoomChanged = { isZoomed = it },
                 )
             }
@@ -242,28 +241,35 @@ private fun ImageContent(
 
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
             val newScale = (scale.value * zoomChange).coerceIn(1f, 5f)
-            scale.value = newScale
+            if (scale.value != newScale) {
+                scale.value = newScale
+            }
             val newOffset = offset.value + panChange
-            offset.value = clampOffsetForScale(newOffset, newScale)
+            val clampedOffset = clampOffsetForScale(newOffset, newScale)
+            if (offset.value != clampedOffset) {
+                offset.value = clampedOffset
+            }
         }
 
         // Double-tap zoom handling
         val doubleTapModifier = Modifier.pointerInput(Unit) {
             detectTapGestures(onDoubleTap = { tapOffset ->
-                coroutineScope.launch {
-                    if (scale.value > 1f) {
-                        // Reset to 1x with animation
+                if (scale.value > 1f) {
+                    // Reset to 1x with animation
+                    coroutineScope.launch {
                         scale.animateTo(1f)
                         offset.animateTo(Offset.Zero)
-                    } else {
-                        // Zoom in to 2.5x, center on tapped position
-                        val targetScale = 2.5f
-                        val centerX = containerWidth / 2f
-                        val centerY = containerHeight / 2f
-                        val centeredOffset = Offset(
-                            x = (centerX - tapOffset.x) * (targetScale - 1f),
-                            y = (centerY - tapOffset.y) * (targetScale - 1f),
-                        )
+                    }
+                } else {
+                    // Zoom in to 2.5x, center on tapped position
+                    val targetScale = 2.5f
+                    val centerX = containerWidth / 2f
+                    val centerY = containerHeight / 2f
+                    val centeredOffset = Offset(
+                        x = (centerX - tapOffset.x) * (targetScale - 1f),
+                        y = (centerY - tapOffset.y) * (targetScale - 1f),
+                    )
+                    coroutineScope.launch {
                         scale.animateTo(targetScale)
                         offset.animateTo(clampOffsetForScale(centeredOffset, targetScale))
                     }
