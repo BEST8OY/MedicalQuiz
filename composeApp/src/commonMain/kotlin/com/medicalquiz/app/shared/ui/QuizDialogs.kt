@@ -72,6 +72,7 @@ fun SettingsDialogComposable(
     if (isVisible) {
         val loggingEnabled = viewModel.settingsRepository?.isLoggingEnabled?.collectAsStateWithLifecycle(false)?.value ?: false
         val showMetadata = viewModel.settingsRepository?.showMetadata?.collectAsStateWithLifecycle(true)?.value ?: true
+        val fontSize = viewModel.settingsRepository?.fontSize?.collectAsStateWithLifecycle(16f)?.value ?: 16f
         AlertDialog(
             onDismissRequest = onDismiss,
             confirmButton = { },
@@ -79,11 +80,15 @@ fun SettingsDialogComposable(
                 SettingsDialog(
                     initialLoggingEnabled = loggingEnabled,
                     initialShowMetadata = showMetadata,
+                    initialFontSize = fontSize,
                     onLoggingChanged = { enabled ->
                         viewModel.settingsRepository?.setLoggingEnabled(enabled)
                     },
                     onShowMetadataChanged = { visible ->
                         viewModel.settingsRepository?.setShowMetadata(visible)
+                    },
+                    onFontSizeChanged = { size ->
+                        viewModel.settingsRepository?.setFontSize(size)
                     },
                     onResetLogs = {
                         onDismiss()
@@ -351,13 +356,16 @@ private fun JumpToQuestionDialog(
 private fun SettingsDialog(
     initialLoggingEnabled: Boolean,
     initialShowMetadata: Boolean,
+    initialFontSize: Float,
     onLoggingChanged: (Boolean) -> Unit,
     onShowMetadataChanged: (Boolean) -> Unit,
+    onFontSizeChanged: (Float) -> Unit,
     onResetLogs: () -> Unit,
     onDismiss: () -> Unit = {}
 ) {
     var loggingEnabled by rememberSaveable(initialLoggingEnabled) { mutableStateOf(initialLoggingEnabled) }
     var showMetadata by rememberSaveable(initialShowMetadata) { mutableStateOf(initialShowMetadata) }
+    var fontSize by rememberSaveable(initialFontSize) { mutableFloatStateOf(initialFontSize) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -429,6 +437,23 @@ private fun SettingsDialog(
                                 showMetadata = visible
                                 onShowMetadataChanged(visible)
                             }
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Font size: ${fontSize.toInt()}sp",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Slider(
+                            value = fontSize,
+                            onValueChange = { size ->
+                                fontSize = size
+                                onFontSizeChanged(size)
+                            },
+                            valueRange = 12f..24f,
+                            steps = 12
                         )
                     }
 

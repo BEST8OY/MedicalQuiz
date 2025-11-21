@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.data.models.Answer
+import com.medicalquiz.app.shared.ui.LocalFontSize
 
 @Composable
 fun AnswersList(
@@ -31,7 +32,7 @@ fun AnswersList(
             }
             Text(
                 text = answer.answerText,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = LocalFontSize.current),
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(bg)

@@ -353,6 +353,7 @@ class QuizViewModel : ViewModel() {
             
             _state.update { it.copy(selectedSystemIds = validSystems) }
             updatePreviewQuestionCount()
+            loadFilteredQuestionIds()
         }
     }
 
@@ -384,6 +385,7 @@ class QuizViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(selectedSystemIds = newSystemIds) }
             updatePreviewQuestionCount()
+            loadFilteredQuestionIds()
         }
     }
 
