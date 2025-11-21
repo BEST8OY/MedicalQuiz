@@ -1,16 +1,27 @@
 package com.medicalquiz.app.shared.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,31 +41,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.medicalquiz.app.shared.data.MediaDescription
+import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
-
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.VectorConverter
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.ui.platform.LocalDensity
-import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.utils.HtmlUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,12 +62,15 @@ fun MediaViewerScreen(
     mediaFiles: List<String>,
     startIndex: Int,
     mediaDescriptions: Map<String, MediaDescription>,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
-    BackHandler(onBack = onBack)
+    BackHandler(enabled = true, onBack = onBack)
 
-    val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { mediaFiles.size })
-    var currentIndex by remember { mutableStateOf(startIndex) }
+    val pagerState = rememberPagerState(
+        initialPage = startIndex,
+        pageCount = { mediaFiles.size }
+    )
+    var currentIndex by remember(startIndex) { mutableStateOf(startIndex) }
     var isZoomed by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -80,12 +82,12 @@ fun MediaViewerScreen(
                             text = "Media Viewer",
                             style = MaterialTheme.typography.titleLarge,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = "${currentIndex + 1} / ${mediaFiles.size}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 },
@@ -93,34 +95,34 @@ fun MediaViewerScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface
-                )
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
+                ),
             )
-        }
+        },
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color.Black)
+                .background(Color.Black),
         ) {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
-                userScrollEnabled = !isZoomed
+                userScrollEnabled = !isZoomed,
             ) { page ->
                 currentIndex = page
                 val file = mediaFiles[page]
                 MediaContent(
                     fileName = file,
                     description = mediaDescriptions[file],
-                    onZoomChanged = { isZoomed = it }
+                    onZoomChanged = { isZoomed = it },
                 )
             }
         }
@@ -131,54 +133,57 @@ fun MediaViewerScreen(
 private fun MediaContent(
     fileName: String,
     description: MediaDescription?,
-    onZoomChanged: (Boolean) -> Unit
+    onZoomChanged: (Boolean) -> Unit,
 ) {
-    val mediaType = getMediaType(fileName)
-    
+    val mediaType = remember(fileName) { getMediaType(fileName) }
+
     when (mediaType) {
-        MediaType.IMAGE -> ImageContent(fileName, description, onZoomChanged)
-        MediaType.HTML -> HtmlContent(fileName)
-        else -> UnsupportedContent(fileName, mediaType)
+        MediaType.IMAGE -> ImageContent(
+            fileName = fileName,
+            description = description,
+            onZoomChanged = onZoomChanged,
+        )
+        MediaType.HTML -> HtmlContent(fileName = fileName)
+        else -> UnsupportedContent(fileName = fileName, type = mediaType)
     }
 }
 
 @Composable
 private fun HtmlContent(fileName: String) {
     val storageDir = StorageProvider.getAppStorageDirectory()
-    val filePath = "$storageDir/media/$fileName"
-    val htmlContent = remember(fileName) {
-        FileSystemHelper.readText(filePath)?.let { 
-            HtmlUtils.sanitizeForRichText(it) 
+    val filePath = remember(fileName) { "$storageDir/media/$fileName" }
+
+    val htmlContent = remember(filePath) {
+        FileSystemHelper.readText(filePath)?.let {
+            HtmlUtils.sanitizeForRichText(it)
         }
     }
 
     if (htmlContent == null) {
-        UnsupportedContent(fileName, MediaType.HTML)
+        UnsupportedContent(fileName = fileName, type = MediaType.HTML)
     } else {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(16.dp),
         ) {
             RichText(
                 html = htmlContent,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
 }
-
-@Composable
 private fun ImageContent(
     fileName: String,
     description: MediaDescription?,
-    onZoomChanged: (Boolean) -> Unit
+    onZoomChanged: (Boolean) -> Unit,
 ) {
     var showExplanation by remember { mutableStateOf(false) }
     val storageDir = StorageProvider.getAppStorageDirectory()
-    val filePath = "$storageDir/media/$fileName"
+    val filePath = remember(fileName) { "$storageDir/media/$fileName" }
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -192,16 +197,19 @@ private fun ImageContent(
     }
 
     // Overlay state
-    val overlayName = if (fileName.startsWith("big_", ignoreCase = true)) {
-        fileName.substringBeforeLast('.') + ".svg"
-    } else null
-    
+    val overlayName = remember(fileName) {
+        if (fileName.startsWith("big_", ignoreCase = true)) {
+            fileName.substringBeforeLast('.') + ".svg"
+        } else null
+    }
+
     val overlayPath = remember(overlayName) {
         overlayName?.let { name ->
             val path = "$storageDir/media/$name"
             if (FileSystemHelper.exists(path)) path else null
         }
     }
+
     var showOverlay by remember { mutableStateOf(true) }
 
     // Boundaries (in px) - computed from container size
@@ -243,7 +251,7 @@ private fun ImageContent(
                         val centerY = containerHeight / 2f
                         val centeredOffset = Offset(
                             x = (centerX - tapOffset.x) * (targetScale - 1f),
-                            y = (centerY - tapOffset.y) * (targetScale - 1f)
+                            y = (centerY - tapOffset.y) * (targetScale - 1f),
                         )
                         scale.animateTo(targetScale)
                         offset.animateTo(clampOffsetForScale(centeredOffset, targetScale))
@@ -261,14 +269,14 @@ private fun ImageContent(
                     scaleX = scale.value,
                     scaleY = scale.value,
                     translationX = offset.value.x,
-                    translationY = offset.value.y
-                )
+                    translationY = offset.value.y,
+                ),
         ) {
             AsyncImage(
                 model = filePath,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit
+                contentScale = ContentScale.Fit,
             )
 
             if (overlayPath != null && showOverlay) {
@@ -276,7 +284,7 @@ private fun ImageContent(
                     model = overlayPath,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
                 )
             }
 
@@ -285,12 +293,12 @@ private fun ImageContent(
                     onClick = { showExplanation = true },
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(16.dp)
+                        .padding(16.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Info,
                         contentDescription = "Show explanation",
-                        tint = Color.White
+                        tint = Color.White,
                     )
                 }
             }
@@ -300,12 +308,12 @@ private fun ImageContent(
                     onClick = { showOverlay = !showOverlay },
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(16.dp)
+                        .padding(16.dp),
                 ) {
                     Icon(
                         imageVector = if (showOverlay) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
                         contentDescription = "Toggle overlay",
-                        tint = Color.White
+                        tint = Color.White,
                     )
                 }
             }
@@ -326,9 +334,9 @@ private fun ImageContent(
             text = {
                 RichText(
                     html = description.description,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
-            }
+            },
         )
     }
 }
@@ -337,21 +345,30 @@ private fun ImageContent(
 private fun UnsupportedContent(fileName: String, type: MediaType) {
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = "Unsupported media type: $type\n$fileName",
-            color = Color.White
+            color = Color.White,
         )
     }
 }
 
 private fun getMediaType(fileName: String): MediaType {
-    return when (fileName.substringAfterLast('.').lowercase()) {
+    val extension = fileName.substringAfterLast('.').lowercase()
+    return when (extension) {
         "jpg", "jpeg", "png", "gif", "bmp", "webp" -> MediaType.IMAGE
         "mp4", "avi", "mkv", "mov", "webm", "3gp" -> MediaType.VIDEO
         "mp3", "wav", "ogg", "m4a", "aac", "flac" -> MediaType.AUDIO
         "html", "htm" -> MediaType.HTML
         else -> MediaType.UNKNOWN
     }
+}
+
+private enum class MediaType {
+    IMAGE,
+    VIDEO,
+    AUDIO,
+    HTML,
+    UNKNOWN,
 }
