@@ -246,12 +246,13 @@ private fun ImageContent(
             offset.value = clampOffsetForScale(newOffset, newScale)
         }
 
-        // Double-tap zoom handling
-        val doubleTapModifier = Modifier.pointerInput(coroutineScope) {
+        // Double-tap zoom handling - use a scope variable that can be captured
+        val doubleTabCoroutineScope = coroutineScope
+        val doubleTapModifier = Modifier.pointerInput(scale, offset) {
             detectTapGestures(onDoubleTap = { tapOffset ->
                 if (scale.value > 1f) {
                     // Reset to 1x with animation
-                    coroutineScope.launch {
+                    doubleTabCoroutineScope.launch {
                         scale.animateTo(1f)
                         offset.animateTo(Offset.Zero)
                     }
@@ -264,7 +265,7 @@ private fun ImageContent(
                         x = (centerX - tapOffset.x) * (targetScale - 1f),
                         y = (centerY - tapOffset.y) * (targetScale - 1f),
                     )
-                    coroutineScope.launch {
+                    doubleTabCoroutineScope.launch {
                         scale.animateTo(targetScale)
                         offset.animateTo(clampOffsetForScale(centeredOffset, targetScale))
                     }
