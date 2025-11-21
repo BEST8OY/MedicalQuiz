@@ -176,6 +176,8 @@ private fun HtmlContent(fileName: String) {
         }
     }
 }
+
+@Composable
 private fun ImageContent(
     fileName: String,
     description: MediaDescription?,
@@ -363,12 +365,4 @@ private fun getMediaType(fileName: String): MediaType {
         "html", "htm" -> MediaType.HTML
         else -> MediaType.UNKNOWN
     }
-}
-
-private enum class MediaType {
-    IMAGE,
-    VIDEO,
-    AUDIO,
-    HTML,
-    UNKNOWN,
 }
