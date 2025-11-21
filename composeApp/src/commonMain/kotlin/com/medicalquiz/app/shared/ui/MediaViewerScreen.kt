@@ -58,6 +58,13 @@ import com.medicalquiz.app.shared.utils.HtmlUtils
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 
+// Animation and interaction constants
+private const val MAX_SCALE = 5f
+private const val DOUBLE_TAP_ZOOM = 2.5f
+private const val PAGE_TRANSITION_TRANSLATION = 50f
+private const val FADE_INTENSITY = 0.5f
+private const val MIN_SCALE = 1f
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MediaViewerScreen(
@@ -207,13 +214,6 @@ private fun ImageContent(
     description: MediaDescription?,
     onZoomChanged: (Boolean) -> Unit,
 ) {
-    // Constants for animation and interaction
-    val MAX_SCALE = 5f
-    val DOUBLE_TAP_ZOOM = 2.5f
-    val PAGE_TRANSITION_TRANSLATION = 50f
-    val FADE_INTENSITY = 0.5f
-    val MIN_SCALE = 1f
-
     var showExplanation by remember { mutableStateOf(false) }
     val storageDir = StorageProvider.getAppStorageDirectory()
     val filePath = remember(fileName) { "$storageDir/media/$fileName" }
