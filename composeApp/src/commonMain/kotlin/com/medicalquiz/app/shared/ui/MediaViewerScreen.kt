@@ -265,7 +265,10 @@ private fun ImageContent(
                             Animatable(0f).animateTo(1f) {
                                 val t = this.value
                                 scale = lerp(startScale, 1f, t)
-                                offset = Offset.lerp(startOffset, Offset.Zero, t)
+                                offset = Offset(
+                                    x = lerp(startOffset.x, 0f, t),
+                                    y = lerp(startOffset.y, 0f, t),
+                                )
                             }
                         } else {
                             // Zoom In Animation
@@ -286,7 +289,10 @@ private fun ImageContent(
                             Animatable(0f).animateTo(1f) {
                                 val t = this.value
                                 scale = lerp(startScale, targetScale, t)
-                                offset = Offset.lerp(startOffset, clampedTarget, t)
+                                offset = Offset(
+                                    x = lerp(startOffset.x, clampedTarget.x, t),
+                                    y = lerp(startOffset.y, clampedTarget.y, t),
+                                )
                             }
                         }
                     }
