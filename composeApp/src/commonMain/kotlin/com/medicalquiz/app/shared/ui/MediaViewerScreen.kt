@@ -52,7 +52,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.platform.LocalDensity
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.utils.HtmlUtils
@@ -206,8 +206,9 @@ private fun ImageContent(
 
     // Boundaries (in px) - computed from container size
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val containerWidth = with(LocalDensity.current) { maxWidth.toPx() }
-        val containerHeight = with(LocalDensity.current) { maxHeight.toPx() }
+        val density = LocalDensity.current
+        val containerWidth = density.run { maxWidth.toPx() }
+        val containerHeight = density.run { maxHeight.toPx() }
 
         fun clampOffsetForScale(offset: Offset, scaleVal: Float): Offset {
             // Allow panning only when scaled size > container
@@ -221,13 +222,10 @@ private fun ImageContent(
         }
 
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-            // apply zoom/pan quickly
-            coroutineScope.launch {
-                val newScale = (scale.value * zoomChange).coerceIn(1f, 5f)
-                scale.snapTo(newScale)
-                val newOffset = offset.value + panChange
-                offset.snapTo(clampOffsetForScale(newOffset, newScale))
-            }
+            val newScale = (scale.value * zoomChange).coerceIn(1f, 5f)
+            scale.value = newScale
+            val newOffset = offset.value + panChange
+            offset.value = clampOffsetForScale(newOffset, newScale)
         }
 
         // Double-tap zoom handling
@@ -281,35 +279,35 @@ private fun ImageContent(
                     contentScale = ContentScale.Fit
                 )
             }
-        }
 
-        if (description != null) {
-            IconButton(
-                onClick = { showExplanation = true },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Info,
-                    contentDescription = "Show explanation",
-                    tint = Color.White
-                )
+            if (description != null) {
+                IconButton(
+                    onClick = { showExplanation = true },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Info,
+                        contentDescription = "Show explanation",
+                        tint = Color.White
+                    )
+                }
             }
-        }
 
-        if (overlayPath != null) {
-            IconButton(
-                onClick = { showOverlay = !showOverlay },
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(16.dp)
-            ) {
-                Icon(
-                    imageVector = if (showOverlay) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                    contentDescription = "Toggle overlay",
-                    tint = Color.White
-                )
+            if (overlayPath != null) {
+                IconButton(
+                    onClick = { showOverlay = !showOverlay },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(16.dp)
+                ) {
+                    Icon(
+                        imageVector = if (showOverlay) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = "Toggle overlay",
+                        tint = Color.White
+                    )
+                }
             }
         }
     }
