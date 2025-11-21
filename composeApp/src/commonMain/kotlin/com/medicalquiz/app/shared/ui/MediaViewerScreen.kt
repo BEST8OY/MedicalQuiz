@@ -1,6 +1,5 @@
 package com.medicalquiz.app.shared.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.background
@@ -58,6 +57,7 @@ import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
 import com.medicalquiz.app.shared.utils.HtmlUtils
 import kotlinx.coroutines.launch
+import kotlin.math.absoluteValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,7 +67,7 @@ fun MediaViewerScreen(
     mediaDescriptions: Map<String, MediaDescription>,
     onBack: () -> Unit,
 ) {
-    BackHandler(enabled = true, onBack = onBack)
+    PlatformBackHandler(enabled = true, onBack = onBack)
 
     val pagerState = rememberPagerState(
         initialPage = startIndex,
@@ -125,13 +125,27 @@ fun MediaViewerScreen(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
                 userScrollEnabled = !isZoomed,
+                beyondViewportPageCount = 1,
             ) { page ->
                 val file = mediaFiles[page]
-                MediaContent(
-                    fileName = file,
-                    description = mediaDescriptions[file],
-                    onZoomChanged = { isZoomed = it },
-                )
+                val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            // Fade effect as page transitions
+                            alpha = 1f - (pageOffset.coerceIn(-1f, 1f).absoluteValue * 0.5f)
+                            // Optional: Add subtle scale/translation for parallax feel
+                            translationX = pageOffset * 50f
+                        },
+                ) {
+                    MediaContent(
+                        fileName = file,
+                        description = mediaDescriptions[file],
+                        onZoomChanged = { isZoomed = it },
+                    )
+                }
             }
         }
     }
@@ -405,3 +419,6 @@ private fun getMediaType(fileName: String): MediaType {
         else -> MediaType.UNKNOWN
     }
 }
+
+@Composable
+expect fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit)
