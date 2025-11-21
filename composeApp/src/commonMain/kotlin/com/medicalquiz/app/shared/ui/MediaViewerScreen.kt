@@ -266,25 +266,13 @@ private fun ImageContent(
             offset = clampOffset(newOffset, newScale)
         }
 
-        // Gesture Modifier
-        val gestureModifier = Modifier.pointerInput(Unit) {
-            detectTapGestures(
-                onDoubleTap = { tapOffset ->
-                    scope.launch {
-                        if (scale > 1f) {
-                            // Zoom Out Animation
-                            val startScale = scale
-                            val startOffset = offset
-
-                            Animatable(0f).animateTo(1f) {
-                                val t = this.value
-                                scale = lerp(startScale, 1f, t)
-                                offset = Offset(
-                                    x = lerp(startOffset.x, 0f, t),
-                                    y = lerp(startOffset.y, 0f, t),
-                                )
-                            }
-                        } else {
+        // Gesture Modifier - Only handle gestures when not zoomed
+        // When zoomed, let pager handle swipes by not consuming pointer events
+        val gestureModifier = if (!isZoomed) {
+            Modifier.pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = { tapOffset ->
+                        scope.launch {
                             // Zoom In Animation
                             val targetScale = 2.5f
                             val centerX = containerWidth / 2f
@@ -309,16 +297,44 @@ private fun ImageContent(
                                 )
                             }
                         }
-                    }
-                },
-            )
+                    },
+                )
+            }
+        } else {
+            Modifier.pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = { _ ->
+                        scope.launch {
+                            // Zoom Out Animation
+                            val startScale = scale
+                            val startOffset = offset
+
+                            Animatable(0f).animateTo(1f) {
+                                val t = this.value
+                                scale = lerp(startScale, 1f, t)
+                                offset = Offset(
+                                    x = lerp(startOffset.x, 0f, t),
+                                    y = lerp(startOffset.y, 0f, t),
+                                )
+                            }
+                        }
+                    },
+                )
+            }
         }
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .then(gestureModifier)
-                .transformable(transformState)
+                .then(
+                    if (scale > 1f) {
+                        // Only apply transformable when actually zoomed
+                        Modifier.transformable(transformState)
+                    } else {
+                        Modifier
+                    }
+                )
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
