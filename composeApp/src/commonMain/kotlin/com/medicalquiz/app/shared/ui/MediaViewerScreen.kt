@@ -78,12 +78,9 @@ fun MediaViewerScreen(
         initialPage = startIndex,
         pageCount = { mediaFiles.size }
     )
-    // Sync currentIndex with pagerState to avoid duplication
-    val currentIndex = pagerState.currentPage
     var isZoomed by remember { mutableStateOf(false) }
 
-    // Reset zoom when page changes
-    LaunchedEffect(currentIndex) {
+    LaunchedEffect(pagerState.currentPage) {
         isZoomed = false
     }
 
@@ -99,7 +96,7 @@ fun MediaViewerScreen(
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = "${currentIndex + 1} / ${mediaFiles.size}",
+                            text = "${pagerState.currentPage + 1} / ${mediaFiles.size}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -132,20 +129,17 @@ fun MediaViewerScreen(
                 userScrollEnabled = !isZoomed,
                 beyondViewportPageCount = 1,
             ) { page ->
-                val file = mediaFiles[page]
-                val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-                
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            // Fade effect as page transitions
+                            val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
                             alpha = 1f - (pageOffset.coerceIn(-1f, 1f).absoluteValue * FADE_INTENSITY)
                         },
                 ) {
                     MediaContent(
-                        fileName = file,
-                        description = mediaDescriptions[file],
+                        fileName = mediaFiles[page],
+                        description = mediaDescriptions[mediaFiles[page]],
                         onZoomChanged = { isZoomed = it },
                     )
                 }
@@ -175,17 +169,13 @@ private fun MediaContent(
 
 @Composable
 private fun HtmlContent(fileName: String) {
-    val storageDir = StorageProvider.getAppStorageDirectory()
-    val filePath = remember(fileName) { "$storageDir/media/$fileName" }
-
-    val htmlContent = remember(filePath) {
-        FileSystemHelper.readText(filePath)?.let {
-            HtmlUtils.sanitizeForRichText(it)
-        }
+    val filePath = remember(fileName) {
+        "${StorageProvider.getAppStorageDirectory()}/media/$fileName"
     }
 
-    // Memoize scroll state to preserve scroll position across recompositions
-    val scrollState = rememberScrollState()
+    val htmlContent = remember(filePath) {
+        FileSystemHelper.readText(filePath)?.let(HtmlUtils::sanitizeForRichText)
+    }
 
     if (htmlContent.isNullOrBlank()) {
         UnsupportedContent(fileName = fileName, type = MediaType.HTML)
@@ -194,7 +184,7 @@ private fun HtmlContent(fileName: String) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
-                .verticalScroll(scrollState)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
         ) {
             RichText(
@@ -211,41 +201,30 @@ private fun ImageContent(
     description: MediaDescription?,
     onZoomChanged: (Boolean) -> Unit,
 ) {
-    var showExplanation by remember { mutableStateOf(false) }
-    val storageDir = StorageProvider.getAppStorageDirectory()
+    val storageDir = remember { StorageProvider.getAppStorageDirectory() }
     val filePath = remember(fileName) { "$storageDir/media/$fileName" }
-
     val scope = rememberCoroutineScope()
 
-    // Zoom state
+    var showExplanation by remember { mutableStateOf(false) }
     var scale by remember { mutableFloatStateOf(MIN_SCALE) }
     var offset by remember { mutableStateOf(Offset.Zero) }
-
-    // Notify parent of zoom state
-    LaunchedEffect(scale) {
-        onZoomChanged(scale > 1.05f) // Small threshold to prevent jitter
-    }
-
-    // Overlay state
-    val overlayName = remember(fileName) {
-        if (fileName.startsWith("big_", ignoreCase = true)) {
-            fileName.substringBeforeLast('.') + ".svg"
-        } else null
-    }
-
-    val overlayPath = remember(overlayName, storageDir) {
-        overlayName?.let { name ->
-            val path = "$storageDir/media/$name"
-            path.takeIf { FileSystemHelper.exists(it) }
-        }
-    }
-
     var showOverlay by remember { mutableStateOf(true) }
+
+    LaunchedEffect(scale) {
+        onZoomChanged(scale > 1.05f)
+    }
+
+    val overlayPath = remember(fileName, storageDir) {
+        if (!fileName.startsWith("big_", ignoreCase = true)) return@remember null
+        val overlayFile = fileName.substringBeforeLast('.') + ".svg"
+        val path = "$storageDir/media/$overlayFile"
+        path.takeIf { FileSystemHelper.exists(it) }
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
-        val containerWidth = density.run { maxWidth.toPx() }
-        val containerHeight = density.run { maxHeight.toPx() }
+        val containerWidth = with(density) { maxWidth.toPx() }
+        val containerHeight = with(density) { maxHeight.toPx() }
 
         // Clamp offset to keep image within bounds
         fun clampOffset(proposedOffset: Offset, currentScale: Float): Offset {
@@ -261,67 +240,36 @@ private fun ImageContent(
             )
         }
 
-        // Transformable state for pinch zoom and pan
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-            val proposedScale = scale * zoomChange
-            
-            // Apply scale
-            val newScale = proposedScale.coerceIn(MIN_SCALE, MAX_SCALE)
-            scale = newScale
-            
-            // Only apply pan if zoomed in
-            if (newScale > MIN_SCALE) {
-                val proposedOffset = offset + panChange
-                offset = clampOffset(proposedOffset, newScale)
-            }
-            
-            // Reset to center if zoomed out completely
-            if (scale <= MIN_SCALE) {
+            scale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
+            if (scale > MIN_SCALE) {
+                offset = clampOffset(offset + panChange, scale)
+            } else {
                 offset = Offset.Zero
             }
         }
 
-        // Double-tap gesture handler
         val gestureModifier = Modifier.pointerInput(containerWidth, containerHeight) {
             detectTapGestures(
                 onDoubleTap = { tapOffset ->
                     scope.launch {
-                        if (scale <= MIN_SCALE + 0.05f) {
-                            // Zoom IN to tap location
-                            val targetScale = DOUBLE_TAP_ZOOM
-                            
-                            // Calculate offset to center on tap point
-                            val centerX = containerWidth / 2f
-                            val centerY = containerHeight / 2f
-                            val targetOffset = Offset(
-                                x = (centerX - tapOffset.x) * (targetScale - 1f),
-                                y = (centerY - tapOffset.y) * (targetScale - 1f),
+                        val startScale = scale
+                        val startOffset = offset
+                        val (targetScale, targetOffset) = if (scale <= MIN_SCALE + 0.05f) {
+                            DOUBLE_TAP_ZOOM to Offset(
+                                x = (containerWidth / 2f - tapOffset.x) * (DOUBLE_TAP_ZOOM - 1f),
+                                y = (containerHeight / 2f - tapOffset.y) * (DOUBLE_TAP_ZOOM - 1f),
                             )
-                            
-                            // Animate zoom in
-                            val startScale = scale
-                            val startOffset = offset
-                            val clampedTarget = clampOffset(targetOffset, targetScale)
-                            
-                            Animatable(0f).animateTo(1f) {
-                                scale = lerp(startScale, targetScale, this.value)
-                                offset = Offset(
-                                    x = lerp(startOffset.x, clampedTarget.x, this.value),
-                                    y = lerp(startOffset.y, clampedTarget.y, this.value),
-                                )
-                            }
                         } else {
-                            // Zoom OUT to reset
-                            val startScale = scale
-                            val startOffset = offset
-                            
-                            Animatable(0f).animateTo(1f) {
-                                scale = lerp(startScale, MIN_SCALE, this.value)
-                                offset = Offset(
-                                    x = lerp(startOffset.x, 0f, this.value),
-                                    y = lerp(startOffset.y, 0f, this.value),
-                                )
-                            }
+                            MIN_SCALE to Offset.Zero
+                        }
+                        val clampedTarget = clampOffset(targetOffset, targetScale)
+                        Animatable(0f).animateTo(1f) {
+                            scale = lerp(startScale, targetScale, this.value)
+                            offset = Offset(
+                                x = lerp(startOffset.x, clampedTarget.x, this.value),
+                                y = lerp(startOffset.y, clampedTarget.y, this.value),
+                            )
                         }
                     }
                 },
@@ -331,18 +279,7 @@ private fun ImageContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // Apply transformable ONLY when zoomed (enables pinch/pan when needed)
-                .then(
-                    if (scale > MIN_SCALE) {
-                        Modifier.transformable(
-                            state = transformState,
-                            enabled = true,
-                        )
-                    } else {
-                        Modifier
-                    }
-                )
-                // Apply gesture handler for double-tap (works at any zoom level)
+                .transformable(state = transformState, enabled = true)
                 .then(gestureModifier)
                 .graphicsLayer {
                     scaleX = scale
@@ -367,7 +304,6 @@ private fun ImageContent(
                 )
             }
 
-            // Control buttons
             if (description != null) {
                 IconButton(
                     onClick = { showExplanation = true },
