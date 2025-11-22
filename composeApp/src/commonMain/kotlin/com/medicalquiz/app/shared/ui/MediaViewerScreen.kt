@@ -2,9 +2,11 @@ package com.medicalquiz.app.shared.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -226,7 +228,6 @@ private fun ImageContent(
         val containerWidth = with(density) { maxWidth.toPx() }
         val containerHeight = with(density) { maxHeight.toPx() }
 
-        // Clamp offset to keep image within bounds
         fun clampOffset(proposedOffset: Offset, currentScale: Float): Offset {
             val scaledWidth = containerWidth * currentScale
             val scaledHeight = containerHeight * currentScale
@@ -240,12 +241,33 @@ private fun ImageContent(
             )
         }
 
-        val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-            scale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
-            if (scale > MIN_SCALE) {
-                offset = clampOffset(offset + panChange, scale)
-            } else {
-                offset = Offset.Zero
+        val transformModifier = Modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconditional = false)
+
+                do {
+                    val event = awaitPointerEvent()
+
+                    val zoomChange = event.calculateZoom()
+                    val panChange = event.calculatePan()
+                    val isMultiTouch = event.changes.size > 1
+
+                    if (isMultiTouch && zoomChange != 1f) {
+                        val newScale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
+                        scale = newScale
+
+                        if (newScale > MIN_SCALE) {
+                            offset = clampOffset(offset + panChange, newScale)
+                        } else {
+                            offset = Offset.Zero
+                        }
+
+                        event.changes.forEach { it.consume() }
+                    } else if (scale > MIN_SCALE && panChange != Offset.Zero) {
+                        offset = clampOffset(offset + panChange, scale)
+                        event.changes.forEach { it.consume() }
+                    }
+                } while (event.changes.any { it.pressed })
             }
         }
 
@@ -279,7 +301,7 @@ private fun ImageContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .transformable(state = transformState, enabled = true)
+                .then(transformModifier)
                 .then(gestureModifier)
                 .graphicsLayer {
                     scaleX = scale
