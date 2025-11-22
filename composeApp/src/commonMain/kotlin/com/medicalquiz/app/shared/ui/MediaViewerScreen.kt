@@ -261,16 +261,19 @@ private fun ImageContent(
             )
         }
 
-        // Transformable state for pinch zoom
+        // Transformable state for pinch zoom and pan
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
             val proposedScale = scale * zoomChange
             
             // Apply scale
-            scale = proposedScale.coerceIn(MIN_SCALE, MAX_SCALE)
+            val newScale = proposedScale.coerceIn(MIN_SCALE, MAX_SCALE)
+            scale = newScale
             
-            // Apply pan with bounds checking
-            val proposedOffset = offset + panChange
-            offset = clampOffset(proposedOffset, scale)
+            // Only apply pan if zoomed in
+            if (newScale > MIN_SCALE) {
+                val proposedOffset = offset + panChange
+                offset = clampOffset(proposedOffset, newScale)
+            }
             
             // Reset to center if zoomed out completely
             if (scale <= MIN_SCALE) {
@@ -328,13 +331,19 @@ private fun ImageContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // Apply gesture first to capture taps
-                .then(gestureModifier)
-                // Only enable transformable when scale is appropriate
-                .transformable(
-                    state = transformState,
-                    enabled = true, // Always enabled but HorizontalPager handles disable
+                // Apply transformable ONLY when zoomed (enables pinch/pan when needed)
+                .then(
+                    if (scale > MIN_SCALE) {
+                        Modifier.transformable(
+                            state = transformState,
+                            enabled = true,
+                        )
+                    } else {
+                        Modifier
+                    }
                 )
+                // Apply gesture handler for double-tap (works at any zoom level)
+                .then(gestureModifier)
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
