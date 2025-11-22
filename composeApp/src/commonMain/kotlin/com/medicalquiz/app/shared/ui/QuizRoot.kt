@@ -241,11 +241,20 @@ fun QuizRoot(
             selectedIds = state.selectedSubjectIds,
             onRetry = { viewModel.fetchSubjects() },
             onApply = { selected ->
-                viewModel.setSelectedSubjectsWithoutLoading(selected)
+                // In quiz mode: apply and load. In filter mode: only apply without loading
+                if (hasQuestions) {
+                    viewModel.applySelectedSubjects(selected)
+                } else {
+                    viewModel.setSelectedSubjectsWithoutLoading(selected)
+                }
                 showSubjectDialog = false
             },
             onClear = {
-                viewModel.setSelectedSubjectsWithoutLoading(emptySet())
+                if (hasQuestions) {
+                    viewModel.applySelectedSubjects(emptySet())
+                } else {
+                    viewModel.setSelectedSubjectsWithoutLoading(emptySet())
+                }
                 showSubjectDialog = false
             },
             onDismiss = { showSubjectDialog = false }
@@ -262,11 +271,20 @@ fun QuizRoot(
                 viewModel.fetchSystemsForSubjects(subjects)
             },
             onApply = { selected ->
-                viewModel.setSelectedSystemsWithoutLoading(selected)
+                // In quiz mode: apply and load. In filter mode: only apply without loading
+                if (hasQuestions) {
+                    viewModel.applySelectedSystems(selected)
+                } else {
+                    viewModel.setSelectedSystemsWithoutLoading(selected)
+                }
                 showSystemDialog = false
             },
             onClear = {
-                viewModel.setSelectedSystemsWithoutLoading(emptySet())
+                if (hasQuestions) {
+                    viewModel.applySelectedSystems(emptySet())
+                } else {
+                    viewModel.setSelectedSystemsWithoutLoading(emptySet())
+                }
                 showSystemDialog = false
             },
             onDismiss = { showSystemDialog = false }

@@ -217,13 +217,13 @@ private fun ImageContent(
 
     val scope = rememberCoroutineScope()
 
-    // STATE MANAGEMENT: Use mutableState for UI-driven updates (Gestures)
+    // Zoom state
     var scale by remember { mutableFloatStateOf(MIN_SCALE) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
     // Notify parent of zoom state
     LaunchedEffect(scale) {
-        onZoomChanged(scale > 1f)
+        onZoomChanged(scale > 1.05f) // Small threshold to prevent jitter
     }
 
     // Overlay state
@@ -247,7 +247,7 @@ private fun ImageContent(
         val containerWidth = density.run { maxWidth.toPx() }
         val containerHeight = density.run { maxHeight.toPx() }
 
-        // Helper to keep image within bounds
+        // Clamp offset to keep image within bounds
         fun clampOffset(proposedOffset: Offset, currentScale: Float): Offset {
             val scaledWidth = containerWidth * currentScale
             val scaledHeight = containerHeight * currentScale
@@ -261,52 +261,62 @@ private fun ImageContent(
             )
         }
 
+        // Transformable state for pinch zoom
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-            val newScale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
-            val newOffset = offset + panChange
-
-            scale = newScale
-            offset = clampOffset(newOffset, newScale)
+            val proposedScale = scale * zoomChange
+            
+            // Apply scale
+            scale = proposedScale.coerceIn(MIN_SCALE, MAX_SCALE)
+            
+            // Apply pan with bounds checking
+            val proposedOffset = offset + panChange
+            offset = clampOffset(proposedOffset, scale)
+            
+            // Reset to center if zoomed out completely
+            if (scale <= MIN_SCALE) {
+                offset = Offset.Zero
+            }
         }
 
-        // Gesture Modifier - Handle double-tap zoom in/out
-        // Single modifier for both states avoids recomposition issues
-        val gestureModifier = Modifier.pointerInput(Unit) {
+        // Double-tap gesture handler
+        val gestureModifier = Modifier.pointerInput(containerWidth, containerHeight) {
             detectTapGestures(
                 onDoubleTap = { tapOffset ->
                     scope.launch {
-                        val startScale = scale
-                        val startOffset = offset
-
-                        if (scale <= MIN_SCALE) {
-                            // Zoom In Animation
+                        if (scale <= MIN_SCALE + 0.05f) {
+                            // Zoom IN to tap location
                             val targetScale = DOUBLE_TAP_ZOOM
+                            
+                            // Calculate offset to center on tap point
                             val centerX = containerWidth / 2f
                             val centerY = containerHeight / 2f
-
-                            // Calculate where we want to end up
                             val targetOffset = Offset(
                                 x = (centerX - tapOffset.x) * (targetScale - 1f),
                                 y = (centerY - tapOffset.y) * (targetScale - 1f),
                             )
+                            
+                            // Animate zoom in
+                            val startScale = scale
+                            val startOffset = offset
                             val clampedTarget = clampOffset(targetOffset, targetScale)
-
-                            Animatable(0f).animateTo(1f) {
-                                val t = this.value
-                                scale = lerp(startScale, targetScale, t)
+                            
+                            Animatable(0f).animateTo(1f) { progress ->
+                                scale = lerp(startScale, targetScale, progress.value)
                                 offset = Offset(
-                                    x = lerp(startOffset.x, clampedTarget.x, t),
-                                    y = lerp(startOffset.y, clampedTarget.y, t),
+                                    x = lerp(startOffset.x, clampedTarget.x, progress.value),
+                                    y = lerp(startOffset.y, clampedTarget.y, progress.value),
                                 )
                             }
                         } else {
-                            // Zoom Out Animation
-                            Animatable(0f).animateTo(1f) {
-                                val t = this.value
-                                scale = lerp(startScale, MIN_SCALE, t)
+                            // Zoom OUT to reset
+                            val startScale = scale
+                            val startOffset = offset
+                            
+                            Animatable(0f).animateTo(1f) { progress ->
+                                scale = lerp(startScale, MIN_SCALE, progress.value)
                                 offset = Offset(
-                                    x = lerp(startOffset.x, 0f, t),
-                                    y = lerp(startOffset.y, 0f, t),
+                                    x = lerp(startOffset.x, 0f, progress.value),
+                                    y = lerp(startOffset.y, 0f, progress.value),
                                 )
                             }
                         }
@@ -318,14 +328,12 @@ private fun ImageContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                // Apply gesture first to capture taps
                 .then(gestureModifier)
-                .then(
-                    if (scale > 1f) {
-                        // Only apply transformable when actually zoomed
-                        Modifier.transformable(transformState)
-                    } else {
-                        Modifier
-                    }
+                // Only enable transformable when scale is appropriate
+                .transformable(
+                    state = transformState,
+                    enabled = true, // Always enabled but HorizontalPager handles disable
                 )
                 .graphicsLayer {
                     scaleX = scale
@@ -350,7 +358,7 @@ private fun ImageContent(
                 )
             }
 
-            // Control Buttons
+            // Control buttons
             if (description != null) {
                 IconButton(
                     onClick = { showExplanation = true },
