@@ -241,11 +241,11 @@ fun QuizRoot(
             selectedIds = state.selectedSubjectIds,
             onRetry = { viewModel.fetchSubjects() },
             onApply = { selected ->
-                viewModel.applySelectedSubjects(selected)
+                viewModel.setSelectedSubjectsWithoutLoading(selected)
                 showSubjectDialog = false
             },
             onClear = {
-                viewModel.applySelectedSubjects(emptySet())
+                viewModel.setSelectedSubjectsWithoutLoading(emptySet())
                 showSubjectDialog = false
             },
             onDismiss = { showSubjectDialog = false }
@@ -262,11 +262,11 @@ fun QuizRoot(
                 viewModel.fetchSystemsForSubjects(subjects)
             },
             onApply = { selected ->
-                viewModel.applySelectedSystems(selected)
+                viewModel.setSelectedSystemsWithoutLoading(selected)
                 showSystemDialog = false
             },
             onClear = {
-                viewModel.applySelectedSystems(emptySet())
+                viewModel.setSelectedSystemsWithoutLoading(emptySet())
                 showSystemDialog = false
             },
             onDismiss = { showSystemDialog = false }

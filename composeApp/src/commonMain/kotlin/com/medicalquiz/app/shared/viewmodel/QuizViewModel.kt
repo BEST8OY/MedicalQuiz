@@ -49,6 +49,9 @@ class QuizViewModel : ViewModel() {
     val uiEvents = _uiEvents.asSharedFlow()
 
     private var lastFetchedSubjectIds: List<Long>? = null
+    
+    // Scroll position tracking per question
+    private val scrollPositionCache = mutableMapOf<Long, Int>()
 
     fun setDatabaseManager(db: DatabaseProvider) {
         // 1. Reset state immediately so UI clears old data
@@ -335,7 +338,7 @@ class QuizViewModel : ViewModel() {
     }
 
     fun setSelectedSubjects(ids: Set<Long>) {
-        applySelectedSubjects(ids)
+        setSelectedSubjectsWithoutLoading(ids)
     }
 
     fun applySelectedSubjects(newSubjectIds: Set<Long>) {
@@ -352,7 +355,23 @@ class QuizViewModel : ViewModel() {
             
             _state.update { it.copy(selectedSystemIds = validSystems) }
             updatePreviewQuestionCount()
-            loadFilteredQuestionIds()
+        }
+    }
+
+    fun setSelectedSubjectsWithoutLoading(newSubjectIds: Set<Long>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.update { it.copy(selectedSubjectIds = newSubjectIds) }
+            
+            val validSystems = if (newSubjectIds.isEmpty()) {
+                emptySet()
+            } else {
+                databaseManager?.getSystems(newSubjectIds.toList())
+                    ?.map { it.id }
+                    ?.toSet() ?: emptySet()
+            }
+            
+            _state.update { it.copy(selectedSystemIds = validSystems) }
+            updatePreviewQuestionCount()
         }
     }
 
@@ -377,14 +396,20 @@ class QuizViewModel : ViewModel() {
     }
 
     fun setSelectedSystems(ids: Set<Long>) {
-        applySelectedSystems(ids)
+        setSelectedSystemsWithoutLoading(ids)
     }
 
     fun applySelectedSystems(newSystemIds: Set<Long>) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(selectedSystemIds = newSystemIds) }
             updatePreviewQuestionCount()
-            loadFilteredQuestionIds()
+        }
+    }
+
+    fun setSelectedSystemsWithoutLoading(newSystemIds: Set<Long>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.update { it.copy(selectedSystemIds = newSystemIds) }
+            updatePreviewQuestionCount()
         }
     }
 
@@ -507,5 +532,17 @@ class QuizViewModel : ViewModel() {
         viewModelScope.launch {
             _uiEvents.emit(UiEvent.ShowToast(message))
         }
+    }
+
+    fun saveScrollPosition(questionId: Long, scrollPosition: Int) {
+        scrollPositionCache[questionId] = scrollPosition
+    }
+
+    fun getScrollPosition(questionId: Long): Int {
+        return scrollPositionCache[questionId] ?: 0
+    }
+
+    fun clearScrollPosition(questionId: Long) {
+        scrollPositionCache.remove(questionId)
     }
 }
