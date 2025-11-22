@@ -141,7 +141,13 @@ fun QuizRoot(
                         scope.launch { drawerState.close() }
                     },
                     onClearFilters = {
-                        onClearFilters()
+                        // In quiz mode: apply and load. In filter mode: delegate to callback
+                        if (hasQuestions) {
+                            viewModel.applySelectedSubjects(emptySet())
+                            viewModel.applySelectedSystems(emptySet())
+                        } else {
+                            onClearFilters()
+                        }
                         scope.launch { drawerState.close() }
                     },
                     onSettings = {
