@@ -300,11 +300,11 @@ private fun ImageContent(
                             val startOffset = offset
                             val clampedTarget = clampOffset(targetOffset, targetScale)
                             
-                            Animatable(0f).animateTo(1f) { progress ->
-                                scale = lerp(startScale, targetScale, progress.value)
+                            Animatable(0f).animateTo(1f) {
+                                scale = lerp(startScale, targetScale, this.value)
                                 offset = Offset(
-                                    x = lerp(startOffset.x, clampedTarget.x, progress.value),
-                                    y = lerp(startOffset.y, clampedTarget.y, progress.value),
+                                    x = lerp(startOffset.x, clampedTarget.x, this.value),
+                                    y = lerp(startOffset.y, clampedTarget.y, this.value),
                                 )
                             }
                         } else {
@@ -312,11 +312,11 @@ private fun ImageContent(
                             val startScale = scale
                             val startOffset = offset
                             
-                            Animatable(0f).animateTo(1f) { progress ->
-                                scale = lerp(startScale, MIN_SCALE, progress.value)
+                            Animatable(0f).animateTo(1f) {
+                                scale = lerp(startScale, MIN_SCALE, this.value)
                                 offset = Offset(
-                                    x = lerp(startOffset.x, 0f, progress.value),
-                                    y = lerp(startOffset.y, 0f, progress.value),
+                                    x = lerp(startOffset.x, 0f, this.value),
+                                    y = lerp(startOffset.y, 0f, this.value),
                                 )
                             }
                         }
