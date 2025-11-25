@@ -565,7 +565,7 @@ private class RichTextDomParser(
                             if (codeText.isNotEmpty()) blocks += RichTextBlock.CodeBlock(codeText)
                         }
                         "table" -> parseTable(node)?.let(blocks::add)
-                        "div", "section", "article" -> {
+                        "div", "section", "article", "blockquote" -> {
                             if (node.classNames().any { it.equals("abstract", ignoreCase = true) }) {
                                 parseAbstractBlock(node, depth + 1)?.let(blocks::add)
                             } else {
