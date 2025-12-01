@@ -585,9 +585,9 @@ private fun JumpToQuestionDialog(
                             inputValue = value.filter { it.isDigit() }.take(4)
                         },
                         modifier = Modifier
-                            .width(100.dp)
-                            .padding(horizontal = 16.dp),
-                        textStyle = MaterialTheme.typography.headlineMedium.copy(
+                            .width(120.dp)
+                            .padding(horizontal = 12.dp),
+                        textStyle = MaterialTheme.typography.titleLarge.copy(
                             textAlign = TextAlign.Center,
                             fontWeight = FontWeight.SemiBold
                         ),

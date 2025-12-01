@@ -2,6 +2,7 @@ package com.medicalquiz.app.shared.ui.richtext
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
@@ -67,17 +68,19 @@ fun RichText(
     val resolvedTooltipHandler = remember(onTooltipClick) {
         onTooltipClick ?: { message -> tooltipMessage = message }
     }
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        blocks.forEach { block ->
-            RichTextBlockRenderer(
-                block = block,
-                onLinkClick = resolvedLinkHandler,
-                onMediaClick = resolvedMediaHandler,
-                onTooltipClick = resolvedTooltipHandler
-            )
+    SelectionContainer {
+        Column(
+            modifier = modifier,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            blocks.forEach { block ->
+                RichTextBlockRenderer(
+                    block = block,
+                    onLinkClick = resolvedLinkHandler,
+                    onMediaClick = resolvedMediaHandler,
+                    onTooltipClick = resolvedTooltipHandler
+                )
+            }
         }
     }
     tooltipMessage?.let { message ->

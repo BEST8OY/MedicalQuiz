@@ -3,6 +3,7 @@ package com.medicalquiz.app.shared.ui.richtext
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -260,20 +262,34 @@ internal fun TableRowContent(
                     tonalElevation = if (cellBackground == Color.Transparent) 0.dp else 1.dp,
                     shape = MaterialTheme.shapes.extraSmall
                 ) {
-                    InteractiveText(
-                        text = cell.cell.text,
+                    val horizontalAlignment = when (cell.cell.alignment) {
+                        TextAlign.Center -> Alignment.CenterHorizontally
+                        TextAlign.End, TextAlign.Right -> Alignment.End
+                        else -> Alignment.Start
+                    }
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 4.dp)
                             .padding(start = cell.cell.paddingStart),
-                        style = textStyle,
-                        color = textColor,
-                        textAlign = cell.cell.alignment,
-                        onLinkClick = onLinkClick,
-                        onTooltipClick = onTooltipClick,
-                        maxLines = Int.MAX_VALUE,
-                        overflow = TextOverflow.Visible
-                    )
+                        contentAlignment = when (cell.cell.alignment) {
+                            TextAlign.Center -> Alignment.Center
+                            TextAlign.End, TextAlign.Right -> Alignment.CenterEnd
+                            else -> Alignment.CenterStart
+                        }
+                    ) {
+                        InteractiveText(
+                            text = cell.cell.text,
+                            modifier = Modifier,
+                            style = textStyle,
+                            color = textColor,
+                            textAlign = cell.cell.alignment,
+                            onLinkClick = onLinkClick,
+                            onTooltipClick = onTooltipClick,
+                            maxLines = Int.MAX_VALUE,
+                            overflow = TextOverflow.Visible
+                        )
+                    }
                 }
             }
         }

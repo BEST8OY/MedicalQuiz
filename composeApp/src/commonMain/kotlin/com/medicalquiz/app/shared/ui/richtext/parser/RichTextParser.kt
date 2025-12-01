@@ -38,12 +38,96 @@ private const val MAX_RECURSION_DEPTH = 100
 private const val MAX_TABLE_ROWS = 1000
 private const val MAX_TABLE_COLUMNS = 50
 
-// Magic numbers for heuristics
+// Heuristic thresholds
 private const val MAX_TITLE_LENGTH = 200
 private const val BOLD_FONT_WEIGHT_THRESHOLD = 600
 private const val BOLD_CHECK_MAX_DEPTH = 4
 private const val EM_TO_DP_MULTIPLIER = 16f
 private const val ALIGNMENT_DESCENT_MAX_DEPTH = 3
+
+// ============================================================================
+// CSS Parsing Utilities
+// ============================================================================
+
+private object CssParser {
+    fun extractValue(styleAttr: String, property: String): String? {
+        if (styleAttr.isBlank()) return null
+        styleAttr.split(";").forEach { declaration ->
+            val name = declaration.substringBefore(":").trim()
+            if (name.equals(property, ignoreCase = true)) {
+                val rawValue = declaration.substringAfter(":", "")
+                    .substringBefore("!important")
+                    .trim()
+                if (rawValue.isNotEmpty()) return rawValue
+            }
+        }
+        return null
+    }
+
+    fun isBoldStyle(styleAttr: String): Boolean {
+        if (styleAttr.isBlank()) return false
+        val fontWeight = extractValue(styleAttr, "font-weight")?.lowercase()?.trim() ?: return false
+        if (fontWeight.startsWith("bold") || fontWeight.startsWith("bolder")) return true
+        val numeric = fontWeight.filter { it.isDigit() }
+        return numeric.toIntOrNull()?.let { it >= BOLD_FONT_WEIGHT_THRESHOLD } == true
+    }
+
+    fun parseDimension(value: String): Float? {
+        val clean = value.trim().lowercase()
+        return when {
+            clean.endsWith("%") -> null // Ignore percentages
+            clean.endsWith("px") -> clean.removeSuffix("px").toFloatOrNull()
+            else -> clean.toFloatOrNull()
+        }
+    }
+
+    fun parsePaddingStart(styleAttr: String): Dp {
+        val padding = extractValue(styleAttr, "padding-left") ?: return 0.dp
+        return when {
+            padding.endsWith("em") -> {
+                val value = padding.removeSuffix("em").toFloatOrNull() ?: 0f
+                (value * EM_TO_DP_MULTIPLIER).dp
+            }
+            padding.endsWith("px") -> {
+                val value = padding.removeSuffix("px").toFloatOrNull() ?: 0f
+                value.dp
+            }
+            else -> 0.dp
+        }
+    }
+
+    fun parseWidth(widthAttr: String, styleAttr: String): Float? {
+        extractValue(styleAttr, "width")?.let { parseDimension(it)?.let { w -> return w } }
+        extractValue(styleAttr, "min-width")?.let { parseDimension(it)?.let { w -> return w } }
+        extractValue(styleAttr, "max-width")?.let { parseDimension(it)?.let { w -> return w } }
+        if (widthAttr.isNotBlank()) {
+            parseDimension(widthAttr)?.let { return it }
+        }
+        return null
+    }
+
+    fun parseTextAlign(alignAttr: String, styleAttr: String): TextAlign? {
+        if (alignAttr.isNotEmpty()) {
+            return when (alignAttr.lowercase()) {
+                "center" -> TextAlign.Center
+                "right" -> TextAlign.End
+                "justify" -> TextAlign.Justify
+                else -> TextAlign.Start
+            }
+        }
+        val style = styleAttr.lowercase()
+        if (style.contains("text-align")) {
+            val value = style.substringAfter("text-align").substringAfter(":").substringBefore(";").trim()
+            return when (value) {
+                "center" -> TextAlign.Center
+                "right" -> TextAlign.End
+                "justify" -> TextAlign.Justify
+                else -> TextAlign.Start
+            }
+        }
+        return null
+    }
+}
 
 /** Configuration container for parser tag and attribute metadata. */
 private object RichTextParserConfig {
@@ -410,7 +494,7 @@ private class KsoupElement(
             when {
                 maxDepth <= 0 -> false
                 tagName.equals("strong", true) || tagName.equals("b", true) -> true
-                styleIndicatesBold(attr("style")) -> true
+                CssParser.isBoldStyle(attr("style")) -> true
                 classNames().matchesAnyMarker(RichTextParserConfig.boldClassMarkers) -> true
                 else -> {
                     children.any { child ->
@@ -419,28 +503,6 @@ private class KsoupElement(
                 }
             }
         }
-    }
-
-    private fun styleIndicatesBold(styleAttr: String): Boolean {
-        if (styleAttr.isBlank()) return false
-        val fontWeight = extractCssValue(styleAttr, "font-weight")?.lowercase()?.trim() ?: return false
-        if (fontWeight.startsWith("bold") || fontWeight.startsWith("bolder")) return true
-        val numeric = fontWeight.filter { it.isDigit() }
-        return numeric.toIntOrNull()?.let { it >= BOLD_FONT_WEIGHT_THRESHOLD } == true
-    }
-
-    private fun extractCssValue(styleAttr: String, property: String): String? {
-        if (styleAttr.isBlank()) return null
-        styleAttr.split(";").forEach { declaration ->
-            val name = declaration.substringBefore(":").trim()
-            if (name.equals(property, ignoreCase = true)) {
-                val rawValue = declaration.substringAfter(":", "")
-                    .substringBefore("!important")
-                    .trim()
-                if (rawValue.isNotEmpty()) return rawValue
-            }
-        }
-        return null
     }
 }
 
@@ -591,26 +653,7 @@ private class RichTextDomParser(
     }
 
     private fun parseTextAlign(element: KsoupElement): TextAlign? {
-        val align = element.attr("align").lowercase()
-        if (align.isNotEmpty()) {
-            return when (align) {
-                "center" -> TextAlign.Center
-                "right" -> TextAlign.End
-                "justify" -> TextAlign.Justify
-                else -> TextAlign.Start
-            }
-        }
-        val style = element.attr("style").lowercase()
-        if (style.contains("text-align")) {
-            val value = style.substringAfter("text-align").substringAfter(":").substringBefore(";").trim()
-            return when (value) {
-                "center" -> TextAlign.Center
-                "right" -> TextAlign.End
-                "justify" -> TextAlign.Justify
-                else -> TextAlign.Start
-            }
-        }
-        return null
+        return CssParser.parseTextAlign(element.attr("align"), element.attr("style"))
     }
 
     private fun handleParagraph(
@@ -840,8 +883,8 @@ private class RichTextDomParser(
             val columnSpan = cell.attr("colspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
             val rowSpan = cell.attr("rowspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
             val alignment = resolveCellAlignment(cell, classes)
-            val width = parseWidth(cell.attr("width"), cell.attr("style"))
-            val paddingStart = parsePaddingStart(cell.attr("style"))
+            val width = CssParser.parseWidth(cell.attr("width"), cell.attr("style"))
+            val paddingStart = CssParser.parsePaddingStart(cell.attr("style"))
             val hasHeaderTraits = cell.isHeaderCellCandidate(classes)
             CellInfo(
                 text = text,
@@ -935,60 +978,6 @@ private class RichTextDomParser(
         return collected
     }
 
-    private fun parseWidth(widthAttr: String, styleAttr: String): Float? {
-        extractCssValue(styleAttr, "width")?.let { value ->
-            parseDimension(value)?.let { return it }
-        }
-        extractCssValue(styleAttr, "min-width")?.let { value ->
-            parseDimension(value)?.let { return it }
-        }
-        extractCssValue(styleAttr, "max-width")?.let { value ->
-            parseDimension(value)?.let { return it }
-        }
-        if (widthAttr.isNotBlank()) {
-            parseDimension(widthAttr)?.let { return it }
-        }
-        return null
-    }
-
-    private fun extractCssValue(styleAttr: String, property: String): String? {
-        if (styleAttr.isBlank()) return null
-        styleAttr.split(";").forEach { declaration ->
-            val name = declaration.substringBefore(":").trim()
-            if (name.equals(property, ignoreCase = true)) {
-                val rawValue = declaration.substringAfter(":", "")
-                    .substringBefore("!important")
-                    .trim()
-                if (rawValue.isNotEmpty()) return rawValue
-            }
-        }
-        return null
-    }
-
-    private fun parseDimension(value: String): Float? {
-        val clean = value.trim().lowercase()
-        if (clean.endsWith("%")) {
-            return null // Ignore percentages to avoid clamping narrow cells
-        }
-        if (clean.endsWith("px")) {
-            return clean.removeSuffix("px").toFloatOrNull()
-        }
-        return clean.toFloatOrNull()
-    }
-
-    private fun parsePaddingStart(styleAttr: String): Dp {
-        val padding = extractCssValue(styleAttr, "padding-left") ?: return 0.dp
-        if (padding.endsWith("em")) {
-            val value = padding.removeSuffix("em").toFloatOrNull() ?: 0f
-            return (value * EM_TO_DP_MULTIPLIER).dp
-        }
-        if (padding.endsWith("px")) {
-            val value = padding.removeSuffix("px").toFloatOrNull() ?: 0f
-            return value.dp
-        }
-        return 0.dp
-    }
-
     private fun KsoupElement.findAlignmentFromDescendants(
         remainingDepth: Int = ALIGNMENT_DESCENT_MAX_DEPTH
     ): TextAlign? {
@@ -1056,13 +1045,7 @@ private class RichTextDomParser(
         return false
     }
 
-    private fun styleIndicatesBold(styleAttr: String): Boolean {
-        if (styleAttr.isBlank()) return false
-        val fontWeight = extractCssValue(styleAttr, "font-weight")?.lowercase()?.trim() ?: return false
-        if (fontWeight.startsWith("bold") || fontWeight.startsWith("bolder")) return true
-        val numeric = fontWeight.filter { it.isDigit() }
-        return numeric.toIntOrNull()?.let { it >= BOLD_FONT_WEIGHT_THRESHOLD } == true
-    }
+    private fun styleIndicatesBold(styleAttr: String): Boolean = CssParser.isBoldStyle(styleAttr)
     private fun parseAbstractBlock(element: KsoupElement, depth: Int): RichTextBlock.AbstractBlock? {
         val childBlocks = parse(element.children, depth = depth + 1).toMutableList()
         if (childBlocks.isEmpty()) return null

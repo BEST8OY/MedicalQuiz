@@ -1,25 +1,20 @@
 package com.medicalquiz.app.shared.ui.richtext
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextIndent
@@ -87,7 +82,7 @@ internal fun RichTextParagraph(
 internal fun InteractiveText(
     text: AnnotatedString,
     modifier: Modifier = Modifier,
-    style: androidx.compose.ui.text.TextStyle,
+    style: TextStyle,
     color: Color,
     textAlign: TextAlign? = null,
     onLinkClick: (String) -> Unit,
@@ -95,39 +90,30 @@ internal fun InteractiveText(
     maxLines: Int = Int.MAX_VALUE,
     overflow: TextOverflow = TextOverflow.Visible
 ) {
-    var layoutResult by remember(text) { mutableStateOf<TextLayoutResult?>(null) }
-    val hasInteractiveAnnotations = remember(text) {
-        text.getStringAnnotations("URL", 0, text.length).isNotEmpty() ||
-            text.getStringAnnotations("TOOLTIP", 0, text.length).isNotEmpty()
-    }
-    val pointerModifier = if (hasInteractiveAnnotations) {
-        Modifier.pointerInput(text, layoutResult) {
-            detectTapGestures { position ->
-                val offset = layoutResult?.getOffsetForPosition(position) ?: return@detectTapGestures
-                text.getStringAnnotations("TOOLTIP", offset, offset).firstOrNull()?.let {
-                    onTooltipClick?.invoke(it.item)
-                    return@detectTapGestures
-                }
-                text.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
-                    if (it.item.isNotBlank()) {
-                        onLinkClick(it.item)
-                    }
+    // Use ClickableText for handling link/tooltip taps while allowing selection
+    // Selection is handled by the parent SelectionContainer
+    ClickableText(
+        text = text,
+        modifier = modifier,
+        style = style.copy(
+            color = color,
+            textAlign = textAlign ?: TextAlign.Start
+        ),
+        maxLines = maxLines,
+        overflow = overflow,
+        onClick = { offset ->
+            // First check for tooltip annotations
+            text.getStringAnnotations("TOOLTIP", offset, offset).firstOrNull()?.let {
+                onTooltipClick?.invoke(it.item)
+                return@ClickableText
+            }
+            // Then check for URL annotations
+            text.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
+                if (it.item.isNotBlank()) {
+                    onLinkClick(it.item)
                 }
             }
         }
-    } else {
-        Modifier
-    }
-
-    MaterialText(
-        text = text,
-        modifier = modifier.then(pointerModifier),
-        style = style,
-        color = color,
-        textAlign = textAlign,
-        maxLines = maxLines,
-        overflow = overflow,
-        onTextLayout = { layoutResult = it }
     )
 }
 
