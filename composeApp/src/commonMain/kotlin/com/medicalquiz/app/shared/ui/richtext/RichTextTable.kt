@@ -28,6 +28,9 @@ import kotlin.collections.ArrayDeque
 import kotlin.collections.buildList
 import kotlin.math.max
 
+/** Maximum iterations per row to prevent infinite loops from malformed HTML */
+private const val MAX_COLUMN_ITERATIONS = 500
+
 /**
  * Renders a table with support for rowspan/colspan.
  * 
@@ -117,7 +120,11 @@ private class TableGridBuilder {
         val pendingCells = ArrayDeque(row.cells)
         val renderedCells = mutableListOf<TableRenderedCell>()
         var columnIndex = 0
-        while (pendingCells.isNotEmpty() || hasAnchorsFrom(columnIndex)) {
+        // Safety limit to prevent infinite loops from malformed HTML
+        val maxIterations = MAX_COLUMN_ITERATIONS
+        var iterations = 0
+        while ((pendingCells.isNotEmpty() || hasAnchorsFrom(columnIndex)) && iterations < maxIterations) {
+            iterations++
             when (val occupancy = spanSlots.getOrNull(columnIndex)) {
                 is ColumnSpan.Anchor -> {
                     val tracker = occupancy.tracker
@@ -262,11 +269,6 @@ internal fun TableRowContent(
                     tonalElevation = if (cellBackground == Color.Transparent) 0.dp else 1.dp,
                     shape = MaterialTheme.shapes.extraSmall
                 ) {
-                    val horizontalAlignment = when (cell.cell.alignment) {
-                        TextAlign.Center -> Alignment.CenterHorizontally
-                        TextAlign.End, TextAlign.Right -> Alignment.End
-                        else -> Alignment.Start
-                    }
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

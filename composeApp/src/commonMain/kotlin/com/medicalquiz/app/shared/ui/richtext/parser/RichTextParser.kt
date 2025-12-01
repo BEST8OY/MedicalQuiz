@@ -710,7 +710,21 @@ private class RichTextDomParser(
         val builder = buildAnnotatedString {
             appendNodes(element.children, baseStyle, palette)
         }
-        return builder.takeIf { it.text.isNotBlank() }
+        // Trim leading/trailing whitespace while preserving annotations
+        val trimmed = builder.trim()
+        return trimmed.takeIf { it.text.isNotBlank() }
+    }
+    
+    /**
+     * Trims leading and trailing whitespace from an AnnotatedString while preserving annotations.
+     */
+    private fun AnnotatedString.trim(): AnnotatedString {
+        val text = this.text
+        val start = text.indexOfFirst { !it.isWhitespace() }
+        if (start == -1) return AnnotatedString("")
+        val end = text.indexOfLast { !it.isWhitespace() } + 1
+        if (start == 0 && end == text.length) return this
+        return this.subSequence(start, end)
     }
 
     private fun AnnotatedString.Builder.appendNodes(
