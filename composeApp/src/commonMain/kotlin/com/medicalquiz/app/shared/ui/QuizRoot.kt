@@ -79,8 +79,9 @@ fun QuizRoot(
     var showResetLogsConfirmation by rememberSaveable { mutableStateOf(false) }
     var errorDialog by rememberSaveable { mutableStateOf<Pair<String, String>?>(null) }
 
-    // Media Viewer State
-    var mediaViewerState by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
+    // Media Viewer State - use ArrayList for Saveable compatibility
+    var mediaViewerFiles by rememberSaveable { mutableStateOf<ArrayList<String>?>(null) }
+    var mediaViewerIndex by rememberSaveable { mutableStateOf(0) }
     var mediaDescriptions by remember { mutableStateOf<Map<String, MediaDescription>>(emptyMap()) }
 
     // Load media descriptions
@@ -95,7 +96,10 @@ fun QuizRoot(
                 is UiEvent.OpenPerformanceDialog -> showPerformanceDialog = true
                 is UiEvent.ShowErrorDialog -> errorDialog = event.title to event.message
                 is UiEvent.ShowResetLogsConfirmation -> showResetLogsConfirmation = true
-                is UiEvent.OpenMedia -> mediaViewerState = event.urls to event.startIndex
+                is UiEvent.OpenMedia -> {
+                    mediaViewerFiles = ArrayList(event.urls)
+                    mediaViewerIndex = event.startIndex
+                }
                 else -> Unit
             }
         }
@@ -112,13 +116,12 @@ fun QuizRoot(
         }
     }
 
-    if (mediaViewerState != null) {
-        val (files, index) = mediaViewerState!!
+    if (mediaViewerFiles != null) {
         MediaViewerScreen(
-            mediaFiles = files,
-            startIndex = index,
+            mediaFiles = mediaViewerFiles!!,
+            startIndex = mediaViewerIndex,
             mediaDescriptions = mediaDescriptions,
-            onBack = { mediaViewerState = null }
+            onBack = { mediaViewerFiles = null }
         )
     } else if (isQuizMode) {
         ModalNavigationDrawer(

@@ -2,7 +2,6 @@ package com.medicalquiz.app.shared
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -49,12 +48,6 @@ fun App() {
             LaunchedEffect(Unit) {
                 viewModel.setSettingsRepository(settingsRepository)
                 viewModel.setCacheManager(cacheManager)
-            }
-
-            DisposableEffect(Unit) {
-                onDispose {
-                    viewModel.closeDatabase()
-                }
             }
             
             if (selectedDatabase == null) {

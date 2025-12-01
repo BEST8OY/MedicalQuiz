@@ -37,6 +37,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,7 +79,7 @@ fun MediaViewerScreen(
         initialPage = startIndex,
         pageCount = { mediaFiles.size }
     )
-    var isZoomed by remember { mutableStateOf(false) }
+    var isZoomed by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(pagerState.currentPage) {
         isZoomed = false
@@ -212,10 +213,11 @@ private fun ImageContent(
     
     val scope = rememberCoroutineScope()
 
-    var showExplanation by remember { mutableStateOf(false) }
-    var scale by remember { mutableFloatStateOf(MIN_SCALE) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
-    var showOverlay by remember { mutableStateOf(true) }
+    var showExplanation by rememberSaveable { mutableStateOf(false) }
+    var scale by rememberSaveable { mutableFloatStateOf(MIN_SCALE) }
+    var offsetX by rememberSaveable { mutableFloatStateOf(0f) }
+    var offsetY by rememberSaveable { mutableFloatStateOf(0f) }
+    var showOverlay by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(scale) {
         onZoomChanged(scale > 1.05f)
@@ -234,25 +236,28 @@ private fun ImageContent(
         val containerHeight = with(density) { maxHeight.toPx() }
 
         // Clamp offset to keep image within bounds
-        fun clampOffset(proposedOffset: Offset, currentScale: Float): Offset {
+        fun clampOffset(proposedX: Float, proposedY: Float, currentScale: Float): Pair<Float, Float> {
             val scaledWidth = containerWidth * currentScale
             val scaledHeight = containerHeight * currentScale
 
             val maxX = maxOf(0f, (scaledWidth - containerWidth) / 2f)
             val maxY = maxOf(0f, (scaledHeight - containerHeight) / 2f)
 
-            return Offset(
-                proposedOffset.x.coerceIn(-maxX, maxX),
-                proposedOffset.y.coerceIn(-maxY, maxY),
+            return Pair(
+                proposedX.coerceIn(-maxX, maxX),
+                proposedY.coerceIn(-maxY, maxY),
             )
         }
 
         val transformState = rememberTransformableState { zoomChange, panChange, _ ->
             scale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
             if (scale > MIN_SCALE) {
-                offset = clampOffset(offset + panChange, scale)
+                val (clampedX, clampedY) = clampOffset(offsetX + panChange.x, offsetY + panChange.y, scale)
+                offsetX = clampedX
+                offsetY = clampedY
             } else {
-                offset = Offset.Zero
+                offsetX = 0f
+                offsetY = 0f
             }
         }
 
@@ -261,22 +266,22 @@ private fun ImageContent(
                 onDoubleTap = { tapOffset ->
                     scope.launch {
                         val startScale = scale
-                        val startOffset = offset
-                        val (targetScale, targetOffset) = if (scale <= MIN_SCALE + 0.05f) {
-                            DOUBLE_TAP_ZOOM to Offset(
-                                x = (containerWidth / 2f - tapOffset.x) * (DOUBLE_TAP_ZOOM - 1f),
-                                y = (containerHeight / 2f - tapOffset.y) * (DOUBLE_TAP_ZOOM - 1f),
+                        val startOffsetX = offsetX
+                        val startOffsetY = offsetY
+                        val (targetScale, targetX, targetY) = if (scale <= MIN_SCALE + 0.05f) {
+                            Triple(
+                                DOUBLE_TAP_ZOOM,
+                                (containerWidth / 2f - tapOffset.x) * (DOUBLE_TAP_ZOOM - 1f),
+                                (containerHeight / 2f - tapOffset.y) * (DOUBLE_TAP_ZOOM - 1f)
                             )
                         } else {
-                            MIN_SCALE to Offset.Zero
+                            Triple(MIN_SCALE, 0f, 0f)
                         }
-                        val clampedTarget = clampOffset(targetOffset, targetScale)
+                        val (clampedTargetX, clampedTargetY) = clampOffset(targetX, targetY, targetScale)
                         Animatable(0f).animateTo(1f) {
                             scale = lerp(startScale, targetScale, this.value)
-                            offset = Offset(
-                                x = lerp(startOffset.x, clampedTarget.x, this.value),
-                                y = lerp(startOffset.y, clampedTarget.y, this.value),
-                            )
+                            offsetX = lerp(startOffsetX, clampedTargetX, this.value)
+                            offsetY = lerp(startOffsetY, clampedTargetY, this.value)
                         }
                     }
                 },
@@ -294,8 +299,8 @@ private fun ImageContent(
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
-                    translationX = offset.x
-                    translationY = offset.y
+                    translationX = offsetX
+                    translationY = offsetY
                 },
         ) {
             AsyncImage(

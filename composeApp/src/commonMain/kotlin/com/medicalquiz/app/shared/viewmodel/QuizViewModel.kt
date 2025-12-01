@@ -26,6 +26,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
+private const val MAX_SCROLL_CACHE_SIZE = 100
+
 class QuizViewModel : ViewModel() {
 
     private var databaseManager: DatabaseProvider? = null
@@ -50,8 +52,12 @@ class QuizViewModel : ViewModel() {
 
     private var lastFetchedSubjectIds: List<Long>? = null
     
-    // Scroll position tracking per question
-    private val scrollPositionCache = mutableMapOf<Long, Int>()
+    // Scroll position tracking per question - LRU cache with max size
+    private val scrollPositionCache = object : LinkedHashMap<Long, Int>(MAX_SCROLL_CACHE_SIZE, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Int>?): Boolean {
+            return size > MAX_SCROLL_CACHE_SIZE
+        }
+    }
 
     fun setDatabaseManager(db: DatabaseProvider) {
         // 1. Reset state immediately so UI clears old data
@@ -78,6 +84,7 @@ class QuizViewModel : ViewModel() {
                 databaseName = "" // Will be set shortly after
             )
         }
+        scrollPositionCache.clear()
     }
 
     fun setSettingsRepository(repo: SettingsRepository) {
@@ -508,5 +515,14 @@ class QuizViewModel : ViewModel() {
 
     fun clearScrollPosition(questionId: Long) {
         scrollPositionCache.remove(questionId)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        settingsObservationJob?.cancel()
+        // Use runBlocking as onCleared is synchronous and database needs to be closed
+        kotlinx.coroutines.runBlocking {
+            runCatching { databaseManager?.closeDatabase() }
+        }
     }
 }
