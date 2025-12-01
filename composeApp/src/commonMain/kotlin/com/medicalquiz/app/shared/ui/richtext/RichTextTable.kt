@@ -273,9 +273,9 @@ internal fun TableRowContent(
                             .padding(horizontal = 4.dp)
                             .padding(start = cell.cell.paddingStart),
                         contentAlignment = when (cell.cell.alignment) {
-                            TextAlign.Center -> Alignment.TopCenter
-                            TextAlign.End, TextAlign.Right -> Alignment.TopEnd
-                            else -> Alignment.TopStart
+                            TextAlign.Center -> Alignment.Center
+                            TextAlign.End, TextAlign.Right -> Alignment.CenterEnd
+                            else -> Alignment.CenterStart
                         }
                     ) {
                         InteractiveText(
