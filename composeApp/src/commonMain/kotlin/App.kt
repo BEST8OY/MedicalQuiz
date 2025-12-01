@@ -42,6 +42,8 @@ fun App() {
             val cacheManager = remember { CacheManager() }
             
             var selectedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
+            // Track which database has been initialized to avoid re-init on rotation
+            var initializedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
             
             // Initialize common dependencies
             LaunchedEffect(Unit) {
@@ -62,15 +64,21 @@ fun App() {
                     }
                 )
             } else {
-                // Initialize DB when selected
+                // Initialize DB only when it changes, not on rotation
                 LaunchedEffect(selectedDatabase) {
                     selectedDatabase?.let { dbName ->
+                        // Skip if already initialized for this database
+                        if (initializedDatabase == dbName && viewModel.getDatabaseManager() != null) {
+                            return@LaunchedEffect
+                        }
+                        
                         val dbPath = FileSystemHelper.getDatabasePath(dbName)
                         val databaseManager = DatabaseManager(dbPath)
                         databaseManager.init()
                         
                         viewModel.setDatabaseManager(databaseManager)
                         viewModel.setDatabaseName(dbName.removeSuffix(".db"))
+                        initializedDatabase = dbName
                     }
                 }
                 
@@ -85,15 +93,8 @@ fun App() {
                 QuizRoot(
                     viewModel = viewModel,
                     mediaHandler = mediaHandler,
-                    onClearFilters = {
-                        viewModel.setSelectedSubjects(emptySet())
-                        viewModel.setSelectedSystems(emptySet())
-                    },
-                    onStart = {
-                        viewModel.loadFilteredQuestionIds()
-                        viewModel.loadQuestion(0)
-                    },
                     onChangeDatabase = {
+                        initializedDatabase = null
                         selectedDatabase = null
                         viewModel.closeDatabase()
                     }

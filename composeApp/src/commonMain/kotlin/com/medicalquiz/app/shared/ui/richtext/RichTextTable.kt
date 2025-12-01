@@ -235,7 +235,7 @@ internal fun TableRowContent(
             .fillMaxWidth()
             .background(baseBackground)
             .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.Top
     ) {
         row.cells.forEach { cell ->
             val weight = cell.cell.width ?: cell.columnSpan.coerceAtLeast(1).toFloat()
@@ -273,9 +273,9 @@ internal fun TableRowContent(
                             .padding(horizontal = 4.dp)
                             .padding(start = cell.cell.paddingStart),
                         contentAlignment = when (cell.cell.alignment) {
-                            TextAlign.Center -> Alignment.Center
-                            TextAlign.End, TextAlign.Right -> Alignment.CenterEnd
-                            else -> Alignment.CenterStart
+                            TextAlign.Center -> Alignment.TopCenter
+                            TextAlign.End, TextAlign.Right -> Alignment.TopEnd
+                            else -> Alignment.TopStart
                         }
                     ) {
                         InteractiveText(

@@ -38,9 +38,8 @@ object MediaDescriptionRepository {
                 )
             }
             cachedDescriptions = entries
-        } catch (e: Exception) {
-            println("Error loading media descriptions: ${e.message}")
-            e.printStackTrace()
+        } catch (_: Exception) {
+            // Silently handle missing or malformed descriptions file
         }
         
         return cachedDescriptions

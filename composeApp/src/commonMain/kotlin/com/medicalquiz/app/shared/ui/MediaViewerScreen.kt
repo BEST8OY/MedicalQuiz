@@ -203,6 +203,13 @@ private fun ImageContent(
 ) {
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
     val filePath = remember(fileName) { "$storageDir/media/$fileName" }
+    val fileExists = remember(filePath) { FileSystemHelper.exists(filePath) }
+    
+    if (!fileExists) {
+        UnsupportedContent(fileName = fileName, type = MediaType.IMAGE)
+        return
+    }
+    
     val scope = rememberCoroutineScope()
 
     var showExplanation by remember { mutableStateOf(false) }
@@ -306,35 +313,36 @@ private fun ImageContent(
                     contentScale = ContentScale.Fit,
                 )
             }
+        }
 
-            if (description != null) {
-                IconButton(
-                    onClick = { showExplanation = true },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(16.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Info,
-                        contentDescription = "Show explanation",
-                        tint = Color.White,
-                    )
-                }
+        // Icons outside the transformed area so they stay fixed on screen
+        if (description != null) {
+            IconButton(
+                onClick = { showExplanation = true },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Info,
+                    contentDescription = "Show explanation",
+                    tint = Color.White,
+                )
             }
+        }
 
-            if (overlayPath != null) {
-                IconButton(
-                    onClick = { showOverlay = !showOverlay },
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(16.dp),
-                ) {
-                    Icon(
-                        imageVector = if (showOverlay) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                        contentDescription = "Toggle overlay",
-                        tint = Color.White,
-                    )
-                }
+        if (overlayPath != null) {
+            IconButton(
+                onClick = { showOverlay = !showOverlay },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp),
+            ) {
+                Icon(
+                    imageVector = if (showOverlay) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                    contentDescription = "Toggle overlay",
+                    tint = Color.White,
+                )
             }
         }
     }

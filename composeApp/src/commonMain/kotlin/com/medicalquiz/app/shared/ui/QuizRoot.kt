@@ -61,15 +61,13 @@ import kotlinx.coroutines.launch
 fun QuizRoot(
     viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
-    onClearFilters: () -> Unit,
-    onStart: () -> Unit,
     onChangeDatabase: () -> Unit
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
-    val hasQuestions = state.questionIds.isNotEmpty() && state.currentQuestion != null
+    val isQuizMode = state.questionIds.isNotEmpty() && state.currentQuestion != null
     val performanceLabel = formatPerformanceLabel(state.performanceFilter)
 
     // Dialog states
@@ -122,7 +120,7 @@ fun QuizRoot(
             mediaDescriptions = mediaDescriptions,
             onBack = { mediaViewerState = null }
         )
-    } else if (hasQuestions) {
+    } else if (isQuizMode) {
         ModalNavigationDrawer(
             drawerState = drawerState,
             gesturesEnabled = drawerState.isOpen,
@@ -141,13 +139,8 @@ fun QuizRoot(
                         scope.launch { drawerState.close() }
                     },
                     onClearFilters = {
-                        // In quiz mode: apply and load. In filter mode: delegate to callback
-                        if (hasQuestions) {
-                            viewModel.applySelectedSubjects(emptySet())
-                            viewModel.applySelectedSystems(emptySet())
-                        } else {
-                            onClearFilters()
-                        }
+                        viewModel.applySelectedSubjects(emptySet())
+                        viewModel.applySelectedSystems(emptySet())
                         scope.launch { drawerState.close() }
                     },
                     onSettings = {
@@ -200,8 +193,14 @@ fun QuizRoot(
             onSelectSubjects = { showSubjectDialog = true },
             onSelectSystems = { showSystemDialog = true },
             onSelectPerformance = { viewModel.openPerformanceDialog() },
-            onStart = onStart,
-            onClearFilters = onClearFilters
+            onStart = {
+                viewModel.loadFilteredQuestionIds()
+                viewModel.loadQuestion(0)
+            },
+            onClearFilters = {
+                viewModel.applySelectedSubjects(emptySet(), loadQuestions = false)
+                viewModel.applySelectedSystems(emptySet(), loadQuestions = false)
+            }
         )
     }
 
@@ -210,8 +209,7 @@ fun QuizRoot(
         PerformanceFilterDialog(
             current = state.performanceFilter,
             onSelect = { filter ->
-                viewModel.setPerformanceFilterSilently(filter)
-                viewModel.updatePreviewQuestionCount()
+                viewModel.setPerformanceFilter(filter, loadQuestions = isQuizMode)
                 showPerformanceDialog = false
             },
             onDismiss = { showPerformanceDialog = false }
@@ -247,20 +245,11 @@ fun QuizRoot(
             selectedIds = state.selectedSubjectIds,
             onRetry = { viewModel.fetchSubjects() },
             onApply = { selected ->
-                // In quiz mode: apply and load. In filter mode: only apply without loading
-                if (hasQuestions) {
-                    viewModel.applySelectedSubjects(selected)
-                } else {
-                    viewModel.setSelectedSubjectsWithoutLoading(selected)
-                }
+                viewModel.applySelectedSubjects(selected, loadQuestions = isQuizMode)
                 showSubjectDialog = false
             },
             onClear = {
-                if (hasQuestions) {
-                    viewModel.applySelectedSubjects(emptySet())
-                } else {
-                    viewModel.setSelectedSubjectsWithoutLoading(emptySet())
-                }
+                viewModel.applySelectedSubjects(emptySet(), loadQuestions = isQuizMode)
                 showSubjectDialog = false
             },
             onDismiss = { showSubjectDialog = false }
@@ -277,20 +266,11 @@ fun QuizRoot(
                 viewModel.fetchSystemsForSubjects(subjects)
             },
             onApply = { selected ->
-                // In quiz mode: apply and load. In filter mode: only apply without loading
-                if (hasQuestions) {
-                    viewModel.applySelectedSystems(selected)
-                } else {
-                    viewModel.setSelectedSystemsWithoutLoading(selected)
-                }
+                viewModel.applySelectedSystems(selected, loadQuestions = isQuizMode)
                 showSystemDialog = false
             },
             onClear = {
-                if (hasQuestions) {
-                    viewModel.applySelectedSystems(emptySet())
-                } else {
-                    viewModel.setSelectedSystemsWithoutLoading(emptySet())
-                }
+                viewModel.applySelectedSystems(emptySet(), loadQuestions = isQuizMode)
                 showSystemDialog = false
             },
             onDismiss = { showSystemDialog = false }

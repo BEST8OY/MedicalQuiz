@@ -14,12 +14,9 @@ class MediaHandler(
     fun updateMedia(questionId: Long, mediaFiles: List<String>) {
         currentQuestionId = questionId
         currentMediaFiles = mediaFiles
-        println("MediaHandler: updateMedia: question=$questionId, mediaCount=${mediaFiles.size}, files=$mediaFiles")
     }
 
     fun handleMediaLink(url: String): Boolean {
-        println("MediaHandler: handleMediaLink called with URL: $url")
-        
         if (url.startsWith("media://")) {
             val fileName = url.substringAfter("media://")
             return openMediaFromCache(fileName)
@@ -57,10 +54,7 @@ class MediaHandler(
     fun showCurrentMediaGallery(startIndex: Int = 0): Boolean = openMediaFromCache(null, startIndex)
 
     private fun openMediaFromCache(fileName: String?, fallbackIndex: Int = 0): Boolean {
-        if (currentMediaFiles.isEmpty()) {
-            println("MediaHandler: No media files available for current question")
-            return false
-        }
+        if (currentMediaFiles.isEmpty()) return false
         val startIndex = resolveStartIndex(currentMediaFiles, fileName, fallbackIndex)
         onOpenMedia(currentMediaFiles, startIndex)
         return true

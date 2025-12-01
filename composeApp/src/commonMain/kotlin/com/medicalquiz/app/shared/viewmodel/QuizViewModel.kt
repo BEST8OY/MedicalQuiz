@@ -91,12 +91,6 @@ class QuizViewModel : ViewModel() {
         cacheManager = cache
     }
 
-    fun initializeDatabase(dbPath: String) {
-        // In KMP, the UI layer should handle creating the DatabaseManager and passing it here
-        // via setDatabaseManager. This method might be redundant or should trigger a callback.
-        // For now, we assume setDatabaseManager is called externally.
-    }
-
     fun closeDatabase() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -337,11 +331,7 @@ class QuizViewModel : ViewModel() {
         ) ?: emptyList()
     }
 
-    fun setSelectedSubjects(ids: Set<Long>) {
-        setSelectedSubjectsWithoutLoading(ids)
-    }
-
-    fun applySelectedSubjects(newSubjectIds: Set<Long>) {
+    fun applySelectedSubjects(newSubjectIds: Set<Long>, loadQuestions: Boolean = true) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(selectedSubjectIds = newSubjectIds) }
             
@@ -354,25 +344,10 @@ class QuizViewModel : ViewModel() {
             }
             
             _state.update { it.copy(selectedSystemIds = validSystems) }
-            updatePreviewQuestionCount()
-            loadFilteredQuestionIds()
-        }
-    }
-
-    fun setSelectedSubjectsWithoutLoading(newSubjectIds: Set<Long>) {
-        viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(selectedSubjectIds = newSubjectIds) }
-            
-            val validSystems = if (newSubjectIds.isEmpty()) {
-                emptySet()
-            } else {
-                databaseManager?.getSystems(newSubjectIds.toList())
-                    ?.map { it.id }
-                    ?.toSet() ?: emptySet()
+            updatePreviewQuestionCountInternal()
+            if (loadQuestions) {
+                loadFilteredQuestionIds()
             }
-            
-            _state.update { it.copy(selectedSystemIds = validSystems) }
-            updatePreviewQuestionCount()
         }
     }
 
@@ -396,22 +371,13 @@ class QuizViewModel : ViewModel() {
         return state.value.selectedSubjectIds.filter { it in available }
     }
 
-    fun setSelectedSystems(ids: Set<Long>) {
-        setSelectedSystemsWithoutLoading(ids)
-    }
-
-    fun applySelectedSystems(newSystemIds: Set<Long>) {
+    fun applySelectedSystems(newSystemIds: Set<Long>, loadQuestions: Boolean = true) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(selectedSystemIds = newSystemIds) }
-            updatePreviewQuestionCount()
-            loadFilteredQuestionIds()
-        }
-    }
-
-    fun setSelectedSystemsWithoutLoading(newSystemIds: Set<Long>) {
-        viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(selectedSystemIds = newSystemIds) }
-            updatePreviewQuestionCount()
+            updatePreviewQuestionCountInternal()
+            if (loadQuestions) {
+                loadFilteredQuestionIds()
+            }
         }
     }
 
@@ -446,16 +412,14 @@ class QuizViewModel : ViewModel() {
         return db.getSystems(subjects).map { it.id }.toSet()
     }
 
-    fun setPerformanceFilter(filter: PerformanceFilter) {
+    fun setPerformanceFilter(filter: PerformanceFilter, loadQuestions: Boolean = true) {
         _state.update { it.copy(performanceFilter = filter) }
-        loadFilteredQuestionIds()
         viewModelScope.launch(Dispatchers.IO) {
-            updatePreviewQuestionCount()
+            updatePreviewQuestionCountInternal()
+            if (loadQuestions) {
+                loadFilteredQuestionIds()
+            }
         }
-    }
-
-    fun setPerformanceFilterSilently(filter: PerformanceFilter) {
-        _state.update { it.copy(performanceFilter = filter) }
     }
 
     fun openPerformanceDialog() {
@@ -468,14 +432,12 @@ class QuizViewModel : ViewModel() {
         _state.update { it.copy(databaseName = name) }
     }
 
-    fun updatePreviewQuestionCount() {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val count = fetchFilteredQuestionIds().size
-                _state.update { it.copy(previewQuestionCount = count) }
-            } catch (e: Exception) {
-                _state.update { it.copy(previewQuestionCount = 0) }
-            }
+    private suspend fun updatePreviewQuestionCountInternal() {
+        try {
+            val count = fetchFilteredQuestionIds().size
+            _state.update { it.copy(previewQuestionCount = count) }
+        } catch (e: Exception) {
+            _state.update { it.copy(previewQuestionCount = 0) }
         }
     }
 
