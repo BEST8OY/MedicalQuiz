@@ -747,8 +747,9 @@ private class RichTextDomParser(
 
                 if (tag == "li") {
                     val parent = node.parent
-                    val isFirstItem = length == 0 || (length > 0 && this[length - 1] == '\n')
-                    val prefix = if (isFirstItem && length == 0) "" else "\n"
+                    val currentLength = this.toAnnotatedString().length
+                    val endsWithNewline = currentLength > 0 && this.toAnnotatedString()[currentLength - 1] == '\n'
+                    val prefix = if (currentLength == 0 || endsWithNewline) "" else "\n"
                     if (parent != null && parent.tagName.equals("ol", ignoreCase = true)) {
                         val index = parent.children
                             .filter { it is KsoupElement && it.tagName.equals("li", ignoreCase = true) }
