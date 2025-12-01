@@ -1,19 +1,24 @@
 package com.medicalquiz.app.shared.ui.richtext
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
@@ -90,30 +95,50 @@ internal fun InteractiveText(
     maxLines: Int = Int.MAX_VALUE,
     overflow: TextOverflow = TextOverflow.Visible
 ) {
-    // Use ClickableText for handling link/tooltip taps while allowing selection
-    // Selection is handled by the parent SelectionContainer
-    ClickableText(
+    // Check if text has any clickable annotations
+    val hasAnnotations = remember(text) {
+        text.getStringAnnotations(0, text.length).any { 
+            it.tag == "URL" || it.tag == "TOOLTIP" 
+        }
+    }
+    
+    val layoutResult = remember { mutableStateOf<TextLayoutResult?>(null) }
+    
+    val textModifier = if (hasAnnotations) {
+        modifier.pointerInput(text, onLinkClick, onTooltipClick) {
+            detectTapGestures { pos ->
+                layoutResult.value?.let { layout ->
+                    val offset = layout.getOffsetForPosition(pos)
+                    // First check for tooltip annotations
+                    text.getStringAnnotations("TOOLTIP", offset, offset).firstOrNull()?.let {
+                        onTooltipClick?.invoke(it.item)
+                        return@detectTapGestures
+                    }
+                    // Then check for URL annotations
+                    text.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
+                        if (it.item.isNotBlank()) {
+                            onLinkClick(it.item)
+                        }
+                    }
+                    // If no annotation at this position, don't consume the click
+                    // (gesture will naturally not propagate, but we've only handled actual links)
+                }
+            }
+        }
+    } else {
+        modifier
+    }
+    
+    BasicText(
         text = text,
-        modifier = modifier,
+        modifier = textModifier,
         style = style.copy(
             color = color,
             textAlign = textAlign ?: TextAlign.Start
         ),
         maxLines = maxLines,
         overflow = overflow,
-        onClick = { offset ->
-            // First check for tooltip annotations
-            text.getStringAnnotations("TOOLTIP", offset, offset).firstOrNull()?.let {
-                onTooltipClick?.invoke(it.item)
-                return@ClickableText
-            }
-            // Then check for URL annotations
-            text.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
-                if (it.item.isNotBlank()) {
-                    onLinkClick(it.item)
-                }
-            }
-        }
+        onTextLayout = { layoutResult.value = it }
     )
 }
 
