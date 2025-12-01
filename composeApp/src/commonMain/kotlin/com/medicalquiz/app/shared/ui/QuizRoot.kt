@@ -12,6 +12,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.FilterAltOff
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
@@ -129,6 +134,9 @@ fun QuizRoot(
             gesturesEnabled = drawerState.isOpen,
             drawerContent = {
                 NavigationDrawer(
+                    subjectCount = state.selectedSubjectIds.size,
+                    systemCount = state.selectedSystemIds.size,
+                    performanceFilter = state.performanceFilter,
                     onSubjectFilter = {
                         showSubjectDialog = true
                         scope.launch { drawerState.close() }
@@ -144,6 +152,7 @@ fun QuizRoot(
                     onClearFilters = {
                         viewModel.applySelectedSubjects(emptySet())
                         viewModel.applySelectedSystems(emptySet())
+                        viewModel.setPerformanceFilter(PerformanceFilter.ALL, loadQuestions = true)
                         scope.launch { drawerState.close() }
                     },
                     onSettings = {
@@ -341,6 +350,9 @@ private fun TopBar(
 
 @Composable
 private fun NavigationDrawer(
+    subjectCount: Int = 0,
+    systemCount: Int = 0,
+    performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
     onSubjectFilter: () -> Unit,
     onSystemFilter: () -> Unit,
     onPerformanceFilter: () -> Unit,
@@ -348,6 +360,8 @@ private fun NavigationDrawer(
     onSettings: () -> Unit,
     onChangeDatabase: () -> Unit
 ) {
+    val hasActiveFilters = subjectCount > 0 || systemCount > 0 || performanceFilter != PerformanceFilter.ALL
+    
     ModalDrawerSheet {
         Column(
             modifier = Modifier
@@ -355,46 +369,103 @@ private fun NavigationDrawer(
                 .padding(vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(
-                text = "Filters",
-                modifier = Modifier.padding(horizontal = 28.dp, vertical = 16.dp),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 28.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Filters",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                if (hasActiveFilters) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = "Active",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
 
             HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
 
             NavigationDrawerItem(
-                label = { Text("Subject") },
-                icon = { Icon(Icons.Filled.Tune, null) },
-                selected = false,
+                label = { 
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Subjects")
+                        if (subjectCount > 0) {
+                            FilterBadge(count = subjectCount)
+                        }
+                    }
+                },
+                icon = { Icon(Icons.Filled.Category, null) },
+                selected = subjectCount > 0,
                 onClick = onSubjectFilter,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
 
             NavigationDrawerItem(
-                label = { Text("System") },
-                icon = { Icon(Icons.Filled.Storage, null) },
-                selected = false,
+                label = { 
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Systems")
+                        if (systemCount > 0) {
+                            FilterBadge(count = systemCount)
+                        }
+                    }
+                },
+                icon = { Icon(Icons.Filled.FilterAlt, null) },
+                selected = systemCount > 0,
                 onClick = onSystemFilter,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
 
             NavigationDrawerItem(
-                label = { Text("Performance") },
+                label = { 
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Performance")
+                        if (performanceFilter != PerformanceFilter.ALL) {
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                },
                 icon = { Icon(Icons.AutoMirrored.Filled.TrendingUp, null) },
-                selected = false,
+                selected = performanceFilter != PerformanceFilter.ALL,
                 onClick = onPerformanceFilter,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
 
-            NavigationDrawerItem(
-                label = { Text("Clear filters") },
-                icon = { Icon(Icons.Filled.Refresh, null) },
-                selected = false,
-                onClick = onClearFilters,
-                modifier = Modifier.padding(horizontal = 12.dp)
-            )
+            if (hasActiveFilters) {
+                NavigationDrawerItem(
+                    label = { Text("Clear all filters") },
+                    icon = { Icon(Icons.Filled.FilterAltOff, null) },
+                    selected = false,
+                    onClick = onClearFilters,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -408,12 +479,28 @@ private fun NavigationDrawer(
 
             NavigationDrawerItem(
                 label = { Text("Change Database") },
-                icon = { Icon(Icons.Filled.Storage, null) },
+                icon = { Icon(Icons.Filled.FolderOpen, null) },
                 selected = false,
                 onClick = onChangeDatabase,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun FilterBadge(count: Int) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.primary
+    ) {
+        Text(
+            text = count.toString(),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimary,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
@@ -430,6 +517,8 @@ private fun FilterScreen(
     onClearFilters: () -> Unit
 ) {
     val hasPreview = previewCount > 0
+    val hasFilters = subjectCount > 0 || systemCount > 0 || performanceLabel != "All Questions"
+    
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -442,15 +531,17 @@ private fun FilterScreen(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 FilterSelectionCard(
                     title = "Subjects",
-                    subtitle = if (subjectCount == 0) "Tap to choose" else "$subjectCount selected",
-                    icon = Icons.Filled.Tune,
+                    subtitle = if (subjectCount == 0) "All subjects" else "$subjectCount selected",
+                    icon = Icons.Filled.Category,
+                    isActive = subjectCount > 0,
                     onClick = onSelectSubjects
                 )
 
                 FilterSelectionCard(
                     title = "Systems",
-                    subtitle = if (systemCount == 0) "Tap to choose" else "$systemCount selected",
-                    icon = Icons.Filled.Storage,
+                    subtitle = if (systemCount == 0) "All systems" else "$systemCount selected",
+                    icon = Icons.Filled.FilterAlt,
+                    isActive = systemCount > 0,
                     onClick = onSelectSystems
                 )
 
@@ -458,6 +549,7 @@ private fun FilterScreen(
                     title = "Performance",
                     subtitle = performanceLabel,
                     icon = Icons.AutoMirrored.Filled.TrendingUp,
+                    isActive = performanceLabel != "All Questions",
                     onClick = onSelectPerformance
                 )
             }
@@ -466,6 +558,7 @@ private fun FilterScreen(
 
             PrimaryActionButtons(
                 hasPreview = hasPreview,
+                hasFilters = hasFilters,
                 onStart = onStart,
                 onClearFilters = onClearFilters
             )
@@ -477,21 +570,21 @@ private fun FilterScreen(
 private fun FilterPreviewCard(previewCount: Int) {
     val hasPreview = previewCount > 0
     val statusText = when {
-        previewCount > 1 -> "$previewCount questions ready"
-        previewCount == 1 -> "1 question ready"
-        else -> "No questions yet"
+        previewCount > 1 -> "$previewCount questions available"
+        previewCount == 1 -> "1 question available"
+        else -> "No matching questions"
     }
     val supportingText = if (hasPreview) {
-        "You're good to start whenever you're ready."
+        "Tap Start to begin your quiz session."
     } else {
-        "Add at least one subject, system, or performance filter to see matching questions."
+        "Try adjusting your filters to find questions."
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (hasPreview) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (hasPreview) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
         )
     ) {
         Column(
@@ -501,12 +594,13 @@ private fun FilterPreviewCard(previewCount: Int) {
             Text(
                 text = statusText,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                color = if (hasPreview) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
             )
             Text(
                 text = supportingText,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (hasPreview) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
             )
         }
     }
@@ -518,13 +612,23 @@ private fun FilterSelectionCard(
     title: String,
     subtitle: String,
     icon: ImageVector,
+    isActive: Boolean = false,
     onClick: () -> Unit
 ) {
+    val containerColor = if (isActive) 
+        MaterialTheme.colorScheme.primaryContainer 
+    else 
+        MaterialTheme.colorScheme.surfaceVariant
+    val contentColor = if (isActive)
+        MaterialTheme.colorScheme.onPrimaryContainer
+    else
+        MaterialTheme.colorScheme.onSurfaceVariant
+        
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Row(
             modifier = Modifier
@@ -535,14 +639,14 @@ private fun FilterSelectionCard(
         ) {
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface,
+                color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                 modifier = Modifier.size(44.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = if (isActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -554,12 +658,13 @@ private fun FilterSelectionCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isActive) contentColor else MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = contentColor
                 )
             }
         }
@@ -569,6 +674,7 @@ private fun FilterSelectionCard(
 @Composable
 private fun PrimaryActionButtons(
     hasPreview: Boolean,
+    hasFilters: Boolean,
     onStart: () -> Unit,
     onClearFilters: () -> Unit
 ) {
@@ -578,14 +684,16 @@ private fun PrimaryActionButtons(
             enabled = hasPreview,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (hasPreview) "Start quiz" else "Select filters to start")
+            Text(if (hasPreview) "Start Quiz" else "No questions match")
         }
-        OutlinedButton(
-            onClick = onClearFilters,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(imageVector = Icons.Filled.Refresh, contentDescription = null)
-            Text("Clear filters", modifier = Modifier.padding(start = 8.dp))
+        if (hasFilters) {
+            OutlinedButton(
+                onClick = onClearFilters,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(imageVector = Icons.Filled.FilterAltOff, contentDescription = null)
+                Text("Reset Filters", modifier = Modifier.padding(start = 8.dp))
+            }
         }
     }
 }
