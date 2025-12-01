@@ -1242,47 +1242,28 @@ private fun <T> SelectionListContent(
             )
         )
         
-        // Select all / Deselect all
+        // Select all / Clear
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextButton(
-                onClick = {
-                    currentSelection = if (isAllSelected) {
-                        mutableSetOf()
-                    } else {
-                        allIds.toMutableSet()
-                    }
-                }
+                onClick = { currentSelection = allIds.toMutableSet() },
+                enabled = !isAllSelected
             ) {
-                Icon(
-                    imageVector = if (isAllSelected) Icons.Rounded.Close else Icons.Rounded.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isAllSelected) "Deselect all" else "Select all")
+                Text("Select all")
             }
             
-            if (currentSelection.isNotEmpty()) {
-                TextButton(
-                    onClick = { 
-                        currentSelection = mutableSetOf()
-                    }
-                ) {
-                    Text("Clear")
-                }
+            TextButton(
+                onClick = { currentSelection = mutableSetOf() },
+                enabled = currentSelection.isNotEmpty()
+            ) {
+                Text("Clear")
             }
         }
-        
-        HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 24.dp),
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
         
         // Item list
         LazyColumn(

@@ -128,36 +128,42 @@ private fun HintSection(
     mediaClick: (String) -> Unit,
     showSelectedHighlight: Boolean
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Hint",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            if (canToggle) {
-                TextButton(onClick = onToggle) {
-                    Text(text = if (isVisible) "Hide" else "Show")
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(
+            alpha = if (isVisible) 1f else 0.6f
+        ),
+        modifier = Modifier.fillMaxWidth(),
+        onClick = if (canToggle) onToggle else ({})
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "💡 Hint",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                if (canToggle) {
+                    Text(
+                        text = if (isVisible) "▲" else "▼",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                    )
                 }
             }
-        }
-        AnimatedVisibility(
-            visible = isVisible,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                modifier = Modifier.fillMaxWidth()
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
                 RichText(
                     html = hintHtml,
-                    modifier = Modifier.padding(12.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                     onLinkClick = linkHandler,
                     onMediaClick = mediaClick,
                     showSelectedHighlight = showSelectedHighlight
@@ -413,18 +419,28 @@ private fun QuizQuestionCard(
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Explanation",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                RichText(
-                    html = explanationHtml,
-                    showSelectedHighlight = state.answerSubmitted,
-                    onLinkClick = linkHandler,
-                    onMediaClick = mediaClick
-                )
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Explanation",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    RichText(
+                        html = explanationHtml,
+                        showSelectedHighlight = state.answerSubmitted,
+                        onLinkClick = linkHandler,
+                        onMediaClick = mediaClick
+                    )
+                }
             }
         }
     }
@@ -539,6 +555,12 @@ private fun extractMetadataList(raw: String?): List<String> {
 private fun PerformanceCard(performance: QuestionPerformance?) {
     performance ?: return
     
+    val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    val lastResultColor = if (performance.lastCorrect) 
+        MaterialTheme.colorScheme.tertiary 
+    else 
+        MaterialTheme.colorScheme.error
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -549,42 +571,51 @@ private fun PerformanceCard(performance: QuestionPerformance?) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Attempts: ${performance.attempts}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+            PerformanceStat(
+                label = "Attempts",
+                value = performance.attempts.toString(),
+                color = contentColor
             )
             
-            Text(
-                text = "•",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+            PerformanceStat(
+                label = "Last",
+                value = if (performance.lastCorrect) "✓" else "✗",
+                color = lastResultColor
             )
             
-            Text(
-                text = "Last: ${if (performance.lastCorrect) "Correct" else "Incorrect"}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-            
-            Text(
-                text = "•",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
-            )
-            
-            Text(
-                text = "Ratio: ${performance.correctCount}/${performance.incorrectCount}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+            PerformanceStat(
+                label = "Score",
+                value = "${performance.correctCount}/${performance.correctCount + performance.incorrectCount}",
+                color = contentColor
             )
         }
+    }
+}
+
+@Composable
+private fun PerformanceStat(
+    label: String,
+    value: String,
+    color: androidx.compose.ui.graphics.Color
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = color.copy(alpha = 0.7f)
+        )
     }
 }
