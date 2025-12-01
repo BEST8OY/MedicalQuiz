@@ -8,6 +8,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -40,7 +41,7 @@ fun App() {
             val viewModel = viewModel { QuizViewModel() }
             val cacheManager = remember { CacheManager() }
             
-            var selectedDatabase by remember { mutableStateOf<String?>(null) }
+            var selectedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
             
             // Initialize common dependencies
             LaunchedEffect(Unit) {
