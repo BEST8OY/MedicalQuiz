@@ -747,13 +747,15 @@ private class RichTextDomParser(
 
                 if (tag == "li") {
                     val parent = node.parent
+                    val isFirstItem = length == 0 || (length > 0 && this[length - 1] == '\n')
+                    val prefix = if (isFirstItem && length == 0) "" else "\n"
                     if (parent != null && parent.tagName.equals("ol", ignoreCase = true)) {
                         val index = parent.children
                             .filter { it is KsoupElement && it.tagName.equals("li", ignoreCase = true) }
                             .indexOf(node)
-                        append("\n${index + 1}. ")
+                        append("$prefix${index + 1}. ")
                     } else {
-                        append("\n• ")
+                        append("$prefix• ")
                     }
                 }
 
