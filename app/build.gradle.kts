@@ -77,7 +77,7 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.0")
 
     // ----- Jetpack Compose -----
-    implementation(platform("androidx.compose:compose-bom:2025.11.00"))
+    implementation(platform("androidx.compose:compose-bom:2025.11.01"))
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
