@@ -16,7 +16,8 @@ fun generateImageLoader(context: PlatformContext): ImageLoader {
         }
         .memoryCache {
             MemoryCache.Builder()
-                .maxSizePercent(context, 0.25)
+                // Lower cache percent to reduce cold-start heap pressure
+                .maxSizePercent(context, 0.10)
                 .build()
         }
         .diskCache {

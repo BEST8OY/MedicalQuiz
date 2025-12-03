@@ -44,6 +44,8 @@ import com.medicalquiz.app.shared.data.models.Question
 import com.medicalquiz.app.shared.ui.richtext.RichText
 import com.medicalquiz.app.shared.utils.HtmlUtils
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun QuizScreen(
@@ -315,7 +317,10 @@ private fun QuizQuestionCard(
 
     LaunchedEffect(question?.id) {
         if (question != null) {
-            val mediaFiles = HtmlUtils.collectMediaFiles(question)
+            // Run regex-heavy media collection off the main thread
+            val mediaFiles = withContext(Dispatchers.IO) {
+                HtmlUtils.collectMediaFiles(question)
+            }
             mediaHandler.updateMedia(question.id, mediaFiles)
         } else {
             mediaHandler.reset()

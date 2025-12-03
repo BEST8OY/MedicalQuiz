@@ -89,9 +89,11 @@ fun QuizRoot(
     var mediaViewerIndex by rememberSaveable { mutableStateOf(0) }
     var mediaDescriptions by remember { mutableStateOf<Map<String, MediaDescription>>(emptyMap()) }
 
-    // Load media descriptions
-    LaunchedEffect(Unit) {
-        mediaDescriptions = com.medicalquiz.app.shared.data.MediaDescriptionRepository.load()
+    // Load media descriptions only when the viewer opens to reduce cold-start allocations
+    LaunchedEffect(mediaViewerFiles) {
+        if (mediaViewerFiles != null && mediaDescriptions.isEmpty()) {
+            mediaDescriptions = com.medicalquiz.app.shared.data.MediaDescriptionRepository.load()
+        }
     }
 
     // Event handling
@@ -102,8 +104,18 @@ fun QuizRoot(
                 is UiEvent.ShowErrorDialog -> errorDialog = event.title to event.message
                 is UiEvent.ShowResetLogsConfirmation -> showResetLogsConfirmation = true
                 is UiEvent.OpenMedia -> {
-                    mediaViewerFiles = ArrayList(event.urls)
-                    mediaViewerIndex = event.startIndex
+                    // Filter out unavailable media files
+                    val availableFiles = event.urls.filter { fileName ->
+                        val path = "${com.medicalquiz.app.shared.platform.StorageProvider.getAppStorageDirectory()}/media/$fileName"
+                        com.medicalquiz.app.shared.platform.FileSystemHelper.exists(path)
+                    }
+                    if (availableFiles.isNotEmpty()) {
+                        mediaViewerFiles = ArrayList(availableFiles)
+                        // Adjust start index if original file was filtered out
+                        val originalFile = event.urls.getOrNull(event.startIndex)
+                        val newIndex = if (originalFile != null) availableFiles.indexOf(originalFile).coerceAtLeast(0) else 0
+                        mediaViewerIndex = newIndex.coerceIn(0, availableFiles.lastIndex)
+                    }
                 }
                 else -> Unit
             }

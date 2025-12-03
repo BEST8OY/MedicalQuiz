@@ -171,9 +171,24 @@ object HtmlUtils {
         return ensureHtmlStructure(trimmed)
     }
 
+    // LRU cache for media path lookups to avoid repeated file-existence checks
+    private const val MEDIA_PATH_CACHE_SIZE = 100
+    private val mediaPathCache = object : LinkedHashMap<String, String?>(MEDIA_PATH_CACHE_SIZE, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String?>?): Boolean = size > MEDIA_PATH_CACHE_SIZE
+    }
+
     fun getMediaPath(fileName: String?): String? {
         if (fileName.isNullOrBlank()) return null
-        return FileSystemHelper.getMediaFile(fileName)
+        synchronized(mediaPathCache) {
+            if (mediaPathCache.containsKey(fileName)) {
+                return mediaPathCache[fileName]
+            }
+        }
+        val path = FileSystemHelper.getMediaFile(fileName)
+        synchronized(mediaPathCache) {
+            mediaPathCache[fileName] = path
+        }
+        return path
     }
 
     fun normalizeFileName(urlOrName: String): String = urlOrName

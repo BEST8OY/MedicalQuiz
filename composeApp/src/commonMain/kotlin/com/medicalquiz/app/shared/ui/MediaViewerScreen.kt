@@ -1,8 +1,10 @@
 package com.medicalquiz.app.shared.ui
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -48,22 +51,29 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
+import androidx.compose.runtime.produceState
 import coil3.compose.AsyncImage
 import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
 import com.medicalquiz.app.shared.utils.HtmlUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
 
 // Animation and interaction constants
 private const val MAX_SCALE = 5f
 private const val DOUBLE_TAP_ZOOM = 2.5f
 private const val FADE_INTENSITY = 0.5f
 private const val MIN_SCALE = 1f
+private const val DISMISS_THRESHOLD = 150f // pixels to swipe before dismiss triggers
+private const val DISMISS_VELOCITY_THRESHOLD = 1000f // velocity threshold for quick swipe dismiss
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,10 +90,22 @@ fun MediaViewerScreen(
         pageCount = { mediaFiles.size }
     )
     var isZoomed by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    // Swipe-to-dismiss state
+    val dismissOffset = remember { Animatable(0f) }
+    var isDismissing by remember { mutableStateOf(false) }
 
     LaunchedEffect(pagerState.currentPage) {
         isZoomed = false
+        // Reset dismiss offset when changing pages
+        if (!isDismissing) {
+            dismissOffset.snapTo(0f)
+        }
     }
+
+    // Calculate alpha based on dismiss offset for fade-out effect
+    val dismissAlpha = 1f - (dismissOffset.value.absoluteValue / 500f).coerceIn(0f, 0.5f)
 
     Scaffold(
         topBar = {
@@ -122,11 +144,51 @@ fun MediaViewerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color.Black),
+                .background(Color.Black.copy(alpha = dismissAlpha)),
         ) {
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .offset { IntOffset(0, dismissOffset.value.roundToInt()) }
+                    .graphicsLayer { alpha = dismissAlpha }
+                    .pointerInput(isZoomed) {
+                        if (!isZoomed) {
+                            detectVerticalDragGestures(
+                                onDragStart = { },
+                                onDragEnd = {
+                                    scope.launch {
+                                        if (dismissOffset.value.absoluteValue > DISMISS_THRESHOLD) {
+                                            // Animate out and dismiss
+                                            isDismissing = true
+                                            val targetOffset = if (dismissOffset.value > 0) 1000f else -1000f
+                                            dismissOffset.animateTo(
+                                                targetValue = targetOffset,
+                                                animationSpec = tween(durationMillis = 200)
+                                            )
+                                            onBack()
+                                        } else {
+                                            // Snap back
+                                            dismissOffset.animateTo(
+                                                targetValue = 0f,
+                                                animationSpec = tween(durationMillis = 200)
+                                            )
+                                        }
+                                    }
+                                },
+                                onDragCancel = {
+                                    scope.launch {
+                                        dismissOffset.animateTo(0f, animationSpec = tween(durationMillis = 200))
+                                    }
+                                },
+                                onVerticalDrag = { _, dragAmount ->
+                                    scope.launch {
+                                        dismissOffset.snapTo(dismissOffset.value + dragAmount)
+                                    }
+                                }
+                            )
+                        }
+                    },
                 userScrollEnabled = !isZoomed,
                 beyondViewportPageCount = 1,
             ) { page ->
@@ -174,11 +236,20 @@ private fun HtmlContent(fileName: String) {
         "${StorageProvider.getAppStorageDirectory()}/media/$fileName"
     }
 
-    val htmlContent = remember(filePath) {
-        FileSystemHelper.readText(filePath)?.let(HtmlUtils::sanitizeForRichText)
+    // Load and sanitize HTML on background thread
+    val htmlContent by produceState<String?>(initialValue = null, filePath) {
+        value = withContext(Dispatchers.IO) {
+            val raw = FileSystemHelper.readText(filePath)
+            raw?.let(HtmlUtils::sanitizeForRichText)
+        }
     }
 
-    if (htmlContent.isNullOrBlank()) {
+    if (htmlContent == null) {
+        // Still loading or failed
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(text = "Loading…", color = Color.White)
+        }
+    } else if (htmlContent!!.isBlank()) {
         UnsupportedContent(fileName = fileName, type = MediaType.HTML)
     } else {
         Column(
@@ -189,7 +260,7 @@ private fun HtmlContent(fileName: String) {
                 .padding(16.dp),
         ) {
             RichText(
-                html = htmlContent,
+                html = htmlContent!!,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -204,13 +275,17 @@ private fun ImageContent(
 ) {
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
     val filePath = remember(fileName) { "$storageDir/media/$fileName" }
-    val fileExists = remember(filePath) { FileSystemHelper.exists(filePath) }
-    
+
+    // Check file existence on background thread
+    val fileExists by produceState(initialValue = true, filePath) {
+        value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
+    }
+
     if (!fileExists) {
         UnsupportedContent(fileName = fileName, type = MediaType.IMAGE)
         return
     }
-    
+
     val scope = rememberCoroutineScope()
 
     var showExplanation by rememberSaveable { mutableStateOf(false) }
@@ -223,11 +298,14 @@ private fun ImageContent(
         onZoomChanged(scale > 1.05f)
     }
 
-    val overlayPath = remember(fileName, storageDir) {
-        if (!fileName.startsWith("big_", ignoreCase = true)) return@remember null
-        val overlayFile = fileName.substringBeforeLast('.') + ".svg"
-        val path = "$storageDir/media/$overlayFile"
-        path.takeIf { FileSystemHelper.exists(it) }
+    // Resolve overlay path on background thread
+    val overlayPath by produceState<String?>(initialValue = null, fileName, storageDir) {
+        value = withContext(Dispatchers.IO) {
+            if (!fileName.startsWith("big_", ignoreCase = true)) return@withContext null
+            val overlayFile = fileName.substringBeforeLast('.') + ".svg"
+            val path = "$storageDir/media/$overlayFile"
+            if (FileSystemHelper.exists(path)) path else null
+        }
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
