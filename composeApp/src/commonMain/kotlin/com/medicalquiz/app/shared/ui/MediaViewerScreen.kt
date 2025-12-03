@@ -10,7 +10,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -386,64 +387,66 @@ private fun ImageContent(
             )
         }
 
-        val gestureModifier = Modifier
-            .pointerInput(containerWidth, containerHeight) {
-                detectTransformGestures { centroid, pan, zoom, _ ->
-                    val oldScale = scale
-                    val newScale = (scale * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
-                    
-                    if (newScale > MIN_SCALE) {
-                        // Adjust offset to zoom toward the centroid (focal point)
-                        val centroidX = centroid.x - containerWidth / 2f
-                        val centroidY = centroid.y - containerHeight / 2f
-                        
-                        // Calculate new offset that keeps the centroid point stationary
-                        val newOffsetX = offsetX + (centroidX - offsetX) * (1 - newScale / oldScale) + pan.x
-                        val newOffsetY = offsetY + (centroidY - offsetY) * (1 - newScale / oldScale) + pan.y
-                        
-                        val (clampedX, clampedY) = clampOffset(newOffsetX, newOffsetY, newScale)
-                        offsetX = clampedX
-                        offsetY = clampedY
-                    } else {
-                        offsetX = 0f
-                        offsetY = 0f
-                    }
-                    scale = newScale
-                }
+        // Use transformable state for proper gesture handling with HorizontalPager
+        val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
+            val oldScale = scale
+            val newScale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
+            
+            if (newScale > MIN_SCALE) {
+                // Calculate new offset with pan
+                val newOffsetX = offsetX + panChange.x
+                val newOffsetY = offsetY + panChange.y
+                
+                val (clampedX, clampedY) = clampOffset(newOffsetX, newOffsetY, newScale)
+                offsetX = clampedX
+                offsetY = clampedY
+            } else {
+                offsetX = 0f
+                offsetY = 0f
             }
+            scale = newScale
+        }
+
+        val gestureModifier = Modifier
+            // transformable with canPan allows pager swipes when not zoomed
+            .transformable(
+                state = transformableState,
+                lockRotationOnZoomPan = true,
+                canPan = { scale > MIN_SCALE + 0.01f } // Only pan when zoomed in
+            )
             .pointerInput(containerWidth, containerHeight) {
                 detectTapGestures(
                     onTap = { onSingleTap() },
                     onDoubleTap = { tapOffset ->
-                    scope.launch {
-                        val startScale = scale
-                        val startOffsetX = offsetX
-                        val startOffsetY = offsetY
-                        val (targetScale, targetX, targetY) = if (scale <= MIN_SCALE + 0.05f) {
-                            Triple(
-                                DOUBLE_TAP_ZOOM,
-                                (containerWidth / 2f - tapOffset.x) * (DOUBLE_TAP_ZOOM - 1f),
-                                (containerHeight / 2f - tapOffset.y) * (DOUBLE_TAP_ZOOM - 1f)
-                            )
-                        } else {
-                            Triple(MIN_SCALE, 0f, 0f)
+                        scope.launch {
+                            val startScale = scale
+                            val startOffsetX = offsetX
+                            val startOffsetY = offsetY
+                            val (targetScale, targetX, targetY) = if (scale <= MIN_SCALE + 0.05f) {
+                                Triple(
+                                    DOUBLE_TAP_ZOOM,
+                                    (containerWidth / 2f - tapOffset.x) * (DOUBLE_TAP_ZOOM - 1f),
+                                    (containerHeight / 2f - tapOffset.y) * (DOUBLE_TAP_ZOOM - 1f)
+                                )
+                            } else {
+                                Triple(MIN_SCALE, 0f, 0f)
+                            }
+                            val (clampedTargetX, clampedTargetY) = clampOffset(targetX, targetY, targetScale)
+                            Animatable(0f).animateTo(
+                                targetValue = 1f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                )
+                            ) {
+                                scale = lerp(startScale, targetScale, this.value)
+                                offsetX = lerp(startOffsetX, clampedTargetX, this.value)
+                                offsetY = lerp(startOffsetY, clampedTargetY, this.value)
+                            }
                         }
-                        val (clampedTargetX, clampedTargetY) = clampOffset(targetX, targetY, targetScale)
-                        Animatable(0f).animateTo(
-                            targetValue = 1f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioLowBouncy,
-                                stiffness = Spring.StiffnessMedium
-                            )
-                        ) {
-                            scale = lerp(startScale, targetScale, this.value)
-                            offsetX = lerp(startOffsetX, clampedTargetX, this.value)
-                            offsetY = lerp(startOffsetY, clampedTargetY, this.value)
-                        }
-                    }
-                },
-            )
-        }
+                    },
+                )
+            }
 
         // Image container with zoom/pan
         Box(
@@ -495,7 +498,7 @@ private fun ImageContent(
         // Overlay toggle button (bottom-left)
         if (overlayPath != null) {
             AnimatedVisibility(
-                visible = showUI || isZoomed,
+                visible = showUI,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier
