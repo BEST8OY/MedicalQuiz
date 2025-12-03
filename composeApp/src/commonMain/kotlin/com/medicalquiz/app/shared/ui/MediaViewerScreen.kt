@@ -117,7 +117,11 @@ fun MediaViewerScreen(
     )
     var isZoomed by rememberSaveable { mutableStateOf(false) }
     var showUI by rememberSaveable { mutableStateOf(true) }
+    var showExplanation by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    
+    // Current page's description
+    val currentDescription = mediaDescriptions[mediaFiles.getOrNull(pagerState.currentPage)]
 
     // Auto-hide UI after delay
     LaunchedEffect(showUI, pagerState.currentPage) {
@@ -172,7 +176,7 @@ fun MediaViewerScreen(
             }
         }
 
-        // Top bar with gradient background
+        // Top bar - minimal, just back and info
         AnimatedVisibility(
             visible = showUI,
             enter = fadeIn() + slideInVertically { -it },
@@ -201,86 +205,65 @@ fun MediaViewerScreen(
                     )
                 }
 
-                // Page indicator pill
-                Surface(
-                    modifier = Modifier.align(Alignment.Center),
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color.Black.copy(alpha = 0.5f)
-                ) {
-                    Text(
-                        text = "${pagerState.currentPage + 1} / ${mediaFiles.size}",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Color.White,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-        }
-
-        // Bottom page dots indicator (for multiple images)
-        if (mediaFiles.size > 1) {
-            AnimatedVisibility(
-                visible = showUI,
-                enter = fadeIn() + slideInVertically { it },
-                exit = fadeOut() + slideOutVertically { it },
-                modifier = Modifier.align(Alignment.BottomCenter)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(gradientBottom)
-                        .padding(bottom = 24.dp, top = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    PageIndicatorDots(
-                        pageCount = mediaFiles.size,
-                        currentPage = pagerState.currentPage,
-                        modifier = Modifier
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PageIndicatorDots(
-    pageCount: Int,
-    currentPage: Int,
-    modifier: Modifier = Modifier
-) {
-    // Show max 7 dots, with ellipsis effect for many pages
-    val maxDots = 7
-    val showDots = pageCount <= maxDots
-    
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (showDots) {
-            repeat(pageCount) { index ->
-                val isSelected = index == currentPage
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 4.dp)
-                        .size(if (isSelected) 10.dp else 6.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (isSelected) Color.White
-                            else Color.White.copy(alpha = 0.4f)
+                // Info button (right side) - only if description exists
+                if (currentDescription != null) {
+                    FilledIconButton(
+                        onClick = { showExplanation = true },
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = Color.Black.copy(alpha = 0.3f),
+                            contentColor = Color.White
                         )
-                )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = "Show explanation",
+                        )
+                    }
+                }
             }
-        } else {
-            // For many pages, show simplified indicator
-            Text(
-                text = "${currentPage + 1} of $pageCount",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White
-            )
         }
+
+        // Bottom bar - counter and controls grouped together
+        AnimatedVisibility(
+            visible = showUI,
+            enter = fadeIn() + slideInVertically { it },
+            exit = fadeOut() + slideOutVertically { it },
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(gradientBottom)
+                    .padding(horizontal = 16.dp, vertical = 24.dp)
+            ) {
+                // Page counter (center)
+                if (mediaFiles.size > 1) {
+                    Surface(
+                        modifier = Modifier.align(Alignment.Center),
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color.Black.copy(alpha = 0.5f)
+                    ) {
+                        Text(
+                            text = "${pagerState.currentPage + 1} / ${mediaFiles.size}",
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+
+    }
+
+    // Explanation dialog
+    if (showExplanation && currentDescription != null) {
+        ExplanationDialog(
+            description = currentDescription,
+            onDismiss = { showExplanation = false }
+        )
     }
 }
 
@@ -374,7 +357,6 @@ private fun ImageContent(
 
     val scope = rememberCoroutineScope()
 
-    var showExplanation by rememberSaveable { mutableStateOf(false) }
     var scale by rememberSaveable { mutableFloatStateOf(MIN_SCALE) }
     var offsetX by rememberSaveable { mutableFloatStateOf(0f) }
     var offsetY by rememberSaveable { mutableFloatStateOf(0f) }
@@ -513,121 +495,66 @@ private fun ImageContent(
             }
         }
 
-        // Floating action buttons (only when UI is visible)
-        AnimatedVisibility(
-            visible = showUI && !isZoomed,
-            enter = fadeIn(),
-            exit = fadeOut(),
+        // Bottom-right controls area
+        Column(
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp)
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 80.dp), // Above the bottom bar
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.End
         ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Info button
-                if (description != null) {
+            // Overlay toggle button
+            if (overlayPath != null) {
+                AnimatedVisibility(
+                    visible = showUI && !isZoomed,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                ) {
                     FilledIconButton(
-                        onClick = { showExplanation = true },
+                        onClick = { showOverlay = !showOverlay },
                         colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = Color.Black.copy(alpha = 0.5f),
-                            contentColor = Color.White
+                            containerColor = if (showOverlay) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.5f),
+                            contentColor = if (showOverlay) MaterialTheme.colorScheme.onPrimary else Color.White
                         )
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Info,
-                            contentDescription = "Show explanation",
+                            imageVector = if (showOverlay) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                            contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                        )
+                    }
+                }
+            }
+
+            // Zoom indicator (shows current zoom level when zoomed)
+            AnimatedVisibility(
+                visible = isZoomed,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Black.copy(alpha = 0.6f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ZoomIn,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "${(scale * 100).roundToInt()}%",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White
                         )
                     }
                 }
             }
         }
-
-        // Overlay toggle button (top-end, below status bar area)
-        if (overlayPath != null) {
-            AnimatedVisibility(
-                visible = showUI && !isZoomed,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 72.dp, end = 16.dp) // Position below the top bar
-            ) {
-                FilledIconButton(
-                    onClick = { showOverlay = !showOverlay },
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = if (showOverlay) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.5f),
-                        contentColor = if (showOverlay) Color.Black else Color.White
-                    )
-                ) {
-                    Icon(
-                        imageVector = if (showOverlay) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                        contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                    )
-                }
-            }
-        }
-
-        // Zoom indicator (shows current zoom level when zoomed)
-        AnimatedVisibility(
-            visible = isZoomed,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = Color.Black.copy(alpha = 0.6f)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.ZoomIn,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "${(scale * 100).roundToInt()}%",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White
-                    )
-                }
-            }
-        }
-    }
-
-    // Explanation dialog with improved styling
-    if (showExplanation && description != null) {
-        AlertDialog(
-            onDismissRequest = { showExplanation = false },
-            confirmButton = {
-                TextButton(onClick = { showExplanation = false }) {
-                    Text("Close")
-                }
-            },
-            title = {
-                Text(
-                    text = description.title.ifBlank { "Explanation" },
-                    style = MaterialTheme.typography.titleLarge
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState())
-                ) {
-                    RichText(
-                        html = description.description,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            },
-        )
     }
 }
 
@@ -662,6 +589,37 @@ private fun UnsupportedContent(fileName: String, type: MediaType) {
             )
         }
     }
+}
+
+@Composable
+private fun ExplanationDialog(
+    description: MediaDescription,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        },
+        title = {
+            Text(
+                text = description.title.ifBlank { "Explanation" },
+                style = MaterialTheme.typography.titleLarge
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                RichText(
+                    html = description.description,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+    )
 }
 
 private fun getMediaType(fileName: String): MediaType {
