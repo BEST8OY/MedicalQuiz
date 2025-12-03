@@ -56,8 +56,9 @@
 -dontwarn org.jetbrains.skiko.**
 -dontwarn org.jetbrains.skia.**
 
-# Compose runtime
--keep class androidx.compose.runtime.** { *; }
+# Keep ALL Compose classes to prevent ClassFormatError with LocalVariableTable
+# This is required because ProGuard can corrupt bytecode debug info in Compose classes
+-keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
 
 # ==================== KOTLIN ====================
