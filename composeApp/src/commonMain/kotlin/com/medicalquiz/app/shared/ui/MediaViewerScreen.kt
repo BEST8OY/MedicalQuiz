@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -182,14 +183,13 @@ fun MediaViewerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(gradientTop)
-                    .padding(top = 8.dp, bottom = 24.dp)
+                    .statusBarsPadding()
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
             ) {
                 // Back button
                 FilledIconButton(
                     onClick = onBack,
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .padding(start = 8.dp),
+                    modifier = Modifier.align(Alignment.CenterStart),
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = Color.Black.copy(alpha = 0.3f),
                         contentColor = Color.White
@@ -543,15 +543,15 @@ private fun ImageContent(
             }
         }
 
-        // Overlay toggle button (top-start)
+        // Overlay toggle button (top-end, below status bar area)
         if (overlayPath != null) {
             AnimatedVisibility(
                 visible = showUI && !isZoomed,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(16.dp)
+                    .align(Alignment.TopEnd)
+                    .padding(top = 72.dp, end = 16.dp) // Position below the top bar
             ) {
                 FilledIconButton(
                     onClick = { showOverlay = !showOverlay },
