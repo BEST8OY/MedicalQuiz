@@ -9,32 +9,44 @@
 
 # ==================== GENERAL SETTINGS ====================
 
--keepattributes Signature,SourceFile,LineNumberTable,*Annotation*,InnerClasses,EnclosingMethod
+-keepattributes Signature,SourceFile,LineNumberTable,*Annotation*,InnerClasses,EnclosingMethod,RuntimeVisibleAnnotations,AnnotationDefault
 -renamesourcefileattribute SourceFile
 
-# Optimization
--optimizationpasses 5
+# Optimization settings - be conservative to avoid bytecode issues
+-optimizationpasses 3
 -allowaccessmodification
--optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
+-optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*,!method/inlining/*
 
-# ==================== DONTWARN RULES ====================
+# ==================== DONTWARN / DONTNOTE RULES ====================
+
+# Suppress notes about duplicate classes and missing references
+-dontnote **
 
 # Kotlin
 -dontwarn kotlin.**
--dontwarn kotlin.jvm.internal.**
 
 # Kotlinx
 -dontwarn kotlinx.datetime.**
--dontwarn kotlinx.coroutines.**
 
 # SLF4J (optional logging dependency)
 -dontwarn org.slf4j.**
+
+# Java instrumentation (used by coroutines debug agent)
+-dontwarn java.lang.instrument.ClassFileTransformer
+-dontwarn java.lang.instrument.Instrumentation
+-dontwarn sun.misc.SignalHandler
+-dontwarn sun.misc.Signal
+-dontwarn java.lang.ClassValue
+-dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
 
 # Java AWT/Swing (desktop UI)
 -dontwarn java.awt.**
 -dontwarn javax.swing.**
 -dontwarn sun.awt.**
 -dontwarn sun.java2d.**
+
+# Okio
+-dontwarn okio.**
 
 # ==================== COMPOSE DESKTOP ====================
 
@@ -52,25 +64,51 @@
 
 -keep class kotlin.Metadata { *; }
 
-# Coroutines - keep volatile fields for atomics
+# ==================== KOTLINX COROUTINES ====================
+# Official rules from: https://github.com/Kotlin/kotlinx.coroutines
+
+# Keep entire coroutines package to prevent VerifyError
+-keep class kotlinx.coroutines.** { *; }
+
+# ServiceLoader support
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+
+# Most volatile fields are updated with AFU and should not be mangled
 -keepclassmembers class kotlinx.coroutines.** {
     volatile <fields>;
 }
 
-# Kotlin Serialization
--keepclassmembers @kotlinx.serialization.Serializable class ** {
-    *** Companion;
+# SafeContinuation also uses AtomicReferenceFieldUpdater
+-keepclassmembers class kotlin.coroutines.SafeContinuation {
+    volatile <fields>;
 }
+
+# ==================== KOTLINX SERIALIZATION ====================
+# Official rules from: https://github.com/Kotlin/kotlinx.serialization
+
+# Keep Companion object fields of serializable classes
 -if @kotlinx.serialization.Serializable class **
 -keepclassmembers class <1> {
-    static <1>$Companion Companion;
+    static <1>$* Companion;
 }
+
+# Keep named companion objects
+-keepnames @kotlinx.serialization.internal.NamedCompanion class *
+-if @kotlinx.serialization.internal.NamedCompanion class *
+-keepclassmembernames class * {
+    static <1> *;
+}
+
+# Keep serializer() on companion objects
 -if @kotlinx.serialization.Serializable class ** {
     static **$* *;
 }
 -keepclassmembers class <2>$<3> {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# Keep INSTANCE.serializer() of serializable objects
 -if @kotlinx.serialization.Serializable class ** {
     public static ** INSTANCE;
 }
@@ -78,20 +116,36 @@
     public static <1> INSTANCE;
     kotlinx.serialization.KSerializer serializer(...);
 }
--keepclasseswithmembers class **$$serializer {
+
+# Keep annotations
+-keepattributes RuntimeVisibleAnnotations,AnnotationDefault
+
+# Don't print notes for kotlinx-serialization
+-dontnote kotlinx.serialization.**
+-dontwarn kotlinx.serialization.internal.ClassValueReferences
+
+# Prevent optimization issues with descriptor field
+-keepclassmembers public class **$$serializer {
+    private ** descriptor;
     *** INSTANCE;
 }
 
 # ==================== KTOR ====================
 
-# Ktor CIO engine for desktop
--keep class io.ktor.client.engine.cio.** { *; }
+# Ktor CIO engine for desktop - keep all engine classes
+-keep class io.ktor.** { *; }
 -dontwarn io.ktor.**
 
 # ==================== COIL ====================
 
 -keep class coil3.** { *; }
 -dontwarn coil3.**
+
+# ==================== OKIO ====================
+
+# Keep Okio classes used by Coil and Ktor
+-keep class okio.** { *; }
+-dontwarn okio.**
 
 # ==================== KSOUP ====================
 

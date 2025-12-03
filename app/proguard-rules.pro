@@ -8,33 +8,64 @@
 -renamesourcefileattribute SourceFile
 
 # Keep annotations needed for serialization and reflection
--keepattributes *Annotation*,Signature,Exceptions,InnerClasses,EnclosingMethod
+-keepattributes *Annotation*,Signature,Exceptions,InnerClasses,EnclosingMethod,RuntimeVisibleAnnotations,AnnotationDefault
 
 # ==================== KOTLIN ====================
 
 -keep class kotlin.Metadata { *; }
 -dontwarn kotlin.**
 
-# Kotlin Coroutines - keep volatile fields for atomics
+# ==================== KOTLINX COROUTINES ====================
+# Official rules from: https://github.com/Kotlin/kotlinx.coroutines
+
+# ServiceLoader support
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+
+# Most volatile fields are updated with AFU and should not be mangled
 -keepclassmembers class kotlinx.coroutines.** {
     volatile <fields>;
 }
+
+# SafeContinuation also uses AtomicReferenceFieldUpdater
+-keepclassmembers class kotlin.coroutines.SafeContinuation {
+    volatile <fields>;
+}
+
+# Debug agent classes (not needed in release)
+-dontwarn java.lang.instrument.ClassFileTransformer
+-dontwarn java.lang.instrument.Instrumentation
+-dontwarn sun.misc.SignalHandler
+-dontwarn sun.misc.Signal
+-dontwarn java.lang.ClassValue
+-dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
 -dontwarn kotlinx.coroutines.**
 
-# Kotlin Serialization
--keepclassmembers @kotlinx.serialization.Serializable class ** {
-    *** Companion;
-}
+# ==================== KOTLINX SERIALIZATION ====================
+# Official rules from: https://github.com/Kotlin/kotlinx.serialization
+
+# Keep Companion object fields of serializable classes
 -if @kotlinx.serialization.Serializable class **
 -keepclassmembers class <1> {
-    static <1>$Companion Companion;
+    static <1>$* Companion;
 }
+
+# Keep named companion objects
+-keepnames @kotlinx.serialization.internal.NamedCompanion class *
+-if @kotlinx.serialization.internal.NamedCompanion class *
+-keepclassmembernames class * {
+    static <1> *;
+}
+
+# Keep serializer() on companion objects
 -if @kotlinx.serialization.Serializable class ** {
     static **$* *;
 }
 -keepclassmembers class <2>$<3> {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# Keep INSTANCE.serializer() of serializable objects
 -if @kotlinx.serialization.Serializable class ** {
     public static ** INSTANCE;
 }
@@ -42,7 +73,14 @@
     public static <1> INSTANCE;
     kotlinx.serialization.KSerializer serializer(...);
 }
--keepclasseswithmembers class **$$serializer {
+
+# Don't print notes for kotlinx-serialization
+-dontnote kotlinx.serialization.**
+-dontwarn kotlinx.serialization.internal.ClassValueReferences
+
+# Prevent optimization issues with descriptor field
+-keepclassmembers public class **$$serializer {
+    private ** descriptor;
     *** INSTANCE;
 }
 
@@ -66,6 +104,12 @@
 # Ktor client (OkHttp engine for Android)
 -keep class io.ktor.client.engine.okhttp.** { *; }
 -dontwarn io.ktor.**
+
+# ==================== OKIO ====================
+
+# Keep Okio classes used by Coil and Ktor
+-keep class okio.** { *; }
+-dontwarn okio.**
 
 # ==================== KSOUP ====================
 
