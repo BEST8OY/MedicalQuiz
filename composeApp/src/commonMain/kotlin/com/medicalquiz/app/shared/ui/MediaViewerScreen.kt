@@ -10,8 +10,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -80,7 +79,6 @@ import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
 import com.medicalquiz.app.shared.utils.HtmlUtils
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.absoluteValue
@@ -89,9 +87,7 @@ import kotlin.math.roundToInt
 // Animation and interaction constants
 private const val MAX_SCALE = 5f
 private const val DOUBLE_TAP_ZOOM = 2.5f
-private const val FADE_INTENSITY = 0.3f
 private const val MIN_SCALE = 1f
-private const val UI_HIDE_DELAY_MS = 3000L
 
 // Semi-transparent overlay colors
 private val scrimColor = Color.Black.copy(alpha = 0.6f)
@@ -123,17 +119,9 @@ fun MediaViewerScreen(
     // Current page's description
     val currentDescription = mediaDescriptions[mediaFiles.getOrNull(pagerState.currentPage)]
 
-    // Auto-hide UI after delay
-    LaunchedEffect(showUI, pagerState.currentPage) {
-        if (showUI && !isZoomed) {
-            delay(UI_HIDE_DELAY_MS)
-            showUI = false
-        }
-    }
-
+    // Reset zoom when changing pages
     LaunchedEffect(pagerState.currentPage) {
         isZoomed = false
-        showUI = true
     }
 
     // Toggle UI on single tap (handled in ImageContent)
@@ -398,22 +386,35 @@ private fun ImageContent(
             )
         }
 
-        val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-            scale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
-            if (scale > MIN_SCALE) {
-                val (clampedX, clampedY) = clampOffset(offsetX + panChange.x, offsetY + panChange.y, scale)
-                offsetX = clampedX
-                offsetY = clampedY
-            } else {
-                offsetX = 0f
-                offsetY = 0f
+        val gestureModifier = Modifier
+            .pointerInput(containerWidth, containerHeight) {
+                detectTransformGestures { centroid, pan, zoom, _ ->
+                    val oldScale = scale
+                    val newScale = (scale * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
+                    
+                    if (newScale > MIN_SCALE) {
+                        // Adjust offset to zoom toward the centroid (focal point)
+                        val centroidX = centroid.x - containerWidth / 2f
+                        val centroidY = centroid.y - containerHeight / 2f
+                        
+                        // Calculate new offset that keeps the centroid point stationary
+                        val newOffsetX = offsetX + (centroidX - offsetX) * (1 - newScale / oldScale) + pan.x
+                        val newOffsetY = offsetY + (centroidY - offsetY) * (1 - newScale / oldScale) + pan.y
+                        
+                        val (clampedX, clampedY) = clampOffset(newOffsetX, newOffsetY, newScale)
+                        offsetX = clampedX
+                        offsetY = clampedY
+                    } else {
+                        offsetX = 0f
+                        offsetY = 0f
+                    }
+                    scale = newScale
+                }
             }
-        }
-
-        val gestureModifier = Modifier.pointerInput(containerWidth, containerHeight) {
-            detectTapGestures(
-                onTap = { onSingleTap() },
-                onDoubleTap = { tapOffset ->
+            .pointerInput(containerWidth, containerHeight) {
+                detectTapGestures(
+                    onTap = { onSingleTap() },
+                    onDoubleTap = { tapOffset ->
                     scope.launch {
                         val startScale = scale
                         val startOffsetX = offsetX
@@ -448,10 +449,6 @@ private fun ImageContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .transformable(
-                    state = transformState,
-                    canPan = { scale > MIN_SCALE }
-                )
                 .then(gestureModifier)
                 .graphicsLayer {
                     scaleX = scale
@@ -495,63 +492,60 @@ private fun ImageContent(
             }
         }
 
-        // Bottom-right controls area
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 80.dp), // Above the bottom bar
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            horizontalAlignment = Alignment.End
-        ) {
-            // Overlay toggle button
-            if (overlayPath != null) {
-                AnimatedVisibility(
-                    visible = showUI && !isZoomed,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                ) {
-                    FilledIconButton(
-                        onClick = { showOverlay = !showOverlay },
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = if (showOverlay) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.5f),
-                            contentColor = if (showOverlay) MaterialTheme.colorScheme.onPrimary else Color.White
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (showOverlay) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                            contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                        )
-                    }
-                }
-            }
-
-            // Zoom indicator (shows current zoom level when zoomed)
+        // Overlay toggle button (bottom-left)
+        if (overlayPath != null) {
             AnimatedVisibility(
-                visible = isZoomed,
+                visible = showUI || isZoomed,
                 enter = fadeIn(),
                 exit = fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 16.dp, bottom = 80.dp)
             ) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color.Black.copy(alpha = 0.6f)
+                FilledIconButton(
+                    onClick = { showOverlay = !showOverlay },
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = if (showOverlay) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.5f),
+                        contentColor = if (showOverlay) MaterialTheme.colorScheme.onPrimary else Color.White
+                    )
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.ZoomIn,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = "${(scale * 100).roundToInt()}%",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color.White
-                        )
-                    }
+                    Icon(
+                        imageVector = if (showOverlay) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                        contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                    )
+                }
+            }
+        }
+
+        // Zoom indicator (bottom-right)
+        AnimatedVisibility(
+            visible = isZoomed,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 80.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Color.Black.copy(alpha = 0.6f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ZoomIn,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "${(scale * 100).roundToInt()}%",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White
+                    )
                 }
             }
         }
