@@ -1,6 +1,8 @@
 package com.medicalquiz.app.shared.ui
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -51,7 +53,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.compose.runtime.produceState
@@ -65,15 +66,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.absoluteValue
-import kotlin.math.roundToInt
 
 // Animation and interaction constants
 private const val MAX_SCALE = 5f
 private const val DOUBLE_TAP_ZOOM = 2.5f
 private const val FADE_INTENSITY = 0.5f
 private const val MIN_SCALE = 1f
-private const val DISMISS_THRESHOLD = 150f // pixels to swipe before dismiss triggers
-private const val DISMISS_VELOCITY_THRESHOLD = 1000f // velocity threshold for quick swipe dismiss
+
+// Swipe-to-dismiss constants (Google Photos / Apple Photos style)
+private const val DISMISS_THRESHOLD = 100f // pixels to swipe before dismiss triggers
+private const val DISMISS_VELOCITY_THRESHOLD = 800f // px/s - quick flick dismisses regardless of distance
+private const val MAX_DISMISS_SCALE = 0.85f // image shrinks to this scale at max drag
+private const val DRAG_RESISTANCE = 0.6f // rubber-band resistance factor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,20 +96,23 @@ fun MediaViewerScreen(
     var isZoomed by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    // Swipe-to-dismiss state
-    val dismissOffset = remember { Animatable(0f) }
+    // Swipe-to-dismiss state (Google Photos / Apple Photos style)
+    val dismissOffsetY = remember { Animatable(0f) }
     var isDismissing by remember { mutableStateOf(false) }
+    var dragVelocity by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(pagerState.currentPage) {
         isZoomed = false
         // Reset dismiss offset when changing pages
         if (!isDismissing) {
-            dismissOffset.snapTo(0f)
+            dismissOffsetY.snapTo(0f)
         }
     }
 
-    // Calculate alpha based on dismiss offset for fade-out effect
-    val dismissAlpha = 1f - (dismissOffset.value.absoluteValue / 500f).coerceIn(0f, 0.5f)
+    // Calculate visual properties based on drag distance
+    val dragProgress = (dismissOffsetY.value.absoluteValue / 300f).coerceIn(0f, 1f)
+    val dismissScale = lerp(1f, MAX_DISMISS_SCALE, dragProgress)
+    val backgroundAlpha = lerp(1f, 0f, dragProgress)
 
     Scaffold(
         topBar = {
@@ -134,8 +141,8 @@ fun MediaViewerScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = backgroundAlpha),
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = backgroundAlpha),
                 ),
             )
         },
@@ -144,52 +151,77 @@ fun MediaViewerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color.Black.copy(alpha = dismissAlpha)),
+                .background(Color.Black.copy(alpha = backgroundAlpha)),
         ) {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .offset { IntOffset(0, dismissOffset.value.roundToInt()) }
-                    .graphicsLayer { alpha = dismissAlpha }
+                    .graphicsLayer {
+                        // Scale and translate together for natural feel
+                        scaleX = dismissScale
+                        scaleY = dismissScale
+                        translationY = dismissOffsetY.value
+                    }
                     .pointerInput(isZoomed) {
                         if (!isZoomed) {
+                            var lastDragAmount = 0f
                             detectVerticalDragGestures(
-                                onDragStart = { },
+                                onDragStart = { 
+                                    dragVelocity = 0f
+                                    lastDragAmount = 0f
+                                },
                                 onDragEnd = {
                                     scope.launch {
-                                        if (dismissOffset.value.absoluteValue > DISMISS_THRESHOLD) {
-                                            // Animate out and dismiss
+                                        val shouldDismiss = dismissOffsetY.value.absoluteValue > DISMISS_THRESHOLD ||
+                                                dragVelocity.absoluteValue > DISMISS_VELOCITY_THRESHOLD
+                                        
+                                        if (shouldDismiss) {
+                                            // Animate out in the direction of the swipe
                                             isDismissing = true
-                                            val targetOffset = if (dismissOffset.value > 0) 1000f else -1000f
-                                            dismissOffset.animateTo(
+                                            val targetOffset = if (dismissOffsetY.value > 0) 1500f else -1500f
+                                            dismissOffsetY.animateTo(
                                                 targetValue = targetOffset,
-                                                animationSpec = tween(durationMillis = 200)
+                                                animationSpec = tween(durationMillis = 250)
                                             )
                                             onBack()
                                         } else {
-                                            // Snap back
-                                            dismissOffset.animateTo(
+                                            // Spring back to center
+                                            dismissOffsetY.animateTo(
                                                 targetValue = 0f,
-                                                animationSpec = tween(durationMillis = 200)
+                                                animationSpec = SpringSpec(
+                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    stiffness = Spring.StiffnessMedium
+                                                )
                                             )
                                         }
                                     }
                                 },
                                 onDragCancel = {
                                     scope.launch {
-                                        dismissOffset.animateTo(0f, animationSpec = tween(durationMillis = 200))
+                                        dismissOffsetY.animateTo(
+                                            targetValue = 0f,
+                                            animationSpec = SpringSpec(
+                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                stiffness = Spring.StiffnessMedium
+                                            )
+                                        )
                                     }
                                 },
-                                onVerticalDrag = { _, dragAmount ->
+                                onVerticalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    // Apply rubber-band resistance
+                                    val resistedDrag = dragAmount * DRAG_RESISTANCE
+                                    // Track velocity (simple approximation)
+                                    dragVelocity = dragAmount * 60f // ~60fps estimate
                                     scope.launch {
-                                        dismissOffset.snapTo(dismissOffset.value + dragAmount)
+                                        dismissOffsetY.snapTo(dismissOffsetY.value + resistedDrag)
                                     }
                                 }
                             )
                         }
                     },
-                userScrollEnabled = !isZoomed,
+                userScrollEnabled = !isZoomed && dismissOffsetY.value.absoluteValue < 10f,
                 beyondViewportPageCount = 1,
             ) { page ->
                 Box(
