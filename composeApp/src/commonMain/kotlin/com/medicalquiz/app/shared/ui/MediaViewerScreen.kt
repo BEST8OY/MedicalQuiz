@@ -1,42 +1,54 @@
 package com.medicalquiz.app.shared.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,40 +58,49 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.compose.runtime.produceState
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
 import com.medicalquiz.app.shared.utils.HtmlUtils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
 
 // Animation and interaction constants
 private const val MAX_SCALE = 5f
 private const val DOUBLE_TAP_ZOOM = 2.5f
-private const val FADE_INTENSITY = 0.5f
+private const val FADE_INTENSITY = 0.3f
 private const val MIN_SCALE = 1f
+private const val UI_HIDE_DELAY_MS = 3000L
 
-// Swipe-to-dismiss constants (Google Photos / Apple Photos style)
-private const val DISMISS_THRESHOLD = 100f // pixels to swipe before dismiss triggers
-private const val DISMISS_VELOCITY_THRESHOLD = 800f // px/s - quick flick dismisses regardless of distance
-private const val MAX_DISMISS_SCALE = 0.85f // image shrinks to this scale at max drag
-private const val DRAG_RESISTANCE = 0.6f // rubber-band resistance factor
+// Semi-transparent overlay colors
+private val scrimColor = Color.Black.copy(alpha = 0.6f)
+private val gradientTop = Brush.verticalGradient(
+    colors = listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent)
+)
+private val gradientBottom = Brush.verticalGradient(
+    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
+)
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MediaViewerScreen(
     mediaFiles: List<String>,
@@ -94,151 +115,171 @@ fun MediaViewerScreen(
         pageCount = { mediaFiles.size }
     )
     var isZoomed by rememberSaveable { mutableStateOf(false) }
+    var showUI by rememberSaveable { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
-    // Swipe-to-dismiss state (Google Photos / Apple Photos style)
-    val dismissOffsetY = remember { Animatable(0f) }
-    var isDismissing by remember { mutableStateOf(false) }
-    var dragVelocity by remember { mutableFloatStateOf(0f) }
-
-    LaunchedEffect(pagerState.currentPage) {
-        isZoomed = false
-        // Reset dismiss offset when changing pages
-        if (!isDismissing) {
-            dismissOffsetY.snapTo(0f)
+    // Auto-hide UI after delay
+    LaunchedEffect(showUI, pagerState.currentPage) {
+        if (showUI && !isZoomed) {
+            delay(UI_HIDE_DELAY_MS)
+            showUI = false
         }
     }
 
-    // Calculate visual properties based on drag distance
-    val dragProgress = (dismissOffsetY.value.absoluteValue / 300f).coerceIn(0f, 1f)
-    val dismissScale = lerp(1f, MAX_DISMISS_SCALE, dragProgress)
-    val backgroundAlpha = lerp(1f, 0f, dragProgress)
+    LaunchedEffect(pagerState.currentPage) {
+        isZoomed = false
+        showUI = true
+    }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "Media Viewer",
-                            style = MaterialTheme.typography.titleLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = "${pagerState.currentPage + 1} / ${mediaFiles.size}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = backgroundAlpha),
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = backgroundAlpha),
-                ),
-            )
-        },
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(Color.Black.copy(alpha = backgroundAlpha)),
-        ) {
-            HorizontalPager(
-                state = pagerState,
+    // Toggle UI on single tap (handled in ImageContent)
+    val onToggleUI: () -> Unit = { showUI = !showUI }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        // Main pager content
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = !isZoomed,
+            beyondViewportPageCount = 1,
+        ) { page ->
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        // Scale and translate together for natural feel
-                        scaleX = dismissScale
-                        scaleY = dismissScale
-                        translationY = dismissOffsetY.value
-                    }
-                    .pointerInput(isZoomed) {
-                        if (!isZoomed) {
-                            var lastDragAmount = 0f
-                            detectVerticalDragGestures(
-                                onDragStart = { 
-                                    dragVelocity = 0f
-                                    lastDragAmount = 0f
-                                },
-                                onDragEnd = {
-                                    scope.launch {
-                                        val shouldDismiss = dismissOffsetY.value.absoluteValue > DISMISS_THRESHOLD ||
-                                                dragVelocity.absoluteValue > DISMISS_VELOCITY_THRESHOLD
-                                        
-                                        if (shouldDismiss) {
-                                            // Animate out in the direction of the swipe
-                                            isDismissing = true
-                                            val targetOffset = if (dismissOffsetY.value > 0) 1500f else -1500f
-                                            dismissOffsetY.animateTo(
-                                                targetValue = targetOffset,
-                                                animationSpec = tween(durationMillis = 250)
-                                            )
-                                            onBack()
-                                        } else {
-                                            // Spring back to center
-                                            dismissOffsetY.animateTo(
-                                                targetValue = 0f,
-                                                animationSpec = SpringSpec(
-                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                    stiffness = Spring.StiffnessMedium
-                                                )
-                                            )
-                                        }
-                                    }
-                                },
-                                onDragCancel = {
-                                    scope.launch {
-                                        dismissOffsetY.animateTo(
-                                            targetValue = 0f,
-                                            animationSpec = SpringSpec(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMedium
-                                            )
-                                        )
-                                    }
-                                },
-                                onVerticalDrag = { change, dragAmount ->
-                                    change.consume()
-                                    // Apply rubber-band resistance
-                                    val resistedDrag = dragAmount * DRAG_RESISTANCE
-                                    // Track velocity (simple approximation)
-                                    dragVelocity = dragAmount * 60f // ~60fps estimate
-                                    scope.launch {
-                                        dismissOffsetY.snapTo(dismissOffsetY.value + resistedDrag)
-                                    }
-                                }
-                            )
-                        }
+                        val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                        // Smooth parallax and fade effect
+                        alpha = lerp(0.5f, 1f, 1f - pageOffset.absoluteValue.coerceIn(0f, 1f))
+                        val scale = lerp(0.85f, 1f, 1f - pageOffset.absoluteValue.coerceIn(0f, 1f))
+                        scaleX = scale
+                        scaleY = scale
                     },
-                userScrollEnabled = !isZoomed && dismissOffsetY.value.absoluteValue < 10f,
-                beyondViewportPageCount = 1,
-            ) { page ->
-                Box(
+            ) {
+                MediaContent(
+                    fileName = mediaFiles[page],
+                    description = mediaDescriptions[mediaFiles[page]],
+                    onZoomChanged = { 
+                        isZoomed = it
+                        if (it) showUI = false
+                    },
+                    onSingleTap = onToggleUI,
+                    showUI = showUI,
+                )
+            }
+        }
+
+        // Top bar with gradient background
+        AnimatedVisibility(
+            visible = showUI,
+            enter = fadeIn() + slideInVertically { -it },
+            exit = fadeOut() + slideOutVertically { -it },
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(gradientTop)
+                    .padding(top = 8.dp, bottom = 24.dp)
+            ) {
+                // Back button
+                FilledIconButton(
+                    onClick = onBack,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-                            alpha = 1f - (pageOffset.coerceIn(-1f, 1f).absoluteValue * FADE_INTENSITY)
-                        },
+                        .align(Alignment.CenterStart)
+                        .padding(start = 8.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Color.Black.copy(alpha = 0.3f),
+                        contentColor = Color.White
+                    )
                 ) {
-                    MediaContent(
-                        fileName = mediaFiles[page],
-                        description = mediaDescriptions[mediaFiles[page]],
-                        onZoomChanged = { isZoomed = it },
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                    )
+                }
+
+                // Page indicator pill
+                Surface(
+                    modifier = Modifier.align(Alignment.Center),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.Black.copy(alpha = 0.5f)
+                ) {
+                    Text(
+                        text = "${pagerState.currentPage + 1} / ${mediaFiles.size}",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
+        }
+
+        // Bottom page dots indicator (for multiple images)
+        if (mediaFiles.size > 1) {
+            AnimatedVisibility(
+                visible = showUI,
+                enter = fadeIn() + slideInVertically { it },
+                exit = fadeOut() + slideOutVertically { it },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(gradientBottom)
+                        .padding(bottom = 24.dp, top = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    PageIndicatorDots(
+                        pageCount = mediaFiles.size,
+                        currentPage = pagerState.currentPage,
+                        modifier = Modifier
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PageIndicatorDots(
+    pageCount: Int,
+    currentPage: Int,
+    modifier: Modifier = Modifier
+) {
+    // Show max 7 dots, with ellipsis effect for many pages
+    val maxDots = 7
+    val showDots = pageCount <= maxDots
+    
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (showDots) {
+            repeat(pageCount) { index ->
+                val isSelected = index == currentPage
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .size(if (isSelected) 10.dp else 6.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isSelected) Color.White
+                            else Color.White.copy(alpha = 0.4f)
+                        )
+                )
+            }
+        } else {
+            // For many pages, show simplified indicator
+            Text(
+                text = "${currentPage + 1} of $pageCount",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White
+            )
         }
     }
 }
@@ -248,6 +289,8 @@ private fun MediaContent(
     fileName: String,
     description: MediaDescription?,
     onZoomChanged: (Boolean) -> Unit,
+    onSingleTap: () -> Unit,
+    showUI: Boolean,
 ) {
     val mediaType = remember(fileName) { getMediaType(fileName) }
 
@@ -256,6 +299,8 @@ private fun MediaContent(
             fileName = fileName,
             description = description,
             onZoomChanged = onZoomChanged,
+            onSingleTap = onSingleTap,
+            showUI = showUI,
         )
         MediaType.HTML -> HtmlContent(fileName = fileName)
         else -> UnsupportedContent(fileName = fileName, type = mediaType)
@@ -277,9 +322,16 @@ private fun HtmlContent(fileName: String) {
     }
 
     if (htmlContent == null) {
-        // Still loading or failed
+        // Loading state with subtle animation
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = "Loading…", color = Color.White)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Simple loading indicator
+                Text(
+                    text = "Loading…",
+                    color = Color.White.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
         }
     } else if (htmlContent!!.isBlank()) {
         UnsupportedContent(fileName = fileName, type = MediaType.HTML)
@@ -304,6 +356,8 @@ private fun ImageContent(
     fileName: String,
     description: MediaDescription?,
     onZoomChanged: (Boolean) -> Unit,
+    onSingleTap: () -> Unit,
+    showUI: Boolean,
 ) {
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
     val filePath = remember(fileName) { "$storageDir/media/$fileName" }
@@ -325,6 +379,9 @@ private fun ImageContent(
     var offsetX by rememberSaveable { mutableFloatStateOf(0f) }
     var offsetY by rememberSaveable { mutableFloatStateOf(0f) }
     var showOverlay by rememberSaveable { mutableStateOf(true) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    val isZoomed by remember { derivedStateOf { scale > 1.05f } }
 
     LaunchedEffect(scale) {
         onZoomChanged(scale > 1.05f)
@@ -373,6 +430,7 @@ private fun ImageContent(
 
         val gestureModifier = Modifier.pointerInput(containerWidth, containerHeight) {
             detectTapGestures(
+                onTap = { onSingleTap() },
                 onDoubleTap = { tapOffset ->
                     scope.launch {
                         val startScale = scale
@@ -388,7 +446,13 @@ private fun ImageContent(
                             Triple(MIN_SCALE, 0f, 0f)
                         }
                         val (clampedTargetX, clampedTargetY) = clampOffset(targetX, targetY, targetScale)
-                        Animatable(0f).animateTo(1f) {
+                        Animatable(0f).animateTo(
+                            targetValue = 1f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            )
+                        ) {
                             scale = lerp(startScale, targetScale, this.value)
                             offsetX = lerp(startOffsetX, clampedTargetX, this.value)
                             offsetY = lerp(startOffsetY, clampedTargetY, this.value)
@@ -398,6 +462,7 @@ private fun ImageContent(
             )
         }
 
+        // Image container with zoom/pan
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -412,56 +477,132 @@ private fun ImageContent(
                     translationX = offsetX
                     translationY = offsetY
                 },
+            contentAlignment = Alignment.Center
         ) {
             AsyncImage(
                 model = filePath,
-                contentDescription = null,
+                contentDescription = fileName,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
+                onState = { state ->
+                    isLoading = state is AsyncImagePainter.State.Loading
+                }
             )
 
             if (overlayPath != null && showOverlay) {
                 AsyncImage(
                     model = overlayPath,
-                    contentDescription = null,
+                    contentDescription = "Overlay",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit,
                 )
             }
         }
 
-        // Icons outside the transformed area so they stay fixed on screen
-        if (description != null) {
-            IconButton(
-                onClick = { showExplanation = true },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp),
+        // Loading indicator
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Info,
-                    contentDescription = "Show explanation",
-                    tint = Color.White,
+                Text(
+                    text = "Loading…",
+                    color = Color.White.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.bodyLarge
                 )
             }
         }
 
+        // Floating action buttons (only when UI is visible)
+        AnimatedVisibility(
+            visible = showUI && !isZoomed,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Info button
+                if (description != null) {
+                    FilledIconButton(
+                        onClick = { showExplanation = true },
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = Color.Black.copy(alpha = 0.5f),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = "Show explanation",
+                        )
+                    }
+                }
+            }
+        }
+
+        // Overlay toggle button (top-start)
         if (overlayPath != null) {
-            IconButton(
-                onClick = { showOverlay = !showOverlay },
+            AnimatedVisibility(
+                visible = showUI && !isZoomed,
+                enter = fadeIn(),
+                exit = fadeOut(),
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(16.dp),
+                    .padding(16.dp)
             ) {
-                Icon(
-                    imageVector = if (showOverlay) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                    contentDescription = "Toggle overlay",
-                    tint = Color.White,
-                )
+                FilledIconButton(
+                    onClick = { showOverlay = !showOverlay },
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = if (showOverlay) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.5f),
+                        contentColor = if (showOverlay) Color.Black else Color.White
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (showOverlay) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                        contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                    )
+                }
+            }
+        }
+
+        // Zoom indicator (shows current zoom level when zoomed)
+        AnimatedVisibility(
+            visible = isZoomed,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Color.Black.copy(alpha = 0.6f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ZoomIn,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "${(scale * 100).roundToInt()}%",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White
+                    )
+                }
             }
         }
     }
 
+    // Explanation dialog with improved styling
     if (showExplanation && description != null) {
         AlertDialog(
             onDismissRequest = { showExplanation = false },
@@ -471,13 +612,20 @@ private fun ImageContent(
                 }
             },
             title = {
-                Text(description.title.ifBlank { "Explanation" })
+                Text(
+                    text = description.title.ifBlank { "Explanation" },
+                    style = MaterialTheme.typography.titleLarge
+                )
             },
             text = {
-                RichText(
-                    html = description.description,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState())
+                ) {
+                    RichText(
+                        html = description.description,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             },
         )
     }
@@ -489,10 +637,30 @@ private fun UnsupportedContent(fileName: String, type: MediaType) {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = "Unsupported media type: $type\n$fileName",
-            color = Color.White,
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Text(
+                text = "⚠️",
+                style = MaterialTheme.typography.displayMedium,
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "Unsupported Media",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = fileName,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
