@@ -2,70 +2,107 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
+    tags: ['v*']
     paths-ignore:
-      - 'README.md'
+      - '**.md'
       - 'docs/**'
-      - '.github/**'
-      - '!.github/workflows/**'
+      - 'LICENSE'
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
     paths-ignore:
-      - 'README.md'
+      - '**.md'
       - 'docs/**'
-  workflow_dispatch: # Allow manual triggering
+      - 'LICENSE'
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip tests'
+        required: false
+        default: false
+        type: boolean
+      build_release:
+        description: 'Build release artifacts'
+        required: false
+        default: false
+        type: boolean
 
-# Cancel in-progress runs for the same workflow and PR/branch
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
-  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.configuration-cache=true -Dorg.gradle.caching=true -Xmx4096m -XX:+UseG1GC -XX:MaxMetaspaceSize=1g"
-  # Disable KSP incremental to prevent cache corruption issues in CI
-  ORG_GRADLE_PROJECT_ksp_incremental: "false"
   JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: 'temurin'
+  GRADLE_OPTS: >-
+    -Dorg.gradle.daemon=false
+    -Dorg.gradle.configuration-cache=true
+    -Dorg.gradle.caching=true
+    -Dorg.gradle.parallel=true
+    -Xmx4g
+    -XX:+UseG1GC
+    -XX:MaxMetaspaceSize=1g
+  ORG_GRADLE_PROJECT_ksp_incremental: 'false'
 
 permissions:
   contents: read
 
 jobs:
+  # Validate wrapper once, other jobs depend on this
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gradle/actions/wrapper-validation@v4
+
   # Android build and test
   android:
+    name: Android Build
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Full history for better caching
+          fetch-depth: 0
 
-      - name: Validate Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v5
-
-      - name: Set up JDK
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           add-job-summary: on-failure
           cache-cleanup: on-success
-          validate-wrappers: false # Already validated above
 
-      - name: Build and test
-        run: ./gradlew assembleDebug testDebugUnitTest --parallel --build-cache --no-daemon --stacktrace
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Build Release APK (optimized)
-        run: ./gradlew assembleRelease --parallel --build-cache --no-daemon --stacktrace
+      - name: Build Debug
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Run Unit Tests
+        if: ${{ !inputs.skip_tests }}
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Build Release APK
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.build_release
+        run: ./gradlew assembleRelease --stacktrace
 
       - name: Upload Test Results
-        if: always()
+        if: ${{ !inputs.skip_tests && always() }}
         uses: actions/upload-artifact@v4
         with:
           name: test-results-android
@@ -75,40 +112,39 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Upload Release APKs (all ABIs)
+      - name: Upload Release APK
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.build_release
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apks
+          name: android-release-${{ steps.version.outputs.version }}
           path: app/build/outputs/apk/release/*.apk
           retention-days: 30
-          compression-level: 0  # APK is already compressed
+          compression-level: 0
 
-  # Android lint - runs in parallel with desktop
+  # Lint runs in parallel
   lint:
+    name: Lint
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 20
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           add-job-summary: on-failure
-          cache-cleanup: on-success
 
       - name: Run Lint
-        run: ./gradlew lint --parallel --build-cache --no-daemon --stacktrace
+        run: ./gradlew lint --stacktrace
 
       - name: Upload Lint Reports
         if: always()
@@ -121,78 +157,138 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # Desktop build and test - runs in parallel with lint
+  # Desktop build with matrix for multiple platforms
   desktop:
-    runs-on: ubuntu-latest
+    name: Desktop (${{ matrix.os }})
+    needs: validate
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact-name: desktop-linux
+            artifact-path: composeApp/build/compose/binaries/main-release/deb/
+          - os: windows-latest
+            artifact-name: desktop-windows
+            artifact-path: composeApp/build/compose/binaries/main-release/msi/
+          - os: macos-latest
+            artifact-name: desktop-macos
+            artifact-path: composeApp/build/compose/binaries/main-release/dmg/
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up JDK
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           add-job-summary: on-failure
           cache-cleanup: on-success
 
-      # Linux dependencies for Compose Desktop
       - name: Install Linux Dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgl1 libxrender1 libxrandr2 xvfb
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libxrender1 libxrandr2 xvfb
 
-      - name: Run Checks and Tests
-        run: xvfb-run -a ./gradlew check :composeApp:desktopTest --parallel --build-cache --no-daemon --stacktrace
+      - name: Run Tests (Linux)
+        if: runner.os == 'Linux' && !inputs.skip_tests
+        run: xvfb-run -a ./gradlew :composeApp:desktopTest --stacktrace
+
+      - name: Run Tests (non-Linux)
+        if: runner.os != 'Linux' && !inputs.skip_tests
+        run: ./gradlew :composeApp:desktopTest --stacktrace
 
       - name: Upload Test Results
-        if: always()
+        if: ${{ !inputs.skip_tests && always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-desktop
+          name: test-results-desktop-${{ runner.os }}
           path: |
             **/build/test-results/**/*.xml
             **/build/reports/tests/**
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Package Desktop Application (Release with ProGuard)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: xvfb-run -a ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --parallel --build-cache --no-daemon --stacktrace
+      - name: Package Release (Linux)
+        if: runner.os == 'Linux' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.build_release)
+        run: xvfb-run -a ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
+
+      - name: Package Release (non-Linux)
+        if: runner.os != 'Linux' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.build_release)
+        run: ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
 
       - name: Upload Desktop Distribution
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.build_release
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-linux-dist
-          path: composeApp/build/compose/binaries/main-release/deb/
+          name: ${{ matrix.artifact-name }}
+          path: ${{ matrix.artifact-path }}
           retention-days: 30
-          compression-level: 0  # Already compressed
+          compression-level: 0
+          if-no-files-found: ignore
 
-  # Submit dependencies to GitHub for Dependabot alerts
-  dependency-submission:
+  # Dependency review for PRs
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+
+  # Submit dependency graph to GitHub
+  dependency-submission:
+    name: Dependency Submission
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: write
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
 
       - name: Generate and Submit Dependency Graph
-        uses: gradle/actions/dependency-submission@v5
+        uses: gradle/actions/dependency-submission@v4
+
+  # CI Summary job
+  ci-status:
+    name: CI Status
+    if: always()
+    needs: [android, lint, desktop]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check CI Status
+        run: |
+          if [[ "${{ needs.android.result }}" == "failure" ]] || \
+             [[ "${{ needs.lint.result }}" == "failure" ]] || \
+             [[ "${{ needs.desktop.result }}" == "failure" ]]; then
+            echo "❌ CI failed"
+            exit 1
+          fi
+          echo "✅ CI passed"
