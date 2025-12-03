@@ -21,10 +21,13 @@ env:
     -Dorg.gradle.configuration-cache=true
     -Dorg.gradle.caching=true
     -Dorg.gradle.parallel=true
-    -Xmx4g
+    -Xmx6g
     -XX:+UseG1GC
     -XX:MaxMetaspaceSize=1g
+    -XX:+HeapDumpOnOutOfMemoryError
   ORG_GRADLE_PROJECT_ksp_incremental: 'false'
+  # Increase R8 heap for minification
+  ORG_GRADLE_PROJECT_android.r8.heap=4g
 
 jobs:
   build-android:

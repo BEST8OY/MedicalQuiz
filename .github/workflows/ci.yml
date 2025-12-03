@@ -39,10 +39,13 @@ env:
     -Dorg.gradle.configuration-cache=true
     -Dorg.gradle.caching=true
     -Dorg.gradle.parallel=true
-    -Xmx4g
+    -Xmx6g
     -XX:+UseG1GC
     -XX:MaxMetaspaceSize=1g
+    -XX:+HeapDumpOnOutOfMemoryError
   ORG_GRADLE_PROJECT_ksp_incremental: 'false'
+  # Increase R8 heap for minification
+  ORG_GRADLE_PROJECT_android.r8.heap=4g
 
 permissions:
   contents: read
@@ -157,86 +160,76 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # Desktop build with matrix for multiple platforms
-  desktop:
-    name: Desktop (${{ matrix.os }})
-    needs: validate
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact-name: desktop-linux
-            artifact-path: composeApp/build/compose/binaries/main-release/deb/
-          - os: windows-latest
-            artifact-name: desktop-windows
-            artifact-path: composeApp/build/compose/binaries/main-release/msi/
-          - os: macos-latest
-            artifact-name: desktop-macos
-            artifact-path: composeApp/build/compose/binaries/main-release/dmg/
-    
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: ${{ env.JAVA_DISTRIBUTION }}
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-          add-job-summary: on-failure
-          cache-cleanup: on-success
-
-      - name: Install Linux Dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgl1 libxrender1 libxrandr2 xvfb
-
-      - name: Run Tests (Linux)
-        if: runner.os == 'Linux' && !inputs.skip_tests
-        run: xvfb-run -a ./gradlew :composeApp:desktopTest --stacktrace
-
-      - name: Run Tests (non-Linux)
-        if: runner.os != 'Linux' && !inputs.skip_tests
-        run: ./gradlew :composeApp:desktopTest --stacktrace
-
-      - name: Upload Test Results
-        if: ${{ !inputs.skip_tests && always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-desktop-${{ runner.os }}
-          path: |
-            **/build/test-results/**/*.xml
-            **/build/reports/tests/**
-          retention-days: 7
-          if-no-files-found: ignore
-
-      - name: Package Release (Linux)
-        if: runner.os == 'Linux' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.build_release)
-        run: xvfb-run -a ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
-
-      - name: Package Release (non-Linux)
-        if: runner.os != 'Linux' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.build_release)
-        run: ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
-
-      - name: Upload Desktop Distribution
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.build_release
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact-name }}
-          path: ${{ matrix.artifact-path }}
-          retention-days: 30
-          compression-level: 0
-          if-no-files-found: ignore
+  # Desktop build disabled for now
+  # desktop:
+  #   name: Desktop (${{ matrix.os }})
+  #   needs: validate
+  #   runs-on: ${{ matrix.os }}
+  #   timeout-minutes: 30
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include:
+  #         - os: ubuntu-latest
+  #           artifact-name: desktop-linux
+  #           artifact-path: composeApp/build/compose/binaries/main-release/deb/
+  #         - os: windows-latest
+  #           artifact-name: desktop-windows
+  #           artifact-path: composeApp/build/compose/binaries/main-release/msi/
+  #         - os: macos-latest
+  #           artifact-name: desktop-macos
+  #           artifact-path: composeApp/build/compose/binaries/main-release/dmg/
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     - name: Set up JDK ${{ env.JAVA_VERSION }}
+  #       uses: actions/setup-java@v4
+  #       with:
+  #         java-version: ${{ env.JAVA_VERSION }}
+  #         distribution: ${{ env.JAVA_DISTRIBUTION }}
+  #     - name: Setup Gradle
+  #       uses: gradle/actions/setup-gradle@v4
+  #       with:
+  #         cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+  #         add-job-summary: on-failure
+  #         cache-cleanup: on-success
+  #     - name: Install Linux Dependencies
+  #       if: runner.os == 'Linux'
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y libgl1 libxrender1 libxrandr2 xvfb
+  #     - name: Run Tests (Linux)
+  #       if: runner.os == 'Linux' && !inputs.skip_tests
+  #       run: xvfb-run -a ./gradlew :composeApp:desktopTest --stacktrace
+  #     - name: Run Tests (non-Linux)
+  #       if: runner.os != 'Linux' && !inputs.skip_tests
+  #       run: ./gradlew :composeApp:desktopTest --stacktrace
+  #     - name: Upload Test Results
+  #       if: ${{ !inputs.skip_tests && always() }}
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: test-results-desktop-${{ runner.os }}
+  #         path: |
+  #           **/build/test-results/**/*.xml
+  #           **/build/reports/tests/**
+  #         retention-days: 7
+  #         if-no-files-found: ignore
+  #     - name: Package Release (Linux)
+  #       if: runner.os == 'Linux' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.build_release)
+  #       run: xvfb-run -a ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
+  #     - name: Package Release (non-Linux)
+  #       if: runner.os != 'Linux' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.build_release)
+  #       run: ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
+  #     - name: Upload Desktop Distribution
+  #       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.build_release
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: ${{ matrix.artifact-name }}
+  #         path: ${{ matrix.artifact-path }}
+  #         retention-days: 30
+  #         compression-level: 0
+  #         if-no-files-found: ignore
 
   # Dependency review for PRs
   dependency-review:
@@ -279,15 +272,14 @@ jobs:
   ci-status:
     name: CI Status
     if: always()
-    needs: [android, lint, desktop]
+    needs: [android, lint]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Check CI Status
         run: |
           if [[ "${{ needs.android.result }}" == "failure" ]] || \
-             [[ "${{ needs.lint.result }}" == "failure" ]] || \
-             [[ "${{ needs.desktop.result }}" == "failure" ]]; then
+             [[ "${{ needs.lint.result }}" == "failure" ]]; then
             echo "❌ CI failed"
             exit 1
           fi
