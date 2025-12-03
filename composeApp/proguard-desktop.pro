@@ -6,10 +6,27 @@
     public static void main(java.lang.String[]);
 }
 
+# ==================== DONTWARN RULES ====================
+# Suppress warnings for missing classes that are not used at runtime
+
+# Kotlin internal classes
+-dontwarn kotlin.jvm.internal.EnhancedNullability
+-dontwarn kotlin.concurrent.atomics.**
+
+# Kotlinx libraries
+-dontwarn kotlinx.datetime.**
+-dontwarn kotlinx.io.**
+-dontwarn kotlinx.coroutines.**
+
+# SLF4J logging (optional dependency)
+-dontwarn org.slf4j.**
+
 # Compose Desktop rules
 -dontwarn org.jetbrains.skiko.**
 -keep class org.jetbrains.skiko.** { *; }
 -keep class androidx.compose.** { *; }
+
+# ==================== KEEP RULES ====================
 
 # Kotlin Serialization
 -keepattributes *Annotation*, InnerClasses
@@ -43,6 +60,18 @@
     *** INSTANCE;
 }
 
+# Kotlinx DateTime
+-keep class kotlinx.datetime.** { *; }
+-keep class kotlinx.datetime.Clock { *; }
+-keep class kotlinx.datetime.Clock$System { *; }
+-keep class kotlinx.datetime.Instant { *; }
+-keep class kotlinx.datetime.TimeZone { *; }
+-keep class kotlinx.datetime.TimeZoneKt { *; }
+-keep class kotlinx.datetime.LocalDateTime { *; }
+
+# Kotlinx IO
+-keep class kotlinx.io.** { *; }
+
 # Ktor
 -keep class io.ktor.** { *; }
 -dontwarn io.ktor.**
@@ -55,7 +84,7 @@
 -keepclassmembers class kotlinx.coroutines.** {
     volatile <fields>;
 }
--dontwarn kotlinx.coroutines.**
+-keep class kotlinx.coroutines.** { *; }
 
 # SQLite
 -keep class app.cash.sqldelight.** { *; }
@@ -65,16 +94,23 @@
 -keep class com.medicalquiz.app.shared.data.** { *; }
 -keep class com.medicalquiz.app.shared.data.models.** { *; }
 
+# Keep UI state classes
+-keep class com.medicalquiz.app.shared.ui.** { *; }
+
 # Keep ViewModels
 -keep class com.medicalquiz.app.shared.viewmodel.** { *; }
 
 # Kotlin reflection
 -keep class kotlin.Metadata { *; }
 -keep class kotlin.reflect.** { *; }
+-keep class kotlin.jvm.internal.** { *; }
 
-# General Android-like rules
+# General rules
 -keepattributes Signature
 -keepattributes SourceFile,LineNumberTable
+-keepattributes Exceptions
+-keepattributes InnerClasses
+-keepattributes EnclosingMethod
 -renamesourcefileattribute SourceFile
 
 # Optimization settings
