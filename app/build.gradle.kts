@@ -18,11 +18,22 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+    }
+
+    // Split APKs by ABI for smaller size
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a")
+            isUniversalApk = true // Also build a universal APK
         }
     }
 
