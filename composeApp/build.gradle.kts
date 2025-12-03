@@ -89,15 +89,24 @@ compose.desktop {
             includeAllModules = false
             
             linux {
-                iconFile.set(project.file("src/desktopMain/resources/icon.png"))
+                val linuxIcon = project.file("src/desktopMain/resources/icon.png")
+                if (linuxIcon.exists()) {
+                    iconFile.set(linuxIcon)
+                }
             }
             windows {
-                iconFile.set(project.file("src/desktopMain/resources/icon.ico"))
+                val windowsIcon = project.file("src/desktopMain/resources/icon.ico")
+                if (windowsIcon.exists()) {
+                    iconFile.set(windowsIcon)
+                }
                 dirChooser = true
                 menuGroup = "MedicalQuiz"
             }
             macOS {
-                iconFile.set(project.file("src/desktopMain/resources/icon.icns"))
+                val macIcon = project.file("src/desktopMain/resources/icon.icns")
+                if (macIcon.exists()) {
+                    iconFile.set(macIcon)
+                }
             }
         }
         
