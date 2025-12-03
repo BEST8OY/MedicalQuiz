@@ -96,6 +96,7 @@ jobs:
         run: ./gradlew testDebugUnitTest --stacktrace
 
       - name: Build Release APK
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.build_release
         run: ./gradlew assembleRelease --stacktrace
 
       - name: Upload Test Results
@@ -110,6 +111,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload Release APK
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.build_release
         uses: actions/upload-artifact@v5
         with:
           name: android-release-${{ steps.version.outputs.version }}
@@ -199,11 +201,11 @@ jobs:
           if-no-files-found: ignore
 
       - name: Package Release
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.build_release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.build_release
         run: xvfb-run -a ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
 
       - name: Upload Desktop Distribution
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.build_release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.build_release
         uses: actions/upload-artifact@v5
         with:
           name: desktop-linux
