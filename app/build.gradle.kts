@@ -74,7 +74,7 @@ dependencies {
     implementation(libs.androidx.material)
 
     // Activity & Fragment KTX
-    implementation("androidx.activity:activity-ktx:1.9.0")
+    implementation("androidx.activity:activity-ktx:1.12.0")
 
     // ----- Jetpack Compose -----
     implementation(platform("androidx.compose:compose-bom:2025.11.01"))
