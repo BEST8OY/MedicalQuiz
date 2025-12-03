@@ -163,18 +163,18 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Package Desktop Application
+      - name: Package Desktop Application (Release with ProGuard)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: xvfb-run -a ./gradlew :composeApp:packageDistributionForCurrentOS --parallel --build-cache --no-daemon --stacktrace
+        run: xvfb-run -a ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --parallel --build-cache --no-daemon --stacktrace
 
       - name: Upload Desktop Distribution
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: desktop-linux-dist
-          path: composeApp/build/compose/binaries/main/deb/
+          path: composeApp/build/compose/binaries/main-release/deb/
           retention-days: 30
-          compression-level: 6
+          compression-level: 0  # Already compressed
 
   # Submit dependencies to GitHub for Dependabot alerts
   dependency-submission:

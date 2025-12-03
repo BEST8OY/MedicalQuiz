@@ -77,10 +77,38 @@ compose.desktop {
     application {
         mainClass = "com.medicalquiz.app.shared.MainKt"
         nativeDistributions {
-            targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg, org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi, org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb)
+            targetFormats(
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg,
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi,
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb
+            )
             packageName = "MedicalQuiz"
             packageVersion = "1.0.0"
+            
+            // Reduce package size
+            includeAllModules = false
+            
+            linux {
+                iconFile.set(project.file("src/desktopMain/resources/icon.png"))
+            }
+            windows {
+                iconFile.set(project.file("src/desktopMain/resources/icon.ico"))
+                dirChooser = true
+                menuGroup = "MedicalQuiz"
+            }
+            macOS {
+                iconFile.set(project.file("src/desktopMain/resources/icon.icns"))
+            }
         }
+        
+        // Enable ProGuard for release builds - significantly reduces size
+        buildTypes.release.proguard {
+            isEnabled.set(true)
+            obfuscate.set(false) // Keep readable stack traces
+            optimize.set(true)
+            configurationFiles.from(project.file("proguard-desktop.pro"))
+        }
+        
         // Enable native Wayland support
         // Wayland uses a different rendering pipeline than X11 for better performance and security
         jvmArgs(
