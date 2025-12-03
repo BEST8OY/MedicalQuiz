@@ -26,8 +26,6 @@ env:
     -XX:MaxMetaspaceSize=1g
     -XX:+HeapDumpOnOutOfMemoryError
   ORG_GRADLE_PROJECT_ksp_incremental: 'false'
-  # Increase R8 heap for minification
-  ORG_GRADLE_PROJECT_android.r8.heap=4g
 
 jobs:
   build-android:
