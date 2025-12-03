@@ -1,53 +1,76 @@
-# ProGuard rules for Compose Desktop
+# ProGuard rules for MedicalQuiz Compose Desktop
 # Optimizes and shrinks the desktop application
 
-# Keep the main entry point
+# ==================== MAIN ENTRY POINT ====================
+
 -keep class com.medicalquiz.app.shared.MainKt {
     public static void main(java.lang.String[]);
 }
 
+# ==================== GENERAL SETTINGS ====================
+
+-keepattributes Signature,SourceFile,LineNumberTable,*Annotation*,InnerClasses,EnclosingMethod
+-renamesourcefileattribute SourceFile
+
+# Optimization
+-optimizationpasses 5
+-allowaccessmodification
+-optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
+
 # ==================== DONTWARN RULES ====================
-# Suppress warnings for missing classes that are not used at runtime
 
-# Kotlin internal classes
--dontwarn kotlin.jvm.internal.EnhancedNullability
--dontwarn kotlin.concurrent.atomics.**
+# Kotlin
+-dontwarn kotlin.**
+-dontwarn kotlin.jvm.internal.**
 
-# Kotlinx libraries
+# Kotlinx
 -dontwarn kotlinx.datetime.**
--dontwarn kotlinx.io.**
 -dontwarn kotlinx.coroutines.**
 
-# SLF4J logging (optional dependency)
+# SLF4J (optional logging dependency)
 -dontwarn org.slf4j.**
 
-# Compose Desktop rules
--dontwarn org.jetbrains.skiko.**
--keep class org.jetbrains.skiko.** { *; }
--keep class androidx.compose.** { *; }
+# Java AWT/Swing (desktop UI)
+-dontwarn java.awt.**
+-dontwarn javax.swing.**
+-dontwarn sun.awt.**
+-dontwarn sun.java2d.**
 
-# ==================== KEEP RULES ====================
+# ==================== COMPOSE DESKTOP ====================
+
+# Skiko rendering engine - required for Compose Desktop
+-keep class org.jetbrains.skiko.** { *; }
+-keep class org.jetbrains.skia.** { *; }
+-dontwarn org.jetbrains.skiko.**
+-dontwarn org.jetbrains.skia.**
+
+# Compose runtime
+-keep class androidx.compose.runtime.** { *; }
+-dontwarn androidx.compose.**
+
+# ==================== KOTLIN ====================
+
+-keep class kotlin.Metadata { *; }
+
+# Coroutines - keep volatile fields for atomics
+-keepclassmembers class kotlinx.coroutines.** {
+    volatile <fields>;
+}
 
 # Kotlin Serialization
--keepattributes *Annotation*, InnerClasses
--dontnote kotlinx.serialization.AnnotationsKt
-
 -keepclassmembers @kotlinx.serialization.Serializable class ** {
     *** Companion;
 }
-
 -if @kotlinx.serialization.Serializable class **
 -keepclassmembers class <1> {
     static <1>$Companion Companion;
 }
-
 -if @kotlinx.serialization.Serializable class ** {
     static **$* *;
 }
 -keepclassmembers class <2>$<3> {
     kotlinx.serialization.KSerializer serializer(...);
 }
-
 -if @kotlinx.serialization.Serializable class ** {
     public static ** INSTANCE;
 }
@@ -55,71 +78,52 @@
     public static <1> INSTANCE;
     kotlinx.serialization.KSerializer serializer(...);
 }
-
 -keepclasseswithmembers class **$$serializer {
     *** INSTANCE;
 }
 
-# Kotlinx DateTime
--keep class kotlinx.datetime.** { *; }
--keep class kotlinx.datetime.Clock { *; }
--keep class kotlinx.datetime.Clock$System { *; }
--keep class kotlinx.datetime.Instant { *; }
--keep class kotlinx.datetime.TimeZone { *; }
--keep class kotlinx.datetime.TimeZoneKt { *; }
--keep class kotlinx.datetime.LocalDateTime { *; }
+# ==================== KTOR ====================
 
-# Kotlinx IO
--keep class kotlinx.io.** { *; }
-
-# Ktor
--keep class io.ktor.** { *; }
+# Ktor CIO engine for desktop
+-keep class io.ktor.client.engine.cio.** { *; }
 -dontwarn io.ktor.**
 
-# Coil
--keep class coil.** { *; }
--dontwarn coil.**
+# ==================== COIL ====================
 
-# Coroutines
--keepclassmembers class kotlinx.coroutines.** {
-    volatile <fields>;
-}
--keep class kotlinx.coroutines.** { *; }
+-keep class coil3.** { *; }
+-dontwarn coil3.**
 
-# SQLite
--keep class app.cash.sqldelight.** { *; }
+# ==================== KSOUP ====================
+
+# HTML parsing library
+-keep class com.mohamedrejeb.ksoup.** { *; }
+-dontwarn com.mohamedrejeb.ksoup.**
+
+# ==================== SQLITE ====================
+
 -keep class androidx.sqlite.** { *; }
+-dontwarn androidx.sqlite.**
 
-# Keep data classes used for serialization
--keep class com.medicalquiz.app.shared.data.** { *; }
+# ==================== APP SPECIFIC ====================
+
+# Keep serializable data models
 -keep class com.medicalquiz.app.shared.data.models.** { *; }
-
-# Keep UI state classes
--keep class com.medicalquiz.app.shared.ui.** { *; }
+-keep class com.medicalquiz.app.shared.data.MediaDescription { *; }
 
 # Keep ViewModels
 -keep class com.medicalquiz.app.shared.viewmodel.** { *; }
 
-# Kotlin reflection
--keep class kotlin.Metadata { *; }
--keep class kotlin.reflect.** { *; }
--keep class kotlin.jvm.internal.** { *; }
+# ==================== OPTIMIZATION ====================
 
-# General rules
--keepattributes Signature
--keepattributes SourceFile,LineNumberTable
--keepattributes Exceptions
--keepattributes InnerClasses
--keepattributes EnclosingMethod
--renamesourcefileattribute SourceFile
-
-# Optimization settings
--optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
--optimizationpasses 5
--allowaccessmodification
-
-# Remove logging in release
+# Remove Kotlin null checks in release
 -assumenosideeffects class kotlin.jvm.internal.Intrinsics {
     static void checkParameterIsNotNull(java.lang.Object, java.lang.String);
     static void checkNotNullParameter(java.lang.Object, java.lang.String);
+    static void checkNotNull(java.lang.Object);
+    static void checkNotNull(java.lang.Object, java.lang.String);
+}
+
+# Remove println logging
+-assumenosideeffects class java.io.PrintStream {
+    public void println(...);
 }
