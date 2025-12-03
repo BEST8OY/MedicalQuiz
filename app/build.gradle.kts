@@ -66,11 +66,6 @@ android {
     }
 }
 
-// Run R8 in a separate JVM with dedicated heap to prevent OOM
-tasks.withType<com.android.build.gradle.internal.tasks.R8Task>().configureEach {
-    jvmArgs("-Xmx4g")
-}
-
 dependencies {
 
     // AndroidX base libraries
