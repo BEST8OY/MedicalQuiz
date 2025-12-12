@@ -1,7 +1,5 @@
 package com.medicalquiz.app.shared.ui
 
-import com.medicalquiz.app.shared.platform.FileSystemHelper
-import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.utils.HtmlUtils
 
 class MediaHandler(
@@ -33,28 +31,19 @@ class MediaHandler(
             return HtmlUtils.normalizeFileName(lastSegment).takeIf { it.isNotBlank() }
         }
 
-        // Quick helper: open a single media file (not necessarily in current cache).
-        fun openSingleIfExists(fileName: String): Boolean {
-            val storageDir = StorageProvider.getAppStorageDirectory()
-            val path = "$storageDir/media/$fileName"
-            if (!FileSystemHelper.exists(path)) return false
-            onOpenMedia(listOf(fileName), 0)
-            return true
-        }
-
         if (trimmed.startsWith("media://")) {
             val fileName = extractedFileName(trimmed.substringAfter("media://"))
-            return fileName?.let { openMediaFromCache(it) || openSingleIfExists(it) } ?: false
+            return fileName?.let { openMediaFromCache(it) } ?: false
         }
 
         if (trimmed.startsWith("file://") && trimmed.contains("/media/")) {
             val fileName = extractedFileName(trimmed)
-            return fileName?.let { openMediaFromCache(it) || openSingleIfExists(it) } ?: false
+            return fileName?.let { openMediaFromCache(it) } ?: false
         }
 
         if (trimmed.startsWith("media/", ignoreCase = true)) {
             val fileName = extractedFileName(trimmed)
-            return fileName?.let { openMediaFromCache(it) || openSingleIfExists(it) } ?: false
+            return fileName?.let { openMediaFromCache(it) } ?: false
         }
 
         // Handle HTML files separately in standalone viewer
@@ -88,7 +77,7 @@ class MediaHandler(
             trimmed.endsWith(".flac", ignoreCase = true)
         ) {
             val fileName = extractedFileName(trimmed)
-            return fileName?.let { openMediaFromCache(it) || openSingleIfExists(it) } ?: false
+            return fileName?.let { openMediaFromCache(it) } ?: false
         }
 
         if (!trimmed.contains("/") && !trimmed.startsWith("http") && !trimmed.startsWith("file://")) {
@@ -98,7 +87,7 @@ class MediaHandler(
                 return true
             }
             val fileName = extractedFileName(trimmed) ?: trimmed
-            return openMediaFromCache(fileName) || openSingleIfExists(fileName)
+            return openMediaFromCache(fileName)
         }
 
         return false
