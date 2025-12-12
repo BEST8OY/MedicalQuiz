@@ -14,9 +14,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 
 class DatabaseManager(private val dbPath: String) : DatabaseProvider {
     private val driver = BundledSQLiteDriver()
@@ -285,7 +285,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         mutex.withLock {
             val now = Clock.System.now()
             val dateTime = now.toLocalDateTime(TimeZone.currentSystemDefault())
-            val dateString = "${dateTime.year}-${dateTime.monthNumber.toString().padStart(2, '0')}-${dateTime.dayOfMonth.toString().padStart(2, '0')} ${dateTime.hour.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')}:${dateTime.second.toString().padStart(2, '0')}"
+            val dateString = "${dateTime.year}-${dateTime.month.number.toString().padStart(2, '0')}-${dateTime.day.toString().padStart(2, '0')} ${dateTime.hour.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')}:${dateTime.second.toString().padStart(2, '0')}"
             
             val sql = "INSERT INTO logs (qid, selectedAnswer, corrAnswer, time, answerDate, testId) VALUES (?, ?, ?, ?, ?, ?)"
             getConnection().prepare(sql).use { stmt ->
