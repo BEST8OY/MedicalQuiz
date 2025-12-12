@@ -785,7 +785,19 @@ private class RichTextDomParser(
                         val href = node.attr("href").trim().takeUnless { hrefValue ->
                             hrefValue.isEmpty() || hrefValue == "#" || hrefValue.startsWith("javascript", ignoreCase = true)
                         }
-                        if (href != null) style.copy(link = href) else style
+                        if (href != null) {
+                            val normalizedHref = href
+                                .substringBefore('#')
+                                .substringBefore('?')
+                                .trim()
+                            val isHtmlLink = normalizedHref.endsWith(".html", ignoreCase = true) ||
+                                normalizedHref.endsWith(".htm", ignoreCase = true)
+                            // Render standalone HTML references like 'metalink'
+                            // (color comes from link styling; here we add italic).
+                            if (isHtmlLink) style.copy(link = href, italic = true) else style.copy(link = href)
+                        } else {
+                            style
+                        }
                     }
                     else -> style
                 }
@@ -1268,7 +1280,8 @@ private fun InlineStyle.applyClassStyles(
                 builder.textColor = palette.abstractText
             }
             "metalink" -> {
-                builder.textColor = Color(0xFFE91E63)
+                // Theme-aligned link styling (no hard-coded colors)
+                builder.textColor = palette.linkText
                 builder.italic = true
             }
         }
@@ -1289,6 +1302,7 @@ private fun AnnotatedString.Builder.appendTextWithStyle(
         style.highlight == InlineHighlight.SELECTED -> palette.selectedText
         style.dictionary -> palette.dictionaryText
         style.tooltip != null -> palette.dictionaryText
+        style.link != null -> palette.linkText
         else -> null
     }
     val backgroundColor = when (style.highlight) {

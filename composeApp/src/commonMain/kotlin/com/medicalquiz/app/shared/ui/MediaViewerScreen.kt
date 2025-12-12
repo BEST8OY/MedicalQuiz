@@ -167,6 +167,7 @@ fun MediaViewerScreen(
                 MediaContent(
                     fileName = mediaFiles[page],
                     description = mediaDescriptions[mediaFiles[page]],
+                    isActivePage = pagerState.currentPage == page,
                     onZoomChanged = { 
                         isZoomed = it
                         if (it) showUI = false
@@ -272,6 +273,7 @@ fun MediaViewerScreen(
 private fun MediaContent(
     fileName: String,
     description: MediaDescription?,
+    isActivePage: Boolean,
     onZoomChanged: (Boolean) -> Unit,
     onSingleTap: () -> Unit,
     showUI: Boolean,
@@ -290,11 +292,13 @@ private fun MediaContent(
         )
         MediaType.VIDEO -> VideoContent(
             filePath = filePath,
-            fileName = fileName
+            fileName = fileName,
+            isActivePage = isActivePage
         )
         MediaType.AUDIO -> AudioContent(
             filePath = filePath,
-            fileName = fileName
+            fileName = fileName,
+            isActivePage = isActivePage
         )
         MediaType.HTML -> HtmlContent(fileName = fileName)
         else -> UnsupportedContent(fileName = fileName, type = mediaType)
@@ -302,7 +306,7 @@ private fun MediaContent(
 }
 
 @Composable
-private fun VideoContent(filePath: String, fileName: String) {
+private fun VideoContent(filePath: String, fileName: String, isActivePage: Boolean) {
     // Check file existence
     val fileExists by produceState(initialValue = true, filePath) {
         value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
@@ -315,12 +319,13 @@ private fun VideoContent(filePath: String, fileName: String) {
 
     VideoPlayer(
         filePath = filePath,
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        isActivePage = isActivePage
     )
 }
 
 @Composable
-private fun AudioContent(filePath: String, fileName: String) {
+private fun AudioContent(filePath: String, fileName: String, isActivePage: Boolean) {
     // Check file existence
     val fileExists by produceState(initialValue = true, filePath) {
         value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
@@ -333,7 +338,8 @@ private fun AudioContent(filePath: String, fileName: String) {
 
     AudioPlayer(
         filePath = filePath,
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        isActivePage = isActivePage
     )
 }
 

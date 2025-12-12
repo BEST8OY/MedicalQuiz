@@ -26,7 +26,8 @@ import kotlin.time.Duration.Companion.milliseconds
 @Composable
 actual fun VideoPlayer(
     filePath: String,
-    modifier: Modifier
+    modifier: Modifier,
+    isActivePage: Boolean
 ) {
     var isPlaying by remember { mutableStateOf(false) }
     var currentTime by remember { mutableLongStateOf(0L) }
@@ -58,6 +59,13 @@ actual fun VideoPlayer(
             mediaPlayerComponent?.mediaPlayer()?.status()?.time()?.let {
                 currentTime = it
             }
+        }
+    }
+
+    // Pause when not on active page
+    LaunchedEffect(isActivePage) {
+        if (!isActivePage && isPlaying) {
+            mediaPlayerComponent?.mediaPlayer()?.controls()?.pause()
         }
     }
 
@@ -124,7 +132,8 @@ actual fun VideoPlayer(
                         }
                     })
                     
-                    component.mediaPlayer().media().play(File(filePath).absolutePath)
+                    // Prepare media but don't autoplay
+                    component.mediaPlayer().media().prepare(File(filePath).absolutePath)
                     component as Component
                 }
             )

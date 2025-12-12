@@ -23,7 +23,8 @@ import kotlin.time.Duration.Companion.milliseconds
 @Composable
 actual fun AudioPlayer(
     filePath: String,
-    modifier: Modifier
+    modifier: Modifier,
+    isActivePage: Boolean
 ) {
     var isPlaying by remember { mutableStateOf(false) }
     var currentTime by remember { mutableStateOf(0L) }
@@ -77,7 +78,8 @@ actual fun AudioPlayer(
                 }
             })
             
-            component.mediaPlayer().media().play(File(filePath).absolutePath)
+            // Prepare media but don't autoplay
+            component.mediaPlayer().media().prepare(File(filePath).absolutePath)
         } catch (e: Exception) {
             errorMessage = "Failed to load audio: ${e.message}"
             println("Audio player error: ${e.message}")
@@ -91,6 +93,13 @@ actual fun AudioPlayer(
             audioPlayer?.mediaPlayer()?.status()?.time()?.let {
                 currentTime = it
             }
+        }
+    }
+
+    // Pause when not on active page
+    LaunchedEffect(isActivePage) {
+        if (!isActivePage && isPlaying) {
+            audioPlayer?.mediaPlayer()?.controls()?.pause()
         }
     }
 
