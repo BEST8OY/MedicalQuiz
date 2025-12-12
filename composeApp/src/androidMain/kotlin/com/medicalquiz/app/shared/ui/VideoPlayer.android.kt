@@ -10,7 +10,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -32,7 +31,6 @@ actual fun VideoPlayer(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val configuration = LocalConfiguration.current
     var playWhenReady by remember { mutableStateOf(false) }
     
     val exoPlayer = remember(filePath) {
@@ -74,19 +72,22 @@ actual fun VideoPlayer(
     }
 
     AndroidView(
-        factory = { _ ->
-            PlayerView(context).apply {
+        factory = { ctx ->
+            PlayerView(ctx).apply {
                 player = exoPlayer
                 useController = true
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                 setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+                // Use TextureView instead of SurfaceView to fix rendering issues in Compose
+                // SurfaceView has z-ordering problems that cause video not to show until interaction
+                setSurfaceType(PlayerView.SURFACE_TYPE_TEXTURE_VIEW)
             }
         },
         update = { playerView ->
-            playerView.player = exoPlayer
-            // Force layout update on initial composition and configuration changes
-            configuration.screenWidthDp // Read configuration to trigger update on changes
-            playerView.requestLayout()
+            // Ensure player is attached
+            if (playerView.player !== exoPlayer) {
+                playerView.player = exoPlayer
+            }
         },
         modifier = modifier
     )
