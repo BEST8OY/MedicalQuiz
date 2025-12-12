@@ -1,7 +1,8 @@
 package com.medicalquiz.app.shared.ui
 
 class MediaHandler(
-    private val onOpenMedia: (List<String>, Int) -> Unit
+    private val onOpenMedia: (List<String>, Int) -> Unit,
+    private val onOpenHtml: (String) -> Unit
 ) {
     private var currentQuestionId: Long? = null
     private var currentMediaFiles: List<String> = emptyList()
@@ -32,18 +33,29 @@ class MediaHandler(
             return openMediaFromCache(fileName)
         }
 
+        // Handle HTML files separately in standalone viewer
+        if (url.endsWith(".html", ignoreCase = true) || url.endsWith(".htm", ignoreCase = true)) {
+            val fileName = url.substringAfterLast('/')
+            onOpenHtml(fileName)
+            return true
+        }
+
         if (url.endsWith(".jpg", ignoreCase = true) || 
             url.endsWith(".jpeg", ignoreCase = true) || 
             url.endsWith(".png", ignoreCase = true) ||
             url.endsWith(".gif", ignoreCase = true) ||
-            url.endsWith(".webp", ignoreCase = true)) {
+            url.endsWith(".webp", ignoreCase = true) ||
+            url.endsWith(".mp4", ignoreCase = true) ||
+            url.endsWith(".mp3", ignoreCase = true)) {
             val fileName = url.substringAfterLast('/')
             return openMediaFromCache(fileName)
         }
 
         if (!url.contains("/") && !url.startsWith("http") && !url.startsWith("file://")) {
-            if (url.endsWith(".html", ignoreCase = true) || url.endsWith(".htm", ignoreCase = true)) {
-                return false
+            // Check if it's an HTML file without path
+            if (url.contains(".html", ignoreCase = true) || url.contains(".htm", ignoreCase = true)) {
+                onOpenHtml(url)
+                return true
             }
             return openMediaFromCache(url)
         }

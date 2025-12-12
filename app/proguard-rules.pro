@@ -122,6 +122,12 @@
 -keep class androidx.sqlite.** { *; }
 -dontwarn androidx.sqlite.**
 
+# ==================== MEDIA3 ====================
+
+# ExoPlayer / Media3
+-keep class androidx.media3.** { *; }
+-dontwarn androidx.media3.**
+
 # ==================== APP SPECIFIC ====================
 
 # Keep serializable data models

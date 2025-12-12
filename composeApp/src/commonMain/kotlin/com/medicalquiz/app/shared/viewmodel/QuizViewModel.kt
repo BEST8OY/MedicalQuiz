@@ -483,6 +483,12 @@ class QuizViewModel : ViewModel() {
             _uiEvents.emit(UiEvent.OpenMedia(urls, startIndex))
         }
     }
+    
+    fun openHtmlFile(fileName: String) {
+        viewModelScope.launch {
+            _uiEvents.emit(UiEvent.OpenHtmlFile(fileName))
+        }
+    }
 
     private fun observeSettings(repo: SettingsRepository): Job {
         return viewModelScope.launch {

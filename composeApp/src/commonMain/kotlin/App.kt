@@ -79,6 +79,9 @@ fun App() {
                     MediaHandler(
                         onOpenMedia = { files, index ->
                             viewModel.openMedia(files, index)
+                        },
+                        onOpenHtml = { fileName ->
+                            viewModel.openHtmlFile(fileName)
                         }
                     ) 
                 }
