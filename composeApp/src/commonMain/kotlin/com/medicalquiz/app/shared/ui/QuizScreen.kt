@@ -304,9 +304,11 @@ private fun QuizQuestionCard(
     val uriHandler = LocalUriHandler.current
     val linkHandler: (String) -> Unit = remember(question?.id, mediaHandler) {
         { url ->
-            if (!mediaHandler.handleMediaLink(url)) {
+            val normalizedUrl = url.trim()
+            if (normalizedUrl.isEmpty()) return@remember
+            if (!mediaHandler.handleMediaLink(normalizedUrl)) {
                 try {
-                    uriHandler.openUri(url)
+                    uriHandler.openUri(normalizedUrl)
                 } catch (e: Exception) {
                     // Ignore
                 }

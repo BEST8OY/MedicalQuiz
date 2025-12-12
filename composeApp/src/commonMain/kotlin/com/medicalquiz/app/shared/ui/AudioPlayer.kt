@@ -6,5 +6,6 @@ import androidx.compose.ui.Modifier
 @Composable
 expect fun AudioPlayer(
     filePath: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isActivePage: Boolean = true
 )

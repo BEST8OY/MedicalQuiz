@@ -27,11 +27,12 @@ import androidx.media3.ui.PlayerView
 @Composable
 actual fun AudioPlayer(
     filePath: String,
-    modifier: Modifier
+    modifier: Modifier,
+    isActivePage: Boolean
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var playWhenReady by remember { mutableStateOf(true) }
+    var playWhenReady by remember { mutableStateOf(false) }
     
     val exoPlayer = remember(filePath) {
         ExoPlayer.Builder(context).build().apply {
@@ -61,6 +62,13 @@ actual fun AudioPlayer(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             exoPlayer.release()
+        }
+    }
+
+    // Pause when not on active page
+    LaunchedEffect(isActivePage) {
+        if (!isActivePage && exoPlayer.isPlaying) {
+            exoPlayer.pause()
         }
     }
 

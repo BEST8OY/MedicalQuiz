@@ -109,6 +109,7 @@ data class RichTextPalette(
     val importantText: Color,
     val selectedBackground: Color,
     val selectedText: Color,
+    val linkText: Color,
     val dictionaryText: Color,
     val abstractText: Color
 )
