@@ -26,7 +26,8 @@ import kotlinx.coroutines.withContext
 @Composable
 fun HtmlViewerDialog(
     fileName: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onLinkClick: ((String) -> Unit)? = null
 ) {
     PlatformBackHandler(enabled = true, onBack = onDismiss)
     
@@ -150,7 +151,8 @@ fun HtmlViewerDialog(
                             ) {
                                 RichText(
                                     html = htmlContent!!,
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onLinkClick = onLinkClick
                                 )
                             }
                         }

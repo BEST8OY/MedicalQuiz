@@ -1,5 +1,9 @@
 package com.medicalquiz.app.shared.ui
 
+import com.medicalquiz.app.shared.platform.FileSystemHelper
+import com.medicalquiz.app.shared.platform.StorageProvider
+import com.medicalquiz.app.shared.utils.HtmlUtils
+
 class MediaHandler(
     private val onOpenMedia: (List<String>, Int) -> Unit,
     private val onOpenHtml: (String) -> Unit
@@ -18,46 +22,83 @@ class MediaHandler(
     }
 
     fun handleMediaLink(url: String): Boolean {
-        if (url.startsWith("media://")) {
-            val fileName = url.substringAfter("media://")
-            return openMediaFromCache(fileName)
+        val trimmed = url.trim()
+        if (trimmed.isEmpty()) return false
+
+        // Prefer a consistent filename extraction (drops query/fragment, trims whitespace).
+        fun extractedFileName(raw: String): String? {
+            val cleaned = raw.substringBefore('?').substringBefore('#').trim()
+            if (cleaned.isEmpty()) return null
+            val lastSegment = cleaned.substringAfterLast('/')
+            return HtmlUtils.normalizeFileName(lastSegment).takeIf { it.isNotBlank() }
         }
 
-        if (url.startsWith("file://") && url.contains("/media/")) {
-            val fileName = url.substringAfterLast('/')
-            return openMediaFromCache(fileName)
-        }
-
-        if (url.startsWith("media/", ignoreCase = true)) {
-            val fileName = url.substringAfterLast('/')
-            return openMediaFromCache(fileName)
-        }
-
-        // Handle HTML files separately in standalone viewer
-        if (url.endsWith(".html", ignoreCase = true) || url.endsWith(".htm", ignoreCase = true)) {
-            val fileName = url.substringAfterLast('/')
-            onOpenHtml(fileName)
+        // Quick helper: open a single media file (not necessarily in current cache).
+        fun openSingleIfExists(fileName: String): Boolean {
+            val storageDir = StorageProvider.getAppStorageDirectory()
+            val path = "$storageDir/media/$fileName"
+            if (!FileSystemHelper.exists(path)) return false
+            onOpenMedia(listOf(fileName), 0)
             return true
         }
 
-        if (url.endsWith(".jpg", ignoreCase = true) || 
-            url.endsWith(".jpeg", ignoreCase = true) || 
-            url.endsWith(".png", ignoreCase = true) ||
-            url.endsWith(".gif", ignoreCase = true) ||
-            url.endsWith(".webp", ignoreCase = true) ||
-            url.endsWith(".mp4", ignoreCase = true) ||
-            url.endsWith(".mp3", ignoreCase = true)) {
-            val fileName = url.substringAfterLast('/')
-            return openMediaFromCache(fileName)
+        if (trimmed.startsWith("media://")) {
+            val fileName = extractedFileName(trimmed.substringAfter("media://"))
+            return fileName?.let { openMediaFromCache(it) || openSingleIfExists(it) } ?: false
         }
 
-        if (!url.contains("/") && !url.startsWith("http") && !url.startsWith("file://")) {
-            // Check if it's an HTML file without path
-            if (url.contains(".html", ignoreCase = true) || url.contains(".htm", ignoreCase = true)) {
-                onOpenHtml(url)
+        if (trimmed.startsWith("file://") && trimmed.contains("/media/")) {
+            val fileName = extractedFileName(trimmed)
+            return fileName?.let { openMediaFromCache(it) || openSingleIfExists(it) } ?: false
+        }
+
+        if (trimmed.startsWith("media/", ignoreCase = true)) {
+            val fileName = extractedFileName(trimmed)
+            return fileName?.let { openMediaFromCache(it) || openSingleIfExists(it) } ?: false
+        }
+
+        // Handle HTML files separately in standalone viewer
+        if (trimmed.contains(".html", ignoreCase = true) || trimmed.contains(".htm", ignoreCase = true)) {
+            val fileName = extractedFileName(trimmed) ?: trimmed
+            if (fileName.isNotBlank()) {
+                onOpenHtml(fileName)
                 return true
             }
-            return openMediaFromCache(url)
+        }
+
+        // Common media extensions (keep in sync with HtmlUtils.MEDIA_LINK_REGEX and MediaViewerScreen.getMediaType)
+        if (
+            trimmed.endsWith(".jpg", ignoreCase = true) ||
+            trimmed.endsWith(".jpeg", ignoreCase = true) ||
+            trimmed.endsWith(".png", ignoreCase = true) ||
+            trimmed.endsWith(".gif", ignoreCase = true) ||
+            trimmed.endsWith(".bmp", ignoreCase = true) ||
+            trimmed.endsWith(".webp", ignoreCase = true) ||
+            trimmed.endsWith(".mp4", ignoreCase = true) ||
+            trimmed.endsWith(".avi", ignoreCase = true) ||
+            trimmed.endsWith(".mkv", ignoreCase = true) ||
+            trimmed.endsWith(".mov", ignoreCase = true) ||
+            trimmed.endsWith(".webm", ignoreCase = true) ||
+            trimmed.endsWith(".3gp", ignoreCase = true) ||
+            trimmed.endsWith(".mp3", ignoreCase = true) ||
+            trimmed.endsWith(".wav", ignoreCase = true) ||
+            trimmed.endsWith(".ogg", ignoreCase = true) ||
+            trimmed.endsWith(".m4a", ignoreCase = true) ||
+            trimmed.endsWith(".aac", ignoreCase = true) ||
+            trimmed.endsWith(".flac", ignoreCase = true)
+        ) {
+            val fileName = extractedFileName(trimmed)
+            return fileName?.let { openMediaFromCache(it) || openSingleIfExists(it) } ?: false
+        }
+
+        if (!trimmed.contains("/") && !trimmed.startsWith("http") && !trimmed.startsWith("file://")) {
+            // Check if it's an HTML file without path
+            if (trimmed.contains(".html", ignoreCase = true) || trimmed.contains(".htm", ignoreCase = true)) {
+                onOpenHtml(trimmed)
+                return true
+            }
+            val fileName = extractedFileName(trimmed) ?: trimmed
+            return openMediaFromCache(fileName) || openSingleIfExists(fileName)
         }
 
         return false
@@ -67,7 +108,18 @@ class MediaHandler(
 
     private fun openMediaFromCache(fileName: String?, fallbackIndex: Int = 0): Boolean {
         if (currentMediaFiles.isEmpty()) return false
-        val startIndex = resolveStartIndex(currentMediaFiles, fileName, fallbackIndex)
+
+        if (fileName != null) {
+            val matchingIndex = currentMediaFiles.indexOfFirst { it.equals(fileName, ignoreCase = true) }
+            if (matchingIndex < 0) {
+                // Don't open an unrelated item when the clicked filename isn't in the current cache.
+                return false
+            }
+            onOpenMedia(currentMediaFiles, matchingIndex)
+            return true
+        }
+
+        val startIndex = resolveStartIndex(currentMediaFiles, null, fallbackIndex)
         onOpenMedia(currentMediaFiles, startIndex)
         return true
     }

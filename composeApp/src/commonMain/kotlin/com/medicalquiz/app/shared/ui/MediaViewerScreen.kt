@@ -103,8 +103,9 @@ private val gradientBottom = Brush.verticalGradient(
 @Composable
 fun MediaViewerScreen(
     mediaFiles: List<String>,
-    startIndex: Int,
-    mediaDescriptions: Map<String, MediaDescription>,
+    startIndex: Int = 0,
+    mediaDescriptions: Map<String, MediaDescription> = emptyMap(),
+    onLinkClick: ((String) -> Unit)? = null,
     onBack: () -> Unit,
 ) {
     PlatformBackHandler(enabled = true, onBack = onBack)
@@ -174,6 +175,7 @@ fun MediaViewerScreen(
                     },
                     onSingleTap = onToggleUI,
                     showUI = showUI,
+                    onLinkClick = onLinkClick,
                 )
             }
         }
@@ -264,7 +266,8 @@ fun MediaViewerScreen(
     if (showExplanation && currentDescription != null) {
         ExplanationDialog(
             description = currentDescription,
-            onDismiss = { showExplanation = false }
+            onDismiss = { showExplanation = false },
+            onLinkClick = onLinkClick
         )
     }
 }
@@ -277,6 +280,7 @@ private fun MediaContent(
     onZoomChanged: (Boolean) -> Unit,
     onSingleTap: () -> Unit,
     showUI: Boolean,
+    onLinkClick: ((String) -> Unit)?,
 ) {
     val mediaType = remember(fileName) { getMediaType(fileName) }
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
@@ -300,7 +304,7 @@ private fun MediaContent(
             fileName = fileName,
             isActivePage = isActivePage
         )
-        MediaType.HTML -> HtmlContent(fileName = fileName)
+        MediaType.HTML -> HtmlContent(fileName = fileName, onLinkClick = onLinkClick)
         else -> UnsupportedContent(fileName = fileName, type = mediaType)
     }
 }
@@ -344,7 +348,7 @@ private fun AudioContent(filePath: String, fileName: String, isActivePage: Boole
 }
 
 @Composable
-private fun HtmlContent(fileName: String) {
+private fun HtmlContent(fileName: String, onLinkClick: ((String) -> Unit)?) {
     val filePath = remember(fileName) {
         "${StorageProvider.getAppStorageDirectory()}/media/$fileName"
     }
@@ -382,6 +386,7 @@ private fun HtmlContent(fileName: String) {
             RichText(
                 html = htmlContent!!,
                 modifier = Modifier.fillMaxWidth(),
+                onLinkClick = onLinkClick,
             )
         }
     }
@@ -403,6 +408,7 @@ private fun ImageContent(
         value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
     }
 
+                                onLinkClick = onLinkClick,
     if (!fileExists) {
         UnsupportedContent(fileName = fileName, type = MediaType.IMAGE)
         return
@@ -412,6 +418,7 @@ private fun ImageContent(
     
     // Track active animation job for cleanup
     var animationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+                    onLinkClick: ((String) -> Unit)?
 
     var scale by rememberSaveable { mutableFloatStateOf(MIN_SCALE) }
     var offsetX by rememberSaveable { mutableFloatStateOf(0f) }
@@ -433,6 +440,7 @@ private fun ImageContent(
         }
     }
 
+                                    onLinkClick = onLinkClick,
     // Resolve overlay path on background thread
     val overlayPath by produceState<String?>(initialValue = null, fileName, storageDir) {
         value = withContext(Dispatchers.IO) {
@@ -672,7 +680,8 @@ private fun UnsupportedContent(fileName: String, type: MediaType) {
 @Composable
 private fun ExplanationDialog(
     description: MediaDescription,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onLinkClick: ((String) -> Unit)?
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -694,6 +703,7 @@ private fun ExplanationDialog(
                 RichText(
                     html = description.description,
                     modifier = Modifier.fillMaxWidth(),
+                    onLinkClick = onLinkClick,
                 )
             }
         },
