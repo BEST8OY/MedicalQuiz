@@ -3,6 +3,7 @@ package com.medicalquiz.app.shared
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,10 +28,14 @@ import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 @Composable
 fun App() {
     // Install Coil's singleton ImageLoader once.
-    // Doing this on every recomposition is unnecessary and can lead to confusing lifecycle behavior.
-    LaunchedEffect(Unit) {
+    // This must run from composition (it's a @Composable API), but we still avoid re-installing on recomposition.
+    var coilInstalled by remember { mutableStateOf(false) }
+    if (!coilInstalled) {
         setSingletonImageLoaderFactory { context ->
             generateImageLoader(context)
+        }
+        SideEffect {
+            coilInstalled = true
         }
     }
 
