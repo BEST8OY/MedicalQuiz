@@ -40,6 +40,9 @@ actual fun VideoPlayer(
             prepare()
             this.playWhenReady = playWhenReady
             repeatMode = Player.REPEAT_MODE_OFF
+            // Force initial frame to render by seeking to start
+            // This workaround fixes SurfaceView rendering issues in Compose
+            seekTo(0)
         }
     }
 
@@ -74,20 +77,19 @@ actual fun VideoPlayer(
     AndroidView(
         factory = { ctx ->
             PlayerView(ctx).apply {
-                player = exoPlayer
                 useController = true
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                 setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
-                // Use TextureView instead of SurfaceView to fix rendering issues in Compose
-                // SurfaceView has z-ordering problems that cause video not to show until interaction
-                setSurfaceType(PlayerView.SURFACE_TYPE_TEXTURE_VIEW)
+                // Enable Compose surface sync workaround for Android 14+ (API 34+)
+                // See: https://developer.android.com/media/media3/ui/surface
+                setEnableComposeSurfaceSyncWorkaround(true)
+                // Set the player
+                player = exoPlayer
             }
         },
         update = { playerView ->
             // Ensure player is attached
-            if (playerView.player !== exoPlayer) {
-                playerView.player = exoPlayer
-            }
+            playerView.player = exoPlayer
         },
         modifier = modifier
     )
