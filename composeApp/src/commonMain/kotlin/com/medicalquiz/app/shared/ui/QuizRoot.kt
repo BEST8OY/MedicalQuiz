@@ -106,8 +106,6 @@ fun QuizRoot(
         } else if (mediaViewerFiles == null && mediaDescriptions.isNotEmpty()) {
             // Clear descriptions when viewer closes to free memory
             mediaDescriptions = emptyMap()
-            // Clear Coil memory cache to release unused bitmaps from media viewer
-            imageLoader.memoryCache?.clear()
         }
     }
 
