@@ -52,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -76,6 +77,21 @@ fun QuizRoot(
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
     val isQuizMode = state.questionIds.isNotEmpty() && state.currentQuestion != null
     val performanceLabel = formatPerformanceLabel(state.performanceFilter)
+
+    val uriHandler = LocalUriHandler.current
+    val linkHandler: (String) -> Unit = remember(mediaHandler, uriHandler) {
+        { url ->
+            val normalizedUrl = url.trim()
+            if (normalizedUrl.isEmpty()) return@remember
+            if (!mediaHandler.handleMediaLink(normalizedUrl)) {
+                try {
+                    uriHandler.openUri(normalizedUrl)
+                } catch (_: Exception) {
+                    // Ignore
+                }
+            }
+        }
+    }
     
     // Get Coil image loader for memory cache management.
     // We configure the singleton factory in App(), so always read via SingletonImageLoader.
@@ -154,12 +170,14 @@ fun QuizRoot(
             mediaFiles = mediaViewerFiles!!,
             startIndex = mediaViewerIndex,
             mediaDescriptions = mediaDescriptions,
+            onLinkClick = linkHandler,
             onBack = { mediaViewerFiles = null }
         )
     } else if (htmlViewerFile != null) {
         HtmlViewerDialog(
             fileName = htmlViewerFile!!,
-            onDismiss = { htmlViewerFile = null }
+            onDismiss = { htmlViewerFile = null },
+            onLinkClick = linkHandler
         )
     } else if (isQuizMode) {
         ModalNavigationDrawer(

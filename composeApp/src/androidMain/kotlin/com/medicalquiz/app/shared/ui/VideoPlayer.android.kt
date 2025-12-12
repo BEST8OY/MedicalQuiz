@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -31,6 +32,7 @@ actual fun VideoPlayer(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val configuration = LocalConfiguration.current
     var playWhenReady by remember { mutableStateOf(false) }
     
     val exoPlayer = remember(filePath) {
@@ -82,6 +84,9 @@ actual fun VideoPlayer(
         },
         update = { playerView ->
             playerView.player = exoPlayer
+            // Force layout update on initial composition and configuration changes
+            configuration.screenWidthDp // Read configuration to trigger update on changes
+            playerView.requestLayout()
         },
         modifier = modifier
     )
