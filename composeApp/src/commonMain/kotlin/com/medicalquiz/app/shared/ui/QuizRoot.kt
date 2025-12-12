@@ -56,7 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.LocalPlatformContext
-import coil3.imageLoader
+import coil3.SingletonImageLoader
 import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
@@ -77,9 +77,10 @@ fun QuizRoot(
     val isQuizMode = state.questionIds.isNotEmpty() && state.currentQuestion != null
     val performanceLabel = formatPerformanceLabel(state.performanceFilter)
     
-    // Get image loader for memory cache management
+    // Get Coil image loader for memory cache management.
+    // We configure the singleton factory in App(), so always read via SingletonImageLoader.
     val platformContext = LocalPlatformContext.current
-    val imageLoader = remember(platformContext) { platformContext.imageLoader }
+    val imageLoader = remember(platformContext) { SingletonImageLoader.get(platformContext) }
 
     // Dialog states
     var showPerformanceDialog by rememberSaveable { mutableStateOf(false) }
