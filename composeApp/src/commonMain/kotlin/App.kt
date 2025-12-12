@@ -12,8 +12,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.setSingletonImageLoaderFactory
-import coil3.PlatformContext
-import coil3.SingletonImageLoader
 import com.medicalquiz.app.shared.generateImageLoader
 import com.medicalquiz.app.shared.data.CacheManager
 import com.medicalquiz.app.shared.data.DatabaseManager
@@ -28,8 +26,12 @@ import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 
 @Composable
 fun App() {
-    setSingletonImageLoaderFactory { context ->
-        generateImageLoader(context)
+    // Install Coil's singleton ImageLoader once.
+    // Doing this on every recomposition is unnecessary and can lead to confusing lifecycle behavior.
+    LaunchedEffect(Unit) {
+        setSingletonImageLoaderFactory { context ->
+            generateImageLoader(context)
+        }
     }
 
     val settingsRepository = remember { SettingsRepository() }
