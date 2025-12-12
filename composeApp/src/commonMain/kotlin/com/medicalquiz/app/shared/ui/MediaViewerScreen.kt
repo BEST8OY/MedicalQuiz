@@ -408,7 +408,6 @@ private fun ImageContent(
         value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
     }
 
-                                onLinkClick = onLinkClick,
     if (!fileExists) {
         UnsupportedContent(fileName = fileName, type = MediaType.IMAGE)
         return
@@ -418,7 +417,6 @@ private fun ImageContent(
     
     // Track active animation job for cleanup
     var animationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-                    onLinkClick: ((String) -> Unit)?
 
     var scale by rememberSaveable { mutableFloatStateOf(MIN_SCALE) }
     var offsetX by rememberSaveable { mutableFloatStateOf(0f) }
@@ -440,7 +438,6 @@ private fun ImageContent(
         }
     }
 
-                                    onLinkClick = onLinkClick,
     // Resolve overlay path on background thread
     val overlayPath by produceState<String?>(initialValue = null, fileName, storageDir) {
         value = withContext(Dispatchers.IO) {
