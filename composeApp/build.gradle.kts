@@ -47,6 +47,10 @@ kotlin {
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.coil.android)
                 implementation(libs.ktor.client.okhttp)
+                
+                // Media3 for video/audio playback
+                implementation(libs.media3.exoplayer)
+                implementation(libs.media3.ui)
             }
         }
         
@@ -55,6 +59,9 @@ kotlin {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutines.swing)
                 implementation(libs.ktor.client.cio)
+                
+                // VLC for video/audio playback
+                implementation(libs.vlcj)
             }
         }
     }

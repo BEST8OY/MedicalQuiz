@@ -55,6 +55,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.LocalPlatformContext
+import coil3.imageLoader
 import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
@@ -74,6 +76,10 @@ fun QuizRoot(
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
     val isQuizMode = state.questionIds.isNotEmpty() && state.currentQuestion != null
     val performanceLabel = formatPerformanceLabel(state.performanceFilter)
+    
+    // Get image loader for memory cache management
+    val platformContext = LocalPlatformContext.current
+    val imageLoader = remember(platformContext) { platformContext.imageLoader }
 
     // Dialog states
     var showPerformanceDialog by rememberSaveable { mutableStateOf(false) }
@@ -88,11 +94,19 @@ fun QuizRoot(
     var mediaViewerFiles by rememberSaveable { mutableStateOf<ArrayList<String>?>(null) }
     var mediaViewerIndex by rememberSaveable { mutableStateOf(0) }
     var mediaDescriptions by remember { mutableStateOf<Map<String, MediaDescription>>(emptyMap()) }
+    
+    // HTML Viewer State - standalone viewer for HTML files
+    var htmlViewerFile by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // Load media descriptions only when the viewer opens to reduce cold-start allocations
+    // Load media descriptions only when the viewer opens, clear when closed to free memory
     LaunchedEffect(mediaViewerFiles) {
         if (mediaViewerFiles != null && mediaDescriptions.isEmpty()) {
             mediaDescriptions = com.medicalquiz.app.shared.data.MediaDescriptionRepository.load()
+        } else if (mediaViewerFiles == null && mediaDescriptions.isNotEmpty()) {
+            // Clear descriptions when viewer closes to free memory
+            mediaDescriptions = emptyMap()
+            // Clear Coil memory cache to release unused bitmaps from media viewer
+            imageLoader.memoryCache?.clear()
         }
     }
 
@@ -103,6 +117,9 @@ fun QuizRoot(
                 is UiEvent.OpenPerformanceDialog -> showPerformanceDialog = true
                 is UiEvent.ShowErrorDialog -> errorDialog = event.title to event.message
                 is UiEvent.ShowResetLogsConfirmation -> showResetLogsConfirmation = true
+                is UiEvent.OpenHtmlFile -> {
+                    htmlViewerFile = event.fileName
+                }
                 is UiEvent.OpenMedia -> {
                     // Filter out unavailable media files
                     val availableFiles = event.urls.filter { fileName ->
@@ -139,6 +156,11 @@ fun QuizRoot(
             startIndex = mediaViewerIndex,
             mediaDescriptions = mediaDescriptions,
             onBack = { mediaViewerFiles = null }
+        )
+    } else if (htmlViewerFile != null) {
+        HtmlViewerDialog(
+            fileName = htmlViewerFile!!,
+            onDismiss = { htmlViewerFile = null }
         )
     } else if (isQuizMode) {
         ModalNavigationDrawer(

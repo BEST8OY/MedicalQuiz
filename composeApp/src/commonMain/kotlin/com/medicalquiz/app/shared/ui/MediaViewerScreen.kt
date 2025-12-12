@@ -48,6 +48,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -123,6 +124,17 @@ fun MediaViewerScreen(
     // Reset zoom when changing pages
     LaunchedEffect(pagerState.currentPage) {
         isZoomed = false
+    }
+    
+    // Cleanup when leaving composition to ensure fresh state on next open
+    DisposableEffect(Unit) {
+        onDispose {
+            // State cleanup happens automatically via rememberSaveable restoration,
+            // but we explicitly reset to ensure no stale zoom/UI state persists
+            isZoomed = false
+            showUI = true
+            showExplanation = false
+        }
     }
 
     // Toggle UI on single tap (handled in ImageContent)
@@ -265,6 +277,8 @@ private fun MediaContent(
     showUI: Boolean,
 ) {
     val mediaType = remember(fileName) { getMediaType(fileName) }
+    val storageDir = remember { StorageProvider.getAppStorageDirectory() }
+    val filePath = remember(fileName) { "$storageDir/media/$fileName" }
 
     when (mediaType) {
         MediaType.IMAGE -> ImageContent(
@@ -274,9 +288,53 @@ private fun MediaContent(
             onSingleTap = onSingleTap,
             showUI = showUI,
         )
+        MediaType.VIDEO -> VideoContent(
+            filePath = filePath,
+            fileName = fileName
+        )
+        MediaType.AUDIO -> AudioContent(
+            filePath = filePath,
+            fileName = fileName
+        )
         MediaType.HTML -> HtmlContent(fileName = fileName)
         else -> UnsupportedContent(fileName = fileName, type = mediaType)
     }
+}
+
+@Composable
+private fun VideoContent(filePath: String, fileName: String) {
+    // Check file existence
+    val fileExists by produceState(initialValue = true, filePath) {
+        value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
+    }
+
+    if (!fileExists) {
+        UnsupportedContent(fileName = fileName, type = MediaType.VIDEO)
+        return
+    }
+
+    VideoPlayer(
+        filePath = filePath,
+        modifier = Modifier.fillMaxSize()
+    )
+}
+
+@Composable
+private fun AudioContent(filePath: String, fileName: String) {
+    // Check file existence
+    val fileExists by produceState(initialValue = true, filePath) {
+        value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
+    }
+
+    if (!fileExists) {
+        UnsupportedContent(fileName = fileName, type = MediaType.AUDIO)
+        return
+    }
+
+    AudioPlayer(
+        filePath = filePath,
+        modifier = Modifier.fillMaxSize()
+    )
 }
 
 @Composable
@@ -345,6 +403,9 @@ private fun ImageContent(
     }
 
     val scope = rememberCoroutineScope()
+    
+    // Track active animation job for cleanup
+    var animationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     var scale by rememberSaveable { mutableFloatStateOf(MIN_SCALE) }
     var offsetX by rememberSaveable { mutableFloatStateOf(0f) }
@@ -356,6 +417,14 @@ private fun ImageContent(
 
     LaunchedEffect(scale) {
         onZoomChanged(scale > 1.05f)
+    }
+    
+    // Cleanup animation job when composable leaves composition
+    DisposableEffect(Unit) {
+        onDispose {
+            animationJob?.cancel()
+            animationJob = null
+        }
     }
 
     // Resolve overlay path on background thread
@@ -418,7 +487,9 @@ private fun ImageContent(
                 detectTapGestures(
                     onTap = { onSingleTap() },
                     onDoubleTap = { tapOffset ->
-                        scope.launch {
+                        // Cancel any ongoing animation before starting a new one
+                        animationJob?.cancel()
+                        animationJob = scope.launch {
                             val startScale = scale
                             val startOffsetX = offsetX
                             val startOffsetY = offsetY
@@ -432,16 +503,20 @@ private fun ImageContent(
                                 Triple(MIN_SCALE, 0f, 0f)
                             }
                             val (clampedTargetX, clampedTargetY) = clampOffset(targetX, targetY, targetScale)
-                            Animatable(0f).animateTo(
-                                targetValue = 1f,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioLowBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                )
-                            ) {
-                                scale = lerp(startScale, targetScale, this.value)
-                                offsetX = lerp(startOffsetX, clampedTargetX, this.value)
-                                offsetY = lerp(startOffsetY, clampedTargetY, this.value)
+                            try {
+                                Animatable(0f).animateTo(
+                                    targetValue = 1f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessMedium
+                                    )
+                                ) {
+                                    scale = lerp(startScale, targetScale, this.value)
+                                    offsetX = lerp(startOffsetX, clampedTargetX, this.value)
+                                    offsetY = lerp(startOffsetY, clampedTargetY, this.value)
+                                }
+                            } catch (_: kotlinx.coroutines.CancellationException) {
+                                // Animation was cancelled, state is already partially updated which is fine
                             }
                         }
                     },
