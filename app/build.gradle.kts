@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.medicalquiz.app"
-    compileSdk = 36
+    compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
         applicationId = "com.medicalquiz.app"
-        minSdk = 31
-        targetSdk = 36
+        minSdk = libs.versions.android.minSdk.get().toInt()
+        targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
     }
@@ -74,10 +74,10 @@ dependencies {
     implementation(libs.androidx.material)
 
     // Activity & Fragment KTX
-    implementation("androidx.activity:activity-ktx:1.12.0")
+    implementation(libs.androidx.activity.ktx)
 
     // ----- Jetpack Compose -----
-    implementation(platform("androidx.compose:compose-bom:2025.11.01"))
+    implementation(platform(libs.androidx.compose.bom))
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")

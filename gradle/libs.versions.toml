@@ -3,11 +3,12 @@ agp = "8.13.1"
 android-compileSdk = "36"
 android-minSdk = "31"
 android-targetSdk = "36"
-androidx-activityCompose = "1.12.0"
+androidx-activityCompose = "1.12.1"
 androidx-appcompat = "1.7.1"
 androidx-core-ktx = "1.17.0"
 androidx-lifecycle = "2.10.0-alpha06"
 androidx-material = "1.13.0"
+androidx-compose-bom = "2025.12.00"
 compose-plugin = "1.10.0-rc01"
 compose-material3-version = "1.10.0-alpha05"
 kotlin = "2.2.21"
@@ -18,14 +19,16 @@ sqlite = "2.6.2"
 ksoup = "0.6.0"
 serialization = "1.9.0"
 datetime = "0.7.1-0.6.x-compat"
-media3 = "1.5.0"
-vlcj = "4.8.2"
+media3 = "1.8.0"
+vlcj = "4.12.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidx-core-ktx" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "androidx-appcompat" }
 androidx-material = { group = "com.google.android.material", name = "material", version.ref = "androidx-material" }
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "androidx-compose-bom" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
+androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "androidx-activityCompose" }
 androidx-lifecycle-viewmodel = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
 
