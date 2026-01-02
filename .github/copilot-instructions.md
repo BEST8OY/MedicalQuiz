@@ -1,99 +1,83 @@
-# Copilot Instructions for MedicalQuiz
+# MedicalQuiz AI Coding Instructions
 
-## Project Overview
+## Architecture Overview
 
-MedicalQuiz is a **Kotlin Multiplatform (KMP)** quiz application targeting **Android** and **Desktop (JVM)** platforms using **Compose Multiplatform**. It loads medical quiz questions from SQLite databases and supports media viewing, answer logging, and performance filtering.
+This is a **Kotlin Multiplatform (KMP)** medical quiz application targeting Android and Desktop (JVM). The codebase uses a shared-first approach:
 
-## Architecture
+- **`:composeApp`** - The shared multiplatform module containing 95% of logic and UI (Compose Multiplatform)
+- **`:app`** - Thin Android wrapper that embeds `:composeApp`
 
-### Module Structure
-- **`composeApp/`** - Main KMP module containing shared UI and business logic
-  - `commonMain/` - Platform-agnostic code (Compose UI, ViewModels, data layer)
-  - `androidMain/` - Android-specific implementations
-  - `desktopMain/` - Desktop-specific implementations
-- **`app/`** - Legacy Android-only module (minimal usage, wraps `composeApp`)
-
-### Key Architectural Patterns
-
-**Expect/Actual Pattern** - Platform abstractions in `platform/` directories:
-```kotlin
-// commonMain: expect object FileSystemHelper { fun getDatabasePath(dbName: String): String }
-// androidMain/desktopMain: actual object FileSystemHelper { ... }
+### Source Set Structure
 ```
-Platform-specific implementations: `FileSystemHelper`, `StorageProvider`, `PlatformBackHandler`, `getPlatformColorScheme`
+composeApp/src/
+├── commonMain/    # Shared code (UI, ViewModel, data layer)
+├── androidMain/   # Android-specific implementations (ExoPlayer, platform helpers)
+└── desktopMain/   # Desktop-specific implementations (VLC, file system)
+```
 
-**Data Flow:**
-1. `DatabaseSelectionScreen` → User picks `.db` file from `StorageProvider.getAppStorageDirectory()/databases/`
-2. `DatabaseManager` opens SQLite via `BundledSQLiteDriver` (coroutine-safe with `Mutex`)
-3. `QuizViewModel` exposes `StateFlow<QuizState>` to Compose UI
-4. UI collects state via `collectAsStateWithLifecycle()`
+**Expect/Actual Pattern**: Platform abstractions in `commonMain/platform/` use `expect` declarations with `actual` implementations in each platform source set. Key examples:
+- `FileSystemHelper` - File operations (database paths differ: Android uses `databases/` subfolder, Desktop uses root)
+- `StorageProvider` - Platform-specific storage directories
+- `VideoPlayer`, `AudioPlayer` - Media playback (ExoPlayer on Android, VLC on Desktop)
 
-**State Management:**
-- Single `QuizState` data class holds all quiz state (question, answers, filters, selections)
-- `QuizViewModel` manages state via `MutableStateFlow` with `update {}` pattern
-- Settings persisted via `SettingsRepository` to JSON file
+## Key Patterns
 
-## Storage Paths
+### State Management
+Single `QuizViewModel` manages all quiz state via `QuizState` data class. Uses:
+- `StateFlow` for reactive UI updates
+- `collectAsStateWithLifecycle()` in Compose
+- `Resource<T>` sealed class for async loading states (`Loading`, `Success`, `Error`)
 
-| Platform | Root Directory |
-|----------|----------------|
-| Desktop | `~/.medicalquiz/` |
-| Android | `/sdcard/MedicalQuiz/` (legacy) or app-specific storage |
+### Database Access
+- Direct SQLite via `BundledSQLiteDriver` (no Room/SQLDelight ORM)
+- `DatabaseProvider` interface abstracts queries
+- `DatabaseManager` handles raw SQL with `Mutex` for thread safety
+- Databases are `.db` files placed in platform-specific storage directories
 
-Subdirectories: `databases/`, `media/`, `image_cache/`, `settings.json`
+### Database Schema (inferred from SQL)
+The app expects these tables/columns (see `composeApp/src/commonMain/kotlin/com/medicalquiz/app/shared/data/DatabaseManager.kt`):
 
-## Build Commands
+- `Questions`: `id`, `question`, `explanation`, `corrAns`, `title`, `mediaName`, `otherMedias`, `pplTaken`, `corrTaken`, `subId`, `sysId`
+	- `subId`/`sysId` can be either integer IDs or comma-separated text IDs; code checks `pragma_table_info('Questions')` for `subId` type.
+- `Answers`: `id`, `answerId` (nullable), `answerText`, `correctPercentage` (nullable), `qId`
+	- When `answerId` is null, code falls back to `id`.
+- `Subjects`: `id`, `name`, `count`
+- `Systems`: `id`, `name`, `count`
+- `SubjectsSystems`: `subId`, `sysId` (used to map selected subjects → systems)
+- `logs`: `qid`, `selectedAnswer`, `corrAnswer`, `time`, `answerDate`, `testId`
+	- Performance filters join against a grouped `logs` summary; question performance aggregates attempts/correct/incorrect.
 
-- No command to build the project
+### Composable Structure
+```
+App() → QuizRoot() → QuizScreen() / SelectionMenuComposable / MediaViewerScreen
+```
+- `QuizRoot` handles navigation drawer, dialogs, and top-level state
+- `RichText` custom component for rendering HTML-formatted question content
+- `MediaHandler` callback interface for opening media/HTML files
 
-## Code Conventions
+## Conventions
 
-### Compose UI Patterns
-- Screens in `ui/` directory, one file per major screen (e.g., `QuizScreen.kt`, `QuizRoot.kt`)
-- Use `Material3` components exclusively
-- Access font size via `LocalFontSize.current` (CompositionLocal)
-- Navigation uses `ModalNavigationDrawer` with `drawerState`
+- **Kotlin 2.2+** with experimental features enabled (`-Xcontext-parameters`)
+- **Java 17** target for Android, **Java 21** toolchain for KMP
+- Use `Dispatchers.IO` for database/file operations in ViewModel
+- Prefer `rememberSaveable` over `remember` for configuration change survival
+- Media files stored in `{storageRoot}/media/`, databases in platform-specific paths
 
-### ViewModel Patterns
-- Use `Dispatchers.IO` for database/file operations
-- Emit toasts via `SharedFlow<UiEvent>`:
-  ```kotlin
-  private val _uiEvents = MutableSharedFlow<UiEvent>(extraBufferCapacity = 4)
-  ```
+## Dependencies (from `libs.versions.toml`)
 
-### Database Operations
-- All DB access through `DatabaseProvider` interface
-- Use `withContext(Dispatchers.IO)` and `mutex.withLock {}` for thread safety
-- Question data model: `Question`, `Answer`, `Subject`, `System`
+| Purpose | Library |
+|---------|---------|
+| UI | Compose Multiplatform + Material3 |
+| Images | Coil 3 (compose + SVG + ktor network) |
+| Serialization | kotlinx-serialization-json |
+| Database | androidx.sqlite:sqlite-bundled |
+| HTML Parsing | ksoup |
+| Android Video | Media3/ExoPlayer |
+| Desktop Video | VLCJ |
 
-### HTML Rendering
-- Rich text rendering via custom `RichText` composable in `ui/richtext/`
-- Parses HTML from question/explanation fields
-- Supports images, tables, lists, code blocks
+## Adding New Features
 
-## Dependencies (Key Libraries)
-
-- **Compose**: `1.10.0-rc01` (Multiplatform)
-- **Kotlin**: `2.2.21`
-- **SQLite**: `androidx.sqlite:sqlite-bundled:2.6.2`
-- **Image Loading**: Coil 3 (`coil-compose`, `coil-svg`, `coil-network-ktor`)
-- **HTML Parsing**: Ksoup (`com.mohamedrejeb.ksoup:ksoup-html`)
-- **Networking**: Ktor (OkHttp on Android, CIO on Desktop)
-
-Version catalog: [gradle/libs.versions.toml](gradle/libs.versions.toml)
-
-## Common Patterns
-
-### Adding Platform-Specific Code
-1. Define `expect` declaration in `commonMain/kotlin/.../platform/`
-2. Implement `actual` in both `androidMain` and `desktopMain`
-3. Example files: `FileSystemHelper.kt`, `StorageProvider.kt`
-
-### Adding a New Screen
-1. Create composable in `composeApp/src/commonMain/kotlin/.../ui/`
-2. Add navigation entry in `QuizRoot.kt` (drawer menu or dialog)
-3. Add state fields to `QuizState` if needed
-
-### Database Schema
-Questions table: `id`, `question`, `explanation`, `corrAns`, `mediaName`, `subId`, `sysId`
-Logs table: `qid`, `selectedAnswer`, `corrAnswer`, `time`, `testId`
+1. **New UI component**: Add to `composeApp/src/commonMain/.../ui/`
+2. **Platform-specific code**: Create `expect` in `commonMain/platform/`, add `actual` in both `androidMain` and `desktopMain`
+3. **New data model**: Add to `data/models/`, update `DatabaseManager` SQL queries
+4. **New ViewModel action**: Add function to `QuizViewModel`, emit `UiEvent` for side effects
