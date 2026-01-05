@@ -19,7 +19,7 @@ sqlite = "2.6.2"
 ksoup = "0.6.0"
 serialization = "1.9.0"
 datetime = "0.7.1-0.6.x-compat"
-media3 = "1.8.0"
+media3 = "1.9.0"
 vlcj = "4.12.1"
 
 [libraries]
