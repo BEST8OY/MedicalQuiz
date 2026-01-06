@@ -56,9 +56,9 @@
 -dontwarn org.jetbrains.skiko.**
 -dontwarn org.jetbrains.skia.**
 
-# Keep ALL Compose classes to prevent ClassFormatError with LocalVariableTable
-# This is required because ProGuard can corrupt bytecode debug info in Compose classes
--keep class androidx.compose.** { *; }
+# Compose itself can generally be shrunk safely; avoid blanket -keep or size won't improve.
+# If you hit runtime VerifyError/ClassFormatError in release builds, we can selectively
+# re-introduce targeted keep rules (or further restrict optimizations).
 -dontwarn androidx.compose.**
 
 # ==================== KOTLIN ====================
@@ -67,9 +67,6 @@
 
 # ==================== KOTLINX COROUTINES ====================
 # Official rules from: https://github.com/Kotlin/kotlinx.coroutines
-
-# Keep entire coroutines package to prevent VerifyError
--keep class kotlinx.coroutines.** { *; }
 
 # ServiceLoader support
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
@@ -133,30 +130,35 @@
 
 # ==================== KTOR ====================
 
-# Ktor CIO engine for desktop - keep all engine classes
--keep class io.ktor.** { *; }
+# Ktor CIO engine for desktop
+# Avoid keeping everything so the shrinker can remove unused plugins/features.
 -dontwarn io.ktor.**
 
 # ==================== COIL ====================
 
--keep class coil3.** { *; }
 -dontwarn coil3.**
 
 # ==================== OKIO ====================
 
-# Keep Okio classes used by Coil and Ktor
--keep class okio.** { *; }
 -dontwarn okio.**
 
 # ==================== KSOUP ====================
 
-# HTML parsing library
--keep class com.mohamedrejeb.ksoup.** { *; }
 -dontwarn com.mohamedrejeb.ksoup.**
 
-# ==================== SQLITE ====================
+# ==================== VLCJ / JNA ====================
 
--keep class androidx.sqlite.** { *; }
+# VLCJ relies on JNA to load native libVLC and uses reflection/service loading in a few spots.
+# With shrinking enabled, it's safer to keep these packages intact.
+-keep class uk.co.caprica.vlcj.** { *; }
+-dontwarn uk.co.caprica.vlcj.**
+
+-keep class com.sun.jna.** { *; }
+-dontwarn com.sun.jna.**
+-keep class com.sun.jna.platform.** { *; }
+-dontwarn com.sun.jna.platform.**
+
+# ==================== SQLITE ====================
 -dontwarn androidx.sqlite.**
 
 # ==================== APP SPECIFIC ====================
