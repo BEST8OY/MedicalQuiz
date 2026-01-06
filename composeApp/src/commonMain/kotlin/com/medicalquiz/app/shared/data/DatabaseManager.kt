@@ -319,6 +319,16 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         }
     }
 
+    override suspend fun clearLogForQuestion(qid: Long) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            getConnection().prepare("DELETE FROM logs WHERE qid = ?").use { stmt ->
+                stmt.bindLong(1, qid)
+                stmt.step()
+            }
+            Unit
+        }
+    }
+
     override suspend fun getQuestionPerformance(qid: Long): QuestionPerformance? = withContext(Dispatchers.IO) {
         mutex.withLock {
             val sql = """

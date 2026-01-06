@@ -29,5 +29,6 @@ interface DatabaseProvider {
     )
     
     suspend fun clearLogs()
+    suspend fun clearLogForQuestion(qid: Long)
     suspend fun getQuestionPerformance(qid: Long): QuestionPerformance?
 }

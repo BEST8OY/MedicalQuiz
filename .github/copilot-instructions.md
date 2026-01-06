@@ -51,7 +51,8 @@ The app expects these tables/columns (see `composeApp/src/commonMain/kotlin/com/
 ```
 App() → QuizRoot() → QuizScreen() / SelectionMenuComposable / MediaViewerScreen
 ```
-- `QuizRoot` handles navigation drawer, dialogs, and top-level state
+- `QuizRoot` orchestrates navigation drawer, dialogs, and top-level state
+- UI sections are split into small composables in `ui/` (e.g. `QuizTopBar`, `QuizDrawer`, `FilterScreen`) to keep `QuizRoot` focused on orchestration
 - `RichText` custom component for rendering HTML-formatted question content
 - `MediaHandler` callback interface for opening media/HTML files
 

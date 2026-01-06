@@ -478,6 +478,19 @@ class QuizViewModel : ViewModel() {
         }
     }
 
+    fun clearCurrentQuestionLog() {
+        val questionId = _state.value.currentQuestion?.id ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                databaseManager?.clearLogForQuestion(questionId)
+                _state.update { it.copy(currentPerformance = null) }
+                emitToast("Log cleared for current question")
+            } catch (e: Exception) {
+                emitToast("Failed to clear log: ${e.message}")
+            }
+        }
+    }
+
     fun openMedia(urls: List<String>, startIndex: Int) {
         viewModelScope.launch {
             _uiEvents.emit(UiEvent.OpenMedia(urls, startIndex))
