@@ -1,14 +1,23 @@
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.androidKotlinMultiplatformLibrary)
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
 }
 
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
+
 kotlin {
     jvmToolchain(21)
-    androidTarget()
+
+    // New Android-KMP plugin DSL (replaces androidTarget() + top-level android { })
+    // https://developer.android.com/kotlin/multiplatform/plugin
+    android {
+        namespace = "com.medicalquiz.app.shared"
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        minSdk = libs.versions.android.minSdk.get().toInt()
+    }
     
     jvm("desktop")
     
@@ -67,19 +76,6 @@ kotlin {
     }
 }
 
-android {
-    namespace = "com.medicalquiz.app.shared"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
-
-    defaultConfig {
-        minSdk = libs.versions.android.minSdk.get().toInt()
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-}
-
 compose.desktop {
     application {
         mainClass = "com.medicalquiz.app.shared.MainKt"
@@ -132,5 +128,11 @@ compose.desktop {
             "-Dwayland.enabled=true",
             "-Djava.awt.headless=false"
         )
+    }
+}
+
+tasks.withType<KotlinCompilationTask<*>>().configureEach {
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
     }
 }
