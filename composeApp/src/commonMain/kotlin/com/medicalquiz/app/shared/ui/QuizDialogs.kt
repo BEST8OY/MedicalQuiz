@@ -599,7 +599,7 @@ private fun JumpToQuestionDialog(
                             onDone = {
                                 focusManager.clearFocus()
                                 if (isValid) {
-                                    onJumpTo(typedNumber!! - 1)
+                                    onJumpTo(typedNumber - 1)
                                 }
                             }
                         ),
@@ -667,7 +667,7 @@ private fun JumpToQuestionDialog(
                 primaryEnabled = isValid,
                 onPrimary = {
                     if (isValid) {
-                        onJumpTo(typedNumber!! - 1)
+                        onJumpTo(typedNumber - 1)
                     }
                 },
                 secondaryText = "Cancel",
@@ -1030,7 +1030,7 @@ private fun <T> SelectionDialogHost(
                 Resource.Loading -> SelectionLoadingContent(title = title, onDismiss = onDismiss)
                 is Resource.Error -> SelectionErrorContent(
                     title = title,
-                    message = currentResource.message ?: "Something went wrong.",
+                    message = currentResource.message,
                     onRetry = onRetry,
                     onDismiss = onDismiss
                 )

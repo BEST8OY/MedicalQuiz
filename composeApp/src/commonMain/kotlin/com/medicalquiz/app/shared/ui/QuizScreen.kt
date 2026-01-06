@@ -373,9 +373,7 @@ private fun QuizQuestionCard(
 
     // Save scroll position when it changes
     LaunchedEffect(scrollState.value) {
-        if (question != null) {
-            viewModel.saveScrollPosition(question.id, scrollState.value)
-        }
+        viewModel.saveScrollPosition(question.id, scrollState.value)
     }
 
     Column(
