@@ -8,6 +8,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.sp
@@ -17,6 +18,8 @@ import com.medicalquiz.app.shared.generateImageLoader
 import com.medicalquiz.app.shared.data.CacheManager
 import com.medicalquiz.app.shared.data.DatabaseManager
 import com.medicalquiz.app.shared.data.SettingsRepository
+import com.medicalquiz.app.shared.data.TextHighlightsRepository
+import com.medicalquiz.app.shared.data.UserDataManager
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.ui.AppTheme
 import com.medicalquiz.app.shared.ui.DatabaseSelectionScreen
@@ -46,14 +49,21 @@ fun App() {
         AppTheme {
             val viewModel = viewModel { QuizViewModel() }
             val cacheManager = remember { CacheManager() }
+            val scope = rememberCoroutineScope()
+            
+            // User data manager for highlights and other personal data
+            val userDataManager = remember { UserDataManager() }
+            val textHighlightsRepository = remember { TextHighlightsRepository(userDataManager, scope) }
             
             var selectedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
             // Track which database has been initialized to avoid re-init on rotation
             var initializedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
             
-            // Initialize common dependencies
+            // Initialize common dependencies (including user data database)
             LaunchedEffect(Unit) {
+                userDataManager.init()
                 viewModel.setSettingsRepository(settingsRepository)
+                viewModel.setTextHighlightsRepository(textHighlightsRepository)
                 viewModel.setCacheManager(cacheManager)
             }
             

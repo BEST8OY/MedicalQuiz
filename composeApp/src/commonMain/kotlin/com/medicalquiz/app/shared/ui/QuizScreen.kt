@@ -40,7 +40,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.shared.data.database.QuestionPerformance
 import com.medicalquiz.app.shared.data.models.Answer
+import com.medicalquiz.app.shared.data.models.HighlightSection
 import com.medicalquiz.app.shared.data.models.Question
+import com.medicalquiz.app.shared.ui.richtext.HighlightableRichText
 import com.medicalquiz.app.shared.ui.richtext.RichText
 import com.medicalquiz.app.shared.utils.HtmlUtils
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
@@ -383,8 +385,11 @@ private fun QuizQuestionCard(
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        RichText(
+        // Use HighlightableRichText for question content
+        HighlightableRichText(
             html = questionHtml,
+            section = HighlightSection.QUESTION,
+            highlightsRepository = viewModel.getTextHighlightsRepository(),
             showSelectedHighlight = state.answerSubmitted,
             onLinkClick = linkHandler,
             onMediaClick = mediaClick
@@ -439,8 +444,11 @@ private fun QuizQuestionCard(
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onTertiaryContainer
                     )
-                    RichText(
+                    // Use HighlightableRichText for explanation
+                    HighlightableRichText(
                         html = explanationHtml,
+                        section = HighlightSection.EXPLANATION,
+                        highlightsRepository = viewModel.getTextHighlightsRepository(),
                         showSelectedHighlight = state.answerSubmitted,
                         onLinkClick = linkHandler,
                         onMediaClick = mediaClick

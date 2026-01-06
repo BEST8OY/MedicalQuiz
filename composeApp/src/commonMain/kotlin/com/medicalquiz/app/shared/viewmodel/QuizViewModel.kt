@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medicalquiz.app.shared.data.CacheManager
 import com.medicalquiz.app.shared.data.SettingsRepository
+import com.medicalquiz.app.shared.data.TextHighlightsRepository
 import com.medicalquiz.app.shared.data.database.DatabaseProvider
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.data.database.QuestionPerformance
@@ -33,6 +34,7 @@ class QuizViewModel : ViewModel() {
     private var databaseManager: DatabaseProvider? = null
     internal var settingsRepository: SettingsRepository? = null
         private set
+    private var textHighlightsRepository: TextHighlightsRepository? = null
     private var cacheManager: CacheManager? = null
     private var settingsObservationJob: Job? = null
 
@@ -93,6 +95,13 @@ class QuizViewModel : ViewModel() {
         settingsObservationJob?.cancel()
         settingsObservationJob = observeSettings(repo)
     }
+
+    fun setTextHighlightsRepository(repo: TextHighlightsRepository) {
+        if (textHighlightsRepository === repo) return
+        textHighlightsRepository = repo
+    }
+
+    fun getTextHighlightsRepository(): TextHighlightsRepository? = textHighlightsRepository
 
     fun setCacheManager(cache: CacheManager) {
         cacheManager = cache
@@ -161,6 +170,8 @@ class QuizViewModel : ViewModel() {
                 }
                 if (question != null) {
                     loadPerformanceForQuestion(question.id)
+                    // Load text highlights for the new question
+                    textHighlightsRepository?.loadHighlightsForQuestion(question.id)
                 }
             } catch (e: Exception) {
                 println("Error loading question $questionId: ${e.message}")
@@ -437,6 +448,8 @@ class QuizViewModel : ViewModel() {
 
     fun setDatabaseName(name: String) {
         _state.update { it.copy(databaseName = name) }
+        // Notify text highlights repository of database switch
+        textHighlightsRepository?.setCurrentDatabase(name)
     }
 
     private suspend fun updatePreviewQuestionCountInternal() {
