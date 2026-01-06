@@ -70,7 +70,7 @@ jobs:
         run: ./gradlew assembleRelease --stacktrace
 
       - name: Upload Android APK
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: android-release-${{ steps.version.outputs.version }}
           path: app/build/outputs/apk/release/*.apk
@@ -139,7 +139,7 @@ jobs:
         run: ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
 
       - name: Upload Desktop Release
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: desktop-${{ matrix.platform }}-${{ steps.version.outputs.version }}
           path: ${{ matrix.artifact-path }}
@@ -167,7 +167,7 @@ jobs:
           echo "tag=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: release-artifacts
 
