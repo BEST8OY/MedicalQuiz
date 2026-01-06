@@ -89,57 +89,10 @@
 
 # ==================== JETPACK COMPOSE ====================
 
-# Keep Compose compiler generated classes
--keep class androidx.compose.runtime.** { *; }
--dontwarn androidx.compose.**
-
-# ==================== COIL ====================
-
-# Keep Coil image loader internals
--keep class coil3.** { *; }
--dontwarn coil3.**
-
-# ==================== KTOR ====================
-
-# Ktor client (OkHttp engine for Android)
--keep class io.ktor.client.engine.okhttp.** { *; }
--dontwarn io.ktor.**
-
-# ==================== OKIO ====================
-
-# Keep Okio classes used by Coil and Ktor
--keep class okio.** { *; }
--dontwarn okio.**
-
-# ==================== KSOUP ====================
-
-# HTML parsing library
--keep class com.mohamedrejeb.ksoup.** { *; }
--dontwarn com.mohamedrejeb.ksoup.**
-
-# ==================== SQLITE ====================
-
--keep class androidx.sqlite.** { *; }
--dontwarn androidx.sqlite.**
-
-# ==================== MEDIA3 ====================
-
-# ExoPlayer / Media3
--keep class androidx.media3.** { *; }
--dontwarn androidx.media3.**
-
-# ==================== APP SPECIFIC ====================
-
-# Keep serializable data models
--keep class com.medicalquiz.app.shared.data.models.** { *; }
--keep class com.medicalquiz.app.shared.data.MediaDescription { *; }
-
-# Keep ViewModels
--keep class com.medicalquiz.app.shared.viewmodel.** { *; }
-
-# Keep main app entry points
--keep class com.medicalquiz.app.MainActivity { *; }
--keep class com.medicalquiz.app.MedicalQuizApp { *; }
+# Compose/Coil/Ktor/Okio/Ksoup/SQLite/Media3
+# Intentionally no broad -keep rules here.
+# These libraries provide consumer ProGuard rules and/or do not rely on reflection.
+# Keeping them all would significantly reduce R8 shrinking effectiveness.
 
 # ==================== OPTIMIZATION ====================
 
