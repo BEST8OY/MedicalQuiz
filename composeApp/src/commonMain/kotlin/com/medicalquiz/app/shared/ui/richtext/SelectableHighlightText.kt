@@ -1,6 +1,5 @@
 package com.medicalquiz.app.shared.ui.richtext
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -20,7 +19,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -241,7 +239,6 @@ fun SelectableHighlightText(
                         onHighlightAdd(range.first, range.last + 1, selectionState.selectedText, color)
                         selectionState = TextSelectionState()
                     },
-                    onCancel = { selectionState = TextSelectionState() }
                 )
             }
         }
@@ -278,8 +275,7 @@ fun SelectableHighlightText(
                     onDelete = {
                         onHighlightRemove(highlight.id)
                         editingHighlight = null
-                    },
-                    onDismiss = { editingHighlight = null }
+                    }
                 )
             }
         }
@@ -393,7 +389,6 @@ private fun expandToWordBoundaries(text: String, offset: Int): Pair<Int, Int> {
 @Composable
 private fun SelectionToolbar(
     onHighlight: (HighlightColor) -> Unit,
-    onCancel: () -> Unit
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -413,20 +408,6 @@ private fun SelectionToolbar(
                     onClick = { onHighlight(color) }
                 )
             }
-            
-            IconButton(
-                onClick = onCancel,
-                modifier = Modifier.size(36.dp),
-                colors = IconButtonDefaults.iconButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Close,
-                    contentDescription = "Cancel",
-                    modifier = Modifier.size(20.dp)
-                )
-            }
         }
     }
 }
@@ -438,8 +419,7 @@ private fun SelectionToolbar(
 private fun HighlightEditPopup(
     highlight: TextHighlight,
     onColorChange: (HighlightColor) -> Unit,
-    onDelete: () -> Unit,
-    onDismiss: () -> Unit
+    onDelete: () -> Unit
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -453,13 +433,6 @@ private fun HighlightEditPopup(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Edit Highlight",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            
-            // Color options
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -471,45 +444,19 @@ private fun HighlightEditPopup(
                         onClick = { onColorChange(color) }
                     )
                 }
-            }
-            
-            // Actions
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Surface(
+
+                IconButton(
                     onClick = onDelete,
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    modifier = Modifier.size(36.dp),
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Delete,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "Delete",
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                }
-                
-                Surface(
-                    onClick = onDismiss,
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                ) {
-                    Text(
-                        text = "Done",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.labelLarge
+                    Icon(
+                        imageVector = Icons.Rounded.Delete,
+                        contentDescription = "Delete highlight",
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
