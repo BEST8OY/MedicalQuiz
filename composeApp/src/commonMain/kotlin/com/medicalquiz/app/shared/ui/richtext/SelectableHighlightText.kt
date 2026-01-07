@@ -1,19 +1,18 @@
 package com.medicalquiz.app.shared.ui.richtext
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -21,13 +20,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,16 +36,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import com.medicalquiz.app.shared.data.models.HighlightColor
 import com.medicalquiz.app.shared.data.models.TextHighlight
 import com.medicalquiz.app.shared.ui.LocalFontSize
@@ -53,31 +60,25 @@ import kotlin.math.roundToInt
 /**
  * State for text selection within SelectableRichText.
  */
-data class TextSelectionState(
+private data class TextSelectionState(
     val isSelecting: Boolean = false,
+    val isDragging: Boolean = false, // True while actively dragging
     val startOffset: Int = 0,
     val endOffset: Int = 0,
-    val selectedText: String = ""
+    val selectedText: String = "",
+    val anchorPosition: Offset = Offset.Zero // For popup positioning
 ) {
-    val hasSelection: Boolean get() = isSelecting && startOffset != endOffset
+    val hasSelection: Boolean get() = isSelecting && startOffset != endOffset && !isDragging
     val selectionRange: IntRange get() = minOf(startOffset, endOffset) until maxOf(startOffset, endOffset)
 }
-
-/**
- * State for highlight editing popup.
- */
-data class HighlightEditState(
-    val highlight: TextHighlight? = null,
-    val position: Offset = Offset.Zero
-)
 
 /**
  * A wrapper around BasicText that supports text selection for highlighting.
  * 
  * Features:
  * - Long-press to start selection
- * - Drag to extend selection
- * - Floating toolbar for highlight actions
+ * - Drag to extend selection (toolbar hidden while dragging)
+ * - Floating toolbar appears after selection complete
  * - Tap existing highlights to edit/delete
  */
 @Composable
@@ -92,8 +93,12 @@ fun SelectableHighlightText(
     onTooltipClick: ((String) -> Unit)? = null
 ) {
     var selectionState by remember { mutableStateOf(TextSelectionState()) }
-    var editState by remember { mutableStateOf(HighlightEditState()) }
+    var editingHighlight by remember { mutableStateOf<TextHighlight?>(null) }
+    var editPopupAnchor by remember { mutableStateOf(Offset.Zero) }
     var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+    
+    val density = LocalDensity.current
     
     // Build annotated string with highlight backgrounds applied
     val highlightedText = remember(text, highlights) {
@@ -102,87 +107,101 @@ fun SelectableHighlightText(
     
     // Also apply selection background if selecting
     val displayText = remember(highlightedText, selectionState) {
-        if (selectionState.hasSelection) {
+        if (selectionState.isSelecting) {
             applySelectionToText(highlightedText, selectionState.selectionRange)
         } else {
             highlightedText
         }
     }
     
-    Box(modifier = modifier) {
+    BoxWithConstraints(
+        modifier = modifier.onSizeChanged { containerSize = it }
+    ) {
+        val maxWidthPx = with(density) { maxWidth.toPx() }
+        
         BasicText(
             text = displayText,
             modifier = Modifier
                 .fillMaxWidth()
                 .pointerInput(text, highlights) {
-                    detectTapGestures(
-                        onLongPress = { pos ->
-                            // Start selection mode
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val longPress = awaitLongPressOrCancellation(down.id)
+                        
+                        if (longPress != null) {
+                            // Long press detected - start selection
                             layoutResult?.let { layout ->
-                                val offset = layout.getOffsetForPosition(pos)
-                                // Expand to word boundaries
+                                val offset = layout.getOffsetForPosition(longPress.position)
                                 val (start, end) = expandToWordBoundaries(text.text, offset)
                                 selectionState = TextSelectionState(
                                     isSelecting = true,
+                                    isDragging = true,
                                     startOffset = start,
                                     endOffset = end,
-                                    selectedText = text.text.substring(start, end)
+                                    selectedText = text.text.substring(start, end),
+                                    anchorPosition = longPress.position
                                 )
                             }
-                        },
-                        onTap = { pos ->
+                            
+                            // Track drag to extend selection
+                            do {
+                                val event = awaitPointerEvent()
+                                val position = event.changes.firstOrNull()?.position ?: break
+                                
+                                layoutResult?.let { layout ->
+                                    val offset = layout.getOffsetForPosition(position)
+                                    val newEnd = offset.coerceIn(0, text.length)
+                                    val start = selectionState.startOffset
+                                    val actualStart = minOf(start, newEnd)
+                                    val actualEnd = maxOf(start, newEnd)
+                                    
+                                    if (actualEnd > actualStart) {
+                                        selectionState = selectionState.copy(
+                                            endOffset = newEnd,
+                                            selectedText = text.text.substring(actualStart, actualEnd),
+                                            anchorPosition = position
+                                        )
+                                    }
+                                }
+                                
+                                event.changes.forEach { it.consume() }
+                            } while (event.changes.any { it.pressed })
+                            
+                            // Drag ended - show toolbar
+                            if (selectionState.selectionRange.let { it.last > it.first }) {
+                                selectionState = selectionState.copy(isDragging = false)
+                            } else {
+                                selectionState = TextSelectionState()
+                            }
+                        } else {
+                            // Regular tap
                             layoutResult?.let { layout ->
-                                val offset = layout.getOffsetForPosition(pos)
+                                val offset = layout.getOffsetForPosition(down.position)
                                 
                                 // Check if tapped on existing highlight
                                 val tappedHighlight = highlights.find { it.contains(offset) }
                                 if (tappedHighlight != null) {
-                                    // Show edit popup
-                                    editState = HighlightEditState(
-                                        highlight = tappedHighlight,
-                                        position = pos
-                                    )
-                                    return@detectTapGestures
+                                    editingHighlight = tappedHighlight
+                                    editPopupAnchor = down.position
+                                    selectionState = TextSelectionState()
+                                    return@awaitEachGesture
                                 }
                                 
                                 // Check for link/tooltip annotations
                                 text.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
                                     onLinkClick?.invoke(it.item)
-                                    return@detectTapGestures
+                                    return@awaitEachGesture
                                 }
                                 text.getStringAnnotations("TOOLTIP", offset, offset).firstOrNull()?.let {
                                     onTooltipClick?.invoke(it.item)
-                                    return@detectTapGestures
+                                    return@awaitEachGesture
                                 }
                                 
-                                // Clear selection if tapped elsewhere
-                                if (selectionState.isSelecting) {
-                                    selectionState = TextSelectionState()
-                                }
-                                if (editState.highlight != null) {
-                                    editState = HighlightEditState()
-                                }
+                                // Clear states
+                                selectionState = TextSelectionState()
+                                editingHighlight = null
                             }
                         }
-                    )
-                }
-                .pointerInput(selectionState.isSelecting) {
-                    if (selectionState.isSelecting) {
-                        detectDragGestures(
-                            onDrag = { change, _ ->
-                                layoutResult?.let { layout ->
-                                    val offset = layout.getOffsetForPosition(change.position)
-                                    val newEnd = offset.coerceIn(0, text.length)
-                                    val start = selectionState.startOffset
-                                    val actualStart = minOf(start, newEnd)
-                                    val actualEnd = maxOf(start, newEnd)
-                                    selectionState = selectionState.copy(
-                                        endOffset = newEnd,
-                                        selectedText = text.text.substring(actualStart, actualEnd)
-                                    )
-                                }
-                            }
-                        )
                     }
                 },
             style = MaterialTheme.typography.bodyMedium.copy(
@@ -193,44 +212,103 @@ fun SelectableHighlightText(
             onTextLayout = { layoutResult = it }
         )
         
-        // Selection toolbar
-        AnimatedVisibility(
-            visible = selectionState.hasSelection,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            SelectionToolbar(
-                position = calculateToolbarPosition(layoutResult, selectionState),
-                onHighlight = { color ->
-                    val range = selectionState.selectionRange
-                    onHighlightAdd(range.first, range.last + 1, selectionState.selectedText, color)
-                    selectionState = TextSelectionState()
-                },
-                onCancel = {
-                    selectionState = TextSelectionState()
-                }
-            )
+        // Selection toolbar - only visible when selection complete (not dragging)
+        if (selectionState.hasSelection) {
+            val toolbarPosition = remember(selectionState.anchorPosition, containerSize) {
+                calculateSmartPosition(
+                    anchorPosition = selectionState.anchorPosition,
+                    containerWidth = maxWidthPx,
+                    preferAbove = true
+                )
+            }
+            
+            Popup(
+                alignment = Alignment.TopStart,
+                offset = IntOffset(
+                    x = toolbarPosition.x.roundToInt(),
+                    y = toolbarPosition.y.roundToInt()
+                ),
+                properties = PopupProperties(
+                    focusable = false,
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = true
+                ),
+                onDismissRequest = { selectionState = TextSelectionState() }
+            ) {
+                SelectionToolbar(
+                    onHighlight = { color ->
+                        val range = selectionState.selectionRange
+                        onHighlightAdd(range.first, range.last + 1, selectionState.selectedText, color)
+                        selectionState = TextSelectionState()
+                    },
+                    onCancel = { selectionState = TextSelectionState() }
+                )
+            }
         }
         
         // Highlight edit popup
-        editState.highlight?.let { highlight ->
-            HighlightEditPopup(
-                highlight = highlight,
-                position = editState.position,
-                onColorChange = { color ->
-                    onHighlightColorChange(highlight.id, color)
-                    editState = HighlightEditState()
-                },
-                onDelete = {
-                    onHighlightRemove(highlight.id)
-                    editState = HighlightEditState()
-                },
-                onDismiss = {
-                    editState = HighlightEditState()
-                }
-            )
+        editingHighlight?.let { highlight ->
+            val popupPosition = remember(editPopupAnchor, containerSize) {
+                calculateSmartPosition(
+                    anchorPosition = editPopupAnchor,
+                    containerWidth = maxWidthPx,
+                    preferAbove = true
+                )
+            }
+            
+            Popup(
+                alignment = Alignment.TopStart,
+                offset = IntOffset(
+                    x = popupPosition.x.roundToInt(),
+                    y = popupPosition.y.roundToInt()
+                ),
+                properties = PopupProperties(
+                    focusable = true,
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = true
+                ),
+                onDismissRequest = { editingHighlight = null }
+            ) {
+                HighlightEditPopup(
+                    highlight = highlight,
+                    onColorChange = { color ->
+                        onHighlightColorChange(highlight.id, color)
+                        editingHighlight = null
+                    },
+                    onDelete = {
+                        onHighlightRemove(highlight.id)
+                        editingHighlight = null
+                    },
+                    onDismiss = { editingHighlight = null }
+                )
+            }
         }
     }
+}
+
+/**
+ * Calculate smart position for popup that stays within bounds.
+ */
+private fun calculateSmartPosition(
+    anchorPosition: Offset,
+    containerWidth: Float,
+    preferAbove: Boolean
+): Offset {
+    val toolbarWidth = 220f // Approximate toolbar width
+    val toolbarHeight = 56f
+    val padding = 8f
+    
+    // Calculate X position - center on anchor but keep within bounds
+    val x = (anchorPosition.x - toolbarWidth / 2).coerceIn(padding, containerWidth - toolbarWidth - padding)
+    
+    // Calculate Y position - prefer above anchor
+    val y = if (preferAbove) {
+        (anchorPosition.y - toolbarHeight - 16f).coerceAtLeast(0f)
+    } else {
+        anchorPosition.y + 24f
+    }
+    
+    return Offset(x, y)
 }
 
 /**
@@ -258,7 +336,6 @@ private fun applyHighlightsToText(
                     start,
                     end
                 )
-                // Add annotation for tap detection
                 addStringAnnotation("HIGHLIGHT", highlight.id.toString(), start, end)
             }
         }
@@ -280,7 +357,7 @@ private fun applySelectionToText(
         val end = (selectionRange.last + 1).coerceIn(start, text.length)
         if (start < end) {
             addStyle(
-                SpanStyle(background = Color.Blue.copy(alpha = 0.3f)),
+                SpanStyle(background = Color(0xFF2196F3).copy(alpha = 0.35f)),
                 start,
                 end
             )
@@ -296,13 +373,11 @@ private fun expandToWordBoundaries(text: String, offset: Int): Pair<Int, Int> {
     
     val safeOffset = offset.coerceIn(0, text.lastIndex)
     
-    // Find start of word
     var start = safeOffset
     while (start > 0 && !text[start - 1].isWhitespace()) {
         start--
     }
     
-    // Find end of word
     var end = safeOffset
     while (end < text.length && !text[end].isWhitespace()) {
         end++
@@ -312,67 +387,44 @@ private fun expandToWordBoundaries(text: String, offset: Int): Pair<Int, Int> {
 }
 
 /**
- * Calculate toolbar position based on selection.
- */
-private fun calculateToolbarPosition(
-    layoutResult: TextLayoutResult?,
-    selectionState: TextSelectionState
-): Offset {
-    if (layoutResult == null || !selectionState.hasSelection) return Offset.Zero
-    
-    val range = selectionState.selectionRange
-    val startRect = layoutResult.getBoundingBox(range.first.coerceIn(0, layoutResult.layoutInput.text.length - 1))
-    
-    return Offset(
-        x = startRect.left,
-        y = startRect.top - 60f // Above the text
-    )
-}
-
-/**
  * Floating toolbar for highlight color selection.
+ * Uses modern Material 3 patterns with Popup for proper layering.
  */
 @Composable
 private fun SelectionToolbar(
-    position: Offset,
     onHighlight: (HighlightColor) -> Unit,
     onCancel: () -> Unit
 ) {
     Surface(
-        modifier = Modifier
-            .offset {
-                IntOffset(
-                    x = position.x.roundToInt().coerceAtLeast(0),
-                    y = position.y.roundToInt().coerceAtLeast(0)
-                )
-            }
-            .widthIn(max = 300.dp),
-        shape = RoundedCornerShape(8.dp),
-        shadowElevation = 8.dp,
-        color = MaterialTheme.colorScheme.surface
+        shape = RoundedCornerShape(12.dp),
+        tonalElevation = 6.dp,
+        shadowElevation = 4.dp,
+        color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
     ) {
         Row(
-            modifier = Modifier.padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Color options - show all colors
             HighlightColor.entries.forEach { color ->
-                ColorButton(
+                HighlightColorChip(
                     color = color,
+                    isSelected = false,
                     onClick = { onHighlight(color) }
                 )
             }
             
-            // Cancel button
             IconButton(
                 onClick = onCancel,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(36.dp),
+                colors = IconButtonDefaults.iconButtonColors(
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             ) {
                 Icon(
-                    imageVector = Icons.Default.Close,
+                    imageVector = Icons.Rounded.Close,
                     contentDescription = "Cancel",
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -385,41 +437,35 @@ private fun SelectionToolbar(
 @Composable
 private fun HighlightEditPopup(
     highlight: TextHighlight,
-    position: Offset,
     onColorChange: (HighlightColor) -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Surface(
-        modifier = Modifier
-            .offset {
-                IntOffset(
-                    x = position.x.roundToInt().coerceAtLeast(0),
-                    y = (position.y - 70f).roundToInt().coerceAtLeast(0)
-                )
-            }
-            .widthIn(max = 320.dp),
-        shape = RoundedCornerShape(12.dp),
-        shadowElevation = 8.dp,
-        color = MaterialTheme.colorScheme.surface
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = 6.dp,
+        shadowElevation = 4.dp,
+        color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .widthIn(max = 280.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
                 text = "Edit Highlight",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface
             )
             
             // Color options
             Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HighlightColor.entries.forEach { color ->
-                    ColorButton(
+                    HighlightColorChip(
                         color = color,
                         isSelected = color == highlight.color,
                         onClick = { onColorChange(color) }
@@ -433,38 +479,37 @@ private fun HighlightEditPopup(
             ) {
                 Surface(
                     onClick = onDelete,
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.errorContainer
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
+                            imageVector = Icons.Rounded.Delete,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onErrorContainer
+                            modifier = Modifier.size(18.dp)
                         )
                         Text(
                             text = "Delete",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer
+                            style = MaterialTheme.typography.labelLarge
                         )
                     }
                 }
                 
                 Surface(
                     onClick = onDismiss,
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 ) {
                     Text(
                         text = "Done",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
             }
@@ -473,27 +518,44 @@ private fun HighlightEditPopup(
 }
 
 /**
- * Circular color button for highlight color selection.
+ * Crisp circular color chip using Canvas drawing for sharp edges.
  */
 @Composable
-private fun ColorButton(
+private fun HighlightColorChip(
     color: HighlightColor,
-    isSelected: Boolean = false,
+    isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val composeColor = color.toComposeColor()
+    val borderColor = if (isSelected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
+    val borderWidth = if (isSelected) 2.5.dp else 1.dp
+    
     Box(
         modifier = Modifier
-            .size(28.dp)
-            .clip(CircleShape)
-            .background(color.toComposeColor())
-            .then(
-                if (isSelected) {
-                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                } else {
-                    Modifier.border(1.dp, Color.Black.copy(alpha = 0.2f), CircleShape)
-                }
+            .size(32.dp)
+            .graphicsLayer {
+                // Ensure crisp rendering
+                clip = true
+                shape = CircleShape
+            }
+            .drawBehind {
+                // Draw filled circle for crisp color
+                drawCircle(color = composeColor)
+            }
+            .border(
+                width = borderWidth,
+                color = borderColor,
+                shape = CircleShape
             )
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null, // No ripple for cleaner look
+                onClick = onClick
+            )
     )
 }
 
