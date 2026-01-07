@@ -56,6 +56,21 @@ App() → QuizRoot() → QuizScreen() / SelectionMenuComposable / MediaViewerScr
 - `RichText` custom component for rendering HTML-formatted question content
 - `MediaHandler` callback interface for opening media/HTML files
 
+## Text Highlighting (User Highlights)
+
+The app supports text-level highlights (like a marker) inside question and explanation content.
+
+- **Data model**: `TextHighlight`, `HighlightSection`, `HighlightColor` in `composeApp/src/commonMain/kotlin/com/medicalquiz/app/shared/data/models/`
+- **Persistence**: stored in the user database via `UserDataManager` (table `text_highlights`)
+- **Repository**: `TextHighlightsRepository` exposes `StateFlow` lists per question/section
+- **UI**:
+	- `SelectableHighlightText` handles long-press selection → apply highlight and tap highlight → edit
+	- `HighlightableRichText` bridges `RichText` blocks to a single offset space for highlight ranges
+
+Implementation notes:
+- Highlights are stored as character offsets against the flattened rendered text per section.
+- UI should keep the selection UI lightweight (popup toolbars) and avoid adding new screens for this feature.
+
 ## Conventions
 
 - **Kotlin 2.2+** with experimental features enabled (`-Xcontext-parameters`)

@@ -25,7 +25,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -319,9 +318,6 @@ private fun applyHighlightsToText(
     return buildAnnotatedString {
         append(text)
         
-        // Copy existing span styles
-        text.spanStyles.forEach { addStyle(it.item, it.start, it.end) }
-        
         // Add highlight backgrounds
         highlights.forEach { highlight ->
             val start = highlight.startOffset.coerceIn(0, text.length)
@@ -347,7 +343,6 @@ private fun applySelectionToText(
 ): AnnotatedString {
     return buildAnnotatedString {
         append(text)
-        text.spanStyles.forEach { addStyle(it.item, it.start, it.end) }
         
         val start = selectionRange.first.coerceIn(0, text.length)
         val end = (selectionRange.last + 1).coerceIn(start, text.length)
@@ -422,43 +417,37 @@ private fun HighlightEditPopup(
     onDelete: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         tonalElevation = 6.dp,
         shadowElevation = 4.dp,
         color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .widthIn(max = 280.dp)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                HighlightColor.entries.forEach { color ->
-                    HighlightColorChip(
-                        color = color,
-                        isSelected = color == highlight.color,
-                        onClick = { onColorChange(color) }
-                    )
-                }
+            HighlightColor.entries.forEach { color ->
+                HighlightColorChip(
+                    color = color,
+                    isSelected = color == highlight.color,
+                    onClick = { onColorChange(color) }
+                )
+            }
 
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(36.dp),
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Delete,
-                        contentDescription = "Delete highlight",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(36.dp),
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Delete,
+                    contentDescription = "Delete highlight",
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
