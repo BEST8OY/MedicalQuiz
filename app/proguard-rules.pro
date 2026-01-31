@@ -94,6 +94,24 @@
 # These libraries provide consumer ProGuard rules and/or do not rely on reflection.
 # Keeping them all would significantly reduce R8 shrinking effectiveness.
 
+# ==================== KSOUP ====================
+
+# HTML parsing library (uses reflection)
+-keep class com.mohamedrejeb.ksoup.** { *; }
+-dontwarn com.mohamedrejeb.ksoup.**
+
+# ==================== APP SPECIFIC ====================
+
+# Keep data layer (serialization + reflection)
+-keep class com.medicalquiz.app.shared.data.** { *; }
+
+# Keep ViewModels (reflection-based instantiation)
+-keep class com.medicalquiz.app.shared.viewmodel.** { *; }
+
+# Keep main app entry points (Android manifest references)
+-keep class com.medicalquiz.app.MainActivity { *; }
+-keep class com.medicalquiz.app.MedicalQuizApp { *; }
+
 # ==================== OPTIMIZATION ====================
 
 # Remove logging in release builds

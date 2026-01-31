@@ -144,6 +144,8 @@
 
 # ==================== KSOUP ====================
 
+# HTML parsing library (uses reflection)
+-keep class com.mohamedrejeb.ksoup.** { *; }
 -dontwarn com.mohamedrejeb.ksoup.**
 
 # ==================== VLCJ / JNA ====================
@@ -163,11 +165,10 @@
 
 # ==================== APP SPECIFIC ====================
 
-# Keep serializable data models
--keep class com.medicalquiz.app.shared.data.models.** { *; }
--keep class com.medicalquiz.app.shared.data.MediaDescription { *; }
+# Keep data layer (serialization + reflection)
+-keep class com.medicalquiz.app.shared.data.** { *; }
 
-# Keep ViewModels
+# Keep ViewModels (reflection-based instantiation)
 -keep class com.medicalquiz.app.shared.viewmodel.** { *; }
 
 # ==================== OPTIMIZATION ====================
