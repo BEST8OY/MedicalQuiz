@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -360,11 +361,11 @@ private fun QuizQuestionCard(
         val total = answers.sumOf { it.correctPercentage ?: 0 }
         answers.associate { answer ->
             val raw = answer.correctPercentage ?: 0
-            val percent = if (total > 0) (raw * 100) / total else null
+            val percent = if (total > 0) ((raw * 100.0) / total).toInt() else null
             answer.answerId to percent
         }
     }
-    var hintExpanded by remember(question.id) { mutableStateOf(false) }
+    var hintExpanded by rememberSaveable(question.id) { mutableStateOf(false) }
     val showHint = hintHtml != null && (state.answerSubmitted || hintExpanded)
 
     // Create a scroll state that persists across recompositions

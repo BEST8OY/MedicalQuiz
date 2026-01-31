@@ -57,12 +57,13 @@ fun HighlightableRichText(
         else RichTextParser.parse(html.trim(), palette, showSelectedHighlight)
     }
     
-    // Get highlights for this section
-    val highlights by when (section) {
-        HighlightSection.QUESTION -> highlightsRepository?.questionHighlights?.collectAsState()
-            ?: remember { mutableStateOf(emptyList()) }
-        HighlightSection.EXPLANATION -> highlightsRepository?.explanationHighlights?.collectAsState()
-            ?: remember { mutableStateOf(emptyList()) }
+    // Get highlights for this section - proper StateFlow collection with stable dependencies
+    val questionHighlightsState = highlightsRepository?.questionHighlights?.collectAsState()
+    val explanationHighlightsState = highlightsRepository?.explanationHighlights?.collectAsState()
+    
+    val highlights = when (section) {
+        HighlightSection.QUESTION -> questionHighlightsState?.value ?: emptyList()
+        HighlightSection.EXPLANATION -> explanationHighlightsState?.value ?: emptyList()
     }
     
     val resolvedLinkHandler = rememberLinkHandler(onLinkClick)
