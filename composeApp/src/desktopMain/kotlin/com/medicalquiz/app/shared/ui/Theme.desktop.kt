@@ -5,5 +5,7 @@ import androidx.compose.runtime.Composable
 
 @Composable
 actual fun getPlatformColorScheme(darkTheme: Boolean): ColorScheme? {
+    // Desktop uses the fallback expressive color scheme from Theme.kt
+    // We return null to let the common code use LightColorScheme or DarkColorScheme
     return null
 }

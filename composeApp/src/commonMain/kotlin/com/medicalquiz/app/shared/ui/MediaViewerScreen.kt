@@ -351,7 +351,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                     if (mediaFiles.size > 1) {
                         Surface(
                             modifier = Modifier.align(Alignment.Center),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = MaterialTheme.shapes.medium,
                             color = Color.Black.copy(alpha = 0.5f)
                         ) {
                             Text(
@@ -382,7 +382,7 @@ private fun SharedTransitionScope.MediaViewerContent(
             ) {
                 // Material3 Segmented Button Container
                 Surface(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = MaterialTheme.shapes.large,
                     color = Color.Black.copy(alpha = 0.75f),
                     tonalElevation = 2.dp,
                     shadowElevation = 4.dp
@@ -396,7 +396,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                             val isOverlayActive = showOverlay
                             Surface(
                                 onClick = { showOverlay = !showOverlay },
-                                shape = RoundedCornerShape(20.dp),
+                                shape = MaterialTheme.shapes.large,
                                 color = if (isOverlayActive) 
                                     MaterialTheme.colorScheme.primaryContainer 
                                 else 
@@ -441,7 +441,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                             val isInfoButton = !hasOverlay || (hasOverlay && !showOverlay)
                             Surface(
                                 onClick = { showExplanation = true },
-                                shape = RoundedCornerShape(20.dp),
+                                shape = MaterialTheme.shapes.large,
                                 color = if (isInfoButton && !hasOverlay) 
                                     MaterialTheme.colorScheme.secondaryContainer 
                                 else 
@@ -493,7 +493,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                 modifier = Modifier
                     .padding(top = 100.dp)
                     .padding(horizontal = 32.dp),
-                shape = RoundedCornerShape(20.dp),
+                shape = MaterialTheme.shapes.large,
                 color = Color.Black.copy(alpha = 0.6f)
             ) {
                 Row(

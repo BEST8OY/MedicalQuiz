@@ -386,7 +386,7 @@ private fun SelectionToolbar(
     onHighlight: (HighlightColor) -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.small,
         tonalElevation = 6.dp,
         shadowElevation = 4.dp,
         color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
@@ -417,7 +417,7 @@ private fun HighlightEditPopup(
     onDelete: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.small,
         tonalElevation = 6.dp,
         shadowElevation = 4.dp,
         color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
