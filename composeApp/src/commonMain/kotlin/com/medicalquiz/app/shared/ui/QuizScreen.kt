@@ -359,10 +359,14 @@ private fun QuizQuestionCard(
     }
     val answerPercentages = remember(answers) {
         val total = answers.sumOf { it.correctPercentage ?: 0 }
-        answers.associate { answer ->
-            val raw = answer.correctPercentage ?: 0
-            val percent = if (total > 0) ((raw * 100.0) / total).toInt() else null
-            answer.answerId to percent
+        if (total == 0) {
+            answers.associate { it.answerId to null }
+        } else {
+            answers.associate { answer ->
+                val count = answer.correctPercentage ?: 0
+                val percent = ((count * 100.0) / total).roundToInt()
+                answer.answerId to percent
+            }
         }
     }
     var hintExpanded by rememberSaveable(question.id) { mutableStateOf(false) }
