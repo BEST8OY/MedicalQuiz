@@ -29,19 +29,13 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
@@ -238,7 +232,6 @@ private fun SharedTransitionScope.MediaViewerContent(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .windowInsetsPadding(WindowInsets.systemBars)
     ) {
         // Background scrim that fades during dismiss
         Box(
@@ -344,7 +337,6 @@ private fun SharedTransitionScope.MediaViewerContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(gradientTop)
-                        .windowInsetsPadding(WindowInsets.statusBars)
                         .padding(horizontal = 8.dp, vertical = 8.dp)
                 ) {
                     // Back button
@@ -617,8 +609,7 @@ private fun ExplanationBottomSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = contentColorFor(MaterialTheme.colorScheme.surface),
         tonalElevation = 6.dp,
-        scrimColor = Color.Black.copy(alpha = 0.6f),
-        windowInsets = WindowInsets(0, 0, 0, 0)
+        scrimColor = Color.Black.copy(alpha = 0.6f)
     ) {
         Column(
             modifier = Modifier
@@ -667,12 +658,6 @@ private fun ExplanationBottomSheet(
                     onLinkClick = onLinkClick,
                 )
             }
-            
-            // Bottom safe area padding
-            Spacer(
-                modifier = Modifier
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-            )
         }
     }
 }
