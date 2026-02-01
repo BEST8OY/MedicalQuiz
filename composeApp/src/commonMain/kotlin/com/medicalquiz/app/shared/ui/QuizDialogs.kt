@@ -109,9 +109,8 @@ private fun DialogShell(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
-                .clip(RoundedCornerShape(28.dp)),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+                .clip(MaterialTheme.shapes.extraLarge),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
         ) {
             content()
         }
@@ -309,7 +308,7 @@ private fun SettingsDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 16.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(MaterialTheme.shapes.medium)
                             .clickable(onClick = onResetLogs),
                         color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
                     ) {
@@ -368,12 +367,12 @@ private fun SettingsToggleRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(MaterialTheme.shapes.medium)
             .clickable { onCheckedChange(!checked) },
-        color = if (checked) 
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) 
-        else 
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        color = if (checked)
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        else
+            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f)
     ) {
         Row(
             modifier = Modifier
@@ -487,8 +486,8 @@ private fun FontSizeControl(
         // Preview text
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            shape = MaterialTheme.shapes.small,
+            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f)
         ) {
             Text(
                 text = "Preview: The quick brown fox jumps over the lazy dog.",
@@ -579,38 +578,38 @@ private fun JumpToQuestionDialog(
                         Icon(Icons.Rounded.Remove, "Decrease")
                     }
                     
-                    OutlinedTextField(
-                        value = inputValue,
-                        onValueChange = { value ->
-                            inputValue = value.filter { it.isDigit() }.take(4)
-                        },
-                        modifier = Modifier
-                            .width(120.dp)
-                            .padding(horizontal = 12.dp),
-                        textStyle = MaterialTheme.typography.titleLarge.copy(
-                            textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                focusManager.clearFocus()
-                                if (isValid) {
-                                    onJumpTo(typedNumber - 1)
-                                }
-                            }
-                        ),
-                        singleLine = true,
-                        isError = inputValue.isNotEmpty() && !isValid,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
-                    )
+        OutlinedTextField(
+            value = inputValue,
+            onValueChange = { value ->
+                inputValue = value.filter { it.isDigit() }.take(4)
+            },
+            modifier = Modifier
+                .width(120.dp)
+                .padding(horizontal = 12.dp),
+            textStyle = MaterialTheme.typography.titleLarge.copy(
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.SemiBold
+            ),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    focusManager.clearFocus()
+                    if (isValid) {
+                        onJumpTo(typedNumber - 1)
+                    }
+                }
+            ),
+            singleLine = true,
+            isError = inputValue.isNotEmpty() && !isValid,
+            shape = MaterialTheme.shapes.medium,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            )
+        )
                     
                     FilledTonalIconButton(
                         onClick = {
@@ -880,10 +879,10 @@ private fun PerformanceFilterItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.small)
             .clickable(onClick = onSelected),
         color = backgroundColor,
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.small
     ) {
         Row(
             modifier = Modifier
@@ -1236,7 +1235,7 @@ private fun <T> SelectionListContent(
                 }
             },
             singleLine = true,
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.medium,
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
             )
@@ -1334,10 +1333,10 @@ private fun SelectionItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.small)
             .clickable { onCheckedChange(!isChecked) },
         color = backgroundColor,
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.small
     ) {
         Row(
             modifier = Modifier

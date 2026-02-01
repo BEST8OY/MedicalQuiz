@@ -109,7 +109,7 @@ private fun FilterPreviewCard(previewCount: Int) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = if (hasPreview) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
         )
@@ -145,7 +145,7 @@ private fun FilterSelectionCard(
     val containerColor = if (isActive)
         MaterialTheme.colorScheme.primaryContainer
     else
-        MaterialTheme.colorScheme.surfaceVariant
+        MaterialTheme.colorScheme.surfaceContainerLow
     val contentColor = if (isActive)
         MaterialTheme.colorScheme.onPrimaryContainer
     else
@@ -154,7 +154,7 @@ private fun FilterSelectionCard(
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Row(
@@ -165,7 +165,7 @@ private fun FilterSelectionCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.small,
                 color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                 modifier = Modifier.size(44.dp)
             ) {

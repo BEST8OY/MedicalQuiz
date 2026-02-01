@@ -94,7 +94,7 @@ private fun QuestionContent(
                 .weight(1f)
                 .fillMaxWidth(),
             tonalElevation = 2.dp,
-            shape = RoundedCornerShape(20.dp)
+            shape = MaterialTheme.shapes.large
         ) {
             QuizQuestionCard(
                 state = state,
@@ -134,7 +134,7 @@ private fun HintSection(
     showSelectedHighlight: Boolean
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.secondaryContainer.copy(
             alpha = if (isVisible) 1f else 0.6f
         ),
@@ -231,7 +231,7 @@ private fun AnswerCard(
         showResult && isCorrect -> colors.tertiaryContainer
         showResult && isSelected && !isCorrect -> colors.errorContainer
         isSelected -> colors.primaryContainer
-        else -> colors.surfaceVariant
+        else -> colors.surfaceContainerLow
     }
     val borderColor = when {
         showResult && isCorrect -> colors.tertiary
@@ -242,7 +242,7 @@ private fun AnswerCard(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         color = background,
         tonalElevation = if (isSelected) 2.dp else 0.dp,
         border = BorderStroke(1.dp, borderColor),
@@ -431,7 +431,7 @@ private fun QuizQuestionCard(
             exit = fadeOut() + shrinkVertically()
         ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -466,7 +466,7 @@ private fun QuestionMetadataCard(sections: List<MetadataSection>) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         )
@@ -577,7 +577,7 @@ private fun PerformanceCard(performance: QuestionPerformance?) {
     
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
