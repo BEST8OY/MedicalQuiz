@@ -279,15 +279,17 @@ private class RichTextDomParser(
     private fun AnnotatedString.Builder.appendNodes(
         nodes: List<KsoupNode>,
         style: InlineStyle,
-        palette: RichTextPalette
+        palette: RichTextPalette,
+        listDepth: Int = 0
     ) {
-        nodes.forEach { node -> appendNode(node, style, palette) }
+        nodes.forEach { node -> appendNode(node, style, palette, listDepth) }
     }
 
     private fun AnnotatedString.Builder.appendNode(
         node: KsoupNode,
         style: InlineStyle,
-        palette: RichTextPalette
+        palette: RichTextPalette,
+        listDepth: Int = 0
     ) {
         when (node) {
             is KsoupTextNode -> {
@@ -308,19 +310,38 @@ private class RichTextDomParser(
                     return
                 }
 
+                // Calculate new list depth when entering/exiting list elements
+                val newListDepth = when (tag) {
+                    "ul", "ol" -> listDepth + 1
+                    else -> listDepth
+                }
+
                 if (tag == "li") {
                     val parent = node.parent
                     val currentLength = this.toAnnotatedString().length
                     val endsWithNewline = currentLength > 0 && this.toAnnotatedString()[currentLength - 1] == '\n'
                     val prefix = if (currentLength == 0 || endsWithNewline) "" else "\n"
-                    if (parent != null && parent.tagName.equals("ol", ignoreCase = true)) {
+                    
+                    // Add indentation for nested lists (2 spaces per level beyond the first)
+                    val indent = if (listDepth > 1) "  ".repeat(listDepth - 1) else ""
+                    
+                    // Determine bullet style based on list type and depth
+                    val bullet = if (parent != null && parent.tagName.equals("ol", ignoreCase = true)) {
+                        // For ordered lists, calculate the number within this list
                         val index = parent.children
                             .filter { it is KsoupElement && it.tagName.equals("li", ignoreCase = true) }
                             .indexOf(node)
-                        append("$prefix${index + 1}. ")
+                        "${index + 1}. "
                     } else {
-                        append("$prefix• ")
+                        // For unordered lists, use different bullets based on depth
+                        when (listDepth) {
+                            1 -> "• "
+                            2 -> "◦ "  // Circle bullet for nested
+                            else -> "▪ "  // Square bullet for deeper nesting
+                        }
                     }
+                    
+                    append("$prefix$indent$bullet")
                 }
 
                 var nextStyle = when (tag) {
@@ -354,7 +375,8 @@ private class RichTextDomParser(
                     nextStyle = nextStyle.copy(tooltip = tooltip)
                 }
 
-                appendNodes(node.children, nextStyle, palette)
+                // Pass the updated list depth when processing children
+                appendNodes(node.children, nextStyle, palette, newListDepth)
 
                 if (tag == "p" || tag == "div") {
                     append("\n")

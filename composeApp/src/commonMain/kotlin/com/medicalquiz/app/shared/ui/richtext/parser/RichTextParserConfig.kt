@@ -165,11 +165,43 @@ internal object RichTextParserConfig {
         "headers",
         "scope"
     )
-}
 
-/**
- * Extension function for case-insensitive set contains check.
- */
-internal fun Set<String>.containsInsensitive(value: String): Boolean {
-    return any { it.equals(value, ignoreCase = true) }
+    /**
+     * HTML tags that are considered block-level elements.
+     * These trigger a paragraph break when encountered inside inline content.
+     */
+    val blockLevelChildTags = setOf(
+        "div",
+        "section",
+        "article",
+        "table",
+        "ul",
+        "ol",
+        "dl",
+        "figure",
+        "figcaption",
+        "blockquote",
+        "pre",
+        "form",
+        "header",
+        "footer",
+        "nav",
+        "aside",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "hr",
+        "svg",
+        "canvas",
+        "iframe",
+        "object"
+    )
+
+    /**
+     * HTML tags to ignore during parsing.
+     */
+    val ignoredTagNames = setOf("style", "script", "head", "meta", "link", "title")
 }
