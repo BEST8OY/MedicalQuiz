@@ -139,7 +139,6 @@ fun MediaViewerScreen(
             onLinkClick = onLinkClick,
             onBack = onBack,
             sharedTransitionKey = sharedTransitionKey,
-            animatedVisibilityScope = this@SharedTransitionLayout,
         )
     }
 }
@@ -153,7 +152,6 @@ private fun SharedTransitionScope.MediaViewerContent(
     onLinkClick: ((String) -> Unit)?,
     onBack: () -> Unit,
     sharedTransitionKey: String?,
-    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope,
 ) {
     PlatformBackHandler(enabled = true, onBack = onBack)
 
@@ -289,18 +287,6 @@ private fun SharedTransitionScope.MediaViewerContent(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .sharedElement(
-                            state = rememberSharedContentState(
-                                key = sharedTransitionKey ?: "media_$page"
-                            ),
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            boundsTransform = { _, _ ->
-                                spring(
-                                    dampingRatio = Spring.DampingRatioLowBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                )
-                            }
-                        )
                         .graphicsLayer {
                             // Smooth parallax and fade effect
                             alpha = lerp(0.5f, 1f, 1f - pageOffset.absoluteValue.coerceIn(0f, 1f))
@@ -407,8 +393,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                                 color = if (isOverlayActive) 
                                     MaterialTheme.colorScheme.primary 
                                 else 
-                                    Color.Transparent,
-                                modifier = Modifier.sizeIn(minWidth = 80.dp)
+                                    Color.Transparent
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -446,8 +431,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                             Surface(
                                 onClick = { showExplanation = true },
                                 shape = RoundedCornerShape(24.dp),
-                                color = Color.Transparent,
-                                modifier = Modifier.sizeIn(minWidth = 80.dp)
+                                color = Color.Transparent
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
