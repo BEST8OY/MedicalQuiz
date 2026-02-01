@@ -8,6 +8,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -173,7 +174,7 @@ private fun SharedTransitionScope.MediaViewerContent(
     // iOS-style pull-to-dismiss state
     var dismissOffsetY by remember { mutableFloatStateOf(0f) }
     var isDismissing by remember { mutableStateOf(false) }
-    val dismissProgress by remember { derivedStateOf { (dismissOffsetY.absoluteValue / 400f).coerceIn(0f, 1f) } }
+    val dismissProgress by remember { derivedStateOf { (dismissOffsetY.absoluteValue / 300f).coerceIn(0f, 1f) } }
     val animatedDismissProgress = remember { Animatable(0f) }
     
     // Current page's description
@@ -201,7 +202,7 @@ private fun SharedTransitionScope.MediaViewerContent(
             val targetOffset = if (dismissOffsetY > 0) 1000f else -1000f
             animatedDismissProgress.animateTo(
                 targetValue = targetOffset,
-                animationSpec = tween(200)
+                animationSpec = tween(150, easing = FastOutSlowInEasing)
             )
             onBack()
         } else {
@@ -224,10 +225,11 @@ private fun SharedTransitionScope.MediaViewerContent(
         }
     }
 
-    // Draggable state for pull-to-dismiss
+    // Draggable state for pull-to-dismiss with resistance
     val dismissDragState = rememberDraggableState { delta ->
         if (!isZoomed) {
-            dismissOffsetY += delta
+            val resistance = 1 - (dismissOffsetY.absoluteValue / 800f).coerceIn(0f, 0.7f)
+            dismissOffsetY += delta * resistance
         }
     }
 
@@ -265,7 +267,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                                     targetValue = 0f,
                                     animationSpec = spring(
                                         dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessLow
+                                        stiffness = Spring.StiffnessMedium
                                     )
                                 ) { value, _ ->
                                     dismissOffsetY = value
@@ -275,9 +277,10 @@ private fun SharedTransitionScope.MediaViewerContent(
                     }
                 )
                 .graphicsLayer {
-                    val scale = 1f - (dismissProgress * 0.1f)
+                    val scale = 1f - (dismissProgress * 0.15f).coerceIn(0f, 0.15f)
                     scaleX = scale
                     scaleY = scale
+                    alpha = 1f - (dismissProgress * 0.3f).coerceIn(0f, 0.3f)
                 }
         ) {
             // Main pager content
@@ -437,16 +440,12 @@ private fun SharedTransitionScope.MediaViewerContent(
                         }
                         
                         if (hasDescription) {
-                            // Info button
-                            val isInfoButton = !hasOverlay || (hasOverlay && !showOverlay)
+                            // Info button - always visible and styled
                             Surface(
                                 onClick = { showExplanation = true },
                                 shape = MaterialTheme.shapes.large,
-                                color = if (isInfoButton && !hasOverlay) 
-                                    MaterialTheme.colorScheme.secondaryContainer 
-                                else 
-                                    Color.Transparent,
-                                tonalElevation = if (isInfoButton && !hasOverlay) 2.dp else 0.dp
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                tonalElevation = 2.dp
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
@@ -456,23 +455,14 @@ private fun SharedTransitionScope.MediaViewerContent(
                                     Icon(
                                         imageVector = Icons.Filled.Info,
                                         contentDescription = null,
-                                        tint = if (isInfoButton && !hasOverlay) 
-                                            MaterialTheme.colorScheme.onSecondaryContainer 
-                                        else 
-                                            Color.White.copy(alpha = 0.9f),
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Text(
                                         text = "Info",
                                         style = MaterialTheme.typography.labelLarge,
-                                        color = if (isInfoButton && !hasOverlay) 
-                                            MaterialTheme.colorScheme.onSecondaryContainer 
-                                        else 
-                                            Color.White.copy(alpha = 0.9f),
-                                        fontWeight = if (isInfoButton && !hasOverlay) 
-                                            FontWeight.SemiBold 
-                                        else 
-                                            FontWeight.Medium
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        fontWeight = FontWeight.SemiBold
                                     )
                                 }
                             }
@@ -482,39 +472,8 @@ private fun SharedTransitionScope.MediaViewerContent(
             }
         }
 
-        // Pull-to-dismiss hint (shows when dragging)
-        AnimatedVisibility(
-            visible = dismissProgress > 0.05f && dismissProgress < DISMISS_THRESHOLD,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopCenter)
-        ) {
-            Surface(
-                modifier = Modifier
-                    .padding(top = 100.dp)
-                    .padding(horizontal = 32.dp),
-                shape = MaterialTheme.shapes.large,
-                color = Color.Black.copy(alpha = 0.6f)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "Pull down to close",
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
-        }
+        // Pull-to-dismiss visual feedback (Google Gallery style - no text hints,
+        // just the visual feedback of content scaling and fading)
     }
 
     // Explanation bottom sheet (ModalBottomSheet instead of AlertDialog)
