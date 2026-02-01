@@ -1009,9 +1009,5 @@ private fun getMediaType(fileName: String): MediaType {
     }
 }
 
-enum class MediaType {
-    IMAGE, VIDEO, AUDIO, HTML, UNKNOWN
-}
-
 @Composable
 expect fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit)
