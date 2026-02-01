@@ -1,15 +1,26 @@
 package com.medicalquiz.app.shared.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,14 +29,21 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -33,20 +51,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.ZoomIn
-import androidx.compose.material.icons.filled.ZoomOut
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.contentColorFor
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -70,11 +93,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.compose.runtime.produceState
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
+
 import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.StorageProvider
@@ -90,6 +115,8 @@ import kotlin.math.roundToInt
 private const val MAX_SCALE = 5f
 private const val DOUBLE_TAP_ZOOM = 2.5f
 private const val MIN_SCALE = 1f
+private const val DISMISS_THRESHOLD = 0.3f
+private const val DISMISS_VELOCITY_THRESHOLD = 500f
 
 // Semi-transparent overlay colors
 private val scrimColor = Color.Black.copy(alpha = 0.6f)
@@ -100,6 +127,7 @@ private val gradientBottom = Brush.verticalGradient(
     colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
 )
 
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MediaViewerScreen(
     mediaFiles: List<String>,
@@ -107,6 +135,31 @@ fun MediaViewerScreen(
     mediaDescriptions: Map<String, MediaDescription> = emptyMap(),
     onLinkClick: ((String) -> Unit)? = null,
     onBack: () -> Unit,
+    sharedTransitionKey: String? = null,
+) {
+    SharedTransitionLayout {
+        MediaViewerContent(
+            mediaFiles = mediaFiles,
+            startIndex = startIndex,
+            mediaDescriptions = mediaDescriptions,
+            onLinkClick = onLinkClick,
+            onBack = onBack,
+            sharedTransitionKey = sharedTransitionKey,
+            animatedVisibilityScope = this@SharedTransitionLayout,
+        )
+    }
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun SharedTransitionScope.MediaViewerContent(
+    mediaFiles: List<String>,
+    startIndex: Int,
+    mediaDescriptions: Map<String, MediaDescription>,
+    onLinkClick: ((String) -> Unit)?,
+    onBack: () -> Unit,
+    sharedTransitionKey: String?,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope,
 ) {
     PlatformBackHandler(enabled = true, onBack = onBack)
 
@@ -117,158 +170,510 @@ fun MediaViewerScreen(
     var isZoomed by rememberSaveable { mutableStateOf(false) }
     var showUI by rememberSaveable { mutableStateOf(true) }
     var showExplanation by rememberSaveable { mutableStateOf(false) }
+    var showOverlay by rememberSaveable { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
+    
+    // iOS-style pull-to-dismiss state
+    var dismissOffsetY by remember { mutableFloatStateOf(0f) }
+    var isDismissing by remember { mutableStateOf(false) }
+    val dismissProgress by remember { derivedStateOf { (dismissOffsetY.absoluteValue / 400f).coerceIn(0f, 1f) } }
+    val animatedDismissProgress = remember { Animatable(0f) }
     
     // Current page's description
     val currentDescription = mediaDescriptions[mediaFiles.getOrNull(pagerState.currentPage)]
 
-    // Reset zoom when changing pages
+    // Reset zoom and overlay when changing pages
     LaunchedEffect(pagerState.currentPage) {
         isZoomed = false
+        showOverlay = true
     }
     
-    // Cleanup when leaving composition to ensure fresh state on next open
+    // Cleanup when leaving composition
     DisposableEffect(Unit) {
         onDispose {
-            // State cleanup happens automatically via rememberSaveable restoration,
-            // but we explicitly reset to ensure no stale zoom/UI state persists
             isZoomed = false
             showUI = true
             showExplanation = false
+            showOverlay = true
         }
     }
 
-    // Toggle UI on single tap (handled in ImageContent)
+    // Handle dismiss completion
+    LaunchedEffect(isDismissing) {
+        if (isDismissing) {
+            val targetOffset = if (dismissOffsetY > 0) 1000f else -1000f
+            animatedDismissProgress.animateTo(
+                targetValue = targetOffset,
+                animationSpec = tween(200)
+            )
+            onBack()
+        } else {
+            animatedDismissProgress.animateTo(0f, spring())
+        }
+    }
+
+    // Toggle UI on single tap
     val onToggleUI: () -> Unit = { showUI = !showUI }
+
+    // Calculate overlay path for current image
+    val currentFileName = mediaFiles.getOrNull(pagerState.currentPage) ?: ""
+    val storageDir = remember { StorageProvider.getAppStorageDirectory() }
+    val overlayPath by produceState<String?>(initialValue = null, currentFileName, storageDir) {
+        value = withContext(Dispatchers.IO) {
+            if (!currentFileName.startsWith("big_", ignoreCase = true)) return@withContext null
+            val overlayFile = currentFileName.substringBeforeLast('.') + ".svg"
+            val path = "$storageDir/media/$overlayFile"
+            if (FileSystemHelper.exists(path)) path else null
+        }
+    }
+
+    // Draggable state for pull-to-dismiss
+    val dismissDragState = rememberDraggableState { delta ->
+        if (!isZoomed) {
+            dismissOffsetY += delta
+        }
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .windowInsetsPadding(WindowInsets.systemBars)
     ) {
-        // Main pager content
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize(),
-            userScrollEnabled = !isZoomed,
-            beyondViewportPageCount = 1,
-        ) { page ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-                        // Smooth parallax and fade effect
-                        alpha = lerp(0.5f, 1f, 1f - pageOffset.absoluteValue.coerceIn(0f, 1f))
-                        val scale = lerp(0.85f, 1f, 1f - pageOffset.absoluteValue.coerceIn(0f, 1f))
-                        scaleX = scale
-                        scaleY = scale
-                    },
-            ) {
-                MediaContent(
-                    fileName = mediaFiles[page],
-                    description = mediaDescriptions[mediaFiles[page]],
-                    isActivePage = pagerState.currentPage == page,
-                    onZoomChanged = { 
-                        isZoomed = it
-                        if (it) showUI = false
-                    },
-                    onSingleTap = onToggleUI,
-                    showUI = showUI,
-                    onLinkClick = onLinkClick,
-                )
-            }
-        }
+        // Background scrim that fades during dismiss
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 1f - dismissProgress * 0.8f))
+        )
 
-        // Top bar - minimal, just back and info
-        AnimatedVisibility(
-            visible = showUI,
-            enter = fadeIn() + slideInVertically { -it },
-            exit = fadeOut() + slideOutVertically { -it },
-            modifier = Modifier.align(Alignment.TopCenter)
+        // Main content with pull-to-dismiss
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .offset { IntOffset(0, dismissOffsetY.roundToInt()) }
+                .draggable(
+                    state = dismissDragState,
+                    orientation = Orientation.Vertical,
+                    onDragStopped = { velocity ->
+                        val progress = dismissOffsetY.absoluteValue / 400f
+                        val velocityThresholdMet = velocity.absoluteValue > DISMISS_VELOCITY_THRESHOLD
+                        
+                        if (progress > DISMISS_THRESHOLD || velocityThresholdMet) {
+                            isDismissing = true
+                        } else {
+                            scope.launch {
+                                androidx.compose.animation.core.animate(
+                                    initialValue = dismissOffsetY,
+                                    targetValue = 0f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessLow
+                                    )
+                                ) { value, _ ->
+                                    dismissOffsetY = value
+                                }
+                            }
+                        }
+                    }
+                )
+                .graphicsLayer {
+                    val scale = 1f - (dismissProgress * 0.1f)
+                    scaleX = scale
+                    scaleY = scale
+                }
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(gradientTop)
-                    .statusBarsPadding()
-                    .padding(horizontal = 8.dp, vertical = 8.dp)
-            ) {
-                // Back button
-                FilledIconButton(
-                    onClick = onBack,
-                    modifier = Modifier.align(Alignment.CenterStart),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = Color.Black.copy(alpha = 0.3f),
-                        contentColor = Color.White
-                    )
+            // Main pager content
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = !isZoomed && dismissProgress < 0.1f,
+                beyondViewportPageCount = 1,
+                flingBehavior = PagerDefaults.flingBehavior(state = pagerState)
+            ) { page ->
+                val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .sharedElement(
+                            state = rememberSharedContentState(
+                                key = sharedTransitionKey ?: "media_$page"
+                            ),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            boundsTransform = { _, _ ->
+                                spring(
+                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                )
+                            }
+                        )
+                        .graphicsLayer {
+                            // Smooth parallax and fade effect
+                            alpha = lerp(0.5f, 1f, 1f - pageOffset.absoluteValue.coerceIn(0f, 1f))
+                            val scale = lerp(0.85f, 1f, 1f - pageOffset.absoluteValue.coerceIn(0f, 1f))
+                            scaleX = scale
+                            scaleY = scale
+                        },
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                    MediaContent(
+                        fileName = mediaFiles[page],
+                        description = mediaDescriptions[mediaFiles[page]],
+                        isActivePage = pagerState.currentPage == page,
+                        onZoomChanged = { 
+                            isZoomed = it
+                            if (it) showUI = false
+                        },
+                        onSingleTap = onToggleUI,
+                        showUI = showUI,
+                        onLinkClick = onLinkClick,
+                        overlayPath = if (page == pagerState.currentPage) overlayPath else null,
+                        showOverlay = if (page == pagerState.currentPage) showOverlay else true,
                     )
                 }
+            }
 
-                // Info button (right side) - only if description exists
-                if (currentDescription != null) {
+            // Top bar - back button and counter
+            AnimatedVisibility(
+                visible = showUI && dismissProgress < 0.1f,
+                enter = fadeIn() + slideInVertically { -it },
+                exit = fadeOut() + slideOutVertically { -it },
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(gradientTop)
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(horizontal = 8.dp, vertical = 8.dp)
+                ) {
+                    // Back button
                     FilledIconButton(
-                        onClick = { showExplanation = true },
-                        modifier = Modifier.align(Alignment.CenterEnd),
+                        onClick = onBack,
+                        modifier = Modifier.align(Alignment.CenterStart),
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = Color.Black.copy(alpha = 0.3f),
                             contentColor = Color.White
                         )
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Info,
-                            contentDescription = "Show explanation",
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
                         )
+                    }
+
+                    // Page counter (center, top)
+                    if (mediaFiles.size > 1) {
+                        Surface(
+                            modifier = Modifier.align(Alignment.Center),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.Black.copy(alpha = 0.5f)
+                        ) {
+                            Text(
+                                text = "${pagerState.currentPage + 1} / ${mediaFiles.size}",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color.White,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        // Bottom bar - counter and controls grouped together
-        AnimatedVisibility(
-            visible = showUI,
-            enter = fadeIn() + slideInVertically { it },
-            exit = fadeOut() + slideOutVertically { it },
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            Box(
+            // Segmented button for info and overlay - below center
+            val hasOverlay = remember(pagerState.currentPage) {
+                overlayPath != null
+            }
+            val hasDescription = currentDescription != null
+            val hasBoth = hasOverlay && hasDescription
+            
+            AnimatedVisibility(
+                visible = showUI && dismissProgress < 0.1f && (hasOverlay || hasDescription),
+                enter = fadeIn() + slideInVertically { it / 2 },
+                exit = fadeOut() + slideOutVertically { it / 2 },
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(gradientBottom)
-                    .padding(horizontal = 16.dp, vertical = 24.dp)
+                    .align(Alignment.Center)
+                    .padding(top = 120.dp)
             ) {
-                // Page counter (center)
-                if (mediaFiles.size > 1) {
+                if (hasBoth) {
+                    // Segmented button style (two segments)
                     Surface(
-                        modifier = Modifier.align(Alignment.Center),
-                        shape = RoundedCornerShape(16.dp),
-                        color = Color.Black.copy(alpha = 0.5f)
+                        shape = RoundedCornerShape(28.dp),
+                        color = Color.Black.copy(alpha = 0.6f),
+                        tonalElevation = 4.dp
                     ) {
-                        Text(
-                            text = "${pagerState.currentPage + 1} / ${mediaFiles.size}",
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = Color.White,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Row(
+                            modifier = Modifier.padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            // Overlay toggle segment
+                            val isOverlayActive = showOverlay
+                            Surface(
+                                onClick = { showOverlay = !showOverlay },
+                                shape = RoundedCornerShape(24.dp),
+                                color = if (isOverlayActive) 
+                                    MaterialTheme.colorScheme.primary 
+                                else 
+                                    Color.Transparent,
+                                modifier = Modifier.sizeIn(minWidth = 80.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isOverlayActive) 
+                                            Icons.Filled.Visibility 
+                                        else 
+                                            Icons.Filled.VisibilityOff,
+                                        contentDescription = null,
+                                        tint = if (isOverlayActive) 
+                                            MaterialTheme.colorScheme.onPrimary 
+                                        else 
+                                            Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "Overlay",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = if (isOverlayActive) 
+                                            MaterialTheme.colorScheme.onPrimary 
+                                        else 
+                                            Color.White,
+                                        fontWeight = if (isOverlayActive) 
+                                            FontWeight.SemiBold 
+                                        else 
+                                            FontWeight.Normal
+                                    )
+                                }
+                            }
+                            
+                            // Info segment
+                            Surface(
+                                onClick = { showExplanation = true },
+                                shape = RoundedCornerShape(24.dp),
+                                color = Color.Transparent,
+                                modifier = Modifier.sizeIn(minWidth = 80.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Info,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "Info",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else if (hasOverlay) {
+                    // Single button - Overlay only
+                    val isOverlayActive = showOverlay
+                    Surface(
+                        onClick = { showOverlay = !showOverlay },
+                        shape = RoundedCornerShape(24.dp),
+                        color = if (isOverlayActive) 
+                            MaterialTheme.colorScheme.primary 
+                        else 
+                            Color.Black.copy(alpha = 0.6f),
+                        tonalElevation = 4.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isOverlayActive) 
+                                    Icons.Filled.Visibility 
+                                else 
+                                    Icons.Filled.VisibilityOff,
+                                contentDescription = null,
+                                tint = if (isOverlayActive) 
+                                    MaterialTheme.colorScheme.onPrimary 
+                                else 
+                                    Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Overlay",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (isOverlayActive) 
+                                    MaterialTheme.colorScheme.onPrimary 
+                                else 
+                                    Color.White,
+                                fontWeight = if (isOverlayActive) 
+                                    FontWeight.SemiBold 
+                                else 
+                                    FontWeight.Normal
+                            )
+                        }
+                    }
+                } else if (hasDescription) {
+                    // Single button - Info only
+                    Surface(
+                        onClick = { showExplanation = true },
+                        shape = RoundedCornerShape(24.dp),
+                        color = Color.Black.copy(alpha = 0.6f),
+                        tonalElevation = 4.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Info",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }
         }
 
+        // Pull-to-dismiss hint (shows when dragging)
+        AnimatedVisibility(
+            visible = dismissProgress > 0.05f && dismissProgress < DISMISS_THRESHOLD,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .padding(top = 100.dp)
+                    .padding(horizontal = 32.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = Color.Black.copy(alpha = 0.6f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = "Pull down to close",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+        }
     }
 
-    // Explanation dialog
+    // Explanation bottom sheet (ModalBottomSheet instead of AlertDialog)
     if (showExplanation && currentDescription != null) {
-        ExplanationDialog(
+        ExplanationBottomSheet(
             description = currentDescription,
             onDismiss = { showExplanation = false },
-            onLinkClick = onLinkClick
+            onLinkClick = onLinkClick,
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExplanationBottomSheet(
+    description: MediaDescription,
+    onDismiss: () -> Unit,
+    onLinkClick: ((String) -> Unit)?,
+) {
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = false
+    )
+    
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { 
+            BottomSheetDefaults.DragHandle(
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = contentColorFor(MaterialTheme.colorScheme.surface),
+        tonalElevation = 6.dp,
+        scrimColor = Color.Black.copy(alpha = 0.6f),
+        windowInsets = WindowInsets(0, 0, 0, 0)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = description.title.ifBlank { "Explanation" },
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Close",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            
+            HorizontalDivider(
+                modifier = Modifier.padding(bottom = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+            
+            // Content
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                RichText(
+                    html = description.description,
+                    modifier = Modifier.fillMaxWidth(),
+                    onLinkClick = onLinkClick,
+                )
+            }
+            
+            // Bottom safe area padding
+            Spacer(
+                modifier = Modifier
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+            )
+        }
     }
 }
 
@@ -281,37 +686,52 @@ private fun MediaContent(
     onSingleTap: () -> Unit,
     showUI: Boolean,
     onLinkClick: ((String) -> Unit)?,
+    overlayPath: String? = null,
+    showOverlay: Boolean = true,
 ) {
     val mediaType = remember(fileName) { getMediaType(fileName) }
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
     val filePath = remember(fileName) { "$storageDir/media/$fileName" }
 
-    when (mediaType) {
-        MediaType.IMAGE -> ImageContent(
-            fileName = fileName,
-            description = description,
-            onZoomChanged = onZoomChanged,
-            onSingleTap = onSingleTap,
-            showUI = showUI,
-        )
-        MediaType.VIDEO -> VideoContent(
-            filePath = filePath,
-            fileName = fileName,
-            isActivePage = isActivePage
-        )
-        MediaType.AUDIO -> AudioContent(
-            filePath = filePath,
-            fileName = fileName,
-            isActivePage = isActivePage
-        )
-        MediaType.HTML -> HtmlContent(fileName = fileName, onLinkClick = onLinkClick)
-        else -> UnsupportedContent(fileName = fileName, type = mediaType)
+    // Animated content for media type changes
+    AnimatedContent(
+        targetState = mediaType,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(300)) + 
+            scaleIn(initialScale = 0.9f, animationSpec = tween(300)) togetherWith
+            fadeOut(animationSpec = tween(200)) + 
+            scaleOut(targetScale = 1.1f, animationSpec = tween(200))
+        },
+        label = "media_transition"
+    ) { type ->
+        when (type) {
+            MediaType.IMAGE -> ImageContent(
+                fileName = fileName,
+                description = description,
+                onZoomChanged = onZoomChanged,
+                onSingleTap = onSingleTap,
+                showUI = showUI,
+                overlayPath = overlayPath,
+                showOverlay = showOverlay,
+            )
+            MediaType.VIDEO -> VideoContent(
+                filePath = filePath,
+                fileName = fileName,
+                isActivePage = isActivePage
+            )
+            MediaType.AUDIO -> AudioContent(
+                filePath = filePath,
+                fileName = fileName,
+                isActivePage = isActivePage
+            )
+            MediaType.HTML -> HtmlContent(fileName = fileName, onLinkClick = onLinkClick)
+            else -> UnsupportedContent(fileName = fileName, type = mediaType)
+        }
     }
 }
 
 @Composable
 private fun VideoContent(filePath: String, fileName: String, isActivePage: Boolean) {
-    // Check file existence
     val fileExists by produceState(initialValue = true, filePath) {
         value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
     }
@@ -330,7 +750,6 @@ private fun VideoContent(filePath: String, fileName: String, isActivePage: Boole
 
 @Composable
 private fun AudioContent(filePath: String, fileName: String, isActivePage: Boolean) {
-    // Check file existence
     val fileExists by produceState(initialValue = true, filePath) {
         value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
     }
@@ -353,7 +772,6 @@ private fun HtmlContent(fileName: String, onLinkClick: ((String) -> Unit)?) {
         "${StorageProvider.getAppStorageDirectory()}/media/$fileName"
     }
 
-    // Load and sanitize HTML on background thread
     val htmlContent by produceState<String?>(initialValue = null, filePath) {
         value = withContext(Dispatchers.IO) {
             val raw = FileSystemHelper.readText(filePath)
@@ -361,33 +779,38 @@ private fun HtmlContent(fileName: String, onLinkClick: ((String) -> Unit)?) {
         }
     }
 
-    if (htmlContent == null) {
-        // Loading state with subtle animation
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // Simple loading indicator
-                Text(
-                    text = "Loading…",
-                    color = Color.White.copy(alpha = 0.7f),
-                    style = MaterialTheme.typography.bodyLarge
-                )
+    AnimatedContent(
+        targetState = htmlContent,
+        transitionSpec = { fadeIn() togetherWith fadeOut() }
+    ) { content ->
+        when {
+            content == null -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "Loading…",
+                        color = Color.White.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
             }
-        }
-    } else if (htmlContent!!.isBlank()) {
-        UnsupportedContent(fileName = fileName, type = MediaType.HTML)
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-        ) {
-            RichText(
-                html = htmlContent!!,
-                modifier = Modifier.fillMaxWidth(),
-                onLinkClick = onLinkClick,
-            )
+            content.isBlank() -> {
+                UnsupportedContent(fileName = fileName, type = MediaType.HTML)
+            }
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                ) {
+                    RichText(
+                        html = content,
+                        modifier = Modifier.fillMaxWidth(),
+                        onLinkClick = onLinkClick,
+                    )
+                }
+            }
         }
     }
 }
@@ -399,11 +822,12 @@ private fun ImageContent(
     onZoomChanged: (Boolean) -> Unit,
     onSingleTap: () -> Unit,
     showUI: Boolean,
+    overlayPath: String? = null,
+    showOverlay: Boolean = true,
 ) {
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
     val filePath = remember(fileName) { "$storageDir/media/$fileName" }
 
-    // Check file existence on background thread
     val fileExists by produceState(initialValue = true, filePath) {
         value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
     }
@@ -414,15 +838,11 @@ private fun ImageContent(
     }
 
     val scope = rememberCoroutineScope()
-    
-    // Track active animation job for cleanup
     var animationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     var scale by rememberSaveable { mutableFloatStateOf(MIN_SCALE) }
     var offsetX by rememberSaveable { mutableFloatStateOf(0f) }
     var offsetY by rememberSaveable { mutableFloatStateOf(0f) }
-    var showOverlay by rememberSaveable { mutableStateOf(true) }
-    var isLoading by remember { mutableStateOf(true) }
 
     val isZoomed by remember { derivedStateOf { scale > 1.05f } }
 
@@ -430,21 +850,10 @@ private fun ImageContent(
         onZoomChanged(scale > 1.05f)
     }
     
-    // Cleanup animation job when composable leaves composition
     DisposableEffect(Unit) {
         onDispose {
             animationJob?.cancel()
             animationJob = null
-        }
-    }
-
-    // Resolve overlay path on background thread
-    val overlayPath by produceState<String?>(initialValue = null, fileName, storageDir) {
-        value = withContext(Dispatchers.IO) {
-            if (!fileName.startsWith("big_", ignoreCase = true)) return@withContext null
-            val overlayFile = fileName.substringBeforeLast('.') + ".svg"
-            val path = "$storageDir/media/$overlayFile"
-            if (FileSystemHelper.exists(path)) path else null
         }
     }
 
@@ -453,7 +862,6 @@ private fun ImageContent(
         val containerWidth = with(density) { maxWidth.toPx() }
         val containerHeight = with(density) { maxHeight.toPx() }
 
-        // Clamp offset to keep image within bounds
         fun clampOffset(proposedX: Float, proposedY: Float, currentScale: Float): Pair<Float, Float> {
             val scaledWidth = containerWidth * currentScale
             val scaledHeight = containerHeight * currentScale
@@ -467,13 +875,11 @@ private fun ImageContent(
             )
         }
 
-        // Use transformable state for proper gesture handling with HorizontalPager
         val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
             val oldScale = scale
             val newScale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
             
             if (newScale > MIN_SCALE) {
-                // Calculate new offset with pan
                 val newOffsetX = offsetX + panChange.x
                 val newOffsetY = offsetY + panChange.y
                 
@@ -488,17 +894,15 @@ private fun ImageContent(
         }
 
         val gestureModifier = Modifier
-            // transformable with canPan allows pager swipes when not zoomed
             .transformable(
                 state = transformableState,
                 lockRotationOnZoomPan = true,
-                canPan = { scale > MIN_SCALE + 0.01f } // Only pan when zoomed in
+                canPan = { scale > MIN_SCALE + 0.01f }
             )
             .pointerInput(containerWidth, containerHeight) {
                 detectTapGestures(
                     onTap = { onSingleTap() },
                     onDoubleTap = { tapOffset ->
-                        // Cancel any ongoing animation before starting a new one
                         animationJob?.cancel()
                         animationJob = scope.launch {
                             val startScale = scale
@@ -527,14 +931,13 @@ private fun ImageContent(
                                     offsetY = lerp(startOffsetY, clampedTargetY, this.value)
                                 }
                             } catch (_: kotlinx.coroutines.CancellationException) {
-                                // Animation was cancelled, state is already partially updated which is fine
+                                // Animation cancelled
                             }
                         }
                     },
                 )
             }
 
-        // Image container with zoom/pan
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -547,6 +950,8 @@ private fun ImageContent(
                 },
             contentAlignment = Alignment.Center
         ) {
+            var isLoading by remember { mutableStateOf(true) }
+            
             AsyncImage(
                 model = filePath,
                 contentDescription = fileName,
@@ -556,6 +961,19 @@ private fun ImageContent(
                     isLoading = state is AsyncImagePainter.State.Loading
                 }
             )
+
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Loading…",
+                        color = Color.White.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
 
             if (overlayPath != null && showOverlay) {
                 AsyncImage(
@@ -567,77 +985,6 @@ private fun ImageContent(
             }
         }
 
-        // Loading indicator
-        if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Loading…",
-                    color = Color.White.copy(alpha = 0.7f),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
-
-        // Overlay toggle button (bottom-left)
-        if (overlayPath != null) {
-            AnimatedVisibility(
-                visible = showUI,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 16.dp, bottom = 80.dp)
-            ) {
-                FilledIconButton(
-                    onClick = { showOverlay = !showOverlay },
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = if (showOverlay) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.5f),
-                        contentColor = if (showOverlay) MaterialTheme.colorScheme.onPrimary else Color.White
-                    )
-                ) {
-                    Icon(
-                        imageVector = if (showOverlay) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                        contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                    )
-                }
-            }
-        }
-
-        // Zoom indicator (bottom-right)
-        AnimatedVisibility(
-            visible = isZoomed,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 80.dp)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = Color.Black.copy(alpha = 0.6f)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.ZoomIn,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "${(scale * 100).roundToInt()}%",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White
-                    )
-                }
-            }
-        }
     }
 }
 
@@ -651,10 +998,18 @@ private fun UnsupportedContent(fileName: String, type: MediaType) {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(32.dp)
         ) {
-            Text(
-                text = "⚠️",
-                style = MaterialTheme.typography.displayMedium,
-            )
+            Surface(
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.1f),
+                modifier = Modifier.size(80.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "⚠️",
+                        style = MaterialTheme.typography.displayMedium,
+                    )
+                }
+            }
             Spacer(Modifier.height(16.dp))
             Text(
                 text = "Unsupported Media",
@@ -674,39 +1029,6 @@ private fun UnsupportedContent(fileName: String, type: MediaType) {
     }
 }
 
-@Composable
-private fun ExplanationDialog(
-    description: MediaDescription,
-    onDismiss: () -> Unit,
-    onLinkClick: ((String) -> Unit)?
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
-        },
-        title = {
-            Text(
-                text = description.title.ifBlank { "Explanation" },
-                style = MaterialTheme.typography.titleLarge
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState())
-            ) {
-                RichText(
-                    html = description.description,
-                    modifier = Modifier.fillMaxWidth(),
-                    onLinkClick = onLinkClick,
-                )
-            }
-        },
-    )
-}
-
 private fun getMediaType(fileName: String): MediaType {
     val extension = fileName.substringAfterLast('.').lowercase()
     return when (extension) {
@@ -716,6 +1038,10 @@ private fun getMediaType(fileName: String): MediaType {
         "html", "htm" -> MediaType.HTML
         else -> MediaType.UNKNOWN
     }
+}
+
+enum class MediaType {
+    IMAGE, VIDEO, AUDIO, HTML, UNKNOWN
 }
 
 @Composable
