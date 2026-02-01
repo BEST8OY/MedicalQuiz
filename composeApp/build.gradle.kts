@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 kotlin {
@@ -17,6 +18,12 @@ kotlin {
         namespace = "com.medicalquiz.app.shared"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
+        androidResources {
+            enable = true
+        }
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
     }
     
     jvm("desktop")
@@ -52,7 +59,7 @@ kotlin {
         
         val androidMain by getting {
             dependencies {
-                implementation(libs.compose.preview)
+                androidRuntimeClasspath(libs.compose.preview)
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.coil.android)
                 implementation(libs.ktor.client.okhttp)
