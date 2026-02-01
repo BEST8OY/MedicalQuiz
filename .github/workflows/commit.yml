@@ -1,0 +1,204 @@
+name: Build Specific Commit
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA to build (full SHA recommended)'
+        required: true
+        type: string
+      build_android:
+        description: 'Build Android APK'
+        required: true
+        default: true
+        type: boolean
+      build_desktop:
+        description: 'Build Desktop (Linux)'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: 'temurin'
+  GRADLE_OPTS: >-
+    -Dorg.gradle.daemon=false
+    -Dorg.gradle.configuration-cache=true
+    -Dorg.gradle.caching=true
+    -Dorg.gradle.parallel=true
+    -Xmx6g
+    -XX:+UseG1GC
+    -XX:MaxMetaspaceSize=1g
+    -XX:+HeapDumpOnOutOfMemoryError
+  ORG_GRADLE_PROJECT_ksp_incremental: 'false'
+
+jobs:
+  validate-commit:
+    name: Validate Commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      commit_sha: ${{ steps.validate.outputs.commit_sha }}
+      short_sha: ${{ steps.validate.outputs.short_sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate and resolve commit SHA
+        id: validate
+        run: |
+          COMMIT_SHA="${{ inputs.commit_sha }}"
+          
+          # Check if the commit exists
+          if ! git cat-file -e "${COMMIT_SHA}^{commit}" 2>/dev/null; then
+            echo "❌ Commit ${COMMIT_SHA} not found"
+            exit 1
+          fi
+          
+          # Get full SHA
+          FULL_SHA=$(git rev-parse "${COMMIT_SHA}")
+          SHORT_SHA=$(git rev-parse --short "${COMMIT_SHA}")
+          
+          echo "✅ Valid commit: ${FULL_SHA}"
+          echo "commit_sha=${FULL_SHA}" >> $GITHUB_OUTPUT
+          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+  build-android:
+    name: Build Android Release
+    needs: validate-commit
+    if: ${{ inputs.build_android }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.validate-commit.outputs.commit_sha }}
+
+      - uses: gradle/actions/wrapper-validation@v5
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: true
+          add-job-summary: on-failure
+
+      - name: Display commit info
+        run: |
+          echo "Building commit: ${{ needs.validate-commit.outputs.commit_sha }}"
+          git log -1 --pretty=format:"%h %s%nAuthor: %an%nDate: %ad"
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          COMMIT_SHA="${{ needs.validate-commit.outputs.short_sha }}"
+          echo "version=${VERSION}-${COMMIT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: android-release-${{ steps.version.outputs.version }}
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 30
+          compression-level: 0
+
+  build-desktop:
+    name: Build Desktop (Linux)
+    needs: validate-commit
+    if: ${{ inputs.build_desktop }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.validate-commit.outputs.commit_sha }}
+
+      - uses: gradle/actions/wrapper-validation@v5
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: true
+          add-job-summary: on-failure
+
+      - name: Display commit info
+        run: |
+          echo "Building commit: ${{ needs.validate-commit.outputs.commit_sha }}"
+          git log -1 --pretty=format:"%h %s%nAuthor: %an%nDate: %ad"
+
+      - name: Install Linux Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libxrender1 libxrandr2 xvfb
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          COMMIT_SHA="${{ needs.validate-commit.outputs.short_sha }}"
+          echo "version=${VERSION}-${COMMIT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Package Desktop Release
+        run: xvfb-run -a ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
+
+      - name: Upload Desktop Release
+        uses: actions/upload-artifact@v6
+        with:
+          name: desktop-linux-${{ steps.version.outputs.version }}
+          path: composeApp/build/compose/binaries/main-release/deb/
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: ignore
+
+  summary:
+    name: Build Summary
+    needs: [validate-commit, build-android, build-desktop]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Build Summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ needs.validate-commit.outputs.commit_sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.build-android.result }}" == "success" ]]; then
+            echo "✅ Android APK built successfully" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ inputs.build_android }}" == "true" ]]; then
+            echo "❌ Android APK build failed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ Android build skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ needs.build-desktop.result }}" == "success" ]]; then
+            echo "✅ Desktop (Linux) built successfully" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ inputs.build_desktop }}" == "true" ]]; then
+            echo "❌ Desktop (Linux) build failed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏭️ Desktop build skipped" >> $GITHUB_STEP_SUMMARY
+          fi
