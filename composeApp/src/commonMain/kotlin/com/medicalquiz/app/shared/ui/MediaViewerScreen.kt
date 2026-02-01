@@ -32,10 +32,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
@@ -230,6 +234,7 @@ private fun SharedTransitionScope.MediaViewerContent(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .windowInsetsPadding(WindowInsets.systemBars)
     ) {
         // Background scrim that fades during dismiss
         Box(
@@ -323,6 +328,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(gradientTop)
+                        .windowInsetsPadding(WindowInsets.statusBars)
                         .padding(horizontal = 8.dp, vertical = 8.dp)
                 ) {
                     // Back button
@@ -359,46 +365,47 @@ private fun SharedTransitionScope.MediaViewerContent(
                 }
             }
 
-            // Segmented button for info and overlay - below center
-            val hasOverlay = remember(pagerState.currentPage) {
-                overlayPath != null
-            }
+            // Segmented button for info and overlay - at bottom
+            val hasOverlay by derivedStateOf { overlayPath != null }
             val hasDescription = currentDescription != null
             val hasBoth = hasOverlay && hasDescription
             
             AnimatedVisibility(
                 visible = showUI && dismissProgress < 0.1f && (hasOverlay || hasDescription),
-                enter = fadeIn() + slideInVertically { it / 2 },
-                exit = fadeOut() + slideOutVertically { it / 2 },
+                enter = fadeIn() + slideInVertically { it },
+                exit = fadeOut() + slideOutVertically { it },
                 modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(top = 120.dp)
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .padding(bottom = 24.dp)
             ) {
-                if (hasBoth) {
-                    // Segmented button style (two segments)
-                    Surface(
-                        shape = RoundedCornerShape(28.dp),
-                        color = Color.Black.copy(alpha = 0.6f),
-                        tonalElevation = 4.dp
+                // Material3 Segmented Button Container
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color.Black.copy(alpha = 0.75f),
+                    tonalElevation = 2.dp,
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            // Overlay toggle segment
+                        if (hasOverlay) {
+                            // Overlay toggle button
                             val isOverlayActive = showOverlay
                             Surface(
                                 onClick = { showOverlay = !showOverlay },
-                                shape = RoundedCornerShape(24.dp),
+                                shape = RoundedCornerShape(20.dp),
                                 color = if (isOverlayActive) 
-                                    MaterialTheme.colorScheme.primary 
+                                    MaterialTheme.colorScheme.primaryContainer 
                                 else 
-                                    Color.Transparent
+                                    Color.Transparent,
+                                tonalElevation = if (isOverlayActive) 2.dp else 0.dp
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Icon(
                                         imageVector = if (isOverlayActive) 
@@ -407,119 +414,67 @@ private fun SharedTransitionScope.MediaViewerContent(
                                             Icons.Filled.VisibilityOff,
                                         contentDescription = null,
                                         tint = if (isOverlayActive) 
-                                            MaterialTheme.colorScheme.onPrimary 
+                                            MaterialTheme.colorScheme.onPrimaryContainer 
                                         else 
-                                            Color.White,
-                                        modifier = Modifier.size(18.dp)
+                                            Color.White.copy(alpha = 0.9f),
+                                        modifier = Modifier.size(20.dp)
                                     )
                                     Text(
                                         text = "Overlay",
                                         style = MaterialTheme.typography.labelLarge,
                                         color = if (isOverlayActive) 
-                                            MaterialTheme.colorScheme.onPrimary 
+                                            MaterialTheme.colorScheme.onPrimaryContainer 
                                         else 
-                                            Color.White,
+                                            Color.White.copy(alpha = 0.9f),
                                         fontWeight = if (isOverlayActive) 
                                             FontWeight.SemiBold 
                                         else 
-                                            FontWeight.Normal
+                                            FontWeight.Medium
                                     )
                                 }
                             }
-                            
-                            // Info segment
+                        }
+                        
+                        if (hasDescription) {
+                            // Info button
+                            val isInfoButton = !hasOverlay || (hasOverlay && !showOverlay)
                             Surface(
                                 onClick = { showExplanation = true },
-                                shape = RoundedCornerShape(24.dp),
-                                color = Color.Transparent
+                                shape = RoundedCornerShape(20.dp),
+                                color = if (isInfoButton && !hasOverlay) 
+                                    MaterialTheme.colorScheme.secondaryContainer 
+                                else 
+                                    Color.Transparent,
+                                tonalElevation = if (isInfoButton && !hasOverlay) 2.dp else 0.dp
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.Info,
                                         contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(18.dp)
+                                        tint = if (isInfoButton && !hasOverlay) 
+                                            MaterialTheme.colorScheme.onSecondaryContainer 
+                                        else 
+                                            Color.White.copy(alpha = 0.9f),
+                                        modifier = Modifier.size(20.dp)
                                     )
                                     Text(
                                         text = "Info",
                                         style = MaterialTheme.typography.labelLarge,
-                                        color = Color.White
+                                        color = if (isInfoButton && !hasOverlay) 
+                                            MaterialTheme.colorScheme.onSecondaryContainer 
+                                        else 
+                                            Color.White.copy(alpha = 0.9f),
+                                        fontWeight = if (isInfoButton && !hasOverlay) 
+                                            FontWeight.SemiBold 
+                                        else 
+                                            FontWeight.Medium
                                     )
                                 }
                             }
-                        }
-                    }
-                } else if (hasOverlay) {
-                    // Single button - Overlay only
-                    val isOverlayActive = showOverlay
-                    Surface(
-                        onClick = { showOverlay = !showOverlay },
-                        shape = RoundedCornerShape(24.dp),
-                        color = if (isOverlayActive) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
-                            Color.Black.copy(alpha = 0.6f),
-                        tonalElevation = 4.dp
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isOverlayActive) 
-                                    Icons.Filled.Visibility 
-                                else 
-                                    Icons.Filled.VisibilityOff,
-                                contentDescription = null,
-                                tint = if (isOverlayActive) 
-                                    MaterialTheme.colorScheme.onPrimary 
-                                else 
-                                    Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                text = "Overlay",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = if (isOverlayActive) 
-                                    MaterialTheme.colorScheme.onPrimary 
-                                else 
-                                    Color.White,
-                                fontWeight = if (isOverlayActive) 
-                                    FontWeight.SemiBold 
-                                else 
-                                    FontWeight.Normal
-                            )
-                        }
-                    }
-                } else if (hasDescription) {
-                    // Single button - Info only
-                    Surface(
-                        onClick = { showExplanation = true },
-                        shape = RoundedCornerShape(24.dp),
-                        color = Color.Black.copy(alpha = 0.6f),
-                        tonalElevation = 4.dp
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Info,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                text = "Info",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = Color.White
-                            )
                         }
                     }
                 }
