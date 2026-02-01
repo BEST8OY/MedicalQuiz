@@ -514,14 +514,14 @@ private fun getBlockTextLength(block: RichTextBlock): Int {
         is RichTextBlock.OrderedList -> block.items.sumOf { it.length + 1 }
         is RichTextBlock.CodeBlock -> block.text.length
         is RichTextBlock.Table -> {
-            // Calculate total text length across all cells
-            val headerText = block.headerRows.sumOf { row ->
-                row.cells.sumOf { it.text.length }
+            // Calculate text length using the render model to properly handle rowspan/colspan
+            // Only count VISIBLE cells to match what we actually render
+            val renderModel = block.toRenderModel()
+            renderModel.rows.sumOf { row ->
+                row.cells.sumOf { cell ->
+                    if (cell.isVisible) cell.cell.text.length else 0
+                }
             }
-            val bodyText = block.bodyRows.sumOf { row ->
-                row.cells.sumOf { it.text.length }
-            }
-            headerText + bodyText
         }
         is RichTextBlock.AbstractBlock -> block.blocks.sumOf { getBlockTextLength(it) + 1 }
         is RichTextBlock.Media -> 0
