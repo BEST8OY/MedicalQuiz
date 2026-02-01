@@ -47,6 +47,8 @@ import com.medicalquiz.app.shared.ui.richtext.HighlightableRichText
 import com.medicalquiz.app.shared.ui.richtext.RichText
 import com.medicalquiz.app.shared.utils.HtmlUtils
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
+import kotlin.math.roundToInt
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
