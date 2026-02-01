@@ -99,6 +99,20 @@ class QuizViewModel : ViewModel() {
     fun setTextHighlightsRepository(repo: TextHighlightsRepository) {
         if (textHighlightsRepository === repo) return
         textHighlightsRepository = repo
+
+        // Re-initialize the repository after rotation (new instance)
+        // with current database name and reload highlights for current question
+        val currentState = state.value
+        val dbName = currentState.databaseName
+        val currentQuestion = currentState.currentQuestion
+
+        if (dbName.isNotEmpty()) {
+            repo.setCurrentDatabase(dbName)
+        }
+
+        if (currentQuestion != null) {
+            repo.loadHighlightsForQuestion(currentQuestion.id)
+        }
     }
 
     fun getTextHighlightsRepository(): TextHighlightsRepository? = textHighlightsRepository
