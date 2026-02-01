@@ -1,9 +1,22 @@
 package com.medicalquiz.app.shared.ui.richtext
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -12,15 +25,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
 import com.medicalquiz.app.shared.data.TextHighlightsRepository
 import com.medicalquiz.app.shared.data.models.HighlightColor
 import com.medicalquiz.app.shared.data.models.HighlightSection
 import com.medicalquiz.app.shared.data.models.TextHighlight
 import com.medicalquiz.app.shared.ui.richtext.parser.RichTextParser
+import kotlin.math.max
 import androidx.compose.material3.Text as MaterialText
 
 /**
@@ -167,13 +185,33 @@ private fun HighlightableBlockRenderer(
         }
         
         is RichTextBlock.BulletList -> {
-            // Render list items - for simplicity, use standard renderer
-            // TODO: Add per-item highlight support
-            RichTextBlockRenderer(block, onLinkClick, onMediaClick, onTooltipClick)
+            // Render each list item as individually highlightable
+            HighlightableBulletList(
+                block = block,
+                section = section,
+                highlights = highlights,
+                baseOffset = baseOffset,
+                onHighlightAdd = onHighlightAdd,
+                onHighlightRemove = onHighlightRemove,
+                onHighlightColorChange = onHighlightColorChange,
+                onLinkClick = onLinkClick,
+                onTooltipClick = onTooltipClick
+            )
         }
-        
+
         is RichTextBlock.OrderedList -> {
-            RichTextBlockRenderer(block, onLinkClick, onMediaClick, onTooltipClick)
+            // Render each list item as individually highlightable
+            HighlightableOrderedList(
+                block = block,
+                section = section,
+                highlights = highlights,
+                baseOffset = baseOffset,
+                onHighlightAdd = onHighlightAdd,
+                onHighlightRemove = onHighlightRemove,
+                onHighlightColorChange = onHighlightColorChange,
+                onLinkClick = onLinkClick,
+                onTooltipClick = onTooltipClick
+            )
         }
         
         is RichTextBlock.CodeBlock -> {
@@ -181,7 +219,18 @@ private fun HighlightableBlockRenderer(
         }
         
         is RichTextBlock.Table -> {
-            RichTextBlockRenderer(block, onLinkClick, onMediaClick, onTooltipClick)
+            // Render table cells as individually highlightable
+            HighlightableTable(
+                block = block,
+                section = section,
+                highlights = highlights,
+                baseOffset = baseOffset,
+                onHighlightAdd = onHighlightAdd,
+                onHighlightRemove = onHighlightRemove,
+                onHighlightColorChange = onHighlightColorChange,
+                onLinkClick = onLinkClick,
+                onTooltipClick = onTooltipClick
+            )
         }
         
         is RichTextBlock.AbstractBlock -> {
@@ -199,6 +248,269 @@ private fun HighlightableBlockRenderer(
 }
 
 /**
+ * Renders a bullet list with per-item highlight support.
+ */
+@Composable
+private fun HighlightableBulletList(
+    block: RichTextBlock.BulletList,
+    section: HighlightSection,
+    highlights: List<TextHighlight>,
+    baseOffset: Int,
+    onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
+    onHighlightRemove: (highlightId: Long) -> Unit,
+    onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((String) -> Unit)?
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        var itemOffset = baseOffset
+
+        block.items.forEachIndexed { index, itemText ->
+            val itemLength = itemText.length
+            val itemHighlights = getHighlightsForRange(
+                highlights,
+                itemOffset,
+                itemOffset + itemLength
+            ).map { it.adjustedForOffset(-itemOffset) }
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+                MaterialText(
+                    text = "\u2022",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(end = 12.dp)
+                )
+                HighlightableListItem(
+                    text = itemText,
+                    highlights = itemHighlights,
+                    baseOffset = itemOffset,
+                    onHighlightAdd = onHighlightAdd,
+                    onHighlightRemove = onHighlightRemove,
+                    onHighlightColorChange = onHighlightColorChange,
+                    onLinkClick = onLinkClick,
+                    onTooltipClick = onTooltipClick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // Move to next item ( +1 for separator)
+            itemOffset += itemLength + 1
+        }
+    }
+}
+
+/**
+ * Renders an ordered list with per-item highlight support.
+ */
+@Composable
+private fun HighlightableOrderedList(
+    block: RichTextBlock.OrderedList,
+    section: HighlightSection,
+    highlights: List<TextHighlight>,
+    baseOffset: Int,
+    onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
+    onHighlightRemove: (highlightId: Long) -> Unit,
+    onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((String) -> Unit)?
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        var itemOffset = baseOffset
+
+        block.items.forEachIndexed { index, itemText ->
+            val itemLength = itemText.length
+            val itemHighlights = getHighlightsForRange(
+                highlights,
+                itemOffset,
+                itemOffset + itemLength
+            ).map { it.adjustedForOffset(-itemOffset) }
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+                MaterialText(
+                    text = "${block.start + index}.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(end = 12.dp)
+                )
+                HighlightableListItem(
+                    text = itemText,
+                    highlights = itemHighlights,
+                    baseOffset = itemOffset,
+                    onHighlightAdd = onHighlightAdd,
+                    onHighlightRemove = onHighlightRemove,
+                    onHighlightColorChange = onHighlightColorChange,
+                    onLinkClick = onLinkClick,
+                    onTooltipClick = onTooltipClick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // Move to next item (+1 for separator)
+            itemOffset += itemLength + 1
+        }
+    }
+}
+
+/**
+ * A single highlightable list item.
+ */
+@Composable
+private fun HighlightableListItem(
+    text: AnnotatedString,
+    highlights: List<TextHighlight>,
+    baseOffset: Int,
+    onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
+    onHighlightRemove: (highlightId: Long) -> Unit,
+    onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((String) -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    SelectableHighlightText(
+        text = text,
+        highlights = highlights,
+        onHighlightAdd = { start, end, selectedText, color ->
+            onHighlightAdd(start + baseOffset, end + baseOffset, selectedText, color)
+        },
+        onHighlightRemove = onHighlightRemove,
+        onHighlightColorChange = onHighlightColorChange,
+        onLinkClick = onLinkClick,
+        onTooltipClick = onTooltipClick,
+        modifier = modifier
+    )
+}
+
+/**
+ * Renders a table with per-cell highlight support.
+ */
+@Composable
+private fun HighlightableTable(
+    block: RichTextBlock.Table,
+    section: HighlightSection,
+    highlights: List<TextHighlight>,
+    baseOffset: Int,
+    onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
+    onHighlightRemove: (highlightId: Long) -> Unit,
+    onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((String) -> Unit)?
+) {
+    if (block.columnCount == 0) return
+
+    val renderModel = remember(block) { block.toRenderModel() }
+    val scrollState = rememberScrollState()
+    val minTableWidth = 120.dp * renderModel.columnCount
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        BoxWithConstraints {
+            val tableWidth = max(minTableWidth, maxWidth)
+            var cellOffset = baseOffset
+
+            Column(
+                modifier = Modifier
+                    .horizontalScroll(scrollState)
+                    .width(tableWidth)
+            ) {
+                renderModel.rows.forEachIndexed { rowIndex, row ->
+                    val effectiveRowClasses = row.classNames + block.classNames
+                    val baseBackground = when {
+                        row.isHeaderRow -> MaterialTheme.colorScheme.secondaryContainer
+                        effectiveRowClasses.containsInsensitive("abstract") -> MaterialTheme.colorScheme.surfaceVariant
+                        else -> MaterialTheme.colorScheme.surface
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(baseBackground)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        row.cells.forEach { cell ->
+                            val weight = cell.cell.width ?: cell.columnSpan.coerceAtLeast(1).toFloat()
+
+                            if (!cell.isVisible) {
+                                Spacer(modifier = Modifier.weight(weight))
+                            } else {
+                                val cellLength = cell.cell.text.length
+                                val cellHighlights = getHighlightsForRange(
+                                    highlights,
+                                    cellOffset,
+                                    cellOffset + cellLength
+                                ).map { it.adjustedForOffset(-cellOffset) }
+
+                                val isHeaderCell = row.isHeaderRow || cell.cell.isHeader
+                                val textStyle = if (isHeaderCell) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium
+                                val textColor = when {
+                                    isHeaderCell -> MaterialTheme.colorScheme.onSecondaryContainer
+                                    cell.cell.classNames.containsInsensitive("abstract") -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    else -> MaterialTheme.colorScheme.onSurface
+                                }
+                                val cellBackground = when {
+                                    cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                    cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer
+                                    else -> Color.Transparent
+                                }
+
+                                Surface(
+                                    modifier = Modifier
+                                        .weight(weight)
+                                        .padding(horizontal = 4.dp),
+                                    color = cellBackground,
+                                    tonalElevation = if (cellBackground == Color.Transparent) 0.dp else 1.dp,
+                                    shape = MaterialTheme.shapes.extraSmall
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 4.dp)
+                                            .padding(start = cell.cell.paddingStart),
+                                        contentAlignment = when (cell.cell.alignment) {
+                                            TextAlign.Center -> Alignment.Center
+                                            TextAlign.End, TextAlign.Right -> Alignment.CenterEnd
+                                            else -> Alignment.CenterStart
+                                        }
+                                    ) {
+                                        SelectableHighlightText(
+                                            text = cell.cell.text,
+                                            highlights = cellHighlights,
+                                            onHighlightAdd = { start, end, selectedText, color ->
+                                                onHighlightAdd(start + cellOffset, end + cellOffset, selectedText, color)
+                                            },
+                                            onHighlightRemove = onHighlightRemove,
+                                            onHighlightColorChange = onHighlightColorChange,
+                                            onLinkClick = onLinkClick,
+                                            onTooltipClick = onTooltipClick,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
+
+                                // Advance offset for this cell
+                                cellOffset += cellLength
+                            }
+                        }
+                    }
+
+                    if (rowIndex != renderModel.rows.lastIndex) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Helper extension for case-insensitive set contains check.
+ */
+private fun Set<String>.containsInsensitive(value: String): Boolean {
+    return any { it.equals(value, ignoreCase = true) }
+}
+
+/**
  * Get the text length of a block for offset calculation.
  */
 private fun getBlockTextLength(block: RichTextBlock): Int {
@@ -208,7 +520,16 @@ private fun getBlockTextLength(block: RichTextBlock): Int {
         is RichTextBlock.BulletList -> block.items.sumOf { it.length + 1 }
         is RichTextBlock.OrderedList -> block.items.sumOf { it.length + 1 }
         is RichTextBlock.CodeBlock -> block.text.length
-        is RichTextBlock.Table -> 0 // Tables don't contribute to text offset
+        is RichTextBlock.Table -> {
+            // Calculate total text length across all cells
+            val headerText = block.headerRows.sumOf { row ->
+                row.cells.sumOf { it.text.length }
+            }
+            val bodyText = block.bodyRows.sumOf { row ->
+                row.cells.sumOf { it.text.length }
+            }
+            headerText + bodyText
+        }
         is RichTextBlock.AbstractBlock -> block.blocks.sumOf { getBlockTextLength(it) + 1 }
         is RichTextBlock.Media -> 0
         RichTextBlock.Divider -> 0
