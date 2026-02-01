@@ -87,8 +87,7 @@ private fun QuestionContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         // Question content stays primary, metadata/logs follow below
         Surface(
@@ -111,7 +110,10 @@ private fun QuestionContent(
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
-            QuestionMetadataCard(sections = metadataSections)
+            Column {
+                Spacer(modifier = Modifier.height(12.dp))
+                QuestionMetadataCard(sections = metadataSections)
+            }
         }
 
         // Performance logs - shown after answering if logs enabled
@@ -120,7 +122,10 @@ private fun QuestionContent(
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
-            PerformanceCard(performance = state.currentPerformance)
+            Column {
+                Spacer(modifier = Modifier.height(12.dp))
+                PerformanceCard(performance = state.currentPerformance)
+            }
         }
     }
 }
