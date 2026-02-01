@@ -1,0 +1,153 @@
+# MedicalQuiz AI Agent Instructions
+
+This is a Kotlin Multiplatform (KMP) medical quiz application targeting Android and Desktop (JVM).
+
+## Project Structure
+
+- **`:composeApp`** - Shared multiplatform module (95% of logic, UI, data layer)
+- **`:app`** - Thin Android wrapper that embeds `:composeApp`
+
+Source sets:
+```
+composeApp/src/
+├── commonMain/    # Shared code (UI, ViewModel, data models)
+├── androidMain/   # Android-specific (ExoPlayer, platform helpers)
+└── desktopMain/   # Desktop-specific (VLC, file system)
+```
+
+## Build Commands
+
+**Note: We never build on this system. These commands are for reference only - builds happen elsewhere.**
+
+```bash
+# Build all targets
+./gradlew build
+
+# Clean build
+./gradlew clean
+
+# Android build
+./gradlew :app:assembleDebug
+./gradlew :app:assembleRelease
+
+# Desktop build
+./gradlew :composeApp:package
+./gradlew :composeApp:run
+
+# Tests (single test class)
+./gradlew test --tests "ClassName"
+./gradlew test --tests "com.medicalquiz.app.ClassName"
+
+# Run all tests
+./gradlew test
+
+# Check (includes lint)
+./gradlew check
+
+# Format with ktlint (if available)
+./gradlew ktlintFormat
+```
+
+## Code Style Guidelines
+
+### Kotlin Style
+- **Kotlin 2.3.0** with Java 17 (Android) / Java 21 (KMP) toolchain
+- 4 spaces indentation, no tabs
+- Max line length: 120 characters
+- Use trailing commas in multi-line lists
+- Prefer expression bodies for single-expression functions: `fun foo() = bar()`
+
+### Imports
+- Group: stdlib → kotlinx → androidx → third-party → project
+- No wildcard imports (except for Compose: `import androidx.compose.ui.*`)
+- Order alphabetically within groups
+- Example:
+```kotlin
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.StateFlow
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.medicalquiz.app.shared.data.models.Question
+```
+
+### Naming Conventions
+- **Packages**: `com.medicalquiz.app.shared.*`
+- **Classes**: PascalCase (`QuizViewModel`, `QuestionPerformance`)
+- **Functions**: camelCase (`loadQuestion()`, `submitAnswer()`)
+- **Variables**: camelCase (`selectedAnswerId`, `isLoggingEnabled`)
+- **Constants**: UPPER_SNAKE_CASE (top-level or companion object)
+- **Private properties**: Leading underscore only for backing fields (`_state`, `_uiEvents`)
+- **Composable functions**: PascalCase starting with noun (`QuizScreen()`, `AnswerComposable()`)
+
+### Types & Nullability
+- Prefer non-nullable types; use `?` only when null is meaningful
+- Use `Result<T>` or `Resource<T>` sealed class for async operations:
+```kotlin
+sealed class Resource<out T> {
+    object Loading : Resource<Nothing>()
+    data class Success<out T>(val data: T) : Resource<T>()
+    data class Error(val message: String) : Resource<Nothing>()
+}
+```
+- Avoid platform types; explicitly specify types for public APIs
+- Use `kotlinx.datetime` for dates, not java.util.Date
+
+### Error Handling
+- Use `try/catch` with specific exceptions, not `Exception`
+- Log errors with context: `println("Error loading question $id: ${e.message}")`
+- Emit user-facing errors via `UiEvent.ShowToast`
+- Never crash; handle all edge cases gracefully
+- Database operations use `Dispatchers.IO` + `Mutex` for thread safety
+
+### Architecture Patterns
+- **ViewModel**: Single `QuizViewModel` manages all quiz state
+- **State Management**: `StateFlow` in ViewModel, `collectAsStateWithLifecycle()` in UI
+- **Repository Pattern**: `DatabaseProvider`, `SettingsRepository`, `TextHighlightsRepository`
+- **Expect/Actual**: Platform abstractions in `commonMain/platform/`:
+  - `FileSystemHelper` - File operations
+  - `StorageProvider` - Storage directories
+  - `VideoPlayer`, `AudioPlayer` - Media playback
+
+### Compose UI Guidelines
+- Split UI into small, focused composables in `ui/` package
+- Use `rememberSaveable` for configuration change survival
+- Prefer `MaterialTheme` values over hardcoded colors
+- State hoisting: pass state and callbacks down, events up
+- Custom components: `RichText` for HTML, `SelectableHighlightText` for highlights
+
+### Database Access
+- Direct SQLite via `BundledSQLiteDriver` (no ORM)
+- Use `Mutex` for thread safety in `DatabaseManager`
+- Placeholder parameters for all user input (never string concat SQL)
+- Close databases in `onCleared()` with `runBlocking`
+
+### Dependencies (from libs.versions.toml)
+| Purpose | Library |
+|---------|---------|
+| UI | Compose Multiplatform + Material3 |
+| Images | Coil 3 (compose + SVG + ktor network) |
+| Serialization | kotlinx-serialization-json |
+| Database | androidx.sqlite:sqlite-bundled |
+| HTML Parsing | ksoup |
+| Android Video | Media3/ExoPlayer |
+| Desktop Video | VLCJ |
+
+## Working with This Codebase
+
+### Adding New Features
+1. **UI component**: Add to `composeApp/src/commonMain/kotlin/.../ui/`
+2. **Platform-specific**: `expect` in `commonMain/platform/`, `actual` in `androidMain`/`desktopMain`
+3. **Data model**: Add to `data/models/`, update `DatabaseManager` SQL
+4. **ViewModel action**: Add function to `QuizViewModel`, emit `UiEvent` for side effects
+
+### Testing
+- No existing tests; add unit tests in `src/commonTest/kotlin/`
+- Use `kotlinx-coroutines-test` for coroutine testing
+- Mock `DatabaseProvider` interface for ViewModel tests
+
+### Key Files Reference
+- `QuizViewModel.kt` - Main state management (560+ lines)
+- `DatabaseManager.kt` - SQL queries and database operations
+- `QuizRoot.kt` - Top-level UI orchestration
+- `QuizState.kt` - State data class
+- `Resource.kt` - Async loading state sealed class
