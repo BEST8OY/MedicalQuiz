@@ -59,7 +59,7 @@ kotlin {
         
         val androidMain by getting {
             dependencies {
-                androidRuntimeClasspath(libs.compose.preview)
+                implementation(libs.compose.preview)
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.coil.android)
                 implementation(libs.ktor.client.okhttp)
