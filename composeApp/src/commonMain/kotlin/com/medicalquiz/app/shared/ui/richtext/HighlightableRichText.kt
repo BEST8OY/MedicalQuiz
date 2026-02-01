@@ -504,13 +504,6 @@ private fun HighlightableTable(
 }
 
 /**
- * Helper extension for case-insensitive set contains check.
- */
-private fun Set<String>.containsInsensitive(value: String): Boolean {
-    return any { it.equals(value, ignoreCase = true) }
-}
-
-/**
  * Get the text length of a block for offset calculation.
  */
 private fun getBlockTextLength(block: RichTextBlock): Int {
