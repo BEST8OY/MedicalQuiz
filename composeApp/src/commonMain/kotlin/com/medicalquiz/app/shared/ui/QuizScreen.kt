@@ -364,11 +364,21 @@ private fun QuizQuestionCard(
         if (total == 0) {
             answers.associate { it.answerId to null }
         } else {
-            answers.associate { answer ->
+            // Use largest remainder method to ensure percentages sum to 100
+            val exactPercentages = answers.map { answer ->
                 val count = answer.correctPercentage ?: 0
-                val percent = ((count * 100.0) / total).roundToInt()
-                answer.answerId to percent
+                answer.answerId to ((count * 100.0) / total)
             }
+            val floored = exactPercentages.map { it.first to it.second.toInt() }
+            val remainders = exactPercentages.mapIndexed { index, pair ->
+                index to (pair.second - floored[index].second)
+            }
+            val deficit = 100 - floored.sumOf { it.second }
+            val indicesToIncrement = remainders.sortedByDescending { it.second }.take(deficit).map { it.first }
+            
+            floored.mapIndexed { index, pair ->
+                pair.first to (pair.second + if (index in indicesToIncrement) 1 else 0)
+            }.toMap()
         }
     }
     var hintExpanded by rememberSaveable(question.id) { mutableStateOf(false) }
