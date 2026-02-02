@@ -108,6 +108,7 @@ import com.medicalquiz.app.shared.utils.HtmlUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
@@ -213,15 +214,22 @@ private fun SharedTransitionScope.MediaViewerContent(
     // Toggle UI on single tap
     val onToggleUI: () -> Unit = { showUI = !showUI }
 
-    // Calculate overlay path for current image
+    // Calculate overlay path for current image with caching (limit to 50 entries)
     val currentFileName = mediaFiles.getOrNull(pagerState.currentPage) ?: ""
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
+    val overlayCache = remember { ConcurrentHashMap<String, String?>() }
     val overlayPath by produceState<String?>(initialValue = null, currentFileName, storageDir) {
-        value = withContext(Dispatchers.IO) {
-            if (!currentFileName.startsWith("big_", ignoreCase = true)) return@withContext null
-            val overlayFile = currentFileName.substringBeforeLast('.') + ".svg"
-            val path = "$storageDir/media/$overlayFile"
-            if (FileSystemHelper.exists(path)) path else null
+        // Clear cache if it grows too large
+        if (overlayCache.size > 50) {
+            overlayCache.clear()
+        }
+        value = overlayCache.getOrPut(currentFileName) {
+            withContext(Dispatchers.IO) {
+                if (!currentFileName.startsWith("big_", ignoreCase = true)) return@withContext null
+                val overlayFile = currentFileName.substringBeforeLast('.') + ".svg"
+                val path = "$storageDir/media/$overlayFile"
+                if (FileSystemHelper.exists(path)) path else null
+            }
         }
     }
 
@@ -412,14 +420,14 @@ private fun SharedTransitionScope.MediaViewerContent(
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Icon(
-                                        imageVector = if (isOverlayActive) 
-                                            Icons.Filled.Visibility 
-                                        else 
+                                        imageVector = if (isOverlayActive)
+                                            Icons.Filled.Visibility
+                                        else
                                             Icons.Filled.VisibilityOff,
-                                        contentDescription = null,
-                                        tint = if (isOverlayActive) 
-                                            MaterialTheme.colorScheme.onPrimaryContainer 
-                                        else 
+                                        contentDescription = if (isOverlayActive) "Hide overlay" else "Show overlay",
+                                        tint = if (isOverlayActive)
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        else
                                             Color.White.copy(alpha = 0.9f),
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -454,7 +462,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.Info,
-                                        contentDescription = null,
+                                        contentDescription = "Show information",
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -906,14 +914,7 @@ private fun UnsupportedContent(fileName: String, type: MediaType) {
 }
 
 private fun getMediaType(fileName: String): MediaType {
-    val extension = fileName.substringAfterLast('.').lowercase()
-    return when (extension) {
-        "jpg", "jpeg", "png", "gif", "bmp", "webp" -> MediaType.IMAGE
-        "mp4", "avi", "mkv", "mov", "webm", "3gp" -> MediaType.VIDEO
-        "mp3", "wav", "ogg", "m4a", "aac", "flac" -> MediaType.AUDIO
-        "html", "htm" -> MediaType.HTML
-        else -> MediaType.UNKNOWN
-    }
+    return com.medicalquiz.app.shared.utils.MediaTypeUtils.fromFileName(fileName)
 }
 
 @Composable

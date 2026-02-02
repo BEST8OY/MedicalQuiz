@@ -13,9 +13,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.medicalquiz.app.shared.platform.VlcDiscovery
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 import uk.co.caprica.vlcj.player.component.CallbackMediaPlayerComponent
@@ -30,34 +30,27 @@ actual fun VideoPlayer(
     isActivePage: Boolean
 ) {
     var isPlaying by remember { mutableStateOf(false) }
-    var currentTime by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
     var volume by remember { mutableIntStateOf(100) }
     var mediaPlayerComponent: CallbackMediaPlayerComponent? by remember { mutableStateOf(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var vlcDiscovered by remember { mutableStateOf(false) }
 
-    // Initialize VLC
+    // Initialize VLC using cached discovery
     LaunchedEffect(Unit) {
-        try {
-            val discovered = NativeDiscovery().discover()
-            if (discovered) {
-                vlcDiscovered = true
-            } else {
-                errorMessage = "VLC not found. Please install VLC media player."
-            }
-        } catch (e: Exception) {
+        vlcDiscovered = VlcDiscovery.isAvailable()
+        if (!vlcDiscovered) {
             errorMessage = "VLC not found. Please install VLC media player."
-            println("VLC discovery failed: ${e.message}")
+            println("VLC discovery failed: ${VlcDiscovery.getLastError()}")
         }
     }
 
-    // Update time periodically - check isActive to properly cancel
-    LaunchedEffect(isPlaying) {
+    // Update time periodically using produceState for proper lifecycle management
+    val currentTime by produceState(initialValue = 0L, isPlaying, mediaPlayerComponent) {
         while (isActive && isPlaying) {
             delay(100.milliseconds)
             mediaPlayerComponent?.mediaPlayer()?.status()?.time()?.let {
-                currentTime = it
+                value = it
             }
         }
     }
@@ -82,7 +75,6 @@ actual fun VideoPlayer(
             }
             mediaPlayerComponent = null
             isPlaying = false
-            currentTime = 0L
             duration = 0L
         }
     }
@@ -104,6 +96,17 @@ actual fun VideoPlayer(
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White
                 )
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        if (VlcDiscovery.retry()) {
+                            errorMessage = null
+                            vlcDiscovered = true
+                        }
+                    }
+                ) {
+                    Text("Retry")
+                }
             }
         } else if (vlcDiscovered) {
             SwingPanel(
@@ -170,7 +173,7 @@ actual fun VideoPlayer(
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            contentDescription = if (isPlaying) "Pause video" else "Play video",
                             tint = Color.White,
                             modifier = Modifier.size(32.dp)
                         )

@@ -11,9 +11,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.medicalquiz.app.shared.platform.VlcDiscovery
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery
 import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 import uk.co.caprica.vlcj.player.component.AudioPlayerComponent
@@ -27,23 +27,19 @@ actual fun AudioPlayer(
     isActivePage: Boolean
 ) {
     var isPlaying by remember { mutableStateOf(false) }
-    var currentTime by remember { mutableStateOf(0L) }
-    var duration by remember { mutableStateOf(0L) }
+    var currentTime by remember { mutableLongStateOf(0L) }
+    var duration by remember { mutableLongStateOf(0L) }
     var volume by remember { mutableIntStateOf(100) }
     var audioPlayer by remember { mutableStateOf<AudioPlayerComponent?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var vlcDiscovered by remember { mutableStateOf(false) }
 
-    // Initialize VLC once
+    // Initialize VLC using cached discovery
     LaunchedEffect(Unit) {
-        try {
-            vlcDiscovered = NativeDiscovery().discover()
-            if (!vlcDiscovered) {
-                errorMessage = "VLC not found. Please install VLC media player."
-            }
-        } catch (e: Exception) {
+        vlcDiscovered = VlcDiscovery.isAvailable()
+        if (!vlcDiscovered) {
             errorMessage = "VLC not found. Please install VLC media player."
-            println("VLC discovery failed: ${e.message}")
+            println("VLC discovery failed: ${VlcDiscovery.getLastError()}")
         }
     }
 
@@ -132,6 +128,17 @@ actual fun AudioPlayer(
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White
                 )
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        if (VlcDiscovery.retry()) {
+                            errorMessage = null
+                            vlcDiscovered = true
+                        }
+                    }
+                ) {
+                    Text("Retry")
+                }
             }
         } else {
             // Audio player UI
@@ -186,7 +193,7 @@ actual fun AudioPlayer(
                         ) {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                contentDescription = if (isPlaying) "Pause audio" else "Play audio",
                                 modifier = Modifier.size(48.dp)
                             )
                         }
@@ -198,7 +205,7 @@ actual fun AudioPlayer(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.VolumeUp,
-                                contentDescription = "Volume",
+                                contentDescription = "Volume control",
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(Modifier.width(8.dp))

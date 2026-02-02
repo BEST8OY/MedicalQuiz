@@ -55,29 +55,10 @@ class MediaHandler(
             }
         }
 
-        // Common media extensions (keep in sync with HtmlUtils.MEDIA_LINK_REGEX and MediaViewerScreen.getMediaType)
-        if (
-            trimmed.endsWith(".jpg", ignoreCase = true) ||
-            trimmed.endsWith(".jpeg", ignoreCase = true) ||
-            trimmed.endsWith(".png", ignoreCase = true) ||
-            trimmed.endsWith(".gif", ignoreCase = true) ||
-            trimmed.endsWith(".bmp", ignoreCase = true) ||
-            trimmed.endsWith(".webp", ignoreCase = true) ||
-            trimmed.endsWith(".mp4", ignoreCase = true) ||
-            trimmed.endsWith(".avi", ignoreCase = true) ||
-            trimmed.endsWith(".mkv", ignoreCase = true) ||
-            trimmed.endsWith(".mov", ignoreCase = true) ||
-            trimmed.endsWith(".webm", ignoreCase = true) ||
-            trimmed.endsWith(".3gp", ignoreCase = true) ||
-            trimmed.endsWith(".mp3", ignoreCase = true) ||
-            trimmed.endsWith(".wav", ignoreCase = true) ||
-            trimmed.endsWith(".ogg", ignoreCase = true) ||
-            trimmed.endsWith(".m4a", ignoreCase = true) ||
-            trimmed.endsWith(".aac", ignoreCase = true) ||
-            trimmed.endsWith(".flac", ignoreCase = true)
-        ) {
-            val fileName = extractedFileName(trimmed)
-            return fileName?.let { openMediaFromCache(it) } ?: false
+        // Check if it's a media file using centralized MediaTypeUtils
+        val extractedName = extractedFileName(trimmed)
+        if (extractedName != null && com.medicalquiz.app.shared.utils.MediaTypeUtils.isMediaFile(extractedName)) {
+            return openMediaFromCache(extractedName)
         }
 
         if (!trimmed.contains("/") && !trimmed.startsWith("http") && !trimmed.startsWith("file://")) {
