@@ -357,11 +357,17 @@ private fun SharedTransitionScope.MediaViewerContent(
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(bottom = 24.dp)
             ) {
+                val buttonCount = (if (hasOverlay) 1 else 0) + (if (hasDescription) 1 else 0)
                 MultiChoiceSegmentedButtonRow {
+                    var buttonIndex = 0
                     if (hasOverlay) {
                         SegmentedButton(
                             checked = showOverlay,
                             onCheckedChange = { showOverlay = it },
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = buttonIndex++,
+                                count = buttonCount
+                            ),
                             icon = {
                                 SegmentedButtonDefaults.Icon(showOverlay) {
                                     Icon(
@@ -381,9 +387,11 @@ private fun SharedTransitionScope.MediaViewerContent(
                     if (hasDescription) {
                         SegmentedButton(
                             checked = showExplanation,
-                            onCheckedChange = {
-                                showExplanation = it
-                            },
+                            onCheckedChange = { showExplanation = it },
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = buttonIndex++,
+                                count = buttonCount
+                            ),
                             icon = {
                                 SegmentedButtonDefaults.Icon(showExplanation) {
                                     Icon(
