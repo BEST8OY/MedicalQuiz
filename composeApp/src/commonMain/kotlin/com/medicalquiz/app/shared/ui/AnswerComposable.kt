@@ -26,8 +26,8 @@ fun AnswersList(
             val isSelected = (answer.answerId.toInt() == selectedAnswerId)
             val isCorrect = (answer.answerId.toInt() == correctAnswerId)
             val bg = when {
-                isCorrect -> Color(0xFFCCFFCC)
-                isSelected -> Color(0xFFFFCCCC)
+                isCorrect -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                isSelected -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f)
                 else -> Color.Transparent
             }
             Text(

@@ -348,7 +348,7 @@ private fun applySelectionToText(
         val end = (selectionRange.last + 1).coerceIn(start, text.length)
         if (start < end) {
             addStyle(
-                SpanStyle(background = Color(0xFF2196F3).copy(alpha = 0.35f)),
+                SpanStyle(background = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                 start,
                 end
             )
