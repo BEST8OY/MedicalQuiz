@@ -25,6 +25,14 @@ actual object FileSystemHelper {
         file.writeText(content)
     }
 
+    actual fun delete(path: String): Boolean {
+        return try {
+            File(path).delete()
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     actual fun getDatabasePath(dbName: String): String {
         val storageRoot = StorageProvider.getAppStorageDirectory()
         val dbFile = File(File(storageRoot, "databases"), dbName)

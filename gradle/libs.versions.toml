@@ -22,6 +22,10 @@ datetime = "0.7.1-0.6.x-compat"
 media3 = "1.9.1"
 vlcj = "4.12.1"
 
+# Navigation 3
+navigation3 = "1.0.0-alpha03"
+lifecycle-viewmodel-nav3 = "2.10.0"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidx-core-ktx" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "androidx-appcompat" }
@@ -63,6 +67,11 @@ compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-pl
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose-plugin" }
 compose-components-uiToolingPreview = { module = "org.jetbrains.compose.components:components-ui-tooling-preview", version.ref = "compose-plugin" }
 compose-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose-plugin" }
+
+# Navigation 3
+androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
+androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
+androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycle-viewmodel-nav3" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
