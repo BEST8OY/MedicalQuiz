@@ -751,16 +751,11 @@ private fun ImageContent(
         }
 
         val transformableState = rememberTransformableState { zoomChange, panChange, _, centroid ->
-            val oldScale = scale
             val newScale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
 
             if (newScale > MIN_SCALE) {
-                val scaleDelta = newScale - oldScale
-                val centroidOffsetX = (centroid.x - containerWidth / 2f) * scaleDelta
-                val centroidOffsetY = (centroid.y - containerHeight / 2f) * scaleDelta
-
-                val newOffsetX = offsetX + panChange.x - centroidOffsetX
-                val newOffsetY = offsetY + panChange.y - centroidOffsetY
+                val newOffsetX = offsetX + panChange.x
+                val newOffsetY = offsetY + panChange.y
 
                 val (clampedX, clampedY) = clampOffset(newOffsetX, newOffsetY, newScale)
                 offsetX = clampedX
