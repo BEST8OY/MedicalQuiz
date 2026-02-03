@@ -62,6 +62,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MultiChoiceSegmentedButtonRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -303,7 +307,6 @@ private fun SharedTransitionScope.MediaViewerContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
                         .windowInsetsPadding(WindowInsets.statusBars)
                         .padding(horizontal = 8.dp, vertical = 8.dp)
                 ) {
@@ -344,8 +347,7 @@ private fun SharedTransitionScope.MediaViewerContent(
             // Segmented button for info and overlay - at bottom
             val hasOverlay by derivedStateOf { overlayPath != null }
             val hasDescription = currentDescription != null
-            val hasBoth = hasOverlay && hasDescription
-            
+
             AnimatedVisibility(
                 visible = showUI && dismissProgress < 0.1f && (hasOverlay || hasDescription),
                 enter = fadeIn() + slideInVertically { it },
@@ -355,90 +357,44 @@ private fun SharedTransitionScope.MediaViewerContent(
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(bottom = 24.dp)
             ) {
-                // Material3 Segmented Button Container
-                Surface(
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 2.dp,
-                    shadowElevation = 4.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        if (hasOverlay) {
-                            // Overlay toggle button
-                            val isOverlayActive = showOverlay
-                            Surface(
-                                onClick = { showOverlay = !showOverlay },
-                                shape = MaterialTheme.shapes.large,
-                                color = if (isOverlayActive)
-                                    MaterialTheme.colorScheme.primaryContainer
-                                else
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                tonalElevation = if (isOverlayActive) 2.dp else 0.dp
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
+                MultiChoiceSegmentedButtonRow {
+                    if (hasOverlay) {
+                        SegmentedButton(
+                            checked = showOverlay,
+                            onCheckedChange = { showOverlay = it },
+                            icon = {
+                                SegmentedButtonDefaults.Icon(showOverlay) {
                                     Icon(
-                                        imageVector = if (isOverlayActive)
+                                        imageVector = if (showOverlay)
                                             Icons.Filled.Visibility
                                         else
                                             Icons.Filled.VisibilityOff,
-                                        contentDescription = if (isOverlayActive) "Hide overlay" else "Show overlay",
-                                        tint = if (isOverlayActive)
-                                            MaterialTheme.colorScheme.onPrimaryContainer
-                                        else
-                                            MaterialTheme.colorScheme.onSurface,
+                                        contentDescription = null,
                                         modifier = Modifier.size(20.dp)
                                     )
-                                    Text(
-                                        text = "Overlay",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = if (isOverlayActive)
-                                            MaterialTheme.colorScheme.onPrimaryContainer
-                                        else
-                                            MaterialTheme.colorScheme.onSurface,
-                                        fontWeight = if (isOverlayActive)
-                                            FontWeight.SemiBold
-                                        else
-                                            FontWeight.Medium
-                                    )
                                 }
-                            }
-                        }
-                        
-                        if (hasDescription) {
-                            // Info button - always visible and styled
-                            Surface(
-                                onClick = { showExplanation = true },
-                                shape = MaterialTheme.shapes.large,
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                tonalElevation = 2.dp
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
+                            },
+                            label = { Text("Overlay") }
+                        )
+                    }
+
+                    if (hasDescription) {
+                        SegmentedButton(
+                            checked = showExplanation,
+                            onCheckedChange = {
+                                showExplanation = it
+                            },
+                            icon = {
+                                SegmentedButtonDefaults.Icon(showExplanation) {
                                     Icon(
                                         imageVector = Icons.Filled.Info,
-                                        contentDescription = "Show information",
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        contentDescription = null,
                                         modifier = Modifier.size(20.dp)
                                     )
-                                    Text(
-                                        text = "Info",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
                                 }
-                            }
-                        }
+                            },
+                            label = { Text("Info") }
+                        )
                     }
                 }
             }
