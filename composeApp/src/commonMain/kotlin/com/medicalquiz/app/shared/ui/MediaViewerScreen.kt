@@ -104,7 +104,6 @@ import com.medicalquiz.app.shared.utils.HtmlUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
@@ -186,22 +185,15 @@ private fun SharedTransitionScope.MediaViewerContent(
     // Toggle UI on single tap
     val onToggleUI: () -> Unit = { showUI = !showUI }
 
-    // Calculate overlay path for current image with caching (limit to 50 entries)
+    // Calculate overlay path for current image
     val currentFileName = mediaFiles.getOrNull(pagerState.currentPage) ?: ""
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
-    val overlayCache = remember { ConcurrentHashMap<String, String?>() }
     val overlayPath by produceState<String?>(initialValue = null, currentFileName, storageDir) {
-        // Clear cache if it grows too large
-        if (overlayCache.size > 50) {
-            overlayCache.clear()
-        }
-        value = overlayCache.getOrPut(currentFileName) {
-            withContext(Dispatchers.IO) {
-                if (!currentFileName.startsWith("big_", ignoreCase = true)) return@withContext null
-                val overlayFile = currentFileName.substringBeforeLast('.') + ".svg"
-                val path = "$storageDir/media/$overlayFile"
-                if (FileSystemHelper.exists(path)) path else null
-            }
+        value = withContext(Dispatchers.IO) {
+            if (!currentFileName.startsWith("big_", ignoreCase = true)) return@withContext null
+            val overlayFile = currentFileName.substringBeforeLast('.') + ".svg"
+            val path = "$storageDir/media/$overlayFile"
+            if (FileSystemHelper.exists(path)) path else null
         }
     }
 
