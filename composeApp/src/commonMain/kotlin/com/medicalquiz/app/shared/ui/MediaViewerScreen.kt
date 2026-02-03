@@ -1,5 +1,6 @@
 package com.medicalquiz.app.shared.ui
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -55,7 +56,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -84,7 +85,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -118,15 +119,6 @@ private const val DOUBLE_TAP_ZOOM = 2.5f
 private const val MIN_SCALE = 1f
 private const val DISMISS_THRESHOLD = 0.3f
 private const val DISMISS_VELOCITY_THRESHOLD = 500f
-
-// Semi-transparent overlay colors
-private val scrimColor = Color.Black.copy(alpha = 0.6f)
-private val gradientTop = Brush.verticalGradient(
-    colors = listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent)
-)
-private val gradientBottom = Brush.verticalGradient(
-    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
-)
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -241,18 +233,18 @@ private fun SharedTransitionScope.MediaViewerContent(
         }
     }
 
+    // Dynamic background color based on UI visibility
+    val backgroundColor by animateColorAsState(
+        targetValue = if (showUI) MaterialTheme.colorScheme.surface else Color.Black,
+        animationSpec = tween(400)
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(backgroundColor)
             .windowInsetsPadding(WindowInsets.systemBars)
     ) {
-        // Background scrim that fades during dismiss
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 1f - dismissProgress * 0.8f))
-        )
 
         // Main content with pull-to-dismiss
         Box(
@@ -339,7 +331,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(gradientTop)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
                         .windowInsetsPadding(WindowInsets.statusBars)
                         .padding(horizontal = 8.dp, vertical = 8.dp)
                 ) {
@@ -348,8 +340,8 @@ private fun SharedTransitionScope.MediaViewerContent(
                         onClick = onBack,
                         modifier = Modifier.align(Alignment.CenterStart),
                         colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = Color.Black.copy(alpha = 0.3f),
-                            contentColor = Color.White
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     ) {
                         Icon(
@@ -363,13 +355,13 @@ private fun SharedTransitionScope.MediaViewerContent(
                         Surface(
                             modifier = Modifier.align(Alignment.Center),
                             shape = MaterialTheme.shapes.medium,
-                            color = Color.Black.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Text(
                                 text = "${pagerState.currentPage + 1} / ${mediaFiles.size}",
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                 style = MaterialTheme.typography.labelLarge,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -394,7 +386,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                 // Material3 Segmented Button Container
                 Surface(
                     shape = MaterialTheme.shapes.large,
-                    color = Color.Black.copy(alpha = 0.75f),
+                    color = MaterialTheme.colorScheme.surface,
                     tonalElevation = 2.dp,
                     shadowElevation = 4.dp
                 ) {
@@ -408,10 +400,10 @@ private fun SharedTransitionScope.MediaViewerContent(
                             Surface(
                                 onClick = { showOverlay = !showOverlay },
                                 shape = MaterialTheme.shapes.large,
-                                color = if (isOverlayActive) 
-                                    MaterialTheme.colorScheme.primaryContainer 
-                                else 
-                                    Color.Transparent,
+                                color = if (isOverlayActive)
+                                    MaterialTheme.colorScheme.primaryContainer
+                                else
+                                    MaterialTheme.colorScheme.surfaceVariant,
                                 tonalElevation = if (isOverlayActive) 2.dp else 0.dp
                             ) {
                                 Row(
@@ -428,19 +420,19 @@ private fun SharedTransitionScope.MediaViewerContent(
                                         tint = if (isOverlayActive)
                                             MaterialTheme.colorScheme.onPrimaryContainer
                                         else
-                                            Color.White.copy(alpha = 0.9f),
+                                            MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Text(
                                         text = "Overlay",
                                         style = MaterialTheme.typography.labelLarge,
-                                        color = if (isOverlayActive) 
-                                            MaterialTheme.colorScheme.onPrimaryContainer 
-                                        else 
-                                            Color.White.copy(alpha = 0.9f),
-                                        fontWeight = if (isOverlayActive) 
-                                            FontWeight.SemiBold 
-                                        else 
+                                        color = if (isOverlayActive)
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        else
+                                            MaterialTheme.colorScheme.onSurface,
+                                        fontWeight = if (isOverlayActive)
+                                            FontWeight.SemiBold
+                                        else
                                             FontWeight.Medium
                                     )
                                 }
@@ -480,8 +472,6 @@ private fun SharedTransitionScope.MediaViewerContent(
             }
         }
 
-        // Pull-to-dismiss visual feedback (Google Gallery style - no text hints,
-        // just the visual feedback of content scaling and fading)
     }
 
     // Explanation bottom sheet (ModalBottomSheet instead of AlertDialog)
@@ -516,7 +506,7 @@ private fun ExplanationBottomSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = contentColorFor(MaterialTheme.colorScheme.surface),
         tonalElevation = 6.dp,
-        scrimColor = Color.Black.copy(alpha = 0.6f)
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)
     ) {
         Column(
             modifier = Modifier
@@ -672,7 +662,7 @@ private fun HtmlContent(fileName: String, onLinkClick: ((String) -> Unit)?) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = "Loading…",
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
@@ -759,14 +749,18 @@ private fun ImageContent(
             )
         }
 
-        val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
+        val transformableState = rememberTransformableState { zoomChange, panChange, _, centroid ->
             val oldScale = scale
             val newScale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
-            
+
             if (newScale > MIN_SCALE) {
-                val newOffsetX = offsetX + panChange.x
-                val newOffsetY = offsetY + panChange.y
-                
+                val scaleDelta = newScale - oldScale
+                val centroidOffsetX = (centroid.x - containerWidth / 2f) * scaleDelta
+                val centroidOffsetY = (centroid.y - containerHeight / 2f) * scaleDelta
+
+                val newOffsetX = offsetX + panChange.x - centroidOffsetX
+                val newOffsetY = offsetY + panChange.y - centroidOffsetY
+
                 val (clampedX, clampedY) = clampOffset(newOffsetX, newOffsetY, newScale)
                 offsetX = clampedX
                 offsetY = clampedY
@@ -853,7 +847,7 @@ private fun ImageContent(
                 ) {
                     Text(
                         text = "Loading…",
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
@@ -884,13 +878,15 @@ private fun UnsupportedContent(fileName: String, type: MediaType) {
         ) {
             Surface(
                 shape = CircleShape,
-                color = Color.White.copy(alpha = 0.1f),
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.size(80.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "⚠️",
-                        style = MaterialTheme.typography.displayMedium,
+                    Icon(
+                        imageVector = Icons.Outlined.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(40.dp)
                     )
                 }
             }
@@ -898,13 +894,13 @@ private fun UnsupportedContent(fileName: String, type: MediaType) {
             Text(
                 text = "Unsupported Media",
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Spacer(Modifier.height(8.dp))
             Text(
                 text = fileName,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.6f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
