@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -94,6 +95,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.compose.runtime.produceState
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.StorageProvider
