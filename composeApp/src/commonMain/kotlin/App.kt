@@ -1,5 +1,8 @@
 package com.medicalquiz.app.shared
 
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -9,29 +12,93 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.entry
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
 import coil3.compose.setSingletonImageLoaderFactory
-import com.medicalquiz.app.shared.generateImageLoader
 import com.medicalquiz.app.shared.data.CacheManager
 import com.medicalquiz.app.shared.data.DatabaseManager
+import com.medicalquiz.app.shared.data.MediaDescription
+import com.medicalquiz.app.shared.data.MediaDescriptionRepository
+import com.medicalquiz.app.shared.navigation.NavigationStateRepository
 import com.medicalquiz.app.shared.data.SettingsRepository
 import com.medicalquiz.app.shared.data.TextHighlightsRepository
 import com.medicalquiz.app.shared.data.UserDataManager
+import com.medicalquiz.app.shared.data.database.PerformanceFilter
+import com.medicalquiz.app.shared.navigation.MedicalQuizRoutes
 import com.medicalquiz.app.shared.platform.FileSystemHelper
+import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.AppTheme
 import com.medicalquiz.app.shared.ui.DatabaseSelectionScreen
+import com.medicalquiz.app.shared.ui.FilterScreen
+import com.medicalquiz.app.shared.ui.HtmlViewerDialog
 import com.medicalquiz.app.shared.ui.LocalFontSize
 import com.medicalquiz.app.shared.ui.MediaHandler
+import com.medicalquiz.app.shared.ui.MediaViewerScreen
 import com.medicalquiz.app.shared.ui.QuizRoot
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
+import com.medicalquiz.app.shared.viewmodel.UiEvent
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.snapshotFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/**
+ * Helper function to process media files and navigate to media viewer.
+ * Filters unavailable files on background thread and calculates the correct start index.
+ */
+private suspend fun navigateToMediaViewer(
+    files: List<String>,
+    startIndex: Int,
+    backStack: MutableList<MedicalQuizRoutes>,
+    mediaDescriptionsFlow: MutableStateFlow<Map<String, MediaDescription>>
+) {
+    // Filter unavailable files on IO dispatcher to avoid blocking main thread
+    val availableFiles = withContext(Dispatchers.IO) {
+        files.filter { fileName ->
+            val path = "${StorageProvider.getAppStorageDirectory()}/media/$fileName"
+            FileSystemHelper.exists(path)
+        }
+    }
+    
+    if (availableFiles.isNotEmpty()) {
+        val originalFile = files.getOrNull(startIndex)
+        val newIndex = if (originalFile != null) {
+            availableFiles.indexOf(originalFile).coerceAtLeast(0)
+        } else 0
+        val safeIndex = newIndex.coerceIn(0, availableFiles.lastIndex)
+
+        // Load media descriptions in parallel
+        val mediaDescriptions = withContext(Dispatchers.IO) {
+            MediaDescriptionRepository.load()
+        }
+        mediaDescriptionsFlow.value = mediaDescriptions
+
+        // Navigate to media viewer
+        backStack.add(
+            MedicalQuizRoutes.MediaViewer(
+                files = availableFiles,
+                startIndex = safeIndex
+            )
+        )
+    }
+}
 
 @Composable
 fun App() {
     // Install Coil's singleton ImageLoader once.
-    // This must run from composition (it's a @Composable API), but we still avoid re-installing on recomposition.
     var coilInstalled by remember { mutableStateOf(false) }
     if (!coilInstalled) {
         setSingletonImageLoaderFactory { context ->
@@ -50,69 +117,270 @@ fun App() {
             val viewModel = viewModel { QuizViewModel() }
             val cacheManager = remember { CacheManager() }
             val scope = rememberCoroutineScope()
-            
+
             // User data manager for highlights and other personal data
             val userDataManager = remember { UserDataManager() }
             val textHighlightsRepository = remember { TextHighlightsRepository(userDataManager, scope) }
-            
+
+            // Media descriptions state for viewer
+            val mediaDescriptionsFlow = remember { MutableStateFlow<Map<String, MediaDescription>>(emptyMap()) }
+
+            // Navigation back stack with custom save/restore that filters out transient routes
+            // MediaViewer and HtmlViewer are not persisted - users start fresh on those
+            val backStackSaver = remember {
+                listSaver<SnapshotStateList<MedicalQuizRoutes>, String>(
+                    save = { list ->
+                        // Filter out transient routes before saving
+                        list.filter { route ->
+                            route !is MedicalQuizRoutes.MediaViewer &&
+                            route !is MedicalQuizRoutes.HtmlViewer
+                        }.map { kotlinx.serialization.json.Json.encodeToString(it) }
+                    },
+                    restore = { savedList ->
+                        savedList.mapNotNull { jsonString ->
+                            try {
+                                kotlinx.serialization.json.Json.decodeFromString<MedicalQuizRoutes>(jsonString)
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }.toMutableStateList()
+                    }
+                )
+            }
+
+            // Restore from persistent storage (process death) or use default
+            val savedBackStack = remember { NavigationStateRepository().restoreNavigationState() }
+            val backStack = rememberSaveable(
+                saver = backStackSaver,
+                init = {
+                    savedBackStack?.toMutableStateList()
+                        ?: mutableStateListOf(MedicalQuizRoutes.DatabaseSelection)
+                }
+            )
+
+            // Save to persistent storage whenever back stack changes (for process death recovery)
+            // Use snapshotFlow to properly observe all changes to the SnapshotStateList
+            LaunchedEffect(Unit) {
+                snapshotFlow { backStack.toList() }
+                    .collect { currentStack ->
+                        NavigationStateRepository().saveNavigationState(currentStack)
+                    }
+            }
+
+            // Database state
             var selectedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
-            // Track which database has been initialized to avoid re-init on rotation
             var initializedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
-            
-            // Initialize common dependencies (including user data database)
+
+            // Initialize common dependencies
             LaunchedEffect(Unit) {
                 userDataManager.init()
                 viewModel.setSettingsRepository(settingsRepository)
                 viewModel.setTextHighlightsRepository(textHighlightsRepository)
                 viewModel.setCacheManager(cacheManager)
             }
-            
-            if (selectedDatabase == null) {
-                DatabaseSelectionScreen(
-                    onDatabaseSelected = { dbName ->
-                        selectedDatabase = dbName
-                    }
-                )
-            } else {
-                // Initialize DB only when it changes, not on rotation
-                LaunchedEffect(selectedDatabase) {
-                    selectedDatabase?.let { dbName ->
-                        // Skip if already initialized for this database
-                        if (initializedDatabase == dbName && viewModel.getDatabaseManager() != null) {
-                            return@LaunchedEffect
-                        }
-                        
-                        val dbPath = FileSystemHelper.getDatabasePath(dbName)
-                        val databaseManager = DatabaseManager(dbPath)
-                        databaseManager.init()
-                        
-                        viewModel.setDatabaseManager(databaseManager)
-                        viewModel.setDatabaseName(dbName.removeSuffix(".db"))
-                        initializedDatabase = dbName
-                    }
-                }
-                
-                val mediaHandler = remember { 
-                    MediaHandler(
-                        onOpenMedia = { files, index ->
-                            viewModel.openMedia(files, index)
-                        },
-                        onOpenHtml = { fileName ->
-                            viewModel.openHtmlFile(fileName)
-                        }
-                    ) 
-                }
 
-                QuizRoot(
-                    viewModel = viewModel,
-                    mediaHandler = mediaHandler,
-                    onChangeDatabase = {
-                        initializedDatabase = null
-                        selectedDatabase = null
-                        viewModel.closeDatabase()
+            // Handle database initialization when selected
+            LaunchedEffect(selectedDatabase) {
+                selectedDatabase?.let { dbName ->
+                    if (initializedDatabase == dbName && viewModel.getDatabaseManager() != null) {
+                        return@LaunchedEffect
+                    }
+
+                    val dbPath = FileSystemHelper.getDatabasePath(dbName)
+                    val databaseManager = DatabaseManager(dbPath)
+                    databaseManager.init()
+
+                    viewModel.setDatabaseManager(databaseManager)
+                    viewModel.setDatabaseName(dbName.removeSuffix(".db"))
+                    initializedDatabase = dbName
+                }
+            }
+
+            // Media handler with navigation callbacks
+            val mediaHandler = remember {
+                MediaHandler(
+                    onOpenMedia = { files, index ->
+                        scope.launch {
+                            navigateToMediaViewer(files, index, backStack, mediaDescriptionsFlow)
+                        }
+                    },
+                    onOpenHtml = { fileName ->
+                        backStack.add(MedicalQuizRoutes.HtmlViewer(fileName = fileName))
                     }
                 )
             }
+
+            // Handle navigation events from ViewModel
+            LaunchedEffect(viewModel) {
+                viewModel.uiEvents.collect { event ->
+                    when (event) {
+                        is UiEvent.OpenHtmlFile -> {
+                            backStack.add(MedicalQuizRoutes.HtmlViewer(fileName = event.fileName))
+                        }
+                        is UiEvent.OpenMedia -> {
+                            navigateToMediaViewer(
+                                files = event.urls,
+                                startIndex = event.startIndex,
+                                backStack = backStack,
+                                mediaDescriptionsFlow = mediaDescriptionsFlow
+                            )
+                        }
+                        // Other events (OpenPerformanceDialog, ShowErrorDialog, ShowResetLogsConfirmation)
+                        // are handled within QuizRoot as dialog overlays
+                        else -> Unit
+                    }
+                }
+            }
+
+            // Navigation entry provider
+            val entryProvider = remember(viewModel, mediaHandler, mediaDescriptionsFlow) {
+                entryProvider<MedicalQuizRoutes> {
+                    // Database Selection Screen - app entry point
+                    entry<MedicalQuizRoutes.DatabaseSelection> {
+                        DatabaseSelectionScreen(
+                            onDatabaseSelected = { dbName ->
+                                selectedDatabase = dbName
+                                // Navigate to filter screen after database selection
+                                backStack.add(MedicalQuizRoutes.Filter)
+                            }
+                        )
+                    }
+
+                    // Filter Screen - pre-quiz configuration
+                    entry<MedicalQuizRoutes.Filter> {
+                        val state by viewModel.state.collectAsState()
+                        val performanceLabel = formatPerformanceLabel(state.performanceFilter)
+
+                        FilterScreen(
+                            subjectCount = state.selectedSubjectIds.size,
+                            systemCount = state.selectedSystemIds.size,
+                            performanceLabel = performanceLabel,
+                            previewCount = state.previewQuestionCount,
+                            onSelectSubjects = {
+                                viewModel.fetchSubjects()
+                                // Subject selection dialog handled within QuizRoot
+                            },
+                            onSelectSystems = {
+                                val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+                                viewModel.fetchSystemsForSubjects(subjects)
+                                // System selection dialog handled within QuizRoot
+                            },
+                            onSelectPerformance = {
+                                viewModel.openPerformanceDialog()
+                                // Performance filter dialog handled within QuizRoot
+                            },
+                            onStart = {
+                                viewModel.loadFilteredQuestionIds()
+                                viewModel.loadQuestion(0)
+                                backStack.add(MedicalQuizRoutes.Quiz)
+                            },
+                            onClearFilters = {
+                                viewModel.applySelectedSubjects(emptySet(), loadQuestions = false)
+                                viewModel.applySelectedSystems(emptySet(), loadQuestions = false)
+                            }
+                        )
+                    }
+
+                    // Quiz Screen - main question display with navigation drawer
+                    entry<MedicalQuizRoutes.Quiz> {
+                        QuizRoot(
+                            viewModel = viewModel,
+                            mediaHandler = mediaHandler,
+                            onChangeDatabase = {
+                                // Clear database state and return to selection
+                                backStack.clear()
+                                backStack.add(MedicalQuizRoutes.DatabaseSelection)
+                                selectedDatabase = null
+                                initializedDatabase = null
+                                viewModel.closeDatabase()
+                            },
+                            onNavigateBack = {
+                                // In pre-quiz mode (Filter screen showing), navigate back to filter
+                                // NavDisplay will pop Quiz from back stack, returning to Filter
+                                backStack.removeLastOrNull()
+                            }
+                        )
+                    }
+
+                    // Media Viewer Screen - full-screen media display
+                    entry<MedicalQuizRoutes.MediaViewer> { key ->
+                        val mediaDescriptions by mediaDescriptionsFlow.collectAsState()
+
+                        MediaViewerScreen(
+                            mediaFiles = key.files,
+                            startIndex = key.startIndex,
+                            mediaDescriptions = mediaDescriptions,
+                            onLinkClick = { url ->
+                                if (!mediaHandler.handleMediaLink(url)) {
+                                    // Handle external URLs if not media
+                                }
+                            },
+                            onBack = {
+                                // Pop from back stack
+                                backStack.removeLastOrNull()
+                                // Clear media descriptions to free memory
+                                scope.launch {
+                                    mediaDescriptionsFlow.value = emptyMap()
+                                }
+                            }
+                        )
+                    }
+
+                    // HTML Viewer Screen - HTML content display
+                    entry<MedicalQuizRoutes.HtmlViewer> { key ->
+                        HtmlViewerDialog(
+                            fileName = key.fileName,
+                            onDismiss = {
+                                backStack.removeLastOrNull()
+                            },
+                            onLinkClick = { url ->
+                                if (!mediaHandler.handleMediaLink(url)) {
+                                    // Handle external URLs
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
+            // NavDisplay with slide animations and predictive back support
+            NavDisplay(
+                backStack = backStack,
+                onBack = { backStack.removeLastOrNull() },
+                entryProvider = entryProvider,
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator()
+                ),
+                transitionSpec = {
+                    // Forward navigation: slide in from right, slide out to left
+                    slideInHorizontally(initialOffsetX = { it }) togetherWith
+                        slideOutHorizontally(targetOffsetX = { -it })
+                },
+                popTransitionSpec = {
+                    // Back navigation: slide in from left, slide out to right
+                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                        slideOutHorizontally(targetOffsetX = { it })
+                },
+                predictivePopTransitionSpec = {
+                    // Predictive back gesture (Android 13+): slide in from left, slide out to right
+                    // Same as popTransitionSpec but used during gesture
+                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                        slideOutHorizontally(targetOffsetX = { it })
+                }
+            )
         }
     }
+}
+
+/**
+ * Formats the performance filter to a user-friendly label.
+ */
+private fun formatPerformanceLabel(filter: PerformanceFilter): String = when (filter) {
+    PerformanceFilter.ALL -> "All Questions"
+    PerformanceFilter.UNANSWERED -> "Not Attempted"
+    PerformanceFilter.LAST_CORRECT -> "Last Attempt Correct"
+    PerformanceFilter.LAST_INCORRECT -> "Last Attempt Incorrect"
+    PerformanceFilter.EVER_CORRECT -> "Ever Correct"
+    PerformanceFilter.EVER_INCORRECT -> "Ever Incorrect"
 }
