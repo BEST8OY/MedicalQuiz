@@ -6,10 +6,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -48,11 +46,9 @@ import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -68,7 +64,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -85,7 +80,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -100,8 +94,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.compose.runtime.produceState
 import coil3.compose.AsyncImage
-import coil3.compose.AsyncImagePainter
-
 import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.StorageProvider
@@ -169,7 +161,6 @@ private fun SharedTransitionScope.MediaViewerContent(
     var dismissOffsetY by remember { mutableFloatStateOf(0f) }
     var isDismissing by remember { mutableStateOf(false) }
     val dismissProgress by remember { derivedStateOf { (dismissOffsetY.absoluteValue / 300f).coerceIn(0f, 1f) } }
-    val animatedDismissProgress = remember { Animatable(0f) }
     
     // Current page's description
     val currentDescription = mediaDescriptions[mediaFiles.getOrNull(pagerState.currentPage)]
@@ -187,20 +178,6 @@ private fun SharedTransitionScope.MediaViewerContent(
             showUI = true
             showExplanation = false
             showOverlay = true
-        }
-    }
-
-    // Handle dismiss completion
-    LaunchedEffect(isDismissing) {
-        if (isDismissing) {
-            val targetOffset = if (dismissOffsetY > 0) 1000f else -1000f
-            animatedDismissProgress.animateTo(
-                targetValue = targetOffset,
-                animationSpec = tween(150, easing = FastOutSlowInEasing)
-            )
-            onBack()
-        } else {
-            animatedDismissProgress.animateTo(0f, spring())
         }
     }
 
@@ -750,7 +727,7 @@ private fun ImageContent(
             )
         }
 
-        val transformableState = rememberTransformableState { zoomChange, panChange, _, centroid ->
+        val transformableState = rememberTransformableState { panChange, zoomChange, _, centroid ->
             val newScale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
 
             if (newScale > MIN_SCALE) {
