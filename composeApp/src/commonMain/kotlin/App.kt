@@ -47,7 +47,10 @@ import com.medicalquiz.app.shared.ui.HtmlViewerDialog
 import com.medicalquiz.app.shared.ui.LocalFontSize
 import com.medicalquiz.app.shared.ui.MediaHandler
 import com.medicalquiz.app.shared.ui.MediaViewerScreen
+import com.medicalquiz.app.shared.ui.PerformanceFilterDialog
 import com.medicalquiz.app.shared.ui.QuizRoot
+import com.medicalquiz.app.shared.ui.SubjectFilterDialogComposable
+import com.medicalquiz.app.shared.ui.SystemFilterDialogComposable
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 import com.medicalquiz.app.shared.viewmodel.UiEvent
 import kotlinx.coroutines.Dispatchers
@@ -133,7 +136,10 @@ fun App() {
                         // Filter out transient routes before saving
                         list.filter { route ->
                             route !is MedicalQuizRoutes.MediaViewer &&
-                            route !is MedicalQuizRoutes.HtmlViewer
+                            route !is MedicalQuizRoutes.HtmlViewer &&
+                            route !is MedicalQuizRoutes.SubjectSelection &&
+                            route !is MedicalQuizRoutes.SystemSelection &&
+                            route !is MedicalQuizRoutes.PerformanceSelection
                         }.map { kotlinx.serialization.json.Json.encodeToString(it) }
                     },
                     restore = { savedList ->
@@ -258,16 +264,15 @@ fun App() {
                             previewCount = state.previewQuestionCount,
                             onSelectSubjects = {
                                 viewModel.fetchSubjects()
-                                // Subject selection dialog handled within QuizRoot
+                                backStack.add(MedicalQuizRoutes.SubjectSelection)
                             },
                             onSelectSystems = {
                                 val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
                                 viewModel.fetchSystemsForSubjects(subjects)
-                                // System selection dialog handled within QuizRoot
+                                backStack.add(MedicalQuizRoutes.SystemSelection)
                             },
                             onSelectPerformance = {
-                                viewModel.openPerformanceDialog()
-                                // Performance filter dialog handled within QuizRoot
+                                backStack.add(MedicalQuizRoutes.PerformanceSelection)
                             },
                             onStart = {
                                 viewModel.loadFilteredQuestionIds()
@@ -278,6 +283,62 @@ fun App() {
                                 viewModel.applySelectedSubjects(emptySet(), loadQuestions = false)
                                 viewModel.applySelectedSystems(emptySet(), loadQuestions = false)
                             }
+                        )
+                    }
+
+                    // Subject Selection Screen
+                    entry<MedicalQuizRoutes.SubjectSelection> {
+                        val state by viewModel.state.collectAsState()
+                        SubjectFilterDialogComposable(
+                            isVisible = true,
+                            resource = state.subjectsResource,
+                            selectedIds = state.selectedSubjectIds,
+                            onRetry = { viewModel.fetchSubjects() },
+                            onApply = { selected ->
+                                viewModel.applySelectedSubjects(selected, loadQuestions = false)
+                                backStack.removeLastOrNull()
+                            },
+                            onClear = {
+                                viewModel.applySelectedSubjects(emptySet(), loadQuestions = false)
+                                backStack.removeLastOrNull()
+                            },
+                            onDismiss = { backStack.removeLastOrNull() }
+                        )
+                    }
+
+                    // System Selection Screen
+                    entry<MedicalQuizRoutes.SystemSelection> {
+                        val state by viewModel.state.collectAsState()
+                        SystemFilterDialogComposable(
+                            isVisible = true,
+                            resource = state.systemsResource,
+                            selectedIds = state.selectedSystemIds,
+                            onRetry = {
+                                val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+                                viewModel.fetchSystemsForSubjects(subjects)
+                            },
+                            onApply = { selected ->
+                                viewModel.applySelectedSystems(selected, loadQuestions = false)
+                                backStack.removeLastOrNull()
+                            },
+                            onClear = {
+                                viewModel.applySelectedSystems(emptySet(), loadQuestions = false)
+                                backStack.removeLastOrNull()
+                            },
+                            onDismiss = { backStack.removeLastOrNull() }
+                        )
+                    }
+
+                    // Performance Selection Screen
+                    entry<MedicalQuizRoutes.PerformanceSelection> {
+                        val state by viewModel.state.collectAsState()
+                        PerformanceFilterDialog(
+                            current = state.performanceFilter,
+                            onSelect = { filter ->
+                                viewModel.setPerformanceFilter(filter, loadQuestions = false)
+                                backStack.removeLastOrNull()
+                            },
+                            onDismiss = { backStack.removeLastOrNull() }
                         )
                     }
 
