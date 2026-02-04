@@ -30,10 +30,13 @@ class NavigationStateRepository {
      */
     fun saveNavigationState(backStack: List<MedicalQuizRoutes>) {
         try {
-            // Don't save MediaViewer or HtmlViewer states - start fresh on those
+            // Don't save transient screen states - start fresh on those
             val filteredStack = backStack.filter { route ->
-                route !is MedicalQuizRoutes.MediaViewer && 
-                route !is MedicalQuizRoutes.HtmlViewer
+                route !is MedicalQuizRoutes.MediaViewer &&
+                route !is MedicalQuizRoutes.HtmlViewer &&
+                route !is MedicalQuizRoutes.SubjectSelection &&
+                route !is MedicalQuizRoutes.SystemSelection &&
+                route !is MedicalQuizRoutes.PerformanceSelection
             }
             
             if (filteredStack.isNotEmpty()) {
