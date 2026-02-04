@@ -154,41 +154,28 @@ fun App() {
                 )
             }
 
-            // Restore from persistent storage (process death) or use default
+            // Navigation state management
             val navStateRepo = remember { NavigationStateRepository() }
-            val savedBackStack = remember { navStateRepo.restoreNavigationState() }
-            println("App: Restored back stack: $savedBackStack")
-            // Validate saved state - must start with DatabaseSelection
-            val validSavedBackStack = savedBackStack?.takeIf { stack ->
-                stack.isNotEmpty() && stack.first() is MedicalQuizRoutes.DatabaseSelection
-            }
-            // Clear invalid saved state
-            if (savedBackStack != null && validSavedBackStack == null) {
-                println("App: Saved state invalid, clearing")
-                navStateRepo.clearNavigationState()
-            }
-            val backStack: SnapshotStateList<MedicalQuizRoutes> = rememberSaveable(
-                saver = backStackSaver,
-                init = {
-                    val initial: SnapshotStateList<MedicalQuizRoutes> = validSavedBackStack?.toMutableStateList()
-                        ?: mutableStateListOf(MedicalQuizRoutes.DatabaseSelection)
-                    println("App: Initial back stack: $initial")
-                    initial
+            val savedState = remember { navStateRepo.restoreNavigationState() }
+            val (savedBackStack, savedDbName) = savedState ?: (null to null)
+
+            // Always use remember (not rememberSaveable) for backStack to avoid
+            // stale state from Bundle when app data is cleared. We only persist
+            // to file, not to Compose saveable state.
+            val backStack: SnapshotStateList<MedicalQuizRoutes> = remember {
+                // Validate saved state - must start with DatabaseSelection
+                val validStack = savedBackStack?.takeIf { stack ->
+                    stack.isNotEmpty() && stack.first() is MedicalQuizRoutes.DatabaseSelection
                 }
-            )
-
-            // Save to persistent storage whenever back stack changes (for process death recovery)
-            // Use snapshotFlow to properly observe all changes to the SnapshotStateList
-            LaunchedEffect(Unit) {
-                snapshotFlow { backStack.toList() }
-                    .collect { currentStack ->
-                        println("App: Back stack changed: $currentStack")
-                        NavigationStateRepository().saveNavigationState(currentStack)
-                    }
+                if (savedBackStack != null && validStack == null) {
+                    navStateRepo.clearNavigationState()
+                }
+                validStack?.toMutableStateList()
+                    ?: mutableStateListOf(MedicalQuizRoutes.DatabaseSelection)
             }
 
-            // Database state
-            var selectedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
+            // Database state - restore from saved state or use null for fresh start
+            var selectedDatabase by rememberSaveable { mutableStateOf<String?>(savedDbName) }
             var initializedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
 
             // Initialize common dependencies
@@ -214,6 +201,14 @@ fun App() {
                     viewModel.setDatabaseName(dbName.removeSuffix(".db"))
                     initializedDatabase = dbName
                 }
+            }
+
+            // Save navigation state to file whenever back stack changes
+            LaunchedEffect(Unit) {
+                snapshotFlow { backStack.toList() }
+                    .collect { currentStack ->
+                        navStateRepo.saveNavigationState(currentStack, selectedDatabase)
+                    }
             }
 
             // Media handler with navigation callbacks
@@ -271,29 +266,30 @@ fun App() {
                         val state by viewModel.state.collectAsState()
                         val performanceLabel = formatPerformanceLabel(state.performanceFilter)
 
+                        // Dialog states - overlays within filter screen
+                        var showSubjectDialog by rememberSaveable { mutableStateOf(false) }
+                        var showSystemDialog by rememberSaveable { mutableStateOf(false) }
+                        var showPerformanceDialog by rememberSaveable { mutableStateOf(false) }
+
+                        // Load data when dialogs open
+                        LaunchedEffect(showSubjectDialog) {
+                            if (showSubjectDialog) viewModel.fetchSubjects()
+                        }
+                        LaunchedEffect(showSystemDialog, state.selectedSubjectIds) {
+                            if (showSystemDialog) {
+                                val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+                                viewModel.fetchSystemsForSubjects(subjects)
+                            }
+                        }
+
                         FilterScreen(
                             subjectCount = state.selectedSubjectIds.size,
                             systemCount = state.selectedSystemIds.size,
                             performanceLabel = performanceLabel,
                             previewCount = state.previewQuestionCount,
-                            onSelectSubjects = {
-                                println("FilterScreen: onSelectSubjects clicked")
-                                viewModel.fetchSubjects()
-                                backStack.add(MedicalQuizRoutes.SubjectSelection)
-                                println("FilterScreen: Added SubjectSelection to backStack, size=${backStack.size}")
-                            },
-                            onSelectSystems = {
-                                println("FilterScreen: onSelectSystems clicked")
-                                val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-                                viewModel.fetchSystemsForSubjects(subjects)
-                                backStack.add(MedicalQuizRoutes.SystemSelection)
-                                println("FilterScreen: Added SystemSelection to backStack, size=${backStack.size}")
-                            },
-                            onSelectPerformance = {
-                                println("FilterScreen: onSelectPerformance clicked")
-                                backStack.add(MedicalQuizRoutes.PerformanceSelection)
-                                println("FilterScreen: Added PerformanceSelection to backStack, size=${backStack.size}")
-                            },
+                            onSelectSubjects = { showSubjectDialog = true },
+                            onSelectSystems = { showSystemDialog = true },
+                            onSelectPerformance = { showPerformanceDialog = true },
                             onStart = {
                                 viewModel.loadFilteredQuestionIds()
                                 viewModel.loadQuestion(0)
@@ -302,64 +298,60 @@ fun App() {
                             onClearFilters = {
                                 viewModel.applySelectedSubjects(emptySet(), loadQuestions = false)
                                 viewModel.applySelectedSystems(emptySet(), loadQuestions = false)
+                                viewModel.setPerformanceFilter(com.medicalquiz.app.shared.data.database.PerformanceFilter.ALL, loadQuestions = false)
                             }
                         )
-                    }
 
-                    // Subject Selection Screen
-                    entry<MedicalQuizRoutes.SubjectSelection> {
-                        val state by viewModel.state.collectAsState()
-                        SubjectFilterDialogComposable(
-                            isVisible = true,
-                            resource = state.subjectsResource,
-                            selectedIds = state.selectedSubjectIds,
-                            onRetry = { viewModel.fetchSubjects() },
-                            onApply = { selected ->
-                                viewModel.applySelectedSubjects(selected, loadQuestions = false)
-                                backStack.removeLastOrNull()
-                            },
-                            onClear = {
-                                viewModel.applySelectedSubjects(emptySet(), loadQuestions = false)
-                                backStack.removeLastOrNull()
-                            },
-                            onDismiss = { backStack.removeLastOrNull() }
-                        )
-                    }
+                        // Dialogs - rendered as overlays
+                        if (showSubjectDialog) {
+                            SubjectFilterDialogComposable(
+                                isVisible = true,
+                                resource = state.subjectsResource,
+                                selectedIds = state.selectedSubjectIds,
+                                onRetry = { viewModel.fetchSubjects() },
+                                onApply = { selected ->
+                                    viewModel.applySelectedSubjects(selected, loadQuestions = false)
+                                    showSubjectDialog = false
+                                },
+                                onClear = {
+                                    viewModel.applySelectedSubjects(emptySet(), loadQuestions = false)
+                                    showSubjectDialog = false
+                                },
+                                onDismiss = { showSubjectDialog = false }
+                            )
+                        }
 
-                    // System Selection Screen
-                    entry<MedicalQuizRoutes.SystemSelection> {
-                        val state by viewModel.state.collectAsState()
-                        SystemFilterDialogComposable(
-                            isVisible = true,
-                            resource = state.systemsResource,
-                            selectedIds = state.selectedSystemIds,
-                            onRetry = {
-                                val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-                                viewModel.fetchSystemsForSubjects(subjects)
-                            },
-                            onApply = { selected ->
-                                viewModel.applySelectedSystems(selected, loadQuestions = false)
-                                backStack.removeLastOrNull()
-                            },
-                            onClear = {
-                                viewModel.applySelectedSystems(emptySet(), loadQuestions = false)
-                                backStack.removeLastOrNull()
-                            },
-                            onDismiss = { backStack.removeLastOrNull() }
-                        )
-                    }
+                        if (showSystemDialog) {
+                            SystemFilterDialogComposable(
+                                isVisible = true,
+                                resource = state.systemsResource,
+                                selectedIds = state.selectedSystemIds,
+                                onRetry = {
+                                    val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+                                    viewModel.fetchSystemsForSubjects(subjects)
+                                },
+                                onApply = { selected ->
+                                    viewModel.applySelectedSystems(selected, loadQuestions = false)
+                                    showSystemDialog = false
+                                },
+                                onClear = {
+                                    viewModel.applySelectedSystems(emptySet(), loadQuestions = false)
+                                    showSystemDialog = false
+                                },
+                                onDismiss = { showSystemDialog = false }
+                            )
+                        }
 
-                    // Performance Selection Screen
-                    entry<MedicalQuizRoutes.PerformanceSelection> {
-                        val state by viewModel.state.collectAsState()
-                        PerformanceFilterDialog(
-                            current = state.performanceFilter,
-                            onSelect = { filter ->
-                                viewModel.setPerformanceFilter(filter, loadQuestions = false)
-                                backStack.removeLastOrNull()
-                            },
-                            onDismiss = { backStack.removeLastOrNull() }
-                        )
+                        if (showPerformanceDialog) {
+                            PerformanceFilterDialog(
+                                current = state.performanceFilter,
+                                onSelect = { filter ->
+                                    viewModel.setPerformanceFilter(filter, loadQuestions = false)
+                                    showPerformanceDialog = false
+                                },
+                                onDismiss = { showPerformanceDialog = false }
+                            )
+                        }
                     }
 
                     // Quiz Screen - main question display with navigation drawer
