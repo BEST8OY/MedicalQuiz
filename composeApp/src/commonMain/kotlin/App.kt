@@ -155,12 +155,25 @@ fun App() {
             }
 
             // Restore from persistent storage (process death) or use default
-            val savedBackStack = remember { NavigationStateRepository().restoreNavigationState() }
+            val navStateRepo = remember { NavigationStateRepository() }
+            val savedBackStack = remember { navStateRepo.restoreNavigationState() }
+            println("App: Restored back stack: $savedBackStack")
+            // Validate saved state - must start with DatabaseSelection
+            val validSavedBackStack = savedBackStack?.takeIf { stack ->
+                stack.isNotEmpty() && stack.first() is MedicalQuizRoutes.DatabaseSelection
+            }
+            // Clear invalid saved state
+            if (savedBackStack != null && validSavedBackStack == null) {
+                println("App: Saved state invalid, clearing")
+                navStateRepo.clearNavigationState()
+            }
             val backStack = rememberSaveable(
                 saver = backStackSaver,
                 init = {
-                    savedBackStack?.toMutableStateList()
+                    val initial = validSavedBackStack?.toMutableStateList()
                         ?: mutableStateListOf(MedicalQuizRoutes.DatabaseSelection)
+                    println("App: Initial back stack: $initial")
+                    initial
                 }
             )
 
@@ -169,6 +182,7 @@ fun App() {
             LaunchedEffect(Unit) {
                 snapshotFlow { backStack.toList() }
                     .collect { currentStack ->
+                        println("App: Back stack changed: $currentStack")
                         NavigationStateRepository().saveNavigationState(currentStack)
                     }
             }
@@ -263,16 +277,22 @@ fun App() {
                             performanceLabel = performanceLabel,
                             previewCount = state.previewQuestionCount,
                             onSelectSubjects = {
+                                println("FilterScreen: onSelectSubjects clicked")
                                 viewModel.fetchSubjects()
                                 backStack.add(MedicalQuizRoutes.SubjectSelection)
+                                println("FilterScreen: Added SubjectSelection to backStack, size=${backStack.size}")
                             },
                             onSelectSystems = {
+                                println("FilterScreen: onSelectSystems clicked")
                                 val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
                                 viewModel.fetchSystemsForSubjects(subjects)
                                 backStack.add(MedicalQuizRoutes.SystemSelection)
+                                println("FilterScreen: Added SystemSelection to backStack, size=${backStack.size}")
                             },
                             onSelectPerformance = {
+                                println("FilterScreen: onSelectPerformance clicked")
                                 backStack.add(MedicalQuizRoutes.PerformanceSelection)
+                                println("FilterScreen: Added PerformanceSelection to backStack, size=${backStack.size}")
                             },
                             onStart = {
                                 viewModel.loadFilteredQuestionIds()
