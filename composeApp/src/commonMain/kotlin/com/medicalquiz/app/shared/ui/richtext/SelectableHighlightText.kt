@@ -103,9 +103,10 @@ fun SelectableHighlightText(
     }
     
     // Also apply selection background if selecting
-    val displayText = remember(highlightedText, selectionState) {
+    val selectionColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+    val displayText = remember(highlightedText, selectionState, selectionColor) {
         if (selectionState.isSelecting) {
-            applySelectionToText(highlightedText, selectionState.selectionRange)
+            applySelectionToText(highlightedText, selectionState.selectionRange, selectionColor)
         } else {
             highlightedText
         }
@@ -337,12 +338,11 @@ private fun applyHighlightsToText(
 /**
  * Apply selection background to text.
  */
-@Composable
 private fun applySelectionToText(
     text: AnnotatedString,
-    selectionRange: IntRange
+    selectionRange: IntRange,
+    selectionColor: Color
 ): AnnotatedString {
-    val primaryColor = MaterialTheme.colorScheme.primary
     return buildAnnotatedString {
         append(text)
         
@@ -350,7 +350,7 @@ private fun applySelectionToText(
         val end = (selectionRange.last + 1).coerceIn(start, text.length)
         if (start < end) {
             addStyle(
-                SpanStyle(background = primaryColor.copy(alpha = 0.35f)),
+                SpanStyle(background = selectionColor),
                 start,
                 end
             )
