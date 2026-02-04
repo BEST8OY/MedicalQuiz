@@ -25,10 +25,11 @@ class NavigationStateRepository {
 
     /**
      * Saves the current navigation back stack to persistent storage.
-     * 
+     *
      * @param backStack The current list of routes in the back stack
+     * @param selectedDatabase The name of the currently selected database (if any)
      */
-    fun saveNavigationState(backStack: List<MedicalQuizRoutes>) {
+    fun saveNavigationState(backStack: List<MedicalQuizRoutes>, selectedDatabase: String? = null) {
         try {
             // Don't save transient screen states - start fresh on those
             val filteredStack = backStack.filter { route ->
@@ -38,9 +39,12 @@ class NavigationStateRepository {
                 route !is MedicalQuizRoutes.SystemSelection &&
                 route !is MedicalQuizRoutes.PerformanceSelection
             }
-            
+
             if (filteredStack.isNotEmpty()) {
-                val state = NavigationState(routes = filteredStack)
+                val state = NavigationState(
+                    routes = filteredStack,
+                    selectedDatabase = selectedDatabase
+                )
                 val jsonString = json.encodeToString(state)
                 FileSystemHelper.writeText(navigationStateFile, jsonString)
             } else {
@@ -54,17 +58,17 @@ class NavigationStateRepository {
 
     /**
      * Restores the navigation back stack from persistent storage.
-     * 
-     * @return The saved list of routes, or null if no state was saved
+     *
+     * @return Pair of (routes, selectedDatabase) or null if no state was saved
      */
-    fun restoreNavigationState(): List<MedicalQuizRoutes>? {
+    fun restoreNavigationState(): Pair<List<MedicalQuizRoutes>, String?>? {
         return try {
             val content = FileSystemHelper.readText(navigationStateFile)
             if (content != null) {
                 val state = json.decodeFromString<NavigationState>(content)
                 // Validate the saved state - ensure it starts with DatabaseSelection
                 if (state.routes.isNotEmpty() && state.routes.first() is MedicalQuizRoutes.DatabaseSelection) {
-                    state.routes
+                    state.routes to state.selectedDatabase
                 } else {
                     null
                 }
@@ -96,6 +100,7 @@ class NavigationStateRepository {
 
     @Serializable
     private data class NavigationState(
-        val routes: List<MedicalQuizRoutes>
+        val routes: List<MedicalQuizRoutes>,
+        val selectedDatabase: String? = null
     )
 }
