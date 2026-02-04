@@ -167,10 +167,10 @@ fun App() {
                 println("App: Saved state invalid, clearing")
                 navStateRepo.clearNavigationState()
             }
-            val backStack = rememberSaveable(
+            val backStack: SnapshotStateList<MedicalQuizRoutes> = rememberSaveable(
                 saver = backStackSaver,
                 init = {
-                    val initial = validSavedBackStack?.toMutableStateList()
+                    val initial: SnapshotStateList<MedicalQuizRoutes> = validSavedBackStack?.toMutableStateList()
                         ?: mutableStateListOf(MedicalQuizRoutes.DatabaseSelection)
                     println("App: Initial back stack: $initial")
                     initial
