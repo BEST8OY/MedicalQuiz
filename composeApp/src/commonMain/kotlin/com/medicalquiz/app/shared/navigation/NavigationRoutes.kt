@@ -58,22 +58,4 @@ sealed class MedicalQuizRoutes : NavKey {
 data class HtmlViewer(
     val fileName: String,
 ) : MedicalQuizRoutes()
-
-/**
- * Subject selection screen - full-screen subject filter.
- */
-@Serializable
-data object SubjectSelection : MedicalQuizRoutes()
-
-/**
- * System selection screen - full-screen system filter.
- */
-@Serializable
-data object SystemSelection : MedicalQuizRoutes()
-
-/**
- * Performance selection screen - full-screen performance filter.
- */
-@Serializable
-data object PerformanceSelection : MedicalQuizRoutes()
 }

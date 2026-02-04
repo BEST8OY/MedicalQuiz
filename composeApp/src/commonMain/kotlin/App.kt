@@ -136,10 +136,7 @@ fun App() {
                         // Filter out transient routes before saving
                         list.filter { route ->
                             route !is MedicalQuizRoutes.MediaViewer &&
-                            route !is MedicalQuizRoutes.HtmlViewer &&
-                            route !is MedicalQuizRoutes.SubjectSelection &&
-                            route !is MedicalQuizRoutes.SystemSelection &&
-                            route !is MedicalQuizRoutes.PerformanceSelection
+                            route !is MedicalQuizRoutes.HtmlViewer
                         }.map { kotlinx.serialization.json.Json.encodeToString(it) }
                     },
                     restore = { savedList ->
@@ -200,6 +197,18 @@ fun App() {
                     viewModel.setDatabaseManager(databaseManager)
                     viewModel.setDatabaseName(dbName.removeSuffix(".db"))
                     initializedDatabase = dbName
+
+                    // If we're on the Quiz screen but questionIds is empty (app restart),
+                    // reload the filtered questions to restore quiz state
+                    val currentState = viewModel.state.value
+                    val isOnQuizScreen = backStack.lastOrNull() is MedicalQuizRoutes.Quiz
+                    if (isOnQuizScreen && currentState.questionIds.isEmpty()) {
+                        viewModel.loadFilteredQuestionIds()
+                        // Restore the current question if we have a valid index
+                        if (currentState.currentQuestionIndex >= 0) {
+                            viewModel.loadQuestion(currentState.currentQuestionIndex)
+                        }
+                    }
                 }
             }
 
@@ -239,6 +248,15 @@ fun App() {
                                 backStack = backStack,
                                 mediaDescriptionsFlow = mediaDescriptionsFlow
                             )
+                        }
+                        is UiEvent.NavigateToDatabaseSelection -> {
+                            // Pop back to DatabaseSelection for smooth back navigation animation
+                            while (backStack.size > 1) {
+                                backStack.removeLastOrNull()
+                            }
+                            selectedDatabase = null
+                            initializedDatabase = null
+                            viewModel.closeDatabase()
                         }
                         // Other events (OpenPerformanceDialog, ShowErrorDialog, ShowResetLogsConfirmation)
                         // are handled within QuizRoot as dialog overlays
@@ -283,6 +301,7 @@ fun App() {
                         }
 
                         FilterScreen(
+                            databaseName = state.databaseName,
                             subjectCount = state.selectedSubjectIds.size,
                             systemCount = state.selectedSystemIds.size,
                             performanceLabel = performanceLabel,
@@ -359,14 +378,6 @@ fun App() {
                         QuizRoot(
                             viewModel = viewModel,
                             mediaHandler = mediaHandler,
-                            onChangeDatabase = {
-                                // Clear database state and return to selection
-                                backStack.clear()
-                                backStack.add(MedicalQuizRoutes.DatabaseSelection)
-                                selectedDatabase = null
-                                initializedDatabase = null
-                                viewModel.closeDatabase()
-                            },
                             onNavigateBack = {
                                 // In pre-quiz mode (Filter screen showing), navigate back to filter
                                 // NavDisplay will pop Quiz from back stack, returning to Filter

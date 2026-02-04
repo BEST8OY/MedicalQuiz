@@ -7,4 +7,5 @@ sealed interface UiEvent {
     data object OpenPerformanceDialog : UiEvent
     data class ShowErrorDialog(val title: String, val message: String) : UiEvent
     data object ShowResetLogsConfirmation : UiEvent
+    data object NavigateToDatabaseSelection : UiEvent
 }

@@ -460,6 +460,12 @@ class QuizViewModel : ViewModel() {
         }
     }
 
+    fun navigateToDatabaseSelection() {
+        viewModelScope.launch {
+            _uiEvents.emit(UiEvent.NavigateToDatabaseSelection)
+        }
+    }
+
     fun setDatabaseName(name: String) {
         _state.update { it.copy(databaseName = name) }
         // Notify text highlights repository of database switch

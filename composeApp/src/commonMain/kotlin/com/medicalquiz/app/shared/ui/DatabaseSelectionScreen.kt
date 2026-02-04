@@ -31,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,8 +44,8 @@ import com.medicalquiz.app.shared.platform.FileSystemHelper
 fun DatabaseSelectionScreen(
     onDatabaseSelected: (String) -> Unit
 ) {
-    var databases by remember { mutableStateOf<List<String>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    var databases by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    var isLoading by rememberSaveable { mutableStateOf(true) }
 
     fun loadDatabases() {
         isLoading = true

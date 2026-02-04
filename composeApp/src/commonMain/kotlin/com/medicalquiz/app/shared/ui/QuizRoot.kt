@@ -31,7 +31,6 @@ import kotlinx.coroutines.launch
 fun QuizRoot(
     viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
-    onChangeDatabase: () -> Unit,
     onNavigateBack: () -> Unit,
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -142,7 +141,7 @@ fun QuizRoot(
                     scope.launch { drawerState.close() }
                 },
                 onChangeDatabase = {
-                    onChangeDatabase()
+                    viewModel.navigateToDatabaseSelection()
                     scope.launch { drawerState.close() }
                 }
             )

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.FilterAltOff
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 internal fun FilterScreen(
+    databaseName: String,
     subjectCount: Int,
     systemCount: Int,
     performanceLabel: String,
@@ -53,6 +55,9 @@ internal fun FilterScreen(
                 .padding(horizontal = 24.dp, vertical = 40.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // Database header
+            DatabaseHeaderCard(databaseName = databaseName)
+
             FilterPreviewCard(previewCount = previewCount)
 
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -89,6 +94,53 @@ internal fun FilterScreen(
                 onStart = onStart,
                 onClearFilters = onClearFilters
             )
+        }
+    }
+}
+
+@Composable
+private fun DatabaseHeaderCard(databaseName: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Filled.Storage,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondary
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Database",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                )
+                Text(
+                    text = databaseName.ifEmpty { "Unknown" },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
         }
     }
 }
