@@ -58,6 +58,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -67,7 +68,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MultiChoiceSegmentedButtonRow
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -440,51 +440,78 @@ private fun SharedTransitionScope.MediaViewerContent(
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(bottom = 24.dp)
             ) {
-                val buttonCount = (if (hasOverlay) 1 else 0) + (if (hasDescription) 1 else 0)
-                MultiChoiceSegmentedButtonRow {
-                    var buttonIndex = 0
-                    if (hasOverlay) {
-                        SegmentedButton(
-                            checked = showOverlay,
-                            onCheckedChange = { showOverlay = it },
-                            shape = SegmentedButtonDefaults.itemShape(
-                                index = buttonIndex++,
-                                count = buttonCount
-                            ),
-                            icon = {
-                                SegmentedButtonDefaults.Icon(showOverlay) {
-                                    Icon(
-                                        imageVector = if (showOverlay)
-                                            Icons.Filled.Visibility
-                                        else
-                                            Icons.Filled.VisibilityOff,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
+                when {
+                    hasOverlay && hasDescription -> {
+                        MultiChoiceSegmentedButtonRow {
+                            SegmentedButton(
+                                checked = showOverlay,
+                                onCheckedChange = { showOverlay = it },
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                                icon = {
+                                    SegmentedButtonDefaults.Icon(showOverlay) {
+                                        Icon(
+                                            imageVector = if (showOverlay) {
+                                                Icons.Filled.Visibility
+                                            } else {
+                                                Icons.Filled.VisibilityOff
+                                            },
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                    }
+                                },
+                                label = { Text("Overlay") },
+                            )
+
+                            SegmentedButton(
+                                checked = showExplanation,
+                                onCheckedChange = { showExplanation = it },
+                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                                icon = {
+                                    SegmentedButtonDefaults.Icon(showExplanation) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Info,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                    }
+                                },
+                                label = { Text("Info") },
+                            )
+                        }
+                    }
+
+                    hasOverlay -> {
+                        FilterChip(
+                            selected = showOverlay,
+                            onClick = { showOverlay = !showOverlay },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = if (showOverlay) {
+                                        Icons.Filled.Visibility
+                                    } else {
+                                        Icons.Filled.VisibilityOff
+                                    },
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                )
                             },
-                            label = { Text("Overlay") }
+                            label = { Text("Overlay") },
                         )
                     }
 
-                    if (hasDescription) {
-                        SegmentedButton(
-                            checked = showExplanation,
-                            onCheckedChange = { showExplanation = it },
-                            shape = SegmentedButtonDefaults.itemShape(
-                                index = buttonIndex++,
-                                count = buttonCount
-                            ),
-                            icon = {
-                                SegmentedButtonDefaults.Icon(showExplanation) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Info,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
+                    hasDescription -> {
+                        FilterChip(
+                            selected = showExplanation,
+                            onClick = { showExplanation = !showExplanation },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                )
                             },
-                            label = { Text("Info") }
+                            label = { Text("Info") },
                         )
                     }
                 }
