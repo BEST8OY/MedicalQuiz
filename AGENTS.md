@@ -41,11 +41,11 @@ composeApp/src/
 # Run all tests
 ./gradlew test
 
-# Check (includes lint)
-./gradlew check
+# Lint (Android only - no ktlint/detekt configured)
+./gradlew lint
 
-# Format with ktlint (if available)
-./gradlew ktlintFormat
+# Full check (includes lint)
+./gradlew check
 ```
 
 ## Code Style Guidelines
@@ -107,6 +107,8 @@ sealed class Resource<out T> {
   - `FileSystemHelper` - File operations
   - `StorageProvider` - Storage directories
   - `VideoPlayer`, `AudioPlayer` - Media playback
+- **Navigation 3**: Type-safe routes with `MedicalQuizRoutes` sealed class
+- **UiEvent**: One-time events via `Channel<UiEvent>` for side effects
 
 ### Compose UI Guidelines
 - Split UI into small, focused composables in `ui/` package
@@ -131,6 +133,25 @@ sealed class Resource<out T> {
 | HTML Parsing | ksoup |
 | Android Video | Media3/ExoPlayer |
 | Desktop Video | VLCJ |
+| Navigation | Navigation 3 (1.0.0-alpha03) |
+
+## Development Skills
+
+The following specialized skills are available for this Android KMP codebase:
+
+**Navigation & Architecture:**
+- `android-navigation3` - Navigation 3 library with type-safe routes
+- `android-ui-architecture` - State management, ViewModel, architectural patterns
+- `android-theme-anatomy` - Jetpack Compose theme internals
+
+**UI Components:**
+- `android-material3` - Material Design 3 implementation
+- `android-app-layout` - Layouts, modifiers, responsive UIs
+- `android-custom-design-system` - Custom design systems
+- `android-components` - Master skill for all Material 3 components
+- `android-components-buttons`, `android-components-input`, `android-components-navigation`, `android-components-feedback`, `android-components-containers`, `android-components-overlays`, `android-components-selection`, `android-components-resources` - Component-specific guidance
+
+Invoke skills when working on related features to get detailed implementation guidance.
 
 ## Working with This Codebase
 
@@ -139,15 +160,25 @@ sealed class Resource<out T> {
 2. **Platform-specific**: `expect` in `commonMain/platform/`, `actual` in `androidMain`/`desktopMain`
 3. **Data model**: Add to `data/models/`, update `DatabaseManager` SQL
 4. **ViewModel action**: Add function to `QuizViewModel`, emit `UiEvent` for side effects
+5. **Navigation route**: Add to `MedicalQuizRoutes` sealed class for new screens
 
 ### Testing
 - No existing tests; add unit tests in `src/commonTest/kotlin/`
 - Use `kotlinx-coroutines-test` for coroutine testing
 - Mock `DatabaseProvider` interface for ViewModel tests
+- CI runs: `testDebugUnitTest` (Android), `desktopTest` (Desktop)
 
 ### Key Files Reference
 - `QuizViewModel.kt` - Main state management (560+ lines)
 - `DatabaseManager.kt` - SQL queries and database operations
-- `QuizRoot.kt` - Top-level UI orchestration
-- `QuizState.kt` - State data class
+- `QuizRoot.kt` - Top-level UI orchestration with Navigation 3
+- `QuizState.kt` - State data class with copy methods
 - `Resource.kt` - Async loading state sealed class
+- `MedicalQuizRoutes.kt` - Navigation routes (type-safe)
+- `UiEvent.kt` - Side effect events (toasts, navigation, media)
+
+### CI/CD
+- GitHub Actions workflows in `.github/workflows/`
+- `ci.yml` - Main CI (build, test, lint, desktop packaging)
+- `android-ci.yml` - Android release builds
+- ProGuard configs: `app/proguard-rules.pro` (Android), `composeApp/proguard-desktop.pro`

@@ -18,12 +18,14 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -115,8 +117,9 @@ import kotlin.math.roundToInt
 private const val MAX_SCALE = 5f
 private const val DOUBLE_TAP_ZOOM = 2.5f
 private const val MIN_SCALE = 1f
-private const val DISMISS_THRESHOLD = 0.3f
-private const val DISMISS_VELOCITY_THRESHOLD = 500f
+private const val BOUNDARY_RESISTANCE = 0.55f
+private const val FLING_FRICTION = 0.92f
+private const val MIN_FLING_VELOCITY = 100f
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -161,11 +164,29 @@ private fun SharedTransitionScope.MediaViewerContent(
     var showExplanation by rememberSaveable { mutableStateOf(false) }
     var showOverlay by rememberSaveable { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
     
     // iOS-style pull-to-dismiss state
     var dismissOffsetY by remember { mutableFloatStateOf(0f) }
     var isDismissing by remember { mutableStateOf(false) }
     val dismissProgress by remember { derivedStateOf { (dismissOffsetY.absoluteValue / 300f).coerceIn(0f, 1f) } }
+    
+    // Dismiss animation - complete the dismiss flow with Navigation 3 integration
+    LaunchedEffect(isDismissing) {
+        if (isDismissing) {
+            // Animate the dismiss completion before calling onBack
+            // This gives NavDisplay time to show the predictive back transition
+            val targetOffset = if (dismissOffsetY > 0) 800f else -800f
+            androidx.compose.animation.core.animate(
+                initialValue = dismissOffsetY,
+                targetValue = targetOffset,
+                animationSpec = tween(200)
+            ) { value, _ ->
+                dismissOffsetY = value
+            }
+            onBack()
+        }
+    }
     
     // Current page's description
     val currentDescription = mediaDescriptions[mediaFiles.getOrNull(pagerState.currentPage)]
@@ -201,13 +222,9 @@ private fun SharedTransitionScope.MediaViewerContent(
         }
     }
 
-    // Draggable state for pull-to-dismiss with resistance
-    val dismissDragState = rememberDraggableState { delta ->
-        if (!isZoomed) {
-            val resistance = 1 - (dismissOffsetY.absoluteValue / 800f).coerceIn(0f, 0.7f)
-            dismissOffsetY += delta * resistance
-        }
-    }
+    // Enhanced pull-to-dismiss gesture with improved physics
+    val dismissThreshold = with(density) { 180.dp.toPx() }
+    val dismissVelocityThreshold = with(density) { 800.dp.toPx() }
 
     // Dynamic background color based on UI visibility
     val backgroundColor by animateColorAsState(
@@ -222,41 +239,105 @@ private fun SharedTransitionScope.MediaViewerContent(
             .windowInsetsPadding(WindowInsets.systemBars)
     ) {
 
-        // Main content with pull-to-dismiss
+        // Main content with enhanced pull-to-dismiss
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .offset { IntOffset(0, dismissOffsetY.roundToInt()) }
-                .draggable(
-                    state = dismissDragState,
-                    orientation = Orientation.Vertical,
-                    onDragStopped = { velocity ->
-                        val progress = dismissOffsetY.absoluteValue / 400f
-                        val velocityThresholdMet = velocity.absoluteValue > DISMISS_VELOCITY_THRESHOLD
+                .pointerInput(isZoomed) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown()
                         
-                        if (progress > DISMISS_THRESHOLD || velocityThresholdMet) {
-                            isDismissing = true
-                        } else {
-                            scope.launch {
-                                androidx.compose.animation.core.animate(
-                                    initialValue = dismissOffsetY,
-                                    targetValue = 0f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
-                                    )
-                                ) { value, _ ->
-                                    dismissOffsetY = value
+                        // Only start dismiss gesture if not zoomed and starting from center area
+                        if (isZoomed || isDismissing) return@awaitEachGesture
+                        
+                        var dragStarted = false
+                        val velocityTracker = VelocityTracker()
+
+                        do {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull() ?: break
+
+                            if (!dragStarted) {
+                                // Check if vertical movement dominates
+                                val deltaY = change.position.y - down.position.y
+                                val deltaX = kotlin.math.abs(change.position.x - down.position.x)
+                                val absDeltaY = kotlin.math.abs(deltaY)
+
+                                if (absDeltaY > 20 && absDeltaY > deltaX * 1.5f) {
+                                    dragStarted = true
+                                }
+                            } else {
+                                // Apply resistance to the drag - compute based on current offset
+                                val deltaY = change.position.y - change.previousPosition.y
+                                val progress = (dismissOffsetY.absoluteValue / dismissThreshold).coerceIn(0f, 2f)
+                                val resistanceFactor = kotlin.math.cos(progress * kotlin.math.PI / 4) * 0.7f + 0.3f
+                                val resistedDelta = deltaY * resistanceFactor
+
+                                dismissOffsetY += resistedDelta
+                                velocityTracker.addPointerInputChange(change)
+                            }
+                            
+                            change.consume()
+                        } while (event.changes.any { it.pressed })
+                        
+                        if (dragStarted) {
+                            val velocity = velocityTracker.calculateVelocity()
+                            val absOffset = kotlin.math.abs(dismissOffsetY)
+                            val absVelocity = kotlin.math.abs(velocity.y)
+                            
+                            // Check if we should dismiss
+                            val shouldDismiss = absOffset > dismissThreshold || 
+                                              absVelocity > dismissVelocityThreshold
+                            
+                            if (shouldDismiss) {
+                                // Check velocity direction matches offset direction
+                                val velocityMatchesDirection = 
+                                    (dismissOffsetY > 0 && velocity.y > 0) || 
+                                    (dismissOffsetY < 0 && velocity.y < 0)
+                                
+                                if (absOffset > dismissThreshold * 0.5f || velocityMatchesDirection) {
+                                    isDismissing = true
+                                } else {
+                                    // Spring back
+                                    scope.launch {
+                                        androidx.compose.animation.core.animate(
+                                            initialValue = dismissOffsetY,
+                                            targetValue = 0f,
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                stiffness = Spring.StiffnessMedium
+                                            )
+                                        ) { value, _ ->
+                                            dismissOffsetY = value
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Spring back
+                                scope.launch {
+                                    androidx.compose.animation.core.animate(
+                                        initialValue = dismissOffsetY,
+                                        targetValue = 0f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessMedium
+                                        )
+                                    ) { value, _ ->
+                                        dismissOffsetY = value
+                                    }
                                 }
                             }
                         }
                     }
-                )
+                }
                 .graphicsLayer {
-                    val scale = 1f - (dismissProgress * 0.15f).coerceIn(0f, 0.15f)
+                    // Smooth scale and fade based on dismiss progress
+                    val scale = 1f - (dismissProgress * 0.12f).coerceIn(0f, 0.12f)
                     scaleX = scale
                     scaleY = scale
-                    alpha = 1f - (dismissProgress * 0.3f).coerceIn(0f, 0.3f)
+                    // Fade out faster than scale reduces
+                    alpha = 1f - (dismissProgress * 0.5f).coerceIn(0f, 0.5f)
                 }
         ) {
             // Main pager content
@@ -648,7 +729,8 @@ private fun ImageContent(
     }
 
     val scope = rememberCoroutineScope()
-    var animationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var flingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var zoomAnimationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     var scale by rememberSaveable { mutableFloatStateOf(MIN_SCALE) }
     var offsetX by rememberSaveable { mutableFloatStateOf(0f) }
@@ -659,11 +741,11 @@ private fun ImageContent(
     LaunchedEffect(scale) {
         onZoomChanged(scale > 1.05f)
     }
-    
+
     DisposableEffect(Unit) {
         onDispose {
-            animationJob?.cancel()
-            animationJob = null
+            flingJob?.cancel()
+            zoomAnimationJob?.cancel()
         }
     }
 
@@ -672,61 +754,183 @@ private fun ImageContent(
         val containerWidth = with(density) { maxWidth.toPx() }
         val containerHeight = with(density) { maxHeight.toPx() }
 
-        fun clampOffset(proposedX: Float, proposedY: Float, currentScale: Float): Pair<Float, Float> {
+        fun calculateBoundaries(currentScale: Float): Pair<Float, Float> {
+            if (currentScale <= MIN_SCALE) return Pair(0f, 0f)
             val scaledWidth = containerWidth * currentScale
             val scaledHeight = containerHeight * currentScale
-
             val maxX = maxOf(0f, (scaledWidth - containerWidth) / 2f)
             val maxY = maxOf(0f, (scaledHeight - containerHeight) / 2f)
+            return Pair(maxX, maxY)
+        }
 
+        fun clampOffsetWithResistance(proposedX: Float, proposedY: Float, currentScale: Float): Pair<Float, Float> {
+            if (currentScale <= MIN_SCALE) return Pair(0f, 0f)
+
+            val (maxX, maxY) = calculateBoundaries(currentScale)
+
+            val clampedX = when {
+                proposedX < -maxX -> -maxX + (proposedX + maxX) * BOUNDARY_RESISTANCE
+                proposedX > maxX -> maxX + (proposedX - maxX) * BOUNDARY_RESISTANCE
+                else -> proposedX
+            }
+
+            val clampedY = when {
+                proposedY < -maxY -> -maxY + (proposedY + maxY) * BOUNDARY_RESISTANCE
+                proposedY > maxY -> maxY + (proposedY - maxY) * BOUNDARY_RESISTANCE
+                else -> proposedY
+            }
+
+            return Pair(clampedX, clampedY)
+        }
+
+        fun clampOffsetStrict(proposedX: Float, proposedY: Float, currentScale: Float): Pair<Float, Float> {
+            if (currentScale <= MIN_SCALE) return Pair(0f, 0f)
+            val (maxX, maxY) = calculateBoundaries(currentScale)
             return Pair(
                 proposedX.coerceIn(-maxX, maxX),
-                proposedY.coerceIn(-maxY, maxY),
+                proposedY.coerceIn(-maxY, maxY)
             )
         }
 
-        val transformableState = rememberTransformableState { panChange, zoomChange, _, centroid ->
-            val newScale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
+        fun performFling(velocityX: Float, velocityY: Float) {
+            if (!isZoomed) return
 
-            if (newScale > MIN_SCALE) {
-                val newOffsetX = offsetX + panChange.x
-                val newOffsetY = offsetY + panChange.y
+            flingJob?.cancel()
+            flingJob = scope.launch {
+                var currentVelocityX = velocityX
+                var currentVelocityY = velocityY
 
-                val (clampedX, clampedY) = clampOffset(newOffsetX, newOffsetY, newScale)
-                offsetX = clampedX
-                offsetY = clampedY
-            } else {
-                offsetX = 0f
-                offsetY = 0f
+                while (kotlin.math.abs(currentVelocityX) > MIN_FLING_VELOCITY ||
+                       kotlin.math.abs(currentVelocityY) > MIN_FLING_VELOCITY) {
+
+                    val newOffsetX = offsetX + currentVelocityX * 0.016f
+                    val newOffsetY = offsetY + currentVelocityY * 0.016f
+
+                    val (maxX, maxY) = calculateBoundaries(scale)
+
+                    val (clampedX, clampedY) = if (newOffsetX < -maxX || newOffsetX > maxX ||
+                                                    newOffsetY < -maxY || newOffsetY > maxY) {
+                        clampOffsetStrict(newOffsetX, newOffsetY, scale)
+                    } else {
+                        Pair(newOffsetX, newOffsetY)
+                    }
+
+                    offsetX = clampedX
+                    offsetY = clampedY
+
+                    currentVelocityX *= FLING_FRICTION
+                    currentVelocityY *= FLING_FRICTION
+
+                    if (clampedX != newOffsetX) currentVelocityX = 0f
+                    if (clampedY != newOffsetY) currentVelocityY = 0f
+
+                    kotlinx.coroutines.delay(16)
+                }
+
+                val (maxX, maxY) = calculateBoundaries(scale)
+                if (offsetX < -maxX || offsetX > maxX || offsetY < -maxY || offsetY > maxY) {
+                    Animatable(0f).animateTo(
+                        targetValue = 1f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        )
+                    ) { progress ->
+                        val targetX = offsetX.coerceIn(-maxX, maxX)
+                        val targetY = offsetY.coerceIn(-maxY, maxY)
+                        offsetX = lerp(offsetX, targetX, progress)
+                        offsetY = lerp(offsetY, targetY, progress)
+                    }
+                }
             }
-            scale = newScale
         }
 
         val gestureModifier = Modifier
-            .transformable(
-                state = transformableState,
-                lockRotationOnZoomPan = true,
-                canPan = { scale > MIN_SCALE + 0.01f }
-            )
+            .pointerInput(containerWidth, containerHeight) {
+                awaitEachGesture {
+                    val velocityTracker = VelocityTracker()
+                    awaitFirstDown()
+                    flingJob?.cancel()
+                    zoomAnimationJob?.cancel()
+
+                    var panStarted = false
+
+                    do {
+                        val event = awaitPointerEvent()
+                        val pointerCount = event.changes.count { it.pressed }
+
+                        if (pointerCount >= 2) {
+                            val zoom = event.calculateZoom()
+                            val pan = event.calculatePan()
+                            val centroid = event.calculateCentroid()
+
+                            accumulatedZoom *= zoom
+                            val newScale = (scale * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
+
+                            if (newScale > MIN_SCALE && centroid != Offset.Unspecified) {
+                                val centroidOffsetX = centroid.x - containerWidth / 2f
+                                val centroidOffsetY = centroid.y - containerHeight / 2f
+
+                                val scaleDiff = newScale / scale - 1f
+                                val zoomOffsetX = -centroidOffsetX * scaleDiff
+                                val zoomOffsetY = -centroidOffsetY * scaleDiff
+
+                                val proposedX = offsetX + pan.x + zoomOffsetX
+                                val proposedY = offsetY + pan.y + zoomOffsetY
+
+                                val (clampedX, clampedY) = clampOffsetWithResistance(proposedX, proposedY, newScale)
+                                offsetX = clampedX
+                                offsetY = clampedY
+                            }
+                            scale = newScale
+
+                            panStarted = true
+                        } else if (pointerCount == 1 && panStarted) {
+                            val change = event.changes.first()
+                            val panDelta = change.position - change.previousPosition
+
+                            val proposedX = offsetX + panDelta.x
+                            val proposedY = offsetY + panDelta.y
+
+                            if (scale > MIN_SCALE) {
+                                val (clampedX, clampedY) = clampOffsetWithResistance(proposedX, proposedY, scale)
+                                offsetX = clampedX
+                                offsetY = clampedY
+                            }
+
+                            velocityTracker.addPointerInputChange(change)
+                        }
+
+                        event.changes.forEach { it.consume() }
+                    } while (event.changes.any { it.pressed })
+
+                    if (panStarted) {
+                        val velocity = velocityTracker.calculateVelocity()
+                        performFling(velocity.x, velocity.y)
+                    }
+                }
+            }
             .pointerInput(containerWidth, containerHeight) {
                 detectTapGestures(
                     onTap = { onSingleTap() },
                     onDoubleTap = { tapOffset ->
-                        animationJob?.cancel()
-                        animationJob = scope.launch {
+                        zoomAnimationJob?.cancel()
+                        zoomAnimationJob = scope.launch {
                             val startScale = scale
                             val startOffsetX = offsetX
                             val startOffsetY = offsetY
-                            val (targetScale, targetX, targetY) = if (scale <= MIN_SCALE + 0.05f) {
-                                Triple(
-                                    DOUBLE_TAP_ZOOM,
-                                    (containerWidth / 2f - tapOffset.x) * (DOUBLE_TAP_ZOOM - 1f),
-                                    (containerHeight / 2f - tapOffset.y) * (DOUBLE_TAP_ZOOM - 1f)
-                                )
-                            } else {
-                                Triple(MIN_SCALE, 0f, 0f)
-                            }
-                            val (clampedTargetX, clampedTargetY) = clampOffset(targetX, targetY, targetScale)
+
+                            val shouldZoomIn = scale <= MIN_SCALE + 0.05f
+                            val targetScale = if (shouldZoomIn) DOUBLE_TAP_ZOOM else MIN_SCALE
+                            val targetX = if (shouldZoomIn) {
+                                (containerWidth / 2f - tapOffset.x) * (DOUBLE_TAP_ZOOM - 1f)
+                            } else 0f
+                            val targetY = if (shouldZoomIn) {
+                                (containerHeight / 2f - tapOffset.y) * (DOUBLE_TAP_ZOOM - 1f)
+                            } else 0f
+
+                            val (clampedTargetX, clampedTargetY) = clampOffsetStrict(targetX, targetY, targetScale)
+
                             try {
                                 Animatable(0f).animateTo(
                                     targetValue = 1f,
@@ -734,16 +938,15 @@ private fun ImageContent(
                                         dampingRatio = Spring.DampingRatioLowBouncy,
                                         stiffness = Spring.StiffnessMedium
                                     )
-                                ) {
-                                    scale = lerp(startScale, targetScale, this.value)
-                                    offsetX = lerp(startOffsetX, clampedTargetX, this.value)
-                                    offsetY = lerp(startOffsetY, clampedTargetY, this.value)
+                                ) { progress ->
+                                    scale = lerp(startScale, targetScale, progress)
+                                    offsetX = lerp(startOffsetX, clampedTargetX, progress)
+                                    offsetY = lerp(startOffsetY, clampedTargetY, progress)
                                 }
                             } catch (_: kotlinx.coroutines.CancellationException) {
-                                // Animation cancelled
                             }
                         }
-                    },
+                    }
                 )
             }
 
@@ -760,7 +963,7 @@ private fun ImageContent(
             contentAlignment = Alignment.Center
         ) {
             var isLoading by remember { mutableStateOf(true) }
-            
+
             AsyncImage(
                 model = filePath,
                 contentDescription = fileName,
@@ -793,7 +996,6 @@ private fun ImageContent(
                 )
             }
         }
-
     }
 }
 
