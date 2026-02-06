@@ -866,25 +866,40 @@ private fun ImageContent(
                             val pan = event.calculatePan()
                             val centroid = event.calculateCentroid()
 
+                            val previousScale = scale
                             val newScale = (scale * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
 
-                            if (newScale > MIN_SCALE && centroid != Offset.Unspecified) {
-                                val centroidOffsetX = centroid.x - containerWidth / 2f
-                                val centroidOffsetY = centroid.y - containerHeight / 2f
+                            if (centroid != Offset.Unspecified && centroid != Offset.Zero) {
+                                // Calculate zoom offset to keep centroid stationary
+                                // The centroid should stay at the same screen position
+                                val centroidScreenX = centroid.x
+                                val centroidScreenY = centroid.y
 
-                                val scaleDiff = newScale / scale - 1f
-                                val zoomOffsetX = -centroidOffsetX * scaleDiff
-                                val zoomOffsetY = -centroidOffsetY * scaleDiff
+                                // Where centroid was relative to center before zoom
+                                val relativeX = centroidScreenX - containerWidth / 2f - offsetX
+                                val relativeY = centroidScreenY - containerHeight / 2f - offsetY
+
+                                // After zoom, we need to adjust offset so centroid stays in place
+                                val newRelativeX = relativeX * (newScale / previousScale)
+                                val newRelativeY = relativeY * (newScale / previousScale)
+
+                                val zoomOffsetX = relativeX - newRelativeX
+                                val zoomOffsetY = relativeY - newRelativeY
 
                                 val proposedX = offsetX + pan.x + zoomOffsetX
                                 val proposedY = offsetY + pan.y + zoomOffsetY
 
-                                val (clampedX, clampedY) = clampOffsetWithResistance(proposedX, proposedY, newScale)
-                                offsetX = clampedX
-                                offsetY = clampedY
+                                if (newScale > MIN_SCALE) {
+                                    val (clampedX, clampedY) = clampOffsetWithResistance(proposedX, proposedY, newScale)
+                                    offsetX = clampedX
+                                    offsetY = clampedY
+                                } else {
+                                    // Reset to center when fully zoomed out
+                                    offsetX = 0f
+                                    offsetY = 0f
+                                }
                             }
                             scale = newScale
-
                             panStarted = true
                         } else if (pointerCount == 1) {
                             val change = event.changes.first()
