@@ -52,7 +52,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -289,76 +288,51 @@ private fun SharedTransitionScope.MediaViewerContent(
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(bottom = 24.dp),
         ) {
-            when {
-                hasOverlay && hasDescription -> {
-                    MultiChoiceSegmentedButtonRow {
-                        SegmentedButton(
-                            checked = showOverlay,
-                            onCheckedChange = { showOverlay = it },
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                            icon = {
-                                SegmentedButtonDefaults.Icon(showOverlay) {
-                                    Icon(
-                                        imageVector = if (showOverlay) {
-                                            Icons.Filled.Visibility
-                                        } else {
-                                            Icons.Filled.VisibilityOff
-                                        },
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp),
-                                    )
-                                }
-                            },
-                            label = { Text("Overlay") },
-                        )
+            val buttonCount = (if (hasOverlay) 1 else 0) + (if (hasDescription) 1 else 0)
+            MultiChoiceSegmentedButtonRow {
+                var buttonIndex = 0
 
-                        SegmentedButton(
-                            checked = showExplanation,
-                            onCheckedChange = { showExplanation = it },
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                            icon = {
-                                SegmentedButtonDefaults.Icon(showExplanation) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Info,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp),
-                                    )
-                                }
-                            },
-                            label = { Text("Info") },
-                        )
-                    }
-                }
-
-                hasOverlay -> {
-                    FilterChip(
-                        selected = showOverlay,
-                        onClick = { showOverlay = !showOverlay },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = if (showOverlay) {
-                                    Icons.Filled.Visibility
-                                } else {
-                                    Icons.Filled.VisibilityOff
-                                },
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                            )
+                if (hasOverlay) {
+                    SegmentedButton(
+                        checked = showOverlay,
+                        onCheckedChange = { showOverlay = it },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = buttonIndex++,
+                            count = buttonCount,
+                        ),
+                        icon = {
+                            SegmentedButtonDefaults.Icon(showOverlay) {
+                                Icon(
+                                    imageVector = if (showOverlay) {
+                                        Icons.Filled.Visibility
+                                    } else {
+                                        Icons.Filled.VisibilityOff
+                                    },
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
                         },
                         label = { Text("Overlay") },
                     )
                 }
 
-                hasDescription -> {
-                    FilterChip(
-                        selected = showExplanation,
-                        onClick = { showExplanation = !showExplanation },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Filled.Info,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                            )
+                if (hasDescription) {
+                    SegmentedButton(
+                        checked = showExplanation,
+                        onCheckedChange = { showExplanation = it },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = buttonIndex++,
+                            count = buttonCount,
+                        ),
+                        icon = {
+                            SegmentedButtonDefaults.Icon(showExplanation) {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
                         },
                         label = { Text("Info") },
                     )
@@ -602,6 +576,10 @@ private fun ImageContent(
     var offsetY by rememberSaveable(fileName) { mutableFloatStateOf(0f) }
     var animationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
+    // Velocity tracking for fling
+    var velocityX by remember { mutableFloatStateOf(0f) }
+    var velocityY by remember { mutableFloatStateOf(0f) }
+
     val scope = rememberCoroutineScope()
     val isZoomed by remember(scale) { derivedStateOf { scale > MIN_SCALE + 0.01f } }
 
@@ -647,44 +625,6 @@ private fun ImageContent(
         }
 
         val transformModifier = Modifier
-            .pointerInput(containerWidth, containerHeight, scale) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    var shouldHandleTransform = scale > MIN_SCALE + 0.01f
-
-                    do {
-                        val event = awaitPointerEvent()
-                        val pointerCount = event.changes.count { it.pressed }
-
-                        if (pointerCount > 1) {
-                            shouldHandleTransform = true
-                        }
-
-                        if (!shouldHandleTransform) {
-                            continue
-                        }
-
-                        val zoomChange = event.calculateZoom()
-                        val panChange = event.calculatePan()
-                        val centroid = event.calculateCentroid()
-
-                        val currentOffset = Offset(offsetX, offsetY)
-                        val previousScale = scale
-                        val nextScale = (previousScale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
-                        val center = Offset(containerWidth / 2f, containerHeight / 2f)
-
-                        val relativeToContent = (centroid - center - currentOffset) / previousScale
-                        val updatedOffset = centroid - center - (relativeToContent * nextScale) + panChange
-                        val clampedOffset = clampOffset(updatedOffset, nextScale)
-
-                        scale = nextScale
-                        offsetX = clampedOffset.x
-                        offsetY = clampedOffset.y
-
-                        event.changes.forEach { it.consume() }
-                    } while (event.changes.any { it.pressed })
-                }
-            }
             .pointerInput(containerWidth, containerHeight) {
                 detectTapGestures(
                     onTap = { onSingleTap() },
@@ -715,6 +655,102 @@ private fun ImageContent(
                         }
                     },
                 )
+            }
+            .pointerInput(containerWidth, containerHeight) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    var isTransforming = false
+                    var previousTime = 0L
+                    var lastCentroid = Offset.Zero
+
+                    do {
+                        val event = awaitPointerEvent()
+                        val changes = event.changes
+                        val pointerCount = changes.count { it.pressed }
+                        val currentTime = changes.firstOrNull()?.uptimeMillis ?: 0L
+
+                        // Start transform on multi-touch or if already zoomed
+                        if (pointerCount > 1 || (pointerCount > 0 && scale > MIN_SCALE + 0.01f)) {
+                            isTransforming = true
+                        }
+
+                        if (!isTransforming) {
+                            continue
+                        }
+
+                        // Calculate time delta for velocity
+                        val timeDelta = if (previousTime > 0) (currentTime - previousTime).coerceAtLeast(1) else 1
+                        previousTime = currentTime
+
+                        val zoomChange = event.calculateZoom()
+                        val panChange = event.calculatePan()
+                        val centroid = event.calculateCentroid()
+
+                        // Only apply zoom from 2+ fingers to avoid centroid jumps
+                        val currentOffset = Offset(offsetX, offsetY)
+                        val previousScale = scale
+                        val effectiveZoom = if (pointerCount >= 2) zoomChange else 1f
+                        val nextScale = (previousScale * effectiveZoom).coerceIn(MIN_SCALE, MAX_SCALE)
+                        val center = Offset(containerWidth / 2f, containerHeight / 2f)
+
+                        // Calculate offset with proper centroid handling
+                        val updatedOffset = if (pointerCount >= 2 && effectiveZoom != 1f) {
+                            val relativeToContent = (centroid - center - currentOffset) / previousScale
+                            centroid - center - (relativeToContent * nextScale) + panChange
+                        } else {
+                            currentOffset + panChange
+                        }
+
+                        val clampedOffset = clampOffset(updatedOffset, nextScale)
+
+                        // Track velocity for fling
+                        if (pointerCount >= 1 && lastCentroid != Offset.Zero) {
+                            val dx = (clampedOffset.x - currentOffset.x)
+                            val dy = (clampedOffset.y - currentOffset.y)
+                            velocityX = dx / timeDelta * 1000f
+                            velocityY = dy / timeDelta * 1000f
+                        }
+                        if (pointerCount >= 2) {
+                            lastCentroid = centroid
+                        }
+
+                        scale = nextScale
+                        offsetX = clampedOffset.x
+                        offsetY = clampedOffset.y
+
+                        changes.forEach { it.consume() }
+                    } while (event.changes.any { it.pressed })
+
+                    // Apply fling animation when gesture ends and zoomed in
+                    if (isTransforming && scale > MIN_SCALE + 0.01f) {
+                        val flingVelocityX = velocityX.coerceIn(-8000f, 8000f)
+                        val flingVelocityY = velocityY.coerceIn(-8000f, 8000f)
+
+                        if (flingVelocityX.absoluteValue > 500f || flingVelocityY.absoluteValue > 500f) {
+                            animationJob?.cancel()
+                            animationJob = scope.launch {
+                                var animScale = scale
+                                androidx.compose.animation.core.animate(
+                                    initialValue = 1f,
+                                    targetValue = 0f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessLow,
+                                    ),
+                                ) { value, _ ->
+                                    val targetX = offsetX + flingVelocityX * 0.016f * value
+                                    val targetY = offsetY + flingVelocityY * 0.016f * value
+                                    val clamped = clampOffset(Offset(targetX, targetY), animScale)
+                                    offsetX = clamped.x
+                                    offsetY = clamped.y
+                                }
+                            }
+                        }
+                    }
+
+                    velocityX = 0f
+                    velocityY = 0f
+                }
             }
 
         Box(
