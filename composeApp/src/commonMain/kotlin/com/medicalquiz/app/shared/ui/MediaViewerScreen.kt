@@ -223,8 +223,8 @@ private fun SharedTransitionScope.MediaViewerContent(
     }
 
     // Enhanced pull-to-dismiss gesture with improved physics
-    val dismissThreshold = with(density) { 180.dp.toPx() }
-    val dismissVelocityThreshold = with(density) { 800.dp.toPx() }
+    val dismissThreshold = with(density) { 120.dp.toPx() }
+    val dismissVelocityThreshold = with(density) { 600.dp.toPx() }
 
     // Dynamic background color based on UI visibility
     val backgroundColor by animateColorAsState(
@@ -258,16 +258,18 @@ private fun SharedTransitionScope.MediaViewerContent(
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull() ?: break
 
-                            if (!dragStarted) {
-                                // Check if vertical movement dominates
-                                val deltaY = change.position.y - down.position.y
-                                val deltaX = kotlin.math.abs(change.position.x - down.position.x)
-                                val absDeltaY = kotlin.math.abs(deltaY)
+                            // Check if vertical movement dominates - lower threshold for easier trigger
+                            val totalDeltaY = change.position.y - down.position.y
+                            val totalDeltaX = kotlin.math.abs(change.position.x - down.position.x)
+                            val absTotalDeltaY = kotlin.math.abs(totalDeltaY)
 
-                                if (absDeltaY > 20 && absDeltaY > deltaX * 1.5f) {
+                            if (!dragStarted) {
+                                if (absTotalDeltaY > 8 && absTotalDeltaY > totalDeltaX * 1.2f) {
                                     dragStarted = true
                                 }
-                            } else {
+                            }
+
+                            if (dragStarted) {
                                 // Apply resistance to the drag - compute based on current offset
                                 val deltaY = change.position.y - change.previousPosition.y
                                 val progress = (dismissOffsetY.absoluteValue / dismissThreshold).coerceIn(0f, 2f)
@@ -277,7 +279,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                                 dismissOffsetY += resistedDelta
                                 velocityTracker.addPointerInputChange(change)
                             }
-                            
+
                             change.consume()
                         } while (event.changes.any { it.pressed })
                         
@@ -884,20 +886,18 @@ private fun ImageContent(
                             scale = newScale
 
                             panStarted = true
-                        } else if (pointerCount == 1 && panStarted) {
+                        } else if (pointerCount == 1) {
                             val change = event.changes.first()
                             val panDelta = change.position - change.previousPosition
 
-                            val proposedX = offsetX + panDelta.x
-                            val proposedY = offsetY + panDelta.y
-
                             if (scale > MIN_SCALE) {
+                                val proposedX = offsetX + panDelta.x
+                                val proposedY = offsetY + panDelta.y
                                 val (clampedX, clampedY) = clampOffsetWithResistance(proposedX, proposedY, scale)
                                 offsetX = clampedX
                                 offsetY = clampedY
+                                velocityTracker.addPointerInputChange(change)
                             }
-
-                            velocityTracker.addPointerInputChange(change)
                         }
 
                         event.changes.forEach { it.consume() }
