@@ -162,8 +162,15 @@ fun QuizRoot(
             },
             bottomBar = {
                 QuizBottomBar(
-                    viewModel = viewModel,
-                    onJumpTo = { showJumpToDialog = true }
+                    uiState = QuizBottomToolbarUiState(
+                        currentQuestionIndex = state.currentQuestionIndex,
+                        totalQuestions = state.totalQuestions,
+                        hasPreviousQuestion = state.hasPreviousQuestion,
+                        hasNextQuestion = state.hasNextQuestion,
+                    ),
+                    onPrevious = { viewModel.loadPrevious() },
+                    onNext = { viewModel.loadNext() },
+                    onJumpTo = { showJumpToDialog = true },
                 )
             }
         ) { padding ->

@@ -1,55 +1,139 @@
 package com.medicalquiz.app.shared.ui
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.BottomAppBarDefaults
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.medicalquiz.app.shared.viewmodel.QuizViewModel
+
+data class QuizBottomToolbarUiState(
+    val currentQuestionIndex: Int,
+    val totalQuestions: Int,
+    val hasPreviousQuestion: Boolean,
+    val hasNextQuestion: Boolean,
+)
 
 @Composable
-fun QuizBottomBar(viewModel: QuizViewModel, onJumpTo: () -> Unit) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+fun QuizBottomBar(
+    uiState: QuizBottomToolbarUiState,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onJumpTo: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val isExpanded = maxWidth >= 600.dp
+        val currentQuestionNumber = uiState.currentQuestionIndex + 1
+        val questionLabel = "$currentQuestionNumber / ${uiState.totalQuestions}"
+        val questionDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}. Double tap to jump."
+        val horizontalPadding = if (isExpanded) 24.dp else 16.dp
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Button(onClick = { viewModel.loadPrevious() }, enabled = state.hasPreviousQuestion) {
-            Text("Previous")
-        }
+        BottomAppBar(
+            containerColor = BottomAppBarDefaults.containerColor,
+            tonalElevation = BottomAppBarDefaults.ContainerElevation,
+            actions = {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = horizontalPadding),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (isExpanded) {
+                            OutlinedButton(
+                                onClick = onPrevious,
+                                enabled = uiState.hasPreviousQuestion,
+                                modifier = Modifier
+                                    .sizeIn(minHeight = 48.dp)
+                                    .semantics { contentDescription = "Previous question" },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = null,
+                                )
+                                Text("Previous")
+                            }
+                        } else {
+                            IconButton(
+                                onClick = onPrevious,
+                                enabled = uiState.hasPreviousQuestion,
+                                modifier = Modifier
+                                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                    .semantics { contentDescription = "Previous question" },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = null,
+                                )
+                            }
+                        }
 
-        // Question counter - clickable to jump to specific question
-        Row(
-            modifier = Modifier
-                .clickable(
-                    onClick = onJumpTo,
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null // No ripple for now
-                )
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(text = "${state.currentQuestionIndex + 1}")
-            Text(text = " / ${state.totalQuestions}")
-        }
+                        AssistChip(
+                            onClick = onJumpTo,
+                            label = { Text(questionLabel) },
+                            modifier = Modifier
+                                .sizeIn(minHeight = 48.dp)
+                                .semantics {
+                                    contentDescription = "Jump to question"
+                                    stateDescription = questionDescription
+                                },
+                        )
+                    }
 
-        Button(onClick = { viewModel.loadNext() }, enabled = state.hasNextQuestion) {
-            Text("Next")
-        }
+                    if (isExpanded) {
+                        FilledTonalButton(
+                            onClick = onNext,
+                            enabled = uiState.hasNextQuestion,
+                            modifier = Modifier
+                                .sizeIn(minHeight = 48.dp)
+                                .semantics { contentDescription = "Next question" },
+                        ) {
+                            Text("Next")
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                                contentDescription = null,
+                            )
+                        }
+                    } else {
+                        FilledIconButton(
+                            onClick = onNext,
+                            enabled = uiState.hasNextQuestion,
+                            modifier = Modifier
+                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                .semantics { contentDescription = "Next question" },
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                                contentDescription = null,
+                            )
+                        }
+                    }
+                }
+            },
+        )
     }
 }
