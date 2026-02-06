@@ -6,7 +6,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -173,6 +172,7 @@ private fun SharedTransitionScope.MediaViewerContent(
     var showUI by rememberSaveable { mutableStateOf(true) }
     var showExplanation by rememberSaveable { mutableStateOf(false) }
     var showOverlay by rememberSaveable { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     
     // iOS-style pull-to-dismiss state
@@ -313,8 +313,10 @@ private fun SharedTransitionScope.MediaViewerContent(
                                 }
 
                                 DismissDecision.Cancel -> {
-                                    animateDismissOffsetBackToRest(initialOffset = dismissOffsetY) {
-                                        dismissOffsetY = it
+                                    scope.launch {
+                                        animateDismissOffsetBackToRest(initialOffset = dismissOffsetY) {
+                                            dismissOffsetY = it
+                                        }
                                     }
                                 }
                             }
@@ -812,7 +814,8 @@ private fun ImageContent(
                                 targetScale = targetScale,
                             )
 
-                            Animatable(0f).animateTo(
+                            androidx.compose.animation.core.animate(
+                                initialValue = 0f,
                                 targetValue = 1f,
                                 animationSpec = spring(
                                     dampingRatio = Spring.DampingRatioNoBouncy,
