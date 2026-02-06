@@ -271,7 +271,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                                 // Apply resistance to the drag - compute based on current offset
                                 val deltaY = change.position.y - change.previousPosition.y
                                 val progress = (dismissOffsetY.absoluteValue / dismissThreshold).coerceIn(0f, 2f)
-                                val resistanceFactor = kotlin.math.cos(progress * kotlin.math.PI / 4) * 0.7f + 0.3f
+                                val resistanceFactor = (kotlin.math.cos(progress * kotlin.math.PI.toFloat() / 4f) * 0.7f + 0.3f).toFloat()
                                 val resistedDelta = deltaY * resistanceFactor
 
                                 dismissOffsetY += resistedDelta
@@ -835,11 +835,11 @@ private fun ImageContent(
                             dampingRatio = Spring.DampingRatioMediumBouncy,
                             stiffness = Spring.StiffnessMedium
                         )
-                    ) { progress ->
+                    ) {
                         val targetX = offsetX.coerceIn(-maxX, maxX)
                         val targetY = offsetY.coerceIn(-maxY, maxY)
-                        offsetX = lerp(offsetX, targetX, progress)
-                        offsetY = lerp(offsetY, targetY, progress)
+                        offsetX = lerp(offsetX, targetX, value)
+                        offsetY = lerp(offsetY, targetY, value)
                     }
                 }
             }
@@ -864,7 +864,6 @@ private fun ImageContent(
                             val pan = event.calculatePan()
                             val centroid = event.calculateCentroid()
 
-                            accumulatedZoom *= zoom
                             val newScale = (scale * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
 
                             if (newScale > MIN_SCALE && centroid != Offset.Unspecified) {
@@ -938,10 +937,10 @@ private fun ImageContent(
                                         dampingRatio = Spring.DampingRatioLowBouncy,
                                         stiffness = Spring.StiffnessMedium
                                     )
-                                ) { progress ->
-                                    scale = lerp(startScale, targetScale, progress)
-                                    offsetX = lerp(startOffsetX, clampedTargetX, progress)
-                                    offsetY = lerp(startOffsetY, clampedTargetY, progress)
+                                ) {
+                                    scale = lerp(startScale, targetScale, value)
+                                    offsetX = lerp(startOffsetX, clampedTargetX, value)
+                                    offsetY = lerp(startOffsetY, clampedTargetY, value)
                                 }
                             } catch (_: kotlinx.coroutines.CancellationException) {
                             }
