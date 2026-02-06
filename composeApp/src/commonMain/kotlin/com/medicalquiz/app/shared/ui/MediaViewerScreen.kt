@@ -20,7 +20,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.foundation.layout.Arrangement
@@ -716,7 +718,6 @@ private fun ImageContent(
     var offsetX by rememberSaveable(fileName) { mutableFloatStateOf(0f) }
     var offsetY by rememberSaveable(fileName) { mutableFloatStateOf(0f) }
 
-    var gestureActive by remember { mutableStateOf(false) }
     var animationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -755,10 +756,7 @@ private fun ImageContent(
             )
         }
 
-        fun targetOffsetForDoubleTap(
-            tapOffset: Offset,
-            targetScale: Float,
-        ): Offset {
+        fun targetOffsetForDoubleTap(tapOffset: Offset, targetScale: Float): Offset {
             if (targetScale <= MIN_SCALE) return Offset.Zero
             val center = Offset(containerWidth / 2f, containerHeight / 2f)
             val raw = Offset(
@@ -769,19 +767,39 @@ private fun ImageContent(
         }
 
         val transformModifier = Modifier
-            .pointerInput(containerWidth, containerHeight) {
-                detectTransformGestures(
-                    panZoomLock = true,
-                    onGesture = { centroid, pan, zoom, _ ->
-                        gestureActive = true
-                        animationJob?.cancel()
+            .pointerInput(containerWidth, containerHeight, scale) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    var shouldHandleTransform = scale > MIN_SCALE + 0.01f
+
+                    do {
+                        val event = awaitPointerEvent()
+                        val pointerCount = event.changes.count { it.pressed }
+
+                        if (pointerCount > 1) {
+                            shouldHandleTransform = true
+                        }
+
+                        if (!shouldHandleTransform) {
+                            continue
+                        }
+
+                        val zoomChange = event.calculateZoom()
+                        val panChange = event.calculatePan()
+                        val centroid = event.calculateCentroid()
 
                         val previousScale = scale
-                        val nextScale = (scale * zoom).coerceIn(MIN_SCALE, MAX_SCALE)
+                        val nextScale = (scale * zoomChange).coerceIn(MIN_SCALE, MAX_SCALE)
                         val center = Offset(containerWidth / 2f, containerHeight / 2f)
 
-                        val relativeToContent = (centroid - center - Offset(offsetX, offsetY)) / previousScale
-                        val updatedOffset = centroid - center - (relativeToContent * nextScale) + pan
+                        val baseOffset = Offset(offsetX, offsetY)
+                        val relativeToContent = if (previousScale > 0f) {
+                            (centroid - center - baseOffset) / previousScale
+                        } else {
+                            Offset.Zero
+                        }
+
+                        val updatedOffset = centroid - center - (relativeToContent * nextScale) + panChange
                         val clampedOffset = clampOffset(
                             x = updatedOffset.x,
                             y = updatedOffset.y,
@@ -791,17 +809,14 @@ private fun ImageContent(
                         scale = nextScale
                         offsetX = clampedOffset.x
                         offsetY = clampedOffset.y
-                    },
-                )
-                gestureActive = false
+
+                        event.changes.forEach { it.consume() }
+                    } while (event.changes.any { it.pressed })
+                }
             }
-            .pointerInput(containerWidth, containerHeight, gestureActive) {
+            .pointerInput(containerWidth, containerHeight) {
                 detectTapGestures(
-                    onTap = {
-                        if (!gestureActive) {
-                            onSingleTap()
-                        }
-                    },
+                    onTap = { onSingleTap() },
                     onDoubleTap = { tapOffset ->
                         animationJob?.cancel()
                         animationJob = scope.launch {
