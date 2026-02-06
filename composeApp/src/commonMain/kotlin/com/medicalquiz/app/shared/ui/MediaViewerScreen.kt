@@ -271,7 +271,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                                 // Apply resistance to the drag - compute based on current offset
                                 val deltaY = change.position.y - change.previousPosition.y
                                 val progress = (dismissOffsetY.absoluteValue / dismissThreshold).coerceIn(0f, 2f)
-                                val resistanceFactor = (kotlin.math.cos(progress * kotlin.math.PI.toFloat() / 4f) * 0.7f + 0.3f).toFloat()
+                                val resistanceFactor = kotlin.math.cos(progress * kotlin.math.PI / 4.0).toFloat() * 0.7f + 0.3f
                                 val resistedDelta = deltaY * resistanceFactor
 
                                 dismissOffsetY += resistedDelta
