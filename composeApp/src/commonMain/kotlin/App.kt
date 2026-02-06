@@ -33,6 +33,7 @@ import com.medicalquiz.app.shared.data.DatabaseManager
 import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.data.MediaDescriptionRepository
 import com.medicalquiz.app.shared.navigation.NavigationStateRepository
+import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.data.SettingsRepository
 import com.medicalquiz.app.shared.data.TextHighlightsRepository
 import com.medicalquiz.app.shared.data.UserDataManager
@@ -40,17 +41,17 @@ import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.navigation.MedicalQuizRoutes
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.StorageProvider
-import com.medicalquiz.app.shared.ui.AppTheme
-import com.medicalquiz.app.shared.ui.DatabaseSelectionScreen
-import com.medicalquiz.app.shared.ui.FilterScreen
-import com.medicalquiz.app.shared.ui.HtmlViewerDialog
-import com.medicalquiz.app.shared.ui.LocalFontSize
-import com.medicalquiz.app.shared.ui.MediaHandler
-import com.medicalquiz.app.shared.ui.MediaViewerScreen
-import com.medicalquiz.app.shared.ui.PerformanceFilterDialog
-import com.medicalquiz.app.shared.ui.QuizRoot
-import com.medicalquiz.app.shared.ui.SubjectFilterDialogComposable
-import com.medicalquiz.app.shared.ui.SystemFilterDialogComposable
+import com.medicalquiz.app.shared.ui.theme.AppTheme
+import com.medicalquiz.app.shared.ui.theme.LocalFontSize
+import com.medicalquiz.app.shared.ui.screens.DatabaseSelectionScreen
+import com.medicalquiz.app.shared.ui.screens.FilterScreen
+import com.medicalquiz.app.shared.ui.screens.media.HtmlViewerDialog
+import com.medicalquiz.app.shared.ui.screens.media.MediaViewerScreen
+import com.medicalquiz.app.shared.ui.screens.quiz.QuizRoot
+import com.medicalquiz.app.shared.ui.media.MediaHandler
+import com.medicalquiz.app.shared.ui.dialogs.PerformanceFilterDialog
+import com.medicalquiz.app.shared.ui.dialogs.SubjectFilterDialog
+import com.medicalquiz.app.shared.ui.dialogs.SystemFilterDialog
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 import com.medicalquiz.app.shared.viewmodel.UiEvent
 import kotlinx.coroutines.Dispatchers
@@ -125,6 +126,9 @@ fun App() {
             val userDataManager = remember { UserDataManager() }
             val textHighlightsRepository = remember { TextHighlightsRepository(userDataManager, scope) }
 
+            // Quiz session repository for persisting quiz state across process death
+            val sessionRepository = remember { QuizSessionRepository() }
+
             // Media descriptions state for viewer
             val mediaDescriptionsFlow = remember { MutableStateFlow<Map<String, MediaDescription>>(emptyMap()) }
 
@@ -181,6 +185,7 @@ fun App() {
                 viewModel.setSettingsRepository(settingsRepository)
                 viewModel.setTextHighlightsRepository(textHighlightsRepository)
                 viewModel.setCacheManager(cacheManager)
+                viewModel.setSessionRepository(sessionRepository)
             }
 
             // Handle database initialization when selected
@@ -199,14 +204,20 @@ fun App() {
                     initializedDatabase = dbName
 
                     // If we're on the Quiz screen but questionIds is empty (app restart),
-                    // reload the filtered questions to restore quiz state
+                    // restore quiz session from saved state
                     val currentState = viewModel.state.value
                     val isOnQuizScreen = backStack.lastOrNull() is MedicalQuizRoutes.Quiz
                     if (isOnQuizScreen && currentState.questionIds.isEmpty()) {
-                        viewModel.loadFilteredQuestionIds()
-                        // Restore the current question if we have a valid index
-                        if (currentState.currentQuestionIndex >= 0) {
-                            viewModel.loadQuestion(currentState.currentQuestionIndex)
+                        val sessionRestored = viewModel.restoreSession()
+                        if (sessionRestored) {
+                            // Session was restored, load the filtered questions and current question
+                            viewModel.loadFilteredQuestionIds()
+                        } else {
+                            // No saved session or session was for different database,
+                            // go back to filter screen
+                            while (backStack.size > 1) {
+                                backStack.removeLastOrNull()
+                            }
                         }
                     }
                 }
@@ -257,6 +268,8 @@ fun App() {
                             selectedDatabase = null
                             initializedDatabase = null
                             viewModel.closeDatabase()
+                            // Clear the quiz session since we're switching databases
+                            sessionRepository.clearSession()
                         }
                         // Other events (OpenPerformanceDialog, ShowErrorDialog, ShowResetLogsConfirmation)
                         // are handled within QuizRoot as dialog overlays
@@ -323,7 +336,7 @@ fun App() {
 
                         // Dialogs - rendered as overlays
                         if (showSubjectDialog) {
-                            SubjectFilterDialogComposable(
+                            SubjectFilterDialog(
                                 isVisible = true,
                                 resource = state.subjectsResource,
                                 selectedIds = state.selectedSubjectIds,
@@ -341,7 +354,7 @@ fun App() {
                         }
 
                         if (showSystemDialog) {
-                            SystemFilterDialogComposable(
+                            SystemFilterDialog(
                                 isVisible = true,
                                 resource = state.systemsResource,
                                 selectedIds = state.selectedSystemIds,
@@ -379,7 +392,9 @@ fun App() {
                             viewModel = viewModel,
                             mediaHandler = mediaHandler,
                             onNavigateBack = {
-                                // In pre-quiz mode (Filter screen showing), navigate back to filter
+                                // User is intentionally exiting the quiz - clear the session
+                                // so it won't be restored on next app launch
+                                viewModel.clearSession()
                                 // NavDisplay will pop Quiz from back stack, returning to Filter
                                 backStack.removeLastOrNull()
                             }
@@ -460,11 +475,14 @@ fun App() {
 /**
  * Formats the performance filter to a user-friendly label.
  */
-private fun formatPerformanceLabel(filter: PerformanceFilter): String = when (filter) {
-    PerformanceFilter.ALL -> "All Questions"
-    PerformanceFilter.UNANSWERED -> "Not Attempted"
-    PerformanceFilter.LAST_CORRECT -> "Last Attempt Correct"
-    PerformanceFilter.LAST_INCORRECT -> "Last Attempt Incorrect"
-    PerformanceFilter.EVER_CORRECT -> "Ever Correct"
-    PerformanceFilter.EVER_INCORRECT -> "Ever Incorrect"
+@Composable
+private fun formatPerformanceLabel(filter: PerformanceFilter): String = remember(filter) {
+    when (filter) {
+        PerformanceFilter.ALL -> "All Questions"
+        PerformanceFilter.UNANSWERED -> "Not Attempted"
+        PerformanceFilter.LAST_CORRECT -> "Last Attempt Correct"
+        PerformanceFilter.LAST_INCORRECT -> "Last Attempt Incorrect"
+        PerformanceFilter.EVER_CORRECT -> "Ever Correct"
+        PerformanceFilter.EVER_INCORRECT -> "Ever Incorrect"
+    }
 }

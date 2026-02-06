@@ -3,6 +3,7 @@ package com.medicalquiz.app.shared.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medicalquiz.app.shared.data.CacheManager
+import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.data.SettingsRepository
 import com.medicalquiz.app.shared.data.TextHighlightsRepository
 import com.medicalquiz.app.shared.data.database.DatabaseProvider
@@ -10,7 +11,7 @@ import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.data.database.QuestionPerformance
 import com.medicalquiz.app.shared.data.models.Subject
 import com.medicalquiz.app.shared.data.models.System
-import com.medicalquiz.app.shared.ui.QuizState
+import com.medicalquiz.app.shared.ui.state.QuizUiState
 import com.medicalquiz.app.shared.utils.Resource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -36,12 +37,13 @@ class QuizViewModel : ViewModel() {
         private set
     private var textHighlightsRepository: TextHighlightsRepository? = null
     private var cacheManager: CacheManager? = null
+    private var sessionRepository: QuizSessionRepository? = null
     private var settingsObservationJob: Job? = null
 
     private var testId = Random.nextLong().toString()
 
-    private val _state = MutableStateFlow(QuizState.EMPTY)
-    val state: StateFlow<QuizState> = _state.asStateFlow()
+    private val _state = MutableStateFlow(QuizUiState.EMPTY)
+    val state: StateFlow<QuizUiState> = _state.asStateFlow()
 
     val toolbarTitle = state.map { it.databaseName }.stateIn(
         viewModelScope,
@@ -80,7 +82,7 @@ class QuizViewModel : ViewModel() {
     private fun resetState() {
         _state.update { currentState ->
             // Reset to empty state but preserve settings that shouldn't change
-            QuizState.EMPTY.copy(
+            QuizUiState.EMPTY.copy(
                 isLoggingEnabled = currentState.isLoggingEnabled,
                 showMetadata = currentState.showMetadata,
                 databaseName = "" // Will be set shortly after
@@ -121,6 +123,55 @@ class QuizViewModel : ViewModel() {
         cacheManager = cache
     }
 
+    fun setSessionRepository(repo: QuizSessionRepository) {
+        sessionRepository = repo
+    }
+
+    /**
+     * Restores quiz session state from the repository.
+     * Should be called after database is initialized.
+     *
+     * @return true if session was restored, false otherwise
+     */
+    fun restoreSession(): Boolean {
+        val session = sessionRepository?.restoreSession() ?: return false
+        val currentState = state.value
+
+        // Only restore if the database matches
+        if (session.databaseName != currentState.databaseName) {
+            return false
+        }
+
+        _state.update {
+            it.copy(
+                selectedSubjectIds = session.selectedSubjectIds.toSet(),
+                selectedSystemIds = session.selectedSystemIds.toSet(),
+                performanceFilter = session.performanceFilter,
+                currentQuestionIndex = session.currentQuestionIndex
+            )
+        }
+        return true
+    }
+
+    private fun saveSession() {
+        val currentState = state.value
+        sessionRepository?.saveSession(
+            databaseName = currentState.databaseName,
+            selectedSubjectIds = currentState.selectedSubjectIds,
+            selectedSystemIds = currentState.selectedSystemIds,
+            performanceFilter = currentState.performanceFilter,
+            currentQuestionIndex = currentState.currentQuestionIndex
+        )
+    }
+
+    /**
+     * Clears the saved quiz session.
+     * Call this when the user intentionally exits the quiz (e.g., navigates back to filter).
+     */
+    fun clearSession() {
+        sessionRepository?.clearSession()
+    }
+
     fun closeDatabase() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -129,6 +180,8 @@ class QuizViewModel : ViewModel() {
                 emitToast("Error closing database: ${e.message}")
             }
         }
+        // Clear the session when database is explicitly closed (e.g., switching databases)
+        sessionRepository?.clearSession()
     }
 
     private suspend fun initializeAfterDatabaseSwitch() {
@@ -193,6 +246,7 @@ class QuizViewModel : ViewModel() {
             } finally {
                 _state.update { it.copy(isLoading = false) }
                 cacheManager?.trimCachesIfNeeded(index)
+                saveSession()
             }
         }
     }
@@ -366,7 +420,7 @@ class QuizViewModel : ViewModel() {
     fun applySelectedSubjects(newSubjectIds: Set<Long>, loadQuestions: Boolean = true) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(selectedSubjectIds = newSubjectIds) }
-            
+
             val validSystems = if (newSubjectIds.isEmpty()) {
                 emptySet()
             } else {
@@ -374,12 +428,13 @@ class QuizViewModel : ViewModel() {
                     ?.map { it.id }
                     ?.toSet() ?: emptySet()
             }
-            
+
             _state.update { it.copy(selectedSystemIds = validSystems) }
             updatePreviewQuestionCountInternal()
             if (loadQuestions) {
                 loadFilteredQuestionIds()
             }
+            saveSession()
         }
     }
 
@@ -410,6 +465,7 @@ class QuizViewModel : ViewModel() {
             if (loadQuestions) {
                 loadFilteredQuestionIds()
             }
+            saveSession()
         }
     }
 
@@ -451,6 +507,7 @@ class QuizViewModel : ViewModel() {
             if (loadQuestions) {
                 loadFilteredQuestionIds()
             }
+            saveSession()
         }
     }
 
