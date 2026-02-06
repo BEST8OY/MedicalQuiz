@@ -118,6 +118,12 @@ private const val DISMISS_PROGRESS_DISTANCE = 300f
 private const val DRAG_START_DISTANCE = 8f
 private const val VERTICAL_DRAG_DOMINANCE = 1.2f
 
+private enum class GestureOwner {
+    None,
+    ImageTransform,
+    Dismiss,
+}
+
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MediaViewerScreen(
@@ -174,6 +180,8 @@ private fun SharedTransitionScope.MediaViewerContent(
     var showUI by rememberSaveable { mutableStateOf(true) }
     var showExplanation by rememberSaveable { mutableStateOf(false) }
     var showOverlay by rememberSaveable { mutableStateOf(true) }
+    var gestureOwner by remember { mutableStateOf(GestureOwner.None) }
+    var isImageTransformActive by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     
@@ -213,6 +221,8 @@ private fun SharedTransitionScope.MediaViewerContent(
         showExplanation = false
         dismissOffsetY = 0f
         isDismissing = false
+        gestureOwner = GestureOwner.None
+        isImageTransformActive = false
     }
     
     // Cleanup when leaving composition
@@ -262,12 +272,26 @@ private fun SharedTransitionScope.MediaViewerContent(
             modifier = Modifier
                 .fillMaxSize()
                 .offset { IntOffset(0, dismissOffsetY.roundToInt()) }
-                .pointerInput(isZoomed, isDismissing, dismissThreshold, dismissVelocityThreshold) {
+                .pointerInput(
+                    isZoomed,
+                    isDismissing,
+                    dismissThreshold,
+                    dismissVelocityThreshold,
+                    isImageTransformActive,
+                    gestureOwner,
+                ) {
                     awaitEachGesture {
                         val down = awaitFirstDown()
 
                         // Only start dismiss gesture if not zoomed and starting from center area
-                        if (isZoomed || isDismissing) return@awaitEachGesture
+                        if (
+                            isZoomed ||
+                            isDismissing ||
+                            isImageTransformActive ||
+                            gestureOwner == GestureOwner.ImageTransform
+                        ) {
+                            return@awaitEachGesture
+                        }
 
                         var dragStarted = false
                         val velocityTracker = VelocityTracker()
@@ -283,6 +307,7 @@ private fun SharedTransitionScope.MediaViewerContent(
 
                             if (!dragStarted && isPredominantlyVerticalDrag(absTotalDeltaY, totalDeltaX)) {
                                 dragStarted = true
+                                gestureOwner = GestureOwner.Dismiss
                             }
 
                             if (dragStarted) {
@@ -312,6 +337,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                             ) {
                                 DismissDecision.Dismiss -> {
                                     isDismissing = true
+                                    gestureOwner = GestureOwner.None
                                 }
 
                                 DismissDecision.Cancel -> {
@@ -319,9 +345,12 @@ private fun SharedTransitionScope.MediaViewerContent(
                                         animateDismissOffsetBackToRest(initialOffset = dismissOffsetY) {
                                             dismissOffsetY = it
                                         }
+                                        gestureOwner = GestureOwner.None
                                     }
                                 }
                             }
+                        } else if (gestureOwner == GestureOwner.Dismiss) {
+                            gestureOwner = GestureOwner.None
                         }
                     }
                 }
@@ -363,6 +392,16 @@ private fun SharedTransitionScope.MediaViewerContent(
                             if (it) showUI = false
                         },
                         onSingleTap = onToggleUI,
+                        onTransformGestureActiveChange = { active ->
+                            if (pagerState.currentPage == page) {
+                                isImageTransformActive = active
+                                gestureOwner = when {
+                                    active -> GestureOwner.ImageTransform
+                                    gestureOwner == GestureOwner.ImageTransform -> GestureOwner.None
+                                    else -> gestureOwner
+                                }
+                            }
+                        },
                         onLinkClick = onLinkClick,
                         overlayPath = if (page == pagerState.currentPage) overlayPath else null,
                         showOverlay = if (page == pagerState.currentPage) showOverlay else true,
@@ -566,6 +605,7 @@ private fun MediaContent(
     isActivePage: Boolean,
     onZoomChanged: (Boolean) -> Unit,
     onSingleTap: () -> Unit,
+    onTransformGestureActiveChange: (Boolean) -> Unit,
     onLinkClick: ((String) -> Unit)?,
     overlayPath: String? = null,
     showOverlay: Boolean = true,
@@ -590,6 +630,7 @@ private fun MediaContent(
                 fileName = fileName,
                 onZoomChanged = onZoomChanged,
                 onSingleTap = onSingleTap,
+                onTransformGestureActiveChange = onTransformGestureActiveChange,
                 overlayPath = overlayPath,
                 showOverlay = showOverlay,
             )
@@ -699,6 +740,7 @@ private fun ImageContent(
     fileName: String,
     onZoomChanged: (Boolean) -> Unit,
     onSingleTap: () -> Unit,
+    onTransformGestureActiveChange: (Boolean) -> Unit,
     overlayPath: String? = null,
     showOverlay: Boolean = true,
 ) {
@@ -732,6 +774,7 @@ private fun ImageContent(
     DisposableEffect(Unit) {
         onDispose {
             animationJob?.cancel()
+            onTransformGestureActiveChange(false)
         }
     }
 
@@ -784,6 +827,8 @@ private fun ImageContent(
                             continue
                         }
 
+                        onTransformGestureActiveChange(true)
+
                         val zoomChange = event.calculateZoom()
                         val panChange = event.calculatePan()
                         val centroid = event.calculateCentroid()
@@ -812,6 +857,8 @@ private fun ImageContent(
 
                         event.changes.forEach { it.consume() }
                     } while (event.changes.any { it.pressed })
+
+                    onTransformGestureActiveChange(false)
                 }
             }
             .pointerInput(containerWidth, containerHeight) {
