@@ -47,6 +47,7 @@ import com.medicalquiz.app.shared.data.models.Question
 import com.medicalquiz.app.shared.ui.media.MediaHandler
 import com.medicalquiz.app.shared.ui.richtext.HighlightableRichText
 import com.medicalquiz.app.shared.ui.richtext.RichText
+import com.medicalquiz.app.shared.ui.screens.quiz.AnswerOptions
 import com.medicalquiz.app.shared.ui.state.QuizUiState
 import com.medicalquiz.app.shared.utils.HtmlUtils
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
@@ -184,32 +185,6 @@ private fun HintSection(
             }
         }
     }
-}
-
-@Composable
-private fun AnswerOptions(
-    answers: List<Answer>,
-    sanitizedAnswers: Map<Long, String>,
-    selectedAnswerId: Int?,
-    correctAnswerId: Int?,
-    answerSubmitted: Boolean,
-    answerPercentages: Map<Long, Int?>,
-    onAnswerSelected: (Long) -> Unit,
-    onLinkClick: (String) -> Unit,
-    onMediaClick: (String) -> Unit
-) {
-    // Use ListItem-based answer items following Material 3 guidelines
-    AnswerOptions(
-        answers = answers,
-        sanitizedAnswers = sanitizedAnswers,
-        selectedAnswerId = selectedAnswerId,
-        correctAnswerId = correctAnswerId,
-        answerSubmitted = answerSubmitted,
-        answerPercentages = answerPercentages,
-        onAnswerSelected = onAnswerSelected,
-        onLinkClick = onLinkClick,
-        onMediaClick = onMediaClick
-    )
 }
 
 @Composable
