@@ -5,7 +5,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,7 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -199,110 +197,18 @@ private fun AnswerOptions(
     onLinkClick: (String) -> Unit,
     onMediaClick: (String) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        answers.forEachIndexed { index, answer ->
-            val label = ('A'.code + index).toChar().toString()
-            val html = sanitizedAnswers[answer.answerId].orEmpty()
-            val isSelected = answer.answerId.toInt() == selectedAnswerId
-            val isCorrect = answer.answerId.toInt() == correctAnswerId
-            val percentage = answerPercentages[answer.answerId]
-            AnswerCard(
-                label = label,
-                html = html,
-                isSelected = isSelected,
-                isCorrect = isCorrect,
-                showResult = answerSubmitted,
-                percentage = percentage,
-                enabled = !answerSubmitted,
-                onClick = { onAnswerSelected(answer.answerId) },
-                onLinkClick = onLinkClick,
-                onMediaClick = onMediaClick
-            )
-        }
-    }
-}
-
-@Composable
-private fun AnswerCard(
-    label: String,
-    html: String,
-    isSelected: Boolean,
-    isCorrect: Boolean,
-    showResult: Boolean,
-    percentage: Int?,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    onLinkClick: (String) -> Unit,
-    onMediaClick: (String) -> Unit
-) {
-    val colors = MaterialTheme.colorScheme
-    val background = when {
-        showResult && isCorrect -> colors.tertiaryContainer
-        showResult && isSelected && !isCorrect -> colors.errorContainer
-        isSelected -> colors.primaryContainer
-        else -> colors.surfaceContainerLow
-    }
-    val borderColor = when {
-        showResult && isCorrect -> colors.tertiary
-        showResult && isSelected && !isCorrect -> colors.error
-        isSelected -> colors.primary
-        else -> colors.outlineVariant
-    }
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = background,
-        tonalElevation = if (isSelected) 2.dp else 0.dp,
-        border = BorderStroke(1.dp, borderColor),
-        enabled = enabled,
-        onClick = onClick
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Text(
-                        text = "$label.",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurface
-                    )
-                    RichText(
-                        html = html,
-                        modifier = Modifier.weight(1f),
-                        showSelectedHighlight = showResult,
-                        onLinkClick = onLinkClick,
-                        onMediaClick = onMediaClick
-                    )
-                }
-                if (showResult && percentage != null) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = colors.secondaryContainer
-                    ) {
-                        Text(
-                            text = "$percentage%",
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
+    // Use ListItem-based answer items following Material 3 guidelines
+    AnswerOptions(
+        answers = answers,
+        sanitizedAnswers = sanitizedAnswers,
+        selectedAnswerId = selectedAnswerId,
+        correctAnswerId = correctAnswerId,
+        answerSubmitted = answerSubmitted,
+        answerPercentages = answerPercentages,
+        onAnswerSelected = onAnswerSelected,
+        onLinkClick = onLinkClick,
+        onMediaClick = onMediaClick
+    )
 }
 
 @Composable

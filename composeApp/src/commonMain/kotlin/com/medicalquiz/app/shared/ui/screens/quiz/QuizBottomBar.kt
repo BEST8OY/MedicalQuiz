@@ -1,15 +1,13 @@
 package com.medicalquiz.app.shared.ui.screens.quiz
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
@@ -18,14 +16,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 
 data class QuizBottomToolbarUiState(
@@ -35,6 +28,16 @@ data class QuizBottomToolbarUiState(
     val hasNextQuestion: Boolean,
 )
 
+/**
+ * Quiz navigation toolbar following Material 3 Expressive guidelines.
+ *
+ * Key design decisions:
+ * - Uses standard icon buttons (not filled/square) per M3 guidelines
+ * - Next is the primary action (FilledTonalButton in expanded mode)
+ * - Previous is secondary (OutlinedButton in expanded, IconButton in compact)
+ * - Question counter shown as simple text in content area
+ * - Always expanded since navigation should always be visible
+ */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun QuizFloatingToolbar(
@@ -44,20 +47,18 @@ fun QuizFloatingToolbar(
     onJumpTo: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(true) }
-
-    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+    // Always expanded - navigation controls should always be visible
+    BoxWithConstraints(modifier = modifier) {
         val isExpanded = maxWidth >= 600.dp
         val currentQuestionNumber = uiState.currentQuestionIndex + 1
         val questionLabel = "$currentQuestionNumber / ${uiState.totalQuestions}"
-        val questionDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}. Double tap to jump."
 
         HorizontalFloatingToolbar(
-            expanded = expanded,
+            expanded = true,
             modifier = Modifier.padding(horizontal = if (isExpanded) 24.dp else 16.dp),
             colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
             leadingContent = {
-                // Previous button
+                // Previous button - secondary action
                 if (isExpanded) {
                     OutlinedButton(
                         onClick = onPrevious,
@@ -73,6 +74,7 @@ fun QuizFloatingToolbar(
                         Text("Previous")
                     }
                 } else {
+                    // Use standard IconButton (not filled/square) per M3 guidelines
                     IconButton(
                         onClick = onPrevious,
                         enabled = uiState.hasPreviousQuestion,
@@ -88,7 +90,7 @@ fun QuizFloatingToolbar(
                 }
             },
             trailingContent = {
-                // Next button
+                // Next button - primary action (highest emphasis)
                 if (isExpanded) {
                     FilledTonalButton(
                         onClick = onNext,
@@ -104,7 +106,8 @@ fun QuizFloatingToolbar(
                         )
                     }
                 } else {
-                    FilledIconButton(
+                    // Use standard IconButton (not filled/square) per M3 guidelines
+                    IconButton(
                         onClick = onNext,
                         enabled = uiState.hasNextQuestion,
                         modifier = Modifier
@@ -119,16 +122,18 @@ fun QuizFloatingToolbar(
                 }
             },
             content = {
-                // Question counter (jump button) - main content
-                AssistChip(
-                    onClick = onJumpTo,
-                    label = { Text(questionLabel) },
+                // Question counter - clickable to jump
+                // Using Text with Modifier.clickable instead of AssistChip for cleaner look
+                Text(
+                    text = questionLabel,
                     modifier = Modifier
+                        .clickable(onClick = onJumpTo)
                         .sizeIn(minHeight = 48.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                         .semantics {
-                            contentDescription = "Jump to question"
-                            stateDescription = questionDescription
+                            contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}. Tap to jump."
                         },
+                    style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
                 )
             }
         )
