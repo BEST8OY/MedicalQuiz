@@ -1,8 +1,6 @@
 package com.medicalquiz.app.shared.ui.screens.quiz
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
@@ -11,6 +9,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
@@ -22,7 +22,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -89,52 +88,48 @@ fun QuizFloatingToolbar(
                 }
             },
             trailingContent = {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Question counter (jump button)
-                    AssistChip(
-                        onClick = onJumpTo,
-                        label = { Text(questionLabel) },
+                // Next button
+                if (isExpanded) {
+                    FilledTonalButton(
+                        onClick = onNext,
+                        enabled = uiState.hasNextQuestion,
                         modifier = Modifier
                             .sizeIn(minHeight = 48.dp)
-                            .semantics {
-                                contentDescription = "Jump to question"
-                                stateDescription = questionDescription
-                            },
-                    )
-
-                    // Next button
-                    if (isExpanded) {
-                        FilledTonalButton(
-                            onClick = onNext,
-                            enabled = uiState.hasNextQuestion,
-                            modifier = Modifier
-                                .sizeIn(minHeight = 48.dp)
-                                .semantics { contentDescription = "Next question" },
-                        ) {
-                            Text("Next")
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                                contentDescription = null,
-                            )
-                        }
-                    } else {
-                        FilledIconButton(
-                            onClick = onNext,
-                            enabled = uiState.hasNextQuestion,
-                            modifier = Modifier
-                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                                .semantics { contentDescription = "Next question" },
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                                contentDescription = null,
-                            )
-                        }
+                            .semantics { contentDescription = "Next question" },
+                    ) {
+                        Text("Next")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                            contentDescription = null,
+                        )
+                    }
+                } else {
+                    FilledIconButton(
+                        onClick = onNext,
+                        enabled = uiState.hasNextQuestion,
+                        modifier = Modifier
+                            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                            .semantics { contentDescription = "Next question" },
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                            contentDescription = null,
+                        )
                     }
                 }
+            },
+            content = {
+                // Question counter (jump button) - main content
+                AssistChip(
+                    onClick = onJumpTo,
+                    label = { Text(questionLabel) },
+                    modifier = Modifier
+                        .sizeIn(minHeight = 48.dp)
+                        .semantics {
+                            contentDescription = "Jump to question"
+                            stateDescription = questionDescription
+                        },
+                )
             }
         )
     }
