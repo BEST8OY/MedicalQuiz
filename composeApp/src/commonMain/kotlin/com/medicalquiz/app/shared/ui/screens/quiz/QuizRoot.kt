@@ -2,7 +2,6 @@ package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ModalNavigationDrawer
