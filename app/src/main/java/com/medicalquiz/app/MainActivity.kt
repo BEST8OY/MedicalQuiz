@@ -31,7 +31,7 @@ import androidx.core.view.WindowCompat
 import com.medicalquiz.app.shared.App
 import com.medicalquiz.app.shared.generateImageLoader
 import com.medicalquiz.app.shared.platform.AppContext
-import com.medicalquiz.app.shared.ui.AppTheme
+import com.medicalquiz.app.shared.ui.theme.AppTheme
 
 class MainActivity : AppCompatActivity() {
     private var isPermissionGranted by mutableStateOf(false)
