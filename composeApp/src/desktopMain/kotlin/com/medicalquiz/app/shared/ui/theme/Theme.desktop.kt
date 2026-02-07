@@ -1,4 +1,4 @@
-package com.medicalquiz.app.shared.ui
+package com.medicalquiz.app.shared.ui.theme
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable

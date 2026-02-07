@@ -1,4 +1,4 @@
-package com.medicalquiz.app.shared.ui
+package com.medicalquiz.app.shared.ui.screens.media
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable

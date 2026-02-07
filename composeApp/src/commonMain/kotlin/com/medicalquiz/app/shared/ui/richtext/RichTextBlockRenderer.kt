@@ -27,7 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text as MaterialText
-import com.medicalquiz.app.shared.ui.LocalFontSize
+import com.medicalquiz.app.shared.ui.theme.LocalFontSize
 
 @Composable
 internal fun RichTextBlockRenderer(
