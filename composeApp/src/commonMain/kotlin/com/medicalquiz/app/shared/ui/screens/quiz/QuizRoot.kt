@@ -2,7 +2,9 @@ package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.rememberDrawerState
@@ -31,7 +33,7 @@ import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 import com.medicalquiz.app.shared.viewmodel.UiEvent
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun QuizRoot(
     viewModel: QuizViewModel,
@@ -162,7 +164,7 @@ fun QuizRoot(
                 )
             },
             bottomBar = {
-                QuizBottomBar(
+                QuizFloatingToolbar(
                     uiState = QuizBottomToolbarUiState(
                         currentQuestionIndex = state.currentQuestionIndex,
                         totalQuestions = state.totalQuestions,
