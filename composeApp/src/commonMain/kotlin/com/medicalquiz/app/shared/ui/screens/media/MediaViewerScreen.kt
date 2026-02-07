@@ -96,6 +96,7 @@ import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.platform.FileSystemHelper
+import com.medicalquiz.app.shared.ui.media.MediaType
 import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
 import com.medicalquiz.app.shared.utils.HtmlUtils

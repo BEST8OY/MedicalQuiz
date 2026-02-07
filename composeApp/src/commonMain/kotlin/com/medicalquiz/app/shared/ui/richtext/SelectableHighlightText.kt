@@ -51,7 +51,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.medicalquiz.app.shared.data.models.HighlightColor
 import com.medicalquiz.app.shared.data.models.TextHighlight
-import com.medicalquiz.app.shared.ui.LocalFontSize
+import com.medicalquiz.app.shared.ui.theme.LocalFontSize
 import kotlin.math.roundToInt
 
 /**

@@ -1,6 +1,6 @@
 package com.medicalquiz.app.shared.utils
 
-import com.medicalquiz.app.shared.ui.MediaType
+import com.medicalquiz.app.shared.ui.media.MediaType
 
 /**
  * Centralized utility for media type detection.
