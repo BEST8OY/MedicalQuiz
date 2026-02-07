@@ -1,6 +1,11 @@
 package com.medicalquiz.app.shared.ui.screens.quiz
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -15,8 +20,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.ui.media.MediaHandler
@@ -149,41 +156,48 @@ fun QuizRoot(
             )
         }
     ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            topBar = {
-                TopBar(
-                    title = title,
-                    questionIndex = state.currentQuestionIndex,
-                    totalQuestions = state.totalQuestions,
-                    onMenuClick = { scope.launch { drawerState.open() } },
-                    onJumpClick = { showJumpToDialog = true },
-                    onResetLogClick = { viewModel.clearCurrentQuestionLog() },
-                    onSettingsClick = { showSettingsDialog = true }
-                )
-            },
-            bottomBar = {
-                QuizFloatingToolbar(
-                    uiState = QuizBottomToolbarUiState(
-                        currentQuestionIndex = state.currentQuestionIndex,
+        Box(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                topBar = {
+                    TopBar(
+                        title = title,
+                        questionIndex = state.currentQuestionIndex,
                         totalQuestions = state.totalQuestions,
-                        hasPreviousQuestion = state.hasPreviousQuestion,
-                        hasNextQuestion = state.hasNextQuestion,
-                    ),
+                        onMenuClick = { scope.launch { drawerState.open() } },
+                        onJumpClick = { showJumpToDialog = true },
+                        onResetLogClick = { viewModel.clearCurrentQuestionLog() },
+                        onSettingsClick = { showSettingsDialog = true }
+                    )
+                }
+            ) { padding ->
+                QuizScreen(
+                    viewModel = viewModel,
+                    mediaHandler = mediaHandler,
                     onPrevious = { viewModel.loadPrevious() },
                     onNext = { viewModel.loadNext() },
                     onJumpTo = { showJumpToDialog = true },
+                    onOpenSettings = { showSettingsDialog = true },
+                    contentPadding = padding
                 )
             }
-        ) { padding ->
-            QuizScreen(
-                viewModel = viewModel,
-                mediaHandler = mediaHandler,
+            
+            // Floating toolbar - centered at bottom, floats above content
+            // Apply navigation bars insets to avoid overlap with gesture navigation
+            val bottomInsets = WindowInsets.navigationBars
+            QuizFloatingToolbar(
+                uiState = QuizBottomToolbarUiState(
+                    currentQuestionIndex = state.currentQuestionIndex,
+                    totalQuestions = state.totalQuestions,
+                    hasPreviousQuestion = state.hasPreviousQuestion,
+                    hasNextQuestion = state.hasNextQuestion,
+                ),
                 onPrevious = { viewModel.loadPrevious() },
                 onNext = { viewModel.loadNext() },
                 onJumpTo = { showJumpToDialog = true },
-                onOpenSettings = { showSettingsDialog = true },
-                contentPadding = padding
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp + bottomInsets.asPaddingValues().calculateBottomPadding())
             )
         }
     }
