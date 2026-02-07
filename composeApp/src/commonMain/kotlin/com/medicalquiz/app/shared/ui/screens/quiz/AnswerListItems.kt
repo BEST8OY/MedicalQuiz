@@ -161,7 +161,7 @@ private fun AnswerListItem(
  * - Each item should have consistent layout
  */
 @Composable
-private fun AnswerOptions(
+fun AnswerOptions(
     answers: List<Answer>,
     sanitizedAnswers: Map<Long, String>,
     selectedAnswerId: Int?,
