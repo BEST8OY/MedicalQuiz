@@ -22,7 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.data.models.Answer
-import com.medicalquiz.app.shared.ui.components.RichText
+import com.medicalquiz.app.shared.ui.richtext.RichText
 
 /**
  * Answer list item following Material 3 guidelines for lists.
