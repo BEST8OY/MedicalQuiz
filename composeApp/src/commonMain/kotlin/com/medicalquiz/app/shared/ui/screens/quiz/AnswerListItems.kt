@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -21,15 +20,15 @@ import com.medicalquiz.app.shared.data.models.Answer
 import com.medicalquiz.app.shared.ui.richtext.RichText
 
 /**
- * Answer list item following Material 3 Expressive guidelines for lists.
+ * Answer list item following Material 3 guidelines for lists.
  *
- * Uses ListItemDefaults.shapes() for proper rounded corners in all states.
- * Per M3 Expressive:
- * - shape: rounded corners for default state
- * - selectedShape: rounded corners when selected
- * - Use selectedContainerColor/selectedContentColor for selection states
+ * Per M3 guidelines:
+ * - Use lists for selecting discrete items
+ * - Leading element: A, B, C, D label
+ * - Headline: Answer text (HTML content)
+ * - Trailing: Result indicator (percentage or checkmark/x)
+ * - Selection state applies to entire list item
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AnswerListItem(
     label: String,
@@ -45,17 +44,20 @@ private fun AnswerListItem(
 ) {
     val colors = MaterialTheme.colorScheme
 
-    // Determine result state colors (post-answer)
-    val resultContainerColor = when {
+    // Determine container color based on state
+    val containerColor = when {
         showResult && isCorrect -> colors.tertiaryContainer
         showResult && isSelected && !isCorrect -> colors.errorContainer
-        else -> null
+        isSelected -> colors.primaryContainer
+        else -> colors.surfaceContainerLowest
     }
 
-    val resultContentColor = when {
+    // Determine content color
+    val contentColor = when {
         showResult && isCorrect -> colors.onTertiaryContainer
         showResult && isSelected && !isCorrect -> colors.onErrorContainer
-        else -> null
+        isSelected -> colors.onPrimaryContainer
+        else -> colors.onSurface
     }
 
     // Leading element: Label (A, B, C, D) with radio button style selection
@@ -119,35 +121,14 @@ private fun AnswerListItem(
         }
     }
 
-    if (showResult && resultContainerColor != null) {
-        // Post-answer: Use Surface wrapper for result colors (tertiary/error containers)
-        Surface(
-            shape = MaterialTheme.shapes.medium,
-            color = resultContainerColor,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = enabled, onClick = onClick)
-        ) {
-            ListItem(
-                headlineContent = {
-                    RichText(
-                        html = html,
-                        onLinkClick = onLinkClick,
-                        onMediaClick = onMediaClick,
-                        showSelectedHighlight = showResult
-                    )
-                },
-                leadingContent = leadingContent,
-                trailingContent = trailingContent,
-                colors = ListItemDefaults.colors(
-                    containerColor = resultContainerColor,
-                    headlineColor = resultContentColor ?: colors.onSurface
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    } else {
-        // Pre-answer or neutral: Use ListItem with proper shapes and selection colors
+    // Use Surface wrapper for rounded corners and background color
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = containerColor,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+    ) {
         ListItem(
             headlineContent = {
                 RichText(
@@ -160,19 +141,10 @@ private fun AnswerListItem(
             leadingContent = leadingContent,
             trailingContent = trailingContent,
             colors = ListItemDefaults.colors(
-                containerColor = colors.surfaceContainerLowest,
-                headlineColor = colors.onSurface,
-                selectedContainerColor = colors.primaryContainer,
-                selectedContentColor = colors.onPrimaryContainer
+                containerColor = containerColor,
+                headlineColor = contentColor
             ),
-            shapes = ListItemDefaults.shapes(
-                shape = MaterialTheme.shapes.medium,
-                selectedShape = MaterialTheme.shapes.medium
-            ),
-            selected = isSelected,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = enabled, onClick = onClick)
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
