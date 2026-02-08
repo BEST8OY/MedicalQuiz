@@ -1,6 +1,8 @@
 package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -18,9 +20,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -43,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.shared.data.database.QuestionPerformance
@@ -69,7 +73,8 @@ fun QuizScreen(
     onNext: () -> Unit,
     onJumpTo: () -> Unit,
     onOpenSettings: () -> Unit,
-    contentPadding: PaddingValues = PaddingValues(0.dp)
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    bottomToolbarHeight: Dp = 100.dp
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -77,7 +82,8 @@ fun QuizScreen(
         state = state,
         viewModel = viewModel,
         mediaHandler = mediaHandler,
-        contentPadding = contentPadding
+        contentPadding = contentPadding,
+        bottomToolbarHeight = bottomToolbarHeight
     )
 }
 
@@ -86,7 +92,8 @@ private fun QuestionContent(
     state: QuizUiState,
     viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
-    contentPadding: PaddingValues
+    contentPadding: PaddingValues,
+    bottomToolbarHeight: Dp
 ) {
     Column(
         modifier = Modifier
@@ -94,16 +101,18 @@ private fun QuestionContent(
             .padding(contentPadding)
     ) {
         // Question content stays primary, metadata/logs are now inside the scrollable area
+        // Use surfaceContainerLowest as the "floor" for proper elevation hierarchy
         Surface(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surfaceContainer
+            color = MaterialTheme.colorScheme.surfaceContainerLowest
         ) {
             QuizQuestionCard(
                 state = state,
                 viewModel = viewModel,
-                mediaHandler = mediaHandler
+                mediaHandler = mediaHandler,
+                bottomToolbarHeight = bottomToolbarHeight
             )
         }
     }
@@ -121,9 +130,11 @@ private fun HintSection(
 ) {
     Surface(
         shape = MaterialTheme.shapes.small,
-        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(
-            alpha = if (isVisible) 1f else 0.7f
-        ),
+        color = if (isVisible) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        },
         modifier = Modifier.fillMaxWidth(),
         onClick = if (canToggle) onToggle else ({})
     ) {
@@ -133,30 +144,43 @@ private fun HintSection(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val hintContentColor = if (isVisible) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
                 Icon(
                     imageVector = Icons.Rounded.Lightbulb,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    tint = hintContentColor
                 )
                 Text(
                     text = "Hint",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = hintContentColor
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 if (canToggle) {
-                    Text(
-                        text = if (isVisible) "▲" else "▼",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                    Icon(
+                        imageVector = if (isVisible) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = hintContentColor.copy(alpha = 0.6f)
                     )
                 }
             }
             AnimatedVisibility(
                 visible = isVisible,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
+                enter = fadeIn(
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                ) + expandVertically(
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                ),
+                exit = fadeOut(
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                ) + shrinkVertically(
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                )
             ) {
                 RichText(
                     html = hintHtml,
@@ -174,7 +198,8 @@ private fun HintSection(
 private fun QuizQuestionCard(
     state: QuizUiState,
     viewModel: QuizViewModel,
-    mediaHandler: MediaHandler
+    mediaHandler: MediaHandler,
+    bottomToolbarHeight: Dp
 ) {
     val question = state.currentQuestion
     val answers = state.currentAnswers
@@ -272,18 +297,31 @@ private fun QuizQuestionCard(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .padding(bottom = bottomToolbarHeight),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Use HighlightableRichText for question content
-        HighlightableRichText(
-            html = questionHtml,
-            section = HighlightSection.QUESTION,
-            highlightsRepository = viewModel.getTextHighlightsRepository(),
-            showSelectedHighlight = state.answerSubmitted,
-            onLinkClick = linkHandler,
-            onMediaClick = mediaClick
-        )
+        // Question card - elevated primary content
+        ElevatedCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            ),
+            elevation = CardDefaults.elevatedCardElevation(
+                defaultElevation = 1.dp
+            )
+        ) {
+            HighlightableRichText(
+                html = questionHtml,
+                section = HighlightSection.QUESTION,
+                highlightsRepository = viewModel.getTextHighlightsRepository(),
+                showSelectedHighlight = state.answerSubmitted,
+                onLinkClick = linkHandler,
+                onMediaClick = mediaClick,
+                modifier = Modifier.padding(16.dp)
+            )
+        }
 
         if (hintHtml != null) {
             HintSection(
@@ -314,20 +352,28 @@ private fun QuizQuestionCard(
             onMediaClick = mediaClick
         )
 
-        // Extra space before answering so toolbar doesn't block answer options
-        if (!state.answerSubmitted) {
-            Spacer(modifier = Modifier.height(80.dp))
-        }
-
         AnimatedVisibility(
             visible = state.answerSubmitted && explanationHtml.isNotBlank(),
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
+            enter = fadeIn(
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            ) + expandVertically(
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            ),
+            exit = fadeOut(
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            ) + shrinkVertically(
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            )
         ) {
-            Surface(
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                modifier = Modifier.fillMaxWidth()
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                ),
+                elevation = CardDefaults.elevatedCardElevation(
+                    defaultElevation = 1.dp
+                )
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -355,8 +401,16 @@ private fun QuizQuestionCard(
         // Question metadata - shown after answering (inside scrollable area)
         AnimatedVisibility(
             visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
+            enter = fadeIn(
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            ) + expandVertically(
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            ),
+            exit = fadeOut(
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            ) + shrinkVertically(
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            )
         ) {
             Column {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -367,18 +421,21 @@ private fun QuizQuestionCard(
         // Performance logs - shown after answering if logs enabled (inside scrollable area)
         AnimatedVisibility(
             visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
+            enter = fadeIn(
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            ) + expandVertically(
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            ),
+            exit = fadeOut(
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            ) + shrinkVertically(
+                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+            )
         ) {
             Column {
                 Spacer(modifier = Modifier.height(12.dp))
                 PerformanceCard(performance = state.currentPerformance)
             }
-        }
-
-        // Extra space for floating toolbar after all content when answer is submitted
-        if (state.answerSubmitted) {
-            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
@@ -445,7 +502,7 @@ private fun buildMetadataSections(question: Question?): List<MetadataSection> {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MetadataChipGroupRow(label: String, values: List<String>) {
-    val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    val contentColor = MaterialTheme.colorScheme.onSurfaceVariant
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -454,7 +511,7 @@ private fun MetadataChipGroupRow(label: String, values: List<String>) {
             text = label,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
-            color = contentColor.copy(alpha = 0.75f)
+            color = contentColor
         )
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -470,7 +527,7 @@ private fun MetadataChipGroupRow(label: String, values: List<String>) {
 @Composable
 private fun MetadataTag(text: String) {
     Surface(
-        shape = RoundedCornerShape(50),
+        shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerHighest
     ) {
         Text(

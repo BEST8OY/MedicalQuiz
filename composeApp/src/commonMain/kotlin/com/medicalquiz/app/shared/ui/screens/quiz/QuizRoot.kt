@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -157,6 +158,8 @@ fun QuizRoot(
         }
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            val bottomInsets = WindowInsets.navigationBars
+            
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 topBar = {
@@ -169,7 +172,8 @@ fun QuizRoot(
                         onResetLogClick = { viewModel.clearCurrentQuestionLog() },
                         onSettingsClick = { showSettingsDialog = true }
                     )
-                }
+                },
+                contentWindowInsets = WindowInsets.statusBars
             ) { padding ->
                 QuizScreen(
                     viewModel = viewModel,
@@ -178,13 +182,12 @@ fun QuizRoot(
                     onNext = { viewModel.loadNext() },
                     onJumpTo = { showJumpToDialog = true },
                     onOpenSettings = { showSettingsDialog = true },
-                    contentPadding = padding
+                    contentPadding = padding,
+                    bottomToolbarHeight = bottomInsets.asPaddingValues().calculateBottomPadding() + 80.dp // Toolbar height + nav bar
                 )
             }
             
-            // Floating toolbar - centered at bottom, floats above content
-            // Apply navigation bars insets to avoid overlap with gesture navigation
-            val bottomInsets = WindowInsets.navigationBars
+            // Floating toolbar - centered at bottom with proper inset handling
             QuizFloatingToolbar(
                 uiState = QuizBottomToolbarUiState(
                     currentQuestionIndex = state.currentQuestionIndex,
