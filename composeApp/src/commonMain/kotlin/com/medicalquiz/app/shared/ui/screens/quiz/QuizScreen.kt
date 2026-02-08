@@ -83,15 +83,13 @@ private fun QuestionContent(
     mediaHandler: MediaHandler,
     contentPadding: PaddingValues
 ) {
-    val metadataSections = buildMetadataSections(state.currentQuestion)
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // Question content stays primary, metadata/logs follow below
+        // Question content stays primary, metadata/logs are now inside the scrollable area
         Surface(
             modifier = Modifier
                 .weight(1f)
@@ -104,30 +102,6 @@ private fun QuestionContent(
                 viewModel = viewModel,
                 mediaHandler = mediaHandler
             )
-        }
-
-        // Question metadata - shown after answering
-        AnimatedVisibility(
-            visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Column {
-                Spacer(modifier = Modifier.height(12.dp))
-                QuestionMetadataCard(sections = metadataSections)
-            }
-        }
-
-        // Performance logs - shown after answering if logs enabled
-        AnimatedVisibility(
-            visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Column {
-                Spacer(modifier = Modifier.height(12.dp))
-                PerformanceCard(performance = state.currentPerformance)
-            }
         }
     }
 }
@@ -195,6 +169,7 @@ private fun QuizQuestionCard(
 ) {
     val question = state.currentQuestion
     val answers = state.currentAnswers
+    val metadataSections = buildMetadataSections(question)
     val uriHandler = LocalUriHandler.current
     val linkHandler: (String) -> Unit = remember(question?.id, mediaHandler) {
         { url ->
@@ -330,6 +305,11 @@ private fun QuizQuestionCard(
             onMediaClick = mediaClick
         )
 
+        // Extra space before answering so toolbar doesn't block answer options
+        if (!state.answerSubmitted) {
+            Spacer(modifier = Modifier.height(80.dp))
+        }
+
         AnimatedVisibility(
             visible = state.answerSubmitted && explanationHtml.isNotBlank(),
             enter = fadeIn() + expandVertically(),
@@ -363,6 +343,34 @@ private fun QuizQuestionCard(
             }
         }
 
+        // Question metadata - shown after answering (inside scrollable area)
+        AnimatedVisibility(
+            visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(12.dp))
+                QuestionMetadataCard(sections = metadataSections)
+            }
+        }
+
+        // Performance logs - shown after answering if logs enabled (inside scrollable area)
+        AnimatedVisibility(
+            visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(12.dp))
+                PerformanceCard(performance = state.currentPerformance)
+            }
+        }
+
+        // Extra space for floating toolbar after all content when answer is submitted
+        if (state.answerSubmitted) {
+            Spacer(modifier = Modifier.height(80.dp))
+        }
     }
 }
 
