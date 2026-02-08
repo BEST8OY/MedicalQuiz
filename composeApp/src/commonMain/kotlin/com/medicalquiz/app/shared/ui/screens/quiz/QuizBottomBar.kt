@@ -1,6 +1,5 @@
 package com.medicalquiz.app.shared.ui.screens.quiz
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
@@ -14,6 +13,7 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -122,19 +122,24 @@ fun QuizFloatingToolbar(
                 }
             },
             content = {
-                // Question counter - clickable to jump
-                // Using Text with Modifier.clickable instead of AssistChip for cleaner look
-                Text(
-                    text = questionLabel,
+                // Question counter - clickable chip-style element
+                Surface(
+                    onClick = onJumpTo,
+                    shape = androidx.compose.material3.MaterialTheme.shapes.small,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier
-                        .clickable(onClick = onJumpTo)
-                        .sizeIn(minHeight = 48.dp)
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .sizeIn(minHeight = 40.dp)
                         .semantics {
                             contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}. Tap to jump."
                         },
-                    style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
-                )
+                ) {
+                    Text(
+                        text = questionLabel,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
             }
         )
     }

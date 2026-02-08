@@ -11,13 +11,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -120,36 +118,53 @@ private fun AnswerListItem(
                 )
             }
             else -> {
-                // Radio button for selection state (when no result shown)
-                RadioButton(
-                    selected = isSelected,
-                    onClick = null, // Click handled by ListItem
-                    enabled = enabled
-                )
+                // No trailing element needed - selection shown via background color
             }
         }
     }
     
-    ListItem(
-        headlineContent = {
-            RichText(
-                html = html,
-                onLinkClick = onLinkClick,
-                onMediaClick = onMediaClick,
-                showSelectedHighlight = showResult
-            )
-        },
-        leadingContent = leadingContent,
-        trailingContent = trailingContent,
-        colors = ListItemDefaults.colors(
-            containerColor = containerColor,
-            headlineColor = contentColor
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick)
-            .alpha(if (enabled) 1f else 0.6f)
-    )
+    // Use expressive shape (rounded corners) when showing results
+    val listItemContent: @Composable () -> Unit = {
+        ListItem(
+            headlineContent = {
+                RichText(
+                    html = html,
+                    onLinkClick = onLinkClick,
+                    onMediaClick = onMediaClick,
+                    showSelectedHighlight = showResult
+                )
+            },
+            leadingContent = leadingContent,
+            trailingContent = trailingContent,
+            colors = ListItemDefaults.colors(
+                containerColor = if (showResult) Color.Transparent else containerColor,
+                headlineColor = contentColor
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+    
+    if (showResult && containerColor != colors.surface) {
+        // Expressive design: rounded container for result states
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = containerColor,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = enabled, onClick = onClick)
+        ) {
+            listItemContent()
+        }
+    } else {
+        // Standard design: no rounded corners for selection state
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = enabled, onClick = onClick)
+        ) {
+            listItemContent()
+        }
+    }
 }
 
 /**
