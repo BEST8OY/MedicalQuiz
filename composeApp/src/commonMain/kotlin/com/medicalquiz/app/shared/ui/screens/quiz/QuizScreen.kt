@@ -87,15 +87,13 @@ private fun QuestionContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         // Question content stays primary, metadata/logs are now inside the scrollable area
         Surface(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-            tonalElevation = 2.dp,
-            shape = MaterialTheme.shapes.large
+            tonalElevation = 2.dp
         ) {
             QuizQuestionCard(
                 state = state,
@@ -262,7 +260,6 @@ private fun QuizQuestionCard(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
