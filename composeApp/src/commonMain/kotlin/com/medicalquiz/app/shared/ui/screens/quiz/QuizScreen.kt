@@ -20,10 +20,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material3.Card
-import androidx.compose.material3.Surface
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -93,7 +98,7 @@ private fun QuestionContent(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-            tonalElevation = 2.dp
+            color = MaterialTheme.colorScheme.surfaceContainer
         ) {
             QuizQuestionCard(
                 state = state,
@@ -116,8 +121,8 @@ private fun HintSection(
 ) {
     Surface(
         shape = MaterialTheme.shapes.small,
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(
-            alpha = if (isVisible) 1f else 0.6f
+        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(
+            alpha = if (isVisible) 1f else 0.7f
         ),
         modifier = Modifier.fillMaxWidth(),
         onClick = if (canToggle) onToggle else ({})
@@ -125,15 +130,21 @@ private fun HintSection(
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Icon(
+                    imageVector = Icons.Rounded.Lightbulb,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
                 Text(
-                    text = "💡 Hint",
+                    text = "Hint",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
+                Spacer(modifier = Modifier.weight(1f))
                 if (canToggle) {
                     Text(
                         text = if (isVisible) "▲" else "▼",
@@ -260,7 +271,8 @@ private fun QuizQuestionCard(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(scrollState),
+            .verticalScroll(scrollState)
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Use HighlightableRichText for question content
@@ -314,7 +326,7 @@ private fun QuizQuestionCard(
         ) {
             Surface(
                 shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.surfaceContainer,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -325,7 +337,7 @@ private fun QuizQuestionCard(
                         text = "Explanation",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                        color = MaterialTheme.colorScheme.primary
                     )
                     // Use HighlightableRichText for explanation
                     HighlightableRichText(
@@ -375,18 +387,21 @@ private fun QuizQuestionCard(
 private fun QuestionMetadataCard(sections: List<MetadataSection>) {
     if (sections.isEmpty()) return
 
-    Card(
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        elevation = CardDefaults.elevatedCardElevation(
+            defaultElevation = 2.dp
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             sections.forEach { section ->
                 when (section) {
@@ -456,14 +471,14 @@ private fun MetadataChipGroupRow(label: String, values: List<String>) {
 private fun MetadataTag(text: String) {
     Surface(
         shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+        color = MaterialTheme.colorScheme.surfaceContainerHighest
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -483,23 +498,27 @@ private fun extractMetadataList(raw: String?): List<String> {
 private fun PerformanceCard(performance: QuestionPerformance?) {
     performance ?: return
     
-    val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    val contentColor = MaterialTheme.colorScheme.onSurface
     val lastResultColor = if (performance.lastCorrect) 
         MaterialTheme.colorScheme.tertiary 
     else 
         MaterialTheme.colorScheme.error
     
-    Card(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {

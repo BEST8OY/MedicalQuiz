@@ -38,7 +38,7 @@ internal fun TopBar(
         title = {
             Text(
                 text = title.ifBlank { "Medical Quiz" },
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1
             )

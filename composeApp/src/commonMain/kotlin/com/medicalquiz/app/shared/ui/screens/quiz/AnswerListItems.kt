@@ -1,13 +1,11 @@
 package com.medicalquiz.app.shared.ui.screens.quiz
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -52,7 +50,7 @@ private fun AnswerListItem(
         showResult && isCorrect -> colors.tertiaryContainer
         showResult && isSelected && !isCorrect -> colors.errorContainer
         isSelected -> colors.primaryContainer
-        else -> colors.surface
+        else -> colors.surfaceContainerLowest
     }
     
     // Determine content color
@@ -65,21 +63,22 @@ private fun AnswerListItem(
     
     // Leading element: Label (A, B, C, D) with radio button style selection
     val leadingContent: @Composable () -> Unit = {
-        Box(
-            modifier = Modifier
-                .background(
-                    color = if (isSelected) colors.primary.copy(alpha = 0.12f) else Color.Transparent,
-                    shape = MaterialTheme.shapes.small
-                )
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center
+        Surface(
+            shape = MaterialTheme.shapes.small,
+            color = if (isSelected) colors.primaryContainer else colors.surfaceContainerHigh,
+            modifier = Modifier.padding(end = 8.dp)
         ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = if (isSelected) colors.primary else colors.onSurfaceVariant
-            )
+            Box(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isSelected) colors.onPrimaryContainer else colors.onSurfaceVariant
+                )
+            }
         }
     }
     
@@ -96,7 +95,7 @@ private fun AnswerListItem(
                         text = "$percentage%",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                         color = colors.onSecondaryContainer
                     )
                 }
@@ -144,7 +143,7 @@ private fun AnswerListItem(
         )
     }
     
-    if (showResult && containerColor != colors.surface) {
+    if (showResult && containerColor != colors.surfaceContainerLowest) {
         // Expressive design: rounded container for result states
         Surface(
             shape = MaterialTheme.shapes.medium,
@@ -171,7 +170,7 @@ private fun AnswerListItem(
  * Answer options section using List-based layout.
  *
  * Per M3 Guidelines:
- * - Use gaps or dividers between list items
+ * - Use spacing between list items for cleaner appearance
  * - Lists are for discrete, selectable items
  * - Each item should have consistent layout
  */
@@ -189,7 +188,7 @@ fun AnswerOptions(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         answers.forEachIndexed { index, answer ->
             val label = ('A'.code + index).toChar().toString()
@@ -197,7 +196,7 @@ fun AnswerOptions(
             val isSelected = answer.answerId.toInt() == selectedAnswerId
             val isCorrect = answer.answerId.toInt() == correctAnswerId
             val percentage = answerPercentages[answer.answerId]
-            
+
             AnswerListItem(
                 label = label,
                 html = html,
@@ -210,14 +209,6 @@ fun AnswerOptions(
                 onLinkClick = onLinkClick,
                 onMediaClick = onMediaClick
             )
-            
-            // Add divider between items (except after last)
-            if (index < answers.size - 1) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-            }
         }
     }
 }
