@@ -89,8 +89,7 @@ private fun QuestionContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .padding(horizontal = 16.dp)
-            .padding(top = 12.dp, bottom = 80.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         // Question content stays primary, metadata/logs follow below
         Surface(

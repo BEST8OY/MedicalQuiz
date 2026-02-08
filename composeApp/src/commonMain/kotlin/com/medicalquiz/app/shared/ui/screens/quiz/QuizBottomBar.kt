@@ -1,8 +1,11 @@
 package com.medicalquiz.app.shared.ui.screens.quiz
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
@@ -122,10 +125,10 @@ fun QuizFloatingToolbar(
                 }
             },
             content = {
-                // Question counter - clickable chip-style element
+                // Question counter - centered with fully rounded (pill) container
                 Surface(
                     onClick = onJumpTo,
-                    shape = androidx.compose.material3.MaterialTheme.shapes.small,
+                    shape = RoundedCornerShape(50),
                     color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier
                         .sizeIn(minHeight = 40.dp)
@@ -133,12 +136,16 @@ fun QuizFloatingToolbar(
                             contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}. Tap to jump."
                         },
                 ) {
-                    Text(
-                        text = questionLabel,
+                    Box(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = questionLabel,
+                            style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
                 }
             }
         )
