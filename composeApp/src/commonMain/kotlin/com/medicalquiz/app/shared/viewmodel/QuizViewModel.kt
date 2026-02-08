@@ -7,6 +7,7 @@ import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.data.SettingsRepository
 import com.medicalquiz.app.shared.data.TextHighlightsRepository
 import com.medicalquiz.app.shared.data.database.DatabaseProvider
+import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.data.database.QuestionPerformance
 import com.medicalquiz.app.shared.data.models.Subject
@@ -73,7 +74,7 @@ class QuizViewModel : ViewModel() {
             try {
                 oldDb?.closeDatabase()
             } catch (e: Exception) {
-                println("Error closing old database: ${e.message}")
+                Logger.e("QuizViewModel", "Error closing old database", e)
             }
             initializeAfterDatabaseSwitch()
         }
@@ -93,8 +94,8 @@ class QuizViewModel : ViewModel() {
 
     fun setSettingsRepository(repo: SettingsRepository) {
         if (settingsRepository === repo) return
-        settingsRepository = repo
         settingsObservationJob?.cancel()
+        settingsRepository = repo
         settingsObservationJob = observeSettings(repo)
     }
 
@@ -186,7 +187,7 @@ class QuizViewModel : ViewModel() {
 
     private suspend fun initializeAfterDatabaseSwitch() {
         try {
-            println("Initializing after database switch")
+            Logger.d("QuizViewModel", "Initializing after database switch")
             
             // Start fresh with new database
             _state.update {
@@ -203,9 +204,9 @@ class QuizViewModel : ViewModel() {
 
             fetchSubjects()
             // No subjects selected initially, so no systems to fetch
-            println("Database initialization completed")
+            Logger.d("QuizViewModel", "Database initialization completed")
         } catch (e: Exception) {
-            println("Error during post-switch initialization: ${e.message}")
+            Logger.e("QuizViewModel", "Error during post-switch initialization", e)
             emitToast("Database initialization incomplete: ${e.message}")
         }
     }
@@ -241,7 +242,7 @@ class QuizViewModel : ViewModel() {
                     textHighlightsRepository?.loadHighlightsForQuestion(question.id)
                 }
             } catch (e: Exception) {
-                println("Error loading question $questionId: ${e.message}")
+                Logger.e("QuizViewModel", "Error loading question $questionId", e)
                 emitToast("Failed to load question: ${e.message}")
             } finally {
                 _state.update { it.copy(isLoading = false) }
@@ -373,7 +374,7 @@ class QuizViewModel : ViewModel() {
         _state.update { it.copy(questionIds = ids) }
     }
 
-    fun loadFilteredQuestionIds() {
+    fun loadFilteredQuestionIds(updatePreviewCount: Boolean = true) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val currentState = state.value
@@ -382,16 +383,17 @@ class QuizViewModel : ViewModel() {
                     currentState.selectedSystemIds.toList(),
                     currentState.performanceFilter
                 )
-                val currentQuestionId = currentState.questionIds.getOrNull(currentState.currentQuestionIndex)
-                val newIndex = if (currentQuestionId != null && currentQuestionId in ids) {
-                    ids.indexOf(currentQuestionId)
-                } else {
-                    0
+                val newIndex = currentState.currentQuestionIndex.coerceIn(0, ids.size - 1)
+                _state.update {
+                    it.copy(
+                        questionIds = ids,
+                        currentQuestionIndex = newIndex,
+                        previewQuestionCount = if (updatePreviewCount) ids.size else it.previewQuestionCount
+                    )
                 }
-                _state.update { it.copy(questionIds = ids, currentQuestionIndex = newIndex) }
                 loadQuestion(newIndex)
             } catch (e: Exception) {
-                println("Error loading filtered questions: ${e.message}")
+                Logger.e("QuizViewModel", "Error loading filtered questions", e)
             }
         }
     }
@@ -430,9 +432,11 @@ class QuizViewModel : ViewModel() {
             }
 
             _state.update { it.copy(selectedSystemIds = validSystems) }
-            updatePreviewQuestionCountInternal()
             if (loadQuestions) {
-                loadFilteredQuestionIds()
+                // loadFilteredQuestionIds will update previewQuestionCount
+                loadFilteredQuestionIds(updatePreviewCount = true)
+            } else {
+                updatePreviewQuestionCountInternal()
             }
             saveSession()
         }
@@ -503,9 +507,11 @@ class QuizViewModel : ViewModel() {
     fun setPerformanceFilter(filter: PerformanceFilter, loadQuestions: Boolean = true) {
         _state.update { it.copy(performanceFilter = filter) }
         viewModelScope.launch(Dispatchers.IO) {
-            updatePreviewQuestionCountInternal()
             if (loadQuestions) {
-                loadFilteredQuestionIds()
+                // loadFilteredQuestionIds will update previewQuestionCount
+                loadFilteredQuestionIds(updatePreviewCount = true)
+            } else {
+                updatePreviewQuestionCountInternal()
             }
             saveSession()
         }
