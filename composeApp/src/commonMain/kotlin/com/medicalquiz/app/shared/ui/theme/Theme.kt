@@ -88,7 +88,7 @@ private val DarkColorScheme = darkColorScheme(
     onErrorContainer = OnErrorContainerDark,
 
     // Surface colors - M3 Expressive with containers
-    surfaceDim = SurfaceDimLight,
+    surfaceDim = SurfaceDimDark,
     surface = SurfaceDark,
     surfaceBright = SurfaceBrightDark,
     surfaceContainerLowest = SurfaceContainerLowestDark,
