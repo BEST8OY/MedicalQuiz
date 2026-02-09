@@ -46,7 +46,7 @@ actual fun VideoPlayer(
     }
 
     // Handle lifecycle - pause when backgrounded
-    LifecycleResumeEffect(lifecycleOwner) {
+    LifecycleResumeEffect(lifecycleOwner, exoPlayer) {
         // ON_RESUME: restore play state
         exoPlayer.playWhenReady = playWhenReady
 

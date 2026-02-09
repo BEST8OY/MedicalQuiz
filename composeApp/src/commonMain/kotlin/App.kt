@@ -284,7 +284,7 @@ fun App() {
                     // Database Selection Screen - app entry point
                     entry<MedicalQuizRoutes.DatabaseSelection> {
                         DatabaseSelectionScreen(
-                            onDatabaseSelected = dropUnlessResumed { dbName ->
+                            onDatabaseSelected = dropUnlessResumed<String> { dbName ->
                                 selectedDatabase = dbName
                                 // Navigate to filter screen after database selection
                                 backStack.add(MedicalQuizRoutes.Filter)
