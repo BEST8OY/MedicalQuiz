@@ -179,6 +179,8 @@ fun App() {
             // Database state - restore from saved state or use null for fresh start
             var selectedDatabase by rememberSaveable { mutableStateOf<String?>(savedDbName) }
             var initializedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
+            var pendingHistoryRestoreToken by rememberSaveable { mutableStateOf(0) }
+            var handledHistoryRestoreToken by rememberSaveable { mutableStateOf(0) }
 
             // Initialize common dependencies
             LaunchedEffect(Unit) {
@@ -190,19 +192,28 @@ fun App() {
             }
 
             // Handle database initialization when selected
-            LaunchedEffect(selectedDatabase) {
+            LaunchedEffect(selectedDatabase, pendingHistoryRestoreToken) {
                 selectedDatabase?.let { dbName ->
-                    if (initializedDatabase == dbName && viewModel.getDatabaseManager() != null) {
-                        return@LaunchedEffect
+                    val hasDatabaseManager = viewModel.getDatabaseManager() != null
+                    if (initializedDatabase != dbName || !hasDatabaseManager) {
+                        val dbPath = FileSystemHelper.getDatabasePath(dbName)
+                        val databaseManager = DatabaseManager(dbPath)
+                        databaseManager.init()
+
+                        viewModel.setDatabaseManager(databaseManager)
+                        viewModel.setDatabaseName(dbName.removeSuffix(".db"))
+                        initializedDatabase = dbName
                     }
 
-                    val dbPath = FileSystemHelper.getDatabasePath(dbName)
-                    val databaseManager = DatabaseManager(dbPath)
-                    databaseManager.init()
-
-                    viewModel.setDatabaseManager(databaseManager)
-                    viewModel.setDatabaseName(dbName.removeSuffix(".db"))
-                    initializedDatabase = dbName
+                    val hasPendingHistoryRestore = pendingHistoryRestoreToken != handledHistoryRestoreToken
+                    if (hasPendingHistoryRestore) {
+                        val sessionRestored = viewModel.restoreSession()
+                        if (sessionRestored) {
+                            viewModel.loadFilteredQuestionIds()
+                        }
+                        handledHistoryRestoreToken = pendingHistoryRestoreToken
+                        return@LaunchedEffect
+                    }
 
                     // If we're on the Quiz screen but questionIds is empty (app restart),
                     // restore quiz session from saved state
@@ -302,6 +313,7 @@ fun App() {
                                 if (matchingDatabase != null) {
                                     val restoredEntry = sessionRepository.restoreHistoryEntry(entry.id)
                                     if (restoredEntry != null) {
+                                        pendingHistoryRestoreToken += 1
                                         selectedDatabase = matchingDatabase
                                         backStack.clear()
                                         backStack.add(MedicalQuizRoutes.DatabaseSelection)

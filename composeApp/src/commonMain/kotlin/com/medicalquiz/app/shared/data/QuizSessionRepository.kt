@@ -49,7 +49,7 @@ class QuizSessionRepository {
                 updatedAtEpochMillis = now,
             )
             writeSession(session)
-            upsertHistory(session)
+            appendHistoryEntry(session)
         } catch (e: Exception) {
             Logger.e("QuizSession", "Error saving quiz session", e)
         }
@@ -112,14 +112,11 @@ class QuizSessionRepository {
         }
     }
 
-    private fun upsertHistory(session: QuizSession) {
-        val history = listHistory().toMutableList()
-        val existing = history.indexOfFirst { it.databaseName == session.databaseName }
-        if (existing >= 0) {
-            history[existing] = session.copy(id = history[existing].id)
-        } else {
-            history.add(session)
-        }
+    private fun appendHistoryEntry(session: QuizSession) {
+        val history = listHistory()
+            .filterNot { it.id == session.id }
+            .toMutableList()
+        history.add(session)
         saveHistoryList(history)
     }
 
