@@ -5,7 +5,6 @@ import com.medicalquiz.app.shared.data.models.HighlightSection
 import com.medicalquiz.app.shared.data.models.TextHighlight
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,8 +19,14 @@ class TextHighlightsRepository(
     private val userDataManager: UserDataManager,
     private val scope: CoroutineScope
 ) {
+    private data class HighlightContext(
+        val dbName: String,
+        val questionId: Long
+    )
+
     private var currentDbName: String = ""
     private var currentQuestionId: Long = -1
+    private var activeLoadRequestId: Long = 0
 
     // Highlights for current question, grouped by section
     private val _questionHighlights = MutableStateFlow<List<TextHighlight>>(emptyList())
@@ -40,10 +45,10 @@ class TextHighlightsRepository(
     fun setCurrentDatabase(dbName: String) {
         if (dbName == currentDbName) return
         currentDbName = dbName
-        // Clear highlights when database changes
-        _questionHighlights.value = emptyList()
-        _explanationHighlights.value = emptyList()
         currentQuestionId = -1
+        clearCachedHighlights()
+        invalidatePendingLoads()
+        _isLoading.value = false
     }
 
     /**
@@ -53,29 +58,36 @@ class TextHighlightsRepository(
     fun loadHighlightsForQuestion(questionId: Long) {
         if (currentDbName.isEmpty()) return
         if (questionId == currentQuestionId) return
-        
+
         currentQuestionId = questionId
-        
+        val context = currentContextSnapshot() ?: return
+        val requestId = ++activeLoadRequestId
+
         scope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {
                 val allHighlights = userDataManager.getAllTextHighlightsForQuestion(
-                    currentDbName, 
-                    questionId
+                    context.dbName,
+                    context.questionId
                 )
-                
-                _questionHighlights.value = allHighlights.filter { 
-                    it.section == HighlightSection.QUESTION 
+
+                if (!isRequestActive(requestId, context)) return@launch
+
+                _questionHighlights.value = allHighlights.filter {
+                    it.section == HighlightSection.QUESTION
                 }
-                _explanationHighlights.value = allHighlights.filter { 
-                    it.section == HighlightSection.EXPLANATION 
+                _explanationHighlights.value = allHighlights.filter {
+                    it.section == HighlightSection.EXPLANATION
                 }
             } catch (e: Exception) {
-                println("Error loading text highlights: ${e.message}")
-                _questionHighlights.value = emptyList()
-                _explanationHighlights.value = emptyList()
+                if (isRequestActive(requestId, context)) {
+                    println("Error loading text highlights: ${e.message}")
+                    clearCachedHighlights()
+                }
             } finally {
-                _isLoading.value = false
+                if (requestId == activeLoadRequestId) {
+                    _isLoading.value = false
+                }
             }
         }
     }
@@ -100,31 +112,31 @@ class TextHighlightsRepository(
         highlightedText: String,
         color: HighlightColor = HighlightColor.YELLOW
     ) {
-        if (currentDbName.isEmpty() || currentQuestionId < 0) return
+        val context = currentContextSnapshot() ?: return
 
         scope.launch(Dispatchers.IO) {
             try {
                 val highlight = userDataManager.addTextHighlight(
-                    dbName = currentDbName,
-                    questionId = currentQuestionId,
+                    dbName = context.dbName,
+                    questionId = context.questionId,
                     section = section,
                     startOffset = startOffset,
                     endOffset = endOffset,
                     highlightedText = highlightedText,
                     color = color
                 )
-                
-                // Update cache
+
+                if (!matchesCurrentContext(context)) return@launch
+
                 when (section) {
                     HighlightSection.QUESTION -> {
-                        val updated = (_questionHighlights.value + highlight)
+                        _questionHighlights.value = (_questionHighlights.value + highlight)
                             .sortedBy { it.startOffset }
-                        _questionHighlights.value = updated
                     }
+
                     HighlightSection.EXPLANATION -> {
-                        val updated = (_explanationHighlights.value + highlight)
+                        _explanationHighlights.value = (_explanationHighlights.value + highlight)
                             .sortedBy { it.startOffset }
-                        _explanationHighlights.value = updated
                     }
                 }
             } catch (e: Exception) {
@@ -140,8 +152,7 @@ class TextHighlightsRepository(
         scope.launch(Dispatchers.IO) {
             try {
                 userDataManager.removeTextHighlight(highlightId)
-                
-                // Update cache
+
                 _questionHighlights.value = _questionHighlights.value.filter { it.id != highlightId }
                 _explanationHighlights.value = _explanationHighlights.value.filter { it.id != highlightId }
             } catch (e: Exception) {
@@ -157,13 +168,12 @@ class TextHighlightsRepository(
         scope.launch(Dispatchers.IO) {
             try {
                 userDataManager.updateTextHighlightColor(highlightId, color)
-                
-                // Update cache
-                _questionHighlights.value = _questionHighlights.value.map { 
-                    if (it.id == highlightId) it.copy(color = color) else it 
+
+                _questionHighlights.value = _questionHighlights.value.map {
+                    if (it.id == highlightId) it.copy(color = color) else it
                 }
-                _explanationHighlights.value = _explanationHighlights.value.map { 
-                    if (it.id == highlightId) it.copy(color = color) else it 
+                _explanationHighlights.value = _explanationHighlights.value.map {
+                    if (it.id == highlightId) it.copy(color = color) else it
                 }
             } catch (e: Exception) {
                 println("Error updating highlight color: ${e.message}")
@@ -191,13 +201,13 @@ class TextHighlightsRepository(
      * Clear all highlights for the current question.
      */
     fun clearAllHighlightsForCurrentQuestion() {
-        if (currentDbName.isEmpty() || currentQuestionId < 0) return
+        val context = currentContextSnapshot() ?: return
 
         scope.launch(Dispatchers.IO) {
             try {
-                userDataManager.clearTextHighlightsForQuestion(currentDbName, currentQuestionId)
-                _questionHighlights.value = emptyList()
-                _explanationHighlights.value = emptyList()
+                userDataManager.clearTextHighlightsForQuestion(context.dbName, context.questionId)
+                if (!matchesCurrentContext(context)) return@launch
+                clearCachedHighlights()
             } catch (e: Exception) {
                 println("Error clearing highlights: ${e.message}")
             }
@@ -208,16 +218,18 @@ class TextHighlightsRepository(
      * Clear highlights for a specific section of the current question.
      */
     fun clearHighlightsForSection(section: HighlightSection) {
-        if (currentDbName.isEmpty() || currentQuestionId < 0) return
+        val context = currentContextSnapshot() ?: return
 
         scope.launch(Dispatchers.IO) {
             try {
                 userDataManager.clearTextHighlightsForQuestion(
-                    currentDbName, 
-                    currentQuestionId, 
+                    context.dbName,
+                    context.questionId,
                     section
                 )
-                
+
+                if (!matchesCurrentContext(context)) return@launch
+
                 when (section) {
                     HighlightSection.QUESTION -> _questionHighlights.value = emptyList()
                     HighlightSection.EXPLANATION -> _explanationHighlights.value = emptyList()
@@ -232,4 +244,26 @@ class TextHighlightsRepository(
      * Get the current question ID being tracked.
      */
     fun getCurrentQuestionId(): Long = currentQuestionId
+
+    private fun currentContextSnapshot(): HighlightContext? {
+        if (currentDbName.isEmpty() || currentQuestionId < 0) return null
+        return HighlightContext(currentDbName, currentQuestionId)
+    }
+
+    private fun matchesCurrentContext(context: HighlightContext): Boolean {
+        return context.dbName == currentDbName && context.questionId == currentQuestionId
+    }
+
+    private fun isRequestActive(requestId: Long, context: HighlightContext): Boolean {
+        return requestId == activeLoadRequestId && matchesCurrentContext(context)
+    }
+
+    private fun clearCachedHighlights() {
+        _questionHighlights.value = emptyList()
+        _explanationHighlights.value = emptyList()
+    }
+
+    private fun invalidatePendingLoads() {
+        activeLoadRequestId++
+    }
 }
