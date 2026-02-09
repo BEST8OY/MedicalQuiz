@@ -4,6 +4,7 @@ import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.platform.StorageProvider
+import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -18,6 +19,12 @@ import kotlinx.serialization.json.Json
 class QuizSessionRepository {
     private val sessionFile: String
         get() = "${StorageProvider.getAppStorageDirectory()}/quiz_session.json"
+    private val sessionHistoryFile: String
+        get() = "${StorageProvider.getAppStorageDirectory()}/quiz_session_history.json"
+
+    private companion object {
+        const val MAX_HISTORY_ENTRIES = 20
+    }
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -52,12 +59,33 @@ class QuizSessionRepository {
                 selectedSubjectIds = selectedSubjectIds.toList(),
                 selectedSystemIds = selectedSystemIds.toList(),
                 performanceFilter = performanceFilter,
-                currentQuestionIndex = currentQuestionIndex
+                currentQuestionIndex = currentQuestionIndex,
+                lastUpdatedEpochMillis = Clock.System.now().toEpochMilliseconds()
             )
             val jsonString = json.encodeToString(session)
             FileSystemHelper.writeText(sessionFile, jsonString)
+            saveToHistory(session)
         } catch (e: Exception) {
             Logger.e("QuizSession", "Error saving quiz session", e)
+        }
+    }
+
+    fun getSessionHistory(): List<QuizSession> {
+        return try {
+            val content = FileSystemHelper.readText(sessionHistoryFile) ?: return emptyList()
+            json.decodeFromString<List<QuizSession>>(content)
+                .sortedByDescending { it.lastUpdatedEpochMillis }
+        } catch (e: Exception) {
+            Logger.e("QuizSession", "Error loading session history", e)
+            emptyList()
+        }
+    }
+
+    fun activateSession(session: QuizSession) {
+        try {
+            FileSystemHelper.writeText(sessionFile, json.encodeToString(session))
+        } catch (e: Exception) {
+            Logger.e("QuizSession", "Error activating session", e)
         }
     }
 
@@ -91,6 +119,21 @@ class QuizSessionRepository {
         }
     }
 
+    private fun saveToHistory(session: QuizSession) {
+        val existing = getSessionHistory()
+        val updated = listOf(session) + existing.filterNot { it.historyKey() == session.historyKey() }
+        FileSystemHelper.writeText(
+            sessionHistoryFile,
+            json.encodeToString(updated.take(MAX_HISTORY_ENTRIES))
+        )
+    }
+
+    private fun QuizSession.historyKey(): String {
+        val subjectKey = selectedSubjectIds.sorted().joinToString(",")
+        val systemKey = selectedSystemIds.sorted().joinToString(",")
+        return "$databaseName|$subjectKey|$systemKey|$performanceFilter"
+    }
+
     /**
      * Data class representing a saved quiz session.
      */
@@ -100,6 +143,7 @@ class QuizSessionRepository {
         val selectedSubjectIds: List<Long>,
         val selectedSystemIds: List<Long>,
         val performanceFilter: PerformanceFilter,
-        val currentQuestionIndex: Int
+        val currentQuestionIndex: Int,
+        val lastUpdatedEpochMillis: Long = 0L
     )
 }

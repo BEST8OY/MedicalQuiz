@@ -178,6 +178,7 @@ fun App() {
             // Database state - restore from saved state or use null for fresh start
             var selectedDatabase by rememberSaveable { mutableStateOf<String?>(savedDbName) }
             var initializedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
+            var pendingHistorySession by remember { mutableStateOf<QuizSessionRepository.QuizSession?>(null) }
 
             // Initialize common dependencies
             LaunchedEffect(Unit) {
@@ -189,19 +190,38 @@ fun App() {
             }
 
             // Handle database initialization when selected
-            LaunchedEffect(selectedDatabase) {
+            LaunchedEffect(selectedDatabase, pendingHistorySession) {
                 selectedDatabase?.let { dbName ->
-                    if (initializedDatabase == dbName && viewModel.getDatabaseManager() != null) {
+                    if (initializedDatabase == dbName && viewModel.getDatabaseManager() != null && pendingHistorySession == null) {
                         return@LaunchedEffect
                     }
 
-                    val dbPath = FileSystemHelper.getDatabasePath(dbName)
-                    val databaseManager = DatabaseManager(dbPath)
-                    databaseManager.init()
+                    if (initializedDatabase != dbName || viewModel.getDatabaseManager() == null) {
+                        val dbPath = FileSystemHelper.getDatabasePath(dbName)
+                        val databaseManager = DatabaseManager(dbPath)
+                        databaseManager.init()
 
-                    viewModel.setDatabaseManager(databaseManager)
-                    viewModel.setDatabaseName(dbName.removeSuffix(".db"))
-                    initializedDatabase = dbName
+                        viewModel.setDatabaseManager(databaseManager)
+                        viewModel.setDatabaseName(dbName.removeSuffix(".db"))
+                        initializedDatabase = dbName
+                    }
+
+                    pendingHistorySession?.let { session ->
+                        if (session.databaseName == dbName.removeSuffix(".db")) {
+                            sessionRepository.activateSession(session)
+                            val restored = viewModel.restoreSession()
+                            if (restored) {
+                                while (backStack.size > 1) {
+                                    backStack.removeLastOrNull()
+                                }
+                                backStack.add(MedicalQuizRoutes.Filter)
+                                backStack.add(MedicalQuizRoutes.Quiz)
+                                viewModel.loadFilteredQuestionIds()
+                            }
+                            pendingHistorySession = null
+                            return@LaunchedEffect
+                        }
+                    }
 
                     // If we're on the Quiz screen but questionIds is empty (app restart),
                     // restore quiz session from saved state
@@ -284,11 +304,17 @@ fun App() {
                     // Database Selection Screen - app entry point
                     entry<MedicalQuizRoutes.DatabaseSelection> {
                         DatabaseSelectionScreen(
+                            sessionRepository = sessionRepository,
                             onDatabaseSelected = dropUnlessResumed { dbName ->
+                                pendingHistorySession = null
                                 selectedDatabase = dbName
                                 // Navigate to filter screen after database selection
                                 backStack.add(MedicalQuizRoutes.Filter)
-                            }
+                            },
+                            onResumeSession = dropUnlessResumed { dbName, session ->
+                                pendingHistorySession = session
+                                selectedDatabase = dbName
+                            },
                         )
                     }
 
