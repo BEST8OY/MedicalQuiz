@@ -128,6 +128,7 @@ fun App() {
 
             // Quiz session repository for persisting quiz state across process death
             val sessionRepository = remember { QuizSessionRepository() }
+            var sessionHistory by remember { mutableStateOf(sessionRepository.listHistory()) }
 
             // Media descriptions state for viewer
             val mediaDescriptionsFlow = remember { MutableStateFlow<Map<String, MediaDescription>>(emptyMap()) }
@@ -228,6 +229,9 @@ fun App() {
                 snapshotFlow { backStack.toList() }
                     .collect { currentStack ->
                         navStateRepo.saveNavigationState(currentStack, selectedDatabase)
+                        if (currentStack.lastOrNull() is MedicalQuizRoutes.DatabaseSelection) {
+                            sessionHistory = sessionRepository.listHistory()
+                        }
                     }
             }
 
@@ -284,10 +288,31 @@ fun App() {
                     // Database Selection Screen - app entry point
                     entry<MedicalQuizRoutes.DatabaseSelection> {
                         DatabaseSelectionScreen(
+                            historyEntries = sessionHistory,
                             onDatabaseSelected = { dbName ->
                                 selectedDatabase = dbName
                                 // Navigate to filter screen after database selection
                                 backStack.add(MedicalQuizRoutes.Filter)
+                            },
+                            onHistorySelected = { entry ->
+                                val matchingDatabase = FileSystemHelper.listDatabases().firstOrNull {
+                                    it.removeSuffix(".db") == entry.databaseName
+                                }
+
+                                if (matchingDatabase != null) {
+                                    val restoredEntry = sessionRepository.restoreHistoryEntry(entry.id)
+                                    if (restoredEntry != null) {
+                                        selectedDatabase = matchingDatabase
+                                        backStack.clear()
+                                        backStack.add(MedicalQuizRoutes.DatabaseSelection)
+                                        backStack.add(MedicalQuizRoutes.Filter)
+                                        backStack.add(MedicalQuizRoutes.Quiz)
+                                    }
+                                }
+                            },
+                            onDeleteHistoryEntry = { entryId ->
+                                sessionRepository.deleteHistoryEntry(entryId)
+                                sessionHistory = sessionRepository.listHistory()
                             }
                         )
                     }
