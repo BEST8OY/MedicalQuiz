@@ -1,12 +1,12 @@
 package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -398,43 +398,46 @@ private fun QuizQuestionCard(
             }
         }
 
-        // Question metadata - shown after answering (inside scrollable area)
-        AnimatedVisibility(
-            visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
-            enter = fadeIn(
-                animationSpec = spring(stiffness = Spring.StiffnessMedium)
-            ) + expandVertically(
-                animationSpec = spring(stiffness = Spring.StiffnessMedium)
-            ),
-            exit = fadeOut(
-                animationSpec = spring(stiffness = Spring.StiffnessMedium)
-            ) + shrinkVertically(
+        // Question metadata & logs container with smooth size animation
+        Column(
+            modifier = Modifier.animateContentSize(
                 animationSpec = spring(stiffness = Spring.StiffnessMedium)
             )
         ) {
-            Column {
-                Spacer(modifier = Modifier.height(12.dp))
-                QuestionMetadataCard(sections = metadataSections)
+            // Question metadata - shown after answering (inside scrollable area)
+            AnimatedVisibility(
+                visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
+                enter = fadeIn(
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                ) + expandVertically(
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                ),
+                exit = fadeOut(
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                )
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    QuestionMetadataCard(sections = metadataSections)
+                }
             }
-        }
 
-        // Performance logs - shown after answering if logs enabled (inside scrollable area)
-        AnimatedVisibility(
-            visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
-            enter = fadeIn(
-                animationSpec = spring(stiffness = Spring.StiffnessMedium)
-            ) + expandVertically(
-                animationSpec = spring(stiffness = Spring.StiffnessMedium)
-            ),
-            exit = fadeOut(
-                animationSpec = spring(stiffness = Spring.StiffnessMedium)
-            ) + shrinkVertically(
-                animationSpec = spring(stiffness = Spring.StiffnessMedium)
-            )
-        ) {
-            Column {
-                Spacer(modifier = Modifier.height(12.dp))
-                PerformanceCard(performance = state.currentPerformance)
+            // Performance logs - shown after answering if logs enabled (inside scrollable area)
+            AnimatedVisibility(
+                visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
+                enter = fadeIn(
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                ) + expandVertically(
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                ),
+                exit = fadeOut(
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                )
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    PerformanceCard(performance = state.currentPerformance)
+                }
             }
         }
     }
