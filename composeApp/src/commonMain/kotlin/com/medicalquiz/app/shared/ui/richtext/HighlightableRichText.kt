@@ -102,7 +102,6 @@ fun HighlightableRichText(
         blocks.forEach { block ->
             HighlightableBlockRenderer(
                 block = block,
-                section = section,
                 highlights = highlights,
                 baseOffset = cumulativeOffset,
                 onHighlightAdd = { start, end, text, color ->
@@ -148,7 +147,6 @@ fun HighlightableRichText(
 @Composable
 private fun HighlightableBlockRenderer(
     block: RichTextBlock,
-    section: HighlightSection,
     highlights: List<TextHighlight>,
     baseOffset: Int,
     onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
@@ -188,7 +186,6 @@ private fun HighlightableBlockRenderer(
             // Render each list item as individually highlightable
             HighlightableBulletList(
                 block = block,
-                section = section,
                 highlights = highlights,
                 baseOffset = baseOffset,
                 onHighlightAdd = onHighlightAdd,
@@ -203,7 +200,6 @@ private fun HighlightableBlockRenderer(
             // Render each list item as individually highlightable
             HighlightableOrderedList(
                 block = block,
-                section = section,
                 highlights = highlights,
                 baseOffset = baseOffset,
                 onHighlightAdd = onHighlightAdd,
@@ -222,7 +218,6 @@ private fun HighlightableBlockRenderer(
             // Render table cells as individually highlightable
             HighlightableTable(
                 block = block,
-                section = section,
                 highlights = highlights,
                 baseOffset = baseOffset,
                 onHighlightAdd = onHighlightAdd,
@@ -253,7 +248,6 @@ private fun HighlightableBlockRenderer(
 @Composable
 private fun HighlightableBulletList(
     block: RichTextBlock.BulletList,
-    section: HighlightSection,
     highlights: List<TextHighlight>,
     baseOffset: Int,
     onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
@@ -304,7 +298,6 @@ private fun HighlightableBulletList(
 @Composable
 private fun HighlightableOrderedList(
     block: RichTextBlock.OrderedList,
-    section: HighlightSection,
     highlights: List<TextHighlight>,
     baseOffset: Int,
     onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
@@ -384,7 +377,6 @@ private fun HighlightableListItem(
 @Composable
 private fun HighlightableTable(
     block: RichTextBlock.Table,
-    section: HighlightSection,
     highlights: List<TextHighlight>,
     baseOffset: Int,
     onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
@@ -434,20 +426,14 @@ private fun HighlightableTable(
                             if (!cell.isVisible) {
                                 Spacer(modifier = Modifier.weight(weight))
                             } else {
+                                val currentCellOffset = cellOffset
                                 val cellLength = cell.cell.text.length
                                 val cellHighlights = getHighlightsForRange(
                                     highlights,
-                                    cellOffset,
-                                    cellOffset + cellLength
-                                ).map { it.adjustedForOffset(-cellOffset) }
+                                    currentCellOffset,
+                                    currentCellOffset + cellLength
+                                ).map { it.adjustedForOffset(-currentCellOffset) }
 
-                                val isHeaderCell = row.isHeaderRow || cell.cell.isHeader
-                                val textStyle = if (isHeaderCell) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium
-                                val textColor = when {
-                                    isHeaderCell -> MaterialTheme.colorScheme.onSecondaryContainer
-                                    cell.cell.classNames.containsInsensitive("abstract") -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    else -> MaterialTheme.colorScheme.onSurface
-                                }
                                 val cellBackground = when {
                                     cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                                     cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer
@@ -477,7 +463,12 @@ private fun HighlightableTable(
                                             text = cell.cell.text,
                                             highlights = cellHighlights,
                                             onHighlightAdd = { start, end, selectedText, color ->
-                                                onHighlightAdd(start + cellOffset, end + cellOffset, selectedText, color)
+                                                onHighlightAdd(
+                                                    start + currentCellOffset,
+                                                    end + currentCellOffset,
+                                                    selectedText,
+                                                    color
+                                                )
                                             },
                                             onHighlightRemove = onHighlightRemove,
                                             onHighlightColorChange = onHighlightColorChange,
