@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.ui.media.MediaHandler
 import com.medicalquiz.app.shared.ui.dialogs.ErrorDialog
@@ -150,7 +151,7 @@ fun QuizRoot(
                     showSettingsDialog = true
                     scope.launch { drawerState.close() }
                 },
-                onChangeDatabase = {
+                onChangeDatabase = dropUnlessResumed {
                     viewModel.navigateToDatabaseSelection()
                     scope.launch { drawerState.close() }
                 }

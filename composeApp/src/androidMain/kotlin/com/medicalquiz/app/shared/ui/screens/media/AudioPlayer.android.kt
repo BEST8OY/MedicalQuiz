@@ -28,9 +28,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -70,22 +69,20 @@ actual fun AudioPlayer(
     }
 
     // Handle lifecycle - pause when backgrounded
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_PAUSE -> {
-                    playWhenReady = exoPlayer.playWhenReady
-                    exoPlayer.pause()
-                }
-                Lifecycle.Event.ON_RESUME -> {
-                    exoPlayer.playWhenReady = playWhenReady
-                }
-                else -> {}
-            }
+    LifecycleResumeEffect(lifecycleOwner) {
+        // ON_RESUME: restore play state
+        exoPlayer.playWhenReady = playWhenReady
+
+        onPauseOrDispose {
+            // ON_PAUSE: save state and pause
+            playWhenReady = exoPlayer.playWhenReady
+            exoPlayer.pause()
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
+    }
+
+    // Release player when leaving composition
+    DisposableEffect(Unit) {
         onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
             exoPlayer.release()
         }
     }

@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -46,11 +47,14 @@ class QuizViewModel : ViewModel() {
     private val _state = MutableStateFlow(QuizUiState.EMPTY)
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
 
-    val toolbarTitle = state.map { it.databaseName }.stateIn(
-        viewModelScope,
-        SharingStarted.Eagerly,
-        ""
-    )
+    val toolbarTitle = state
+        .map { it.databaseName }
+        .distinctUntilChanged()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            ""
+        )
 
     private val _uiEvents = MutableSharedFlow<UiEvent>(extraBufferCapacity = 4)
     val uiEvents = _uiEvents.asSharedFlow()

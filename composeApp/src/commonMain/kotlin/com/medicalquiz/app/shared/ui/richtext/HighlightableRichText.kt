@@ -20,11 +20,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -76,8 +76,8 @@ fun HighlightableRichText(
     }
     
     // Get highlights for this section - proper StateFlow collection with stable dependencies
-    val questionHighlightsState = highlightsRepository?.questionHighlights?.collectAsState()
-    val explanationHighlightsState = highlightsRepository?.explanationHighlights?.collectAsState()
+    val questionHighlightsState = highlightsRepository?.questionHighlights?.collectAsStateWithLifecycle()
+    val explanationHighlightsState = highlightsRepository?.explanationHighlights?.collectAsStateWithLifecycle()
     
     val highlights = when (section) {
         HighlightSection.QUESTION -> questionHighlightsState?.value ?: emptyList()
