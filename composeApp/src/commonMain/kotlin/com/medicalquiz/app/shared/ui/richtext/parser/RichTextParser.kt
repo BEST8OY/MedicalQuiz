@@ -371,6 +371,7 @@ private class RichTextDomParser(
                 }
 
                 nextStyle = nextStyle.applyClassStyles(node.classNames(), palette, showSelectedHighlight)
+
                 TooltipParser.extractTooltipText(node)?.let { tooltip ->
                     nextStyle = nextStyle.copy(tooltip = tooltip)
                 }

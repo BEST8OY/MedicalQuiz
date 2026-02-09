@@ -227,8 +227,8 @@ fun App() {
                         } else {
                             // No saved session or session was for different database,
                             // go back to filter screen
-                            while (backStack.size > 1) {
-                                backStack.removeLastOrNull()
+                            if (backStack.size > 1) {
+                                backStack.removeRange(1, backStack.size)
                             }
                         }
                     }
@@ -277,8 +277,8 @@ fun App() {
                         }
                         is UiEvent.NavigateToDatabaseSelection -> {
                             // Pop back to DatabaseSelection for smooth back navigation animation
-                            while (backStack.size > 1) {
-                                backStack.removeLastOrNull()
+                            if (backStack.size > 1) {
+                                backStack.removeRange(1, backStack.size)
                             }
                             selectedDatabase = null
                             initializedDatabase = null

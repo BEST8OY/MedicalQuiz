@@ -106,6 +106,7 @@ internal object CssParser {
      * @param styleAttr The style attribute value
      * @return The TextAlign value or null
      */
+
     fun parseTextAlign(alignAttr: String, styleAttr: String): TextAlign? {
         if (alignAttr.isNotEmpty()) {
             return when (alignAttr.lowercase()) {

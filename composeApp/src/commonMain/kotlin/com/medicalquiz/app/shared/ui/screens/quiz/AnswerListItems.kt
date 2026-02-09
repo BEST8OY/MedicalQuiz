@@ -4,10 +4,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
+import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,9 +24,8 @@ import com.medicalquiz.app.shared.ui.richtext.RichText
  * Answer list item following Material 3 guidelines for lists.
  *
  * Per M3 guidelines:
- * - Use lists for selecting discrete items
  * - Leading element: A, B, C, D label
- * - Headline: Answer text (HTML content)
+ * - Main content: Answer text (HTML content)
  * - Trailing: Result indicator (percentage or checkmark/x)
  * - Selection state applies to entire list item
  */
@@ -40,11 +40,10 @@ private fun AnswerListItem(
     enabled: Boolean,
     onClick: () -> Unit,
     onLinkClick: (String) -> Unit,
-    onMediaClick: (String) -> Unit
+    onMediaClick: (String) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
 
-    // Determine container color based on state
     val containerColor = when {
         showResult && isCorrect -> colors.tertiaryContainer
         showResult && isSelected && !isCorrect -> colors.errorContainer
@@ -52,111 +51,96 @@ private fun AnswerListItem(
         else -> colors.surfaceContainerLowest
     }
 
-    // Determine content color
-    val contentColor = when {
-        showResult && isCorrect -> colors.onTertiaryContainer
-        showResult && isSelected && !isCorrect -> colors.onErrorContainer
-        isSelected -> colors.onPrimaryContainer
-        else -> colors.onSurface
-    }
-
-    // Leading element: Label (A, B, C, D) with radio button style selection
     val leadingContent: @Composable () -> Unit = {
         Surface(
             shape = MaterialTheme.shapes.small,
             color = if (isSelected) colors.primaryContainer else colors.surfaceContainerHigh,
-            modifier = Modifier.padding(end = 8.dp)
         ) {
             Box(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (isSelected) colors.onPrimaryContainer else colors.onSurfaceVariant
+                    color = if (isSelected) colors.onPrimaryContainer else colors.onSurfaceVariant,
                 )
             }
         }
     }
 
-    // Trailing element: Result indicator
     val trailingContent: @Composable () -> Unit = {
         when {
             showResult && percentage != null -> {
                 Surface(
                     shape = MaterialTheme.shapes.small,
                     color = colors.secondaryContainer,
-                    modifier = Modifier.padding(start = 8.dp)
                 ) {
                     Text(
                         text = "$percentage%",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                        color = colors.onSecondaryContainer
+                        color = colors.onSecondaryContainer,
                     )
                 }
             }
+
             showResult && isCorrect -> {
                 Text(
                     text = "✓",
                     style = MaterialTheme.typography.titleLarge,
                     color = colors.tertiary,
-                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
+
             showResult && isSelected && !isCorrect -> {
                 Text(
                     text = "✗",
                     style = MaterialTheme.typography.titleLarge,
                     color = colors.error,
-                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
-            else -> {
-                // No trailing element needed - selection shown via background color
-            }
+
+            else -> Unit
         }
     }
 
-    // Use Surface wrapper for rounded corners and background color
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = containerColor,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick),
     ) {
-        ListItem(
-            headlineContent = {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.width(44.dp), contentAlignment = Alignment.CenterStart) {
+                leadingContent()
+            }
+
+            Box(modifier = Modifier.weight(1f)) {
                 RichText(
                     html = html,
                     onLinkClick = onLinkClick,
                     onMediaClick = onMediaClick,
-                    showSelectedHighlight = showResult
+                    showSelectedHighlight = showResult,
                 )
-            },
-            leadingContent = leadingContent,
-            trailingContent = trailingContent,
-            colors = ListItemDefaults.colors(
-                containerColor = containerColor,
-                headlineColor = contentColor
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
+            }
+
+            Box(contentAlignment = Alignment.CenterEnd) {
+                trailingContent()
+            }
+        }
     }
 }
 
-/**
- * Answer options section using List-based layout.
- *
- * Per M3 Guidelines:
- * - Use spacing between list items for cleaner appearance
- * - Lists are for discrete, selectable items
- * - Each item should have consistent layout
- */
 @Composable
 fun AnswerOptions(
     answers: List<Answer>,
@@ -167,11 +151,11 @@ fun AnswerOptions(
     answerPercentages: Map<Long, Int?>,
     onAnswerSelected: (Long) -> Unit,
     onLinkClick: (String) -> Unit,
-    onMediaClick: (String) -> Unit
+    onMediaClick: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         answers.forEachIndexed { index, answer ->
             val label = ('A'.code + index).toChar().toString()
@@ -190,7 +174,7 @@ fun AnswerOptions(
                 enabled = !answerSubmitted,
                 onClick = { onAnswerSelected(answer.answerId) },
                 onLinkClick = onLinkClick,
-                onMediaClick = onMediaClick
+                onMediaClick = onMediaClick,
             )
         }
     }
