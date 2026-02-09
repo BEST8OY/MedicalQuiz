@@ -2,8 +2,11 @@ package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
@@ -58,8 +61,9 @@ fun QuizFloatingToolbar(
 
         HorizontalFloatingToolbar(
             expanded = true,
-            modifier = Modifier.padding(horizontal = if (isExpanded) 24.dp else 16.dp),
+            modifier = Modifier.padding(horizontal = if (isExpanded) 24.dp else 16.dp, vertical = 16.dp),
             colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             leadingContent = {
                 // Previous button - secondary action
                 if (isExpanded) {
@@ -125,6 +129,9 @@ fun QuizFloatingToolbar(
                 }
             },
             content = {
+                // Spacer to add spacing between leadingContent and content
+                Spacer(modifier = Modifier.width(8.dp))
+                
                 // Question counter - centered with fully rounded (pill) container
                 Surface(
                     onClick = onJumpTo,
@@ -147,6 +154,9 @@ fun QuizFloatingToolbar(
                         )
                     }
                 }
+                
+                // Spacer to add spacing between content and trailingContent
+                Spacer(modifier = Modifier.width(8.dp))
             }
         )
     }

@@ -10,7 +10,6 @@ androidx-lifecycle = "2.10.0-alpha08"
 androidx-material = "1.13.0"
 androidx-compose-bom = "2026.01.01"
 compose-plugin = "1.11.0-alpha02"
-compose-material3-version = "1.11.0-alpha02"
 kotlin = "2.3.0"
 coroutines = "1.10.2"
 coil = "3.3.0"
@@ -61,7 +60,7 @@ vlcj = { module = "uk.co.caprica:vlcj", version.ref = "vlcj" }
 # Compose Libraries
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose-plugin" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose-plugin" }
-compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3-version" }
+compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-plugin" }
 compose-materialIconsExtended = { module = "org.jetbrains.compose.material:material-icons-extended", version = "1.7.3" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-plugin" }
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose-plugin" }
