@@ -47,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.shared.data.database.QuestionPerformance
@@ -74,8 +73,7 @@ fun QuizScreen(
     onNext: () -> Unit,
     onJumpTo: () -> Unit,
     onOpenSettings: () -> Unit,
-    contentPadding: PaddingValues = PaddingValues(0.dp),
-    bottomToolbarHeight: Dp = 100.dp
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -83,8 +81,7 @@ fun QuizScreen(
         state = state,
         viewModel = viewModel,
         mediaHandler = mediaHandler,
-        contentPadding = contentPadding,
-        bottomToolbarHeight = bottomToolbarHeight
+        contentPadding = contentPadding
     )
 }
 
@@ -93,8 +90,7 @@ private fun QuestionContent(
     state: QuizUiState,
     viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
-    contentPadding: PaddingValues,
-    bottomToolbarHeight: Dp
+    contentPadding: PaddingValues
 ) {
     Column(
         modifier = Modifier
@@ -112,8 +108,7 @@ private fun QuestionContent(
             QuizQuestionCard(
                 state = state,
                 viewModel = viewModel,
-                mediaHandler = mediaHandler,
-                bottomToolbarHeight = bottomToolbarHeight
+                mediaHandler = mediaHandler
             )
         }
     }
@@ -199,8 +194,7 @@ private fun HintSection(
 private fun QuizQuestionCard(
     state: QuizUiState,
     viewModel: QuizViewModel,
-    mediaHandler: MediaHandler,
-    bottomToolbarHeight: Dp
+    mediaHandler: MediaHandler
 ) {
     val question = state.currentQuestion
     val answers = state.currentAnswers
@@ -298,8 +292,7 @@ private fun QuizQuestionCard(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp)
-            .padding(bottom = bottomToolbarHeight),
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Question card - elevated primary content

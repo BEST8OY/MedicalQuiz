@@ -158,8 +158,6 @@ fun QuizRoot(
         }
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            val bottomInsets = WindowInsets.navigationBars
-            
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 topBar = {
@@ -173,6 +171,20 @@ fun QuizRoot(
                         onSettingsClick = { showSettingsDialog = true }
                     )
                 },
+                bottomBar = {
+                    QuizFloatingToolbar(
+                        uiState = QuizBottomToolbarUiState(
+                            currentQuestionIndex = state.currentQuestionIndex,
+                            totalQuestions = state.totalQuestions,
+                            hasPreviousQuestion = state.hasPreviousQuestion,
+                            hasNextQuestion = state.hasNextQuestion,
+                        ),
+                        onPrevious = { viewModel.loadPrevious() },
+                        onNext = { viewModel.loadNext() },
+                        onJumpTo = { showJumpToDialog = true },
+                        modifier = Modifier.padding(16.dp)
+                    )
+                },
                 contentWindowInsets = WindowInsets.statusBars
             ) { padding ->
                 QuizScreen(
@@ -182,26 +194,9 @@ fun QuizRoot(
                     onNext = { viewModel.loadNext() },
                     onJumpTo = { showJumpToDialog = true },
                     onOpenSettings = { showSettingsDialog = true },
-                    contentPadding = padding,
-                    bottomToolbarHeight = bottomInsets.asPaddingValues().calculateBottomPadding() + 80.dp // Toolbar height + nav bar
+                    contentPadding = padding
                 )
             }
-            
-            // Floating toolbar - centered at bottom with proper inset handling
-            QuizFloatingToolbar(
-                uiState = QuizBottomToolbarUiState(
-                    currentQuestionIndex = state.currentQuestionIndex,
-                    totalQuestions = state.totalQuestions,
-                    hasPreviousQuestion = state.hasPreviousQuestion,
-                    hasNextQuestion = state.hasNextQuestion,
-                ),
-                onPrevious = { viewModel.loadPrevious() },
-                onNext = { viewModel.loadNext() },
-                onJumpTo = { showJumpToDialog = true },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp + bottomInsets.asPaddingValues().calculateBottomPadding())
-            )
         }
     }
 
