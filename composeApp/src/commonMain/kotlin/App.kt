@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +21,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
@@ -114,7 +114,7 @@ fun App() {
     }
 
     val settingsRepository = remember { SettingsRepository() }
-    val fontSize by settingsRepository.fontSize.collectAsState()
+    val fontSize by settingsRepository.fontSize.collectAsStateWithLifecycle()
 
     CompositionLocalProvider(LocalFontSize provides fontSize.sp) {
         AppTheme {
@@ -284,7 +284,7 @@ fun App() {
                     // Database Selection Screen - app entry point
                     entry<MedicalQuizRoutes.DatabaseSelection> {
                         DatabaseSelectionScreen(
-                            onDatabaseSelected = { dbName ->
+                            onDatabaseSelected = dropUnlessResumed { dbName ->
                                 selectedDatabase = dbName
                                 // Navigate to filter screen after database selection
                                 backStack.add(MedicalQuizRoutes.Filter)
@@ -294,7 +294,7 @@ fun App() {
 
                     // Filter Screen - pre-quiz configuration
                     entry<MedicalQuizRoutes.Filter> {
-                        val state by viewModel.state.collectAsState()
+                        val state by viewModel.state.collectAsStateWithLifecycle()
                         val performanceLabel = formatPerformanceLabel(state.performanceFilter)
 
                         // Dialog states - overlays within filter screen
@@ -322,7 +322,7 @@ fun App() {
                             onSelectSubjects = { showSubjectDialog = true },
                             onSelectSystems = { showSystemDialog = true },
                             onSelectPerformance = { showPerformanceDialog = true },
-                            onStart = {
+                            onStart = dropUnlessResumed {
                                 viewModel.loadFilteredQuestionIds()
                                 viewModel.loadQuestion(0)
                                 backStack.add(MedicalQuizRoutes.Quiz)
@@ -391,7 +391,7 @@ fun App() {
                         QuizRoot(
                             viewModel = viewModel,
                             mediaHandler = mediaHandler,
-                            onNavigateBack = {
+                            onNavigateBack = dropUnlessResumed {
                                 // User is intentionally exiting the quiz - clear the session
                                 // so it won't be restored on next app launch
                                 viewModel.clearSession()
@@ -403,7 +403,7 @@ fun App() {
 
                     // Media Viewer Screen - full-screen media display
                     entry<MedicalQuizRoutes.MediaViewer> { key ->
-                        val mediaDescriptions by mediaDescriptionsFlow.collectAsState()
+                        val mediaDescriptions by mediaDescriptionsFlow.collectAsStateWithLifecycle()
 
                         MediaViewerScreen(
                             mediaFiles = key.files,
@@ -414,7 +414,7 @@ fun App() {
                                     // Handle external URLs if not media
                                 }
                             },
-                            onBack = {
+                            onBack = dropUnlessResumed {
                                 // Pop from back stack
                                 backStack.removeLastOrNull()
                                 // Clear media descriptions to free memory
@@ -429,7 +429,7 @@ fun App() {
                     entry<MedicalQuizRoutes.HtmlViewer> { key ->
                         HtmlViewerDialog(
                             fileName = key.fileName,
-                            onDismiss = {
+                            onDismiss = dropUnlessResumed {
                                 backStack.removeLastOrNull()
                             },
                             onLinkClick = { url ->
