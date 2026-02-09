@@ -8,64 +8,53 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.time.Clock
 
 /**
- * Manages quiz session state persistence for process death recovery.
- *
- * This allows the app to restore the user's quiz session (filters, current question position)
- * after the app is killed by the system (e.g., due to memory pressure).
+ * Manages quiz session state persistence for process death recovery and session history.
  */
 class QuizSessionRepository {
     private val sessionFile: String
         get() = "${StorageProvider.getAppStorageDirectory()}/quiz_session.json"
+
+    private val historyFile: String
+        get() = "${StorageProvider.getAppStorageDirectory()}/quiz_session_history.json"
 
     private val json = Json {
         ignoreUnknownKeys = true
         prettyPrint = false
     }
 
-    /**
-     * Saves the current quiz session state to persistent storage.
-     *
-     * @param databaseName The name of the currently selected database
-     * @param selectedSubjectIds The set of selected subject IDs
-     * @param selectedSystemIds The set of selected system IDs
-     * @param performanceFilter The current performance filter setting
-     * @param currentQuestionIndex The index of the current question in the filtered list
-     */
     fun saveSession(
         databaseName: String,
         selectedSubjectIds: Set<Long>,
         selectedSystemIds: Set<Long>,
         performanceFilter: PerformanceFilter,
-        currentQuestionIndex: Int
+        currentQuestionIndex: Int,
     ) {
         try {
-            // Only save if we have a valid database and question state
             if (databaseName.isEmpty() || currentQuestionIndex < 0) {
                 clearSession()
                 return
             }
 
+            val now = Clock.System.now().toEpochMilliseconds()
             val session = QuizSession(
+                id = buildSessionId(databaseName, now),
                 databaseName = databaseName,
                 selectedSubjectIds = selectedSubjectIds.toList(),
                 selectedSystemIds = selectedSystemIds.toList(),
                 performanceFilter = performanceFilter,
-                currentQuestionIndex = currentQuestionIndex
+                currentQuestionIndex = currentQuestionIndex,
+                updatedAtEpochMillis = now,
             )
-            val jsonString = json.encodeToString(session)
-            FileSystemHelper.writeText(sessionFile, jsonString)
+            writeSession(session)
+            upsertHistory(session)
         } catch (e: Exception) {
             Logger.e("QuizSession", "Error saving quiz session", e)
         }
     }
 
-    /**
-     * Restores the quiz session state from persistent storage.
-     *
-     * @return The saved session or null if no session was saved or restoration failed
-     */
     fun restoreSession(): QuizSession? {
         return try {
             val content = FileSystemHelper.readText(sessionFile)
@@ -80,9 +69,41 @@ class QuizSessionRepository {
         }
     }
 
-    /**
-     * Clears the saved quiz session.
-     */
+    fun listHistory(): List<QuizSession> {
+        return try {
+            val content = FileSystemHelper.readText(historyFile) ?: return emptyList()
+            json.decodeFromString<List<QuizSession>>(content)
+                .sortedByDescending { it.updatedAtEpochMillis }
+        } catch (e: Exception) {
+            Logger.e("QuizSession", "Error reading quiz history", e)
+            emptyList()
+        }
+    }
+
+    fun restoreHistoryEntry(entryId: String): QuizSession? {
+        val entry = listHistory().firstOrNull { it.id == entryId } ?: return null
+        return try {
+            writeSession(entry)
+            entry
+        } catch (e: Exception) {
+            Logger.e("QuizSession", "Error restoring history entry", e)
+            null
+        }
+    }
+
+    fun deleteHistoryEntry(entryId: String) {
+        try {
+            val updated = listHistory().filterNot { it.id == entryId }
+            saveHistoryList(updated)
+            val active = restoreSession()
+            if (active?.id == entryId) {
+                clearSession()
+            }
+        } catch (e: Exception) {
+            Logger.e("QuizSession", "Error deleting history entry", e)
+        }
+    }
+
     fun clearSession() {
         try {
             FileSystemHelper.delete(sessionFile)
@@ -91,15 +112,43 @@ class QuizSessionRepository {
         }
     }
 
-    /**
-     * Data class representing a saved quiz session.
-     */
+    private fun upsertHistory(session: QuizSession) {
+        val history = listHistory().toMutableList()
+        val existing = history.indexOfFirst { it.databaseName == session.databaseName }
+        if (existing >= 0) {
+            history[existing] = session.copy(id = history[existing].id)
+        } else {
+            history.add(session)
+        }
+        saveHistoryList(history)
+    }
+
+    private fun saveHistoryList(history: List<QuizSession>) {
+        val bounded = history
+            .sortedByDescending { it.updatedAtEpochMillis }
+            .take(MAX_HISTORY_ENTRIES)
+        FileSystemHelper.writeText(historyFile, json.encodeToString(bounded))
+    }
+
+    private fun writeSession(session: QuizSession) {
+        val jsonString = json.encodeToString(session)
+        FileSystemHelper.writeText(sessionFile, jsonString)
+    }
+
+    private fun buildSessionId(databaseName: String, now: Long): String = "$databaseName-$now"
+
     @Serializable
     data class QuizSession(
+        val id: String = "",
         val databaseName: String,
         val selectedSubjectIds: List<Long>,
         val selectedSystemIds: List<Long>,
         val performanceFilter: PerformanceFilter,
-        val currentQuestionIndex: Int
+        val currentQuestionIndex: Int,
+        val updatedAtEpochMillis: Long = 0,
     )
+
+    companion object {
+        private const val MAX_HISTORY_ENTRIES = 20
+    }
 }
