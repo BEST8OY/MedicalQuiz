@@ -23,7 +23,7 @@ media3 = "1.9.1"
 vlcj = "4.12.1"
 
 # Navigation 3
-navigation3 = "1.0.0-alpha03"
+navigation3 = "1.1.0-alpha03"
 lifecycle-viewmodel-nav3 = "2.10.0"
 
 [libraries]
