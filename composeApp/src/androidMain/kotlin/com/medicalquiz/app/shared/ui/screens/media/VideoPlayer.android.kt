@@ -3,8 +3,6 @@ package com.medicalquiz.app.shared.ui.screens.media
 import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -12,8 +10,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -29,9 +25,8 @@ actual fun VideoPlayer(
     isActivePage: Boolean
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     var playWhenReady by remember { mutableStateOf(false) }
-    
+
     val exoPlayer = remember(filePath) {
         ExoPlayer.Builder(context).build().apply {
             val mediaItem = MediaItem.fromUri(Uri.parse("file://$filePath"))
@@ -45,31 +40,12 @@ actual fun VideoPlayer(
         }
     }
 
-    // Handle lifecycle - pause when backgrounded
-    LifecycleResumeEffect(lifecycleOwner) {
-        // ON_RESUME: restore play state
-        exoPlayer.playWhenReady = playWhenReady
-
-        onPauseOrDispose {
-            // ON_PAUSE: save state and pause
-            playWhenReady = exoPlayer.playWhenReady
-            exoPlayer.pause()
-        }
-    }
-
-    // Release player when leaving composition
-    DisposableEffect(Unit) {
-        onDispose {
-            exoPlayer.release()
-        }
-    }
-
-    // Pause when not on active page
-    LaunchedEffect(isActivePage) {
-        if (!isActivePage && exoPlayer.isPlaying) {
-            exoPlayer.pause()
-        }
-    }
+    ExoPlayerLifecycleEffects(
+        exoPlayer = exoPlayer,
+        isActivePage = isActivePage,
+        playWhenReady = playWhenReady,
+        onPlayWhenReadyChange = { playWhenReady = it },
+    )
 
     AndroidView(
         factory = { ctx ->
