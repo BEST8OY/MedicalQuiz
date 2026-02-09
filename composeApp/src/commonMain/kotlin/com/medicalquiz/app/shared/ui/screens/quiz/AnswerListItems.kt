@@ -52,14 +52,6 @@ private fun AnswerListItem(
         else -> colors.surfaceContainerLowest
     }
 
-    // Determine content color
-    val contentColor = when {
-        showResult && isCorrect -> colors.onTertiaryContainer
-        showResult && isSelected && !isCorrect -> colors.onErrorContainer
-        isSelected -> colors.onPrimaryContainer
-        else -> colors.onSurface
-    }
-
     // Leading element: Label (A, B, C, D) with radio button style selection
     val leadingContent: @Composable () -> Unit = {
         Surface(
@@ -141,8 +133,7 @@ private fun AnswerListItem(
             leadingContent = leadingContent,
             trailingContent = trailingContent,
             colors = ListItemDefaults.colors(
-                containerColor = containerColor,
-                headlineColor = contentColor
+                containerColor = containerColor
             ),
             modifier = Modifier.fillMaxWidth()
         )
