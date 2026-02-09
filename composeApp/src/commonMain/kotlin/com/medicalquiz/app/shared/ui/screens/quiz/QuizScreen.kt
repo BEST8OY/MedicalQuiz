@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.shared.data.database.QuestionPerformance
@@ -73,7 +74,8 @@ fun QuizScreen(
     onNext: () -> Unit,
     onJumpTo: () -> Unit,
     onOpenSettings: () -> Unit,
-    contentPadding: PaddingValues = PaddingValues(0.dp)
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    bottomClearance: Dp = 80.dp
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -81,7 +83,8 @@ fun QuizScreen(
         state = state,
         viewModel = viewModel,
         mediaHandler = mediaHandler,
-        contentPadding = contentPadding
+        contentPadding = contentPadding,
+        bottomClearance = bottomClearance
     )
 }
 
@@ -90,7 +93,8 @@ private fun QuestionContent(
     state: QuizUiState,
     viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
-    contentPadding: PaddingValues
+    contentPadding: PaddingValues,
+    bottomClearance: Dp
 ) {
     Column(
         modifier = Modifier
@@ -108,7 +112,8 @@ private fun QuestionContent(
             QuizQuestionCard(
                 state = state,
                 viewModel = viewModel,
-                mediaHandler = mediaHandler
+                mediaHandler = mediaHandler,
+                bottomClearance = bottomClearance
             )
         }
     }
@@ -194,7 +199,8 @@ private fun HintSection(
 private fun QuizQuestionCard(
     state: QuizUiState,
     viewModel: QuizViewModel,
-    mediaHandler: MediaHandler
+    mediaHandler: MediaHandler,
+    bottomClearance: Dp
 ) {
     val question = state.currentQuestion
     val answers = state.currentAnswers
@@ -292,7 +298,8 @@ private fun QuizQuestionCard(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .padding(bottom = bottomClearance + 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Question card - elevated primary content
