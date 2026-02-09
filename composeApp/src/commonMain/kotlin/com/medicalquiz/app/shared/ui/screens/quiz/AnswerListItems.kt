@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -114,27 +113,36 @@ private fun AnswerListItem(
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onClick),
     ) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(modifier = Modifier.width(44.dp), contentAlignment = Alignment.CenterStart) {
-                leadingContent()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 56.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(modifier = Modifier.width(44.dp), contentAlignment = Alignment.CenterStart) {
+                    leadingContent()
+                }
+
+                Box {
+                    RichText(
+                        html = html,
+                        onLinkClick = onLinkClick,
+                        onMediaClick = onMediaClick,
+                        showSelectedHighlight = showResult,
+                    )
+                }
             }
 
-            Box(modifier = Modifier.weight(1f)) {
-                RichText(
-                    html = html,
-                    onLinkClick = onLinkClick,
-                    onMediaClick = onMediaClick,
-                    showSelectedHighlight = showResult,
-                )
-            }
-
-            Box(contentAlignment = Alignment.CenterEnd) {
+            Box(
+                modifier = Modifier.align(Alignment.CenterEnd),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
                 trailingContent()
             }
         }
