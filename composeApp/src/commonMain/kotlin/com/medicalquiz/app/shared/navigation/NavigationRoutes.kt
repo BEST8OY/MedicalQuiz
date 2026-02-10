@@ -6,59 +6,58 @@ import kotlinx.serialization.Serializable
 /**
  * Navigation routes for MedicalQuiz application using Navigation 3.
  *
- * All routes implement [NavKey] for type-safe navigation with automatic serialization
- * using kotlinx.serialization.
- *
- * Note: Dialog overlays (settings, filters, jump-to, error) are handled within
- * QuizRoot using local state and are not part of the navigation back stack.
+ * Routes are split into:
+ * - persistent routes: restored on app restart
+ * - transient routes: skipped when restoring navigation state (media/html overlays)
  */
 @Serializable
 sealed class MedicalQuizRoutes : NavKey {
 
-    /**
-     * Database selection screen - app entry point.
-     * User selects a .db file to load quiz data from.
-     */
     @Serializable
     data object DatabaseSelection : MedicalQuizRoutes()
 
-    /**
-     * Filter screen - pre-quiz configuration.
-     * User selects subjects, systems, and performance filters.
-     */
     @Serializable
     data object Filter : MedicalQuizRoutes()
 
-    /**
-     * Main quiz screen - question display and answering.
-     * Contains the navigation drawer for in-quiz navigation.
-     */
     @Serializable
     data class Quiz(
-        val launchedFromHistory: Boolean = false,
-    ) : MedicalQuizRoutes()
+        val launchSource: QuizLaunchSource = QuizLaunchSource.Standard,
+    ) : MedicalQuizRoutes() {
+        val launchedFromHistory: Boolean
+            get() = launchSource == QuizLaunchSource.History
+    }
 
-
-    /**
-     * Media viewer screen - full-screen media display.
-     * Supports images, videos, and audio files with swipe navigation.
-     *
-     * @property files List of media file names to display
-     * @property startIndex Initial media index to show (0-based)
-     */
     @Serializable
     data class MediaViewer(
         val files: List<String>,
         val startIndex: Int = 0,
     ) : MedicalQuizRoutes()
 
-/**
- * HTML viewer screen - displays HTML content files.
- *
- * @property fileName Name of the HTML file to display
- */
+    @Serializable
+    data class HtmlViewer(
+        val fileName: String,
+    ) : MedicalQuizRoutes()
+
+    val isTransient: Boolean
+        get() = this is MediaViewer || this is HtmlViewer
+
+    val isPersistent: Boolean
+        get() = !isTransient
+
+    companion object {
+        fun sanitizeRestoredBackStack(stack: List<MedicalQuizRoutes>?): List<MedicalQuizRoutes>? {
+            val persistentRoutes = stack
+                ?.filter { it.isPersistent }
+                ?.takeIf { it.isNotEmpty() }
+                ?: return null
+
+            return persistentRoutes.takeIf { it.first() is DatabaseSelection }
+        }
+    }
+}
+
 @Serializable
-data class HtmlViewer(
-    val fileName: String,
-) : MedicalQuizRoutes()
+enum class QuizLaunchSource {
+    Standard,
+    History,
 }

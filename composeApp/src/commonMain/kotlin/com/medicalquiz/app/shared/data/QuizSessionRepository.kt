@@ -5,13 +5,14 @@ import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.platform.StorageProvider
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 
 /**
- * Manages quiz session state persistence for process death recovery and session history.
+ * Manages quiz session persistence for process death recovery and session history.
  */
 class QuizSessionRepository {
     private val sessionFile: String
@@ -33,95 +34,101 @@ class QuizSessionRepository {
         currentQuestionIndex: Int,
         appendToHistory: Boolean = true,
     ) {
-        try {
-            if (databaseName.isEmpty() || currentQuestionIndex < 0) {
-                clearSession()
-                return
-            }
+        if (databaseName.isBlank() || currentQuestionIndex < 0) {
+            clearSession()
+            return
+        }
 
-            val now = Clock.System.now().toEpochMilliseconds()
-            val existingSession = restoreSession()
-            val existingSessionId = existingSession
-                ?.takeIf {
-                    it.databaseName == databaseName &&
-                        it.selectedSubjectIds.toSet() == selectedSubjectIds &&
-                        it.selectedSystemIds.toSet() == selectedSystemIds &&
-                        it.performanceFilter == performanceFilter
-                }
-                ?.id
+        val now = Clock.System.now().toEpochMilliseconds()
+        val sessionId = resolveSessionId(
+            databaseName = databaseName,
+            selectedSubjectIds = selectedSubjectIds,
+            selectedSystemIds = selectedSystemIds,
+            performanceFilter = performanceFilter,
+            now = now,
+        )
+        val session = QuizSession(
+            id = sessionId,
+            databaseName = databaseName,
+            selectedSubjectIds = selectedSubjectIds.toSortedSet().toList(),
+            selectedSystemIds = selectedSystemIds.toSortedSet().toList(),
+            performanceFilter = performanceFilter,
+            currentQuestionIndex = currentQuestionIndex,
+            updatedAtEpochMillis = now,
+        )
 
-            val session = QuizSession(
-                id = existingSessionId?.takeIf { it.isNotBlank() } ?: buildSessionId(databaseName, now),
-                databaseName = databaseName,
-                selectedSubjectIds = selectedSubjectIds.toList(),
-                selectedSystemIds = selectedSystemIds.toList(),
-                performanceFilter = performanceFilter,
-                currentQuestionIndex = currentQuestionIndex,
-                updatedAtEpochMillis = now,
-            )
-            writeSession(session)
-            if (appendToHistory) {
-                appendHistoryEntry(session)
-            }
-        } catch (e: Exception) {
-            Logger.e("QuizSession", "Error saving quiz session", e)
+        runCatching { writeSession(session) }
+            .onFailure { Logger.e("QuizSession", "Error saving active session", it) }
+
+        if (appendToHistory) {
+            runCatching { appendHistoryEntry(session) }
+                .onFailure { Logger.e("QuizSession", "Error appending session history", it) }
         }
     }
 
-    fun restoreSession(): QuizSession? {
-        return try {
-            val content = FileSystemHelper.readText(sessionFile)
-            if (content != null) {
-                json.decodeFromString<QuizSession>(content)
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            Logger.e("QuizSession", "Error restoring quiz session", e)
-            null
-        }
-    }
+    fun restoreSession(): QuizSession? =
+        readFromFile<QuizSession>(sessionFile, ReadContext.Session)?.normalized()
 
-    fun listHistory(): List<QuizSession> {
-        return try {
-            val content = FileSystemHelper.readText(historyFile) ?: return emptyList()
-            json.decodeFromString<List<QuizSession>>(content)
-                .sortedByDescending { it.updatedAtEpochMillis }
-        } catch (e: Exception) {
-            Logger.e("QuizSession", "Error reading quiz history", e)
-            emptyList()
-        }
-    }
+    fun listHistory(): List<QuizSession> =
+        readFromFile<List<QuizSession>>(historyFile, ReadContext.History)
+            ?.map { it.normalized() }
+            ?.sortedByDescending { it.updatedAtEpochMillis }
+            ?: emptyList()
 
     fun restoreHistoryEntry(entryId: String): QuizSession? {
         val entry = listHistory().firstOrNull { it.id == entryId } ?: return null
-        return try {
+        return runCatching {
             writeSession(entry)
             entry
-        } catch (e: Exception) {
-            Logger.e("QuizSession", "Error restoring history entry", e)
+        }.getOrElse {
+            Logger.e("QuizSession", "Error restoring history entry", it)
             null
         }
     }
 
     fun deleteHistoryEntry(entryId: String) {
-        try {
+        runCatching {
             val updated = listHistory().filterNot { it.id == entryId }
             saveHistoryList(updated)
-            val active = restoreSession()
-            if (active?.id == entryId) {
+            if (restoreSession()?.id == entryId) {
                 clearSession()
             }
-        } catch (e: Exception) {
-            Logger.e("QuizSession", "Error deleting history entry", e)
+        }.onFailure {
+            Logger.e("QuizSession", "Error deleting history entry", it)
         }
     }
 
     fun clearSession() {
-        try {
-            FileSystemHelper.delete(sessionFile)
-        } catch (e: Exception) {
-            Logger.e("QuizSession", "Error clearing quiz session", e)
+        runCatching { FileSystemHelper.delete(sessionFile) }
+            .onFailure { Logger.e("QuizSession", "Error clearing quiz session", it) }
+    }
+
+    private inline fun <reified T> readFromFile(path: String, context: ReadContext): T? {
+        return runCatching {
+            val content = FileSystemHelper.readText(path) ?: return null
+            json.decodeFromString<T>(content)
+        }.getOrElse {
+            handleReadError(path = path, context = context, throwable = it)
+            null
+        }
+    }
+
+    private fun resolveSessionId(
+        databaseName: String,
+        selectedSubjectIds: Set<Long>,
+        selectedSystemIds: Set<Long>,
+        performanceFilter: PerformanceFilter,
+        now: Long,
+    ): String {
+        val existingSession = restoreSession() ?: return buildSessionId(databaseName, now)
+        val matchesContext = existingSession.databaseName == databaseName &&
+            existingSession.selectedSubjectIds.toSet() == selectedSubjectIds &&
+            existingSession.selectedSystemIds.toSet() == selectedSystemIds &&
+            existingSession.performanceFilter == performanceFilter
+        return if (matchesContext && existingSession.id.isNotBlank()) {
+            existingSession.id
+        } else {
+            buildSessionId(databaseName, now)
         }
     }
 
@@ -135,17 +142,38 @@ class QuizSessionRepository {
 
     private fun saveHistoryList(history: List<QuizSession>) {
         val bounded = history
+            .map { it.normalized() }
             .sortedByDescending { it.updatedAtEpochMillis }
             .take(MAX_HISTORY_ENTRIES)
         FileSystemHelper.writeText(historyFile, json.encodeToString(bounded))
     }
 
     private fun writeSession(session: QuizSession) {
-        val jsonString = json.encodeToString(session)
-        FileSystemHelper.writeText(sessionFile, jsonString)
+        FileSystemHelper.writeText(sessionFile, json.encodeToString(session.normalized()))
     }
 
+    private fun QuizSession.normalized(): QuizSession = copy(
+        selectedSubjectIds = selectedSubjectIds.distinct().sorted(),
+        selectedSystemIds = selectedSystemIds.distinct().sorted(),
+        currentQuestionIndex = currentQuestionIndex.coerceAtLeast(0),
+    )
+
     private fun buildSessionId(databaseName: String, now: Long): String = "$databaseName-$now"
+
+    private fun handleReadError(path: String, context: ReadContext, throwable: Throwable) {
+        if (throwable is SerializationException) {
+            Logger.e("QuizSession", "Invalid ${context.label} payload, clearing corrupted file", throwable)
+            runCatching { FileSystemHelper.delete(path) }
+                .onFailure { Logger.e("QuizSession", "Failed to delete corrupted ${context.label} file", it) }
+            return
+        }
+        Logger.e("QuizSession", "Error reading ${context.label}", throwable)
+    }
+
+    private enum class ReadContext(val label: String) {
+        Session("session"),
+        History("history"),
+    }
 
     @Serializable
     data class QuizSession(
