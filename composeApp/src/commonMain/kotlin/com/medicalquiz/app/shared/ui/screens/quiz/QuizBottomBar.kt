@@ -85,7 +85,7 @@ fun QuizFloatingToolbar(
                 // Previous button - Leading position
                 clickableItem(
                     onClick = onPrevious,
-                    label = if (isExpanded) "Previous" else null,
+                    label = if (isExpanded) "Previous" else "",
                     icon = {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
@@ -164,7 +164,7 @@ fun QuizFloatingToolbar(
                 // Next button - Trailing position
                 clickableItem(
                     onClick = onNext,
-                    label = if (isExpanded) "Next" else null,
+                    label = if (isExpanded) "Next" else "",
                     icon = {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
