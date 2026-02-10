@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.random.Random
 
 private const val MAX_SCROLL_CACHE_SIZE = 100
@@ -74,20 +75,24 @@ class QuizViewModel : ViewModel() {
         }
     }
 
-    fun setDatabaseManager(db: DatabaseProvider) {
-        // 1. Reset state immediately so UI clears old data
+    suspend fun setDatabaseManager(db: DatabaseProvider) {
+        // Reset state immediately so UI clears old data.
+        // This function is suspend so callers can await full initialization
+        // before restoring a saved session/history entry.
         resetState()
-        
+
         val oldDb = databaseManager
         databaseManager = db
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
+
+        try {
+            withContext(Dispatchers.IO) {
                 oldDb?.closeDatabase()
-            } catch (e: Exception) {
-                Logger.e("QuizViewModel", "Error closing old database", e)
             }
-            initializeAfterDatabaseSwitch()
+        } catch (e: Exception) {
+            Logger.e("QuizViewModel", "Error closing old database", e)
         }
+
+        initializeAfterDatabaseSwitch()
     }
 
     private fun resetState() {
