@@ -158,14 +158,15 @@ class QuizViewModel : ViewModel() {
         return true
     }
 
-    private fun saveSession() {
+    private fun saveSession(appendToHistory: Boolean = true) {
         val currentState = state.value
         sessionRepository?.saveSession(
             databaseName = currentState.databaseName,
             selectedSubjectIds = currentState.selectedSubjectIds,
             selectedSystemIds = currentState.selectedSystemIds,
             performanceFilter = currentState.performanceFilter,
-            currentQuestionIndex = currentState.currentQuestionIndex
+            currentQuestionIndex = currentState.currentQuestionIndex,
+            appendToHistory = appendToHistory
         )
     }
 
@@ -223,7 +224,11 @@ class QuizViewModel : ViewModel() {
 
     fun getTestId(): String = testId
 
-    fun loadQuestion(index: Int, resetAnswerState: Boolean = true) {
+    fun loadQuestion(
+        index: Int,
+        resetAnswerState: Boolean = true,
+        appendToHistory: Boolean = true,
+    ) {
         val ids = state.value.questionIds
         val questionId = ids.getOrNull(index) ?: return
 
@@ -378,7 +383,10 @@ class QuizViewModel : ViewModel() {
         _state.update { it.copy(questionIds = ids) }
     }
 
-    fun loadFilteredQuestionIds(updatePreviewCount: Boolean = true) {
+    fun loadFilteredQuestionIds(
+        updatePreviewCount: Boolean = true,
+        appendToHistory: Boolean = true,
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val currentState = state.value
@@ -438,11 +446,11 @@ class QuizViewModel : ViewModel() {
             _state.update { it.copy(selectedSystemIds = validSystems) }
             if (loadQuestions) {
                 // loadFilteredQuestionIds will update previewQuestionCount
-                loadFilteredQuestionIds(updatePreviewCount = true)
+                loadFilteredQuestionIds(updatePreviewCount = true, appendToHistory = false)
             } else {
                 updatePreviewQuestionCountInternal()
             }
-            saveSession()
+            saveSession(appendToHistory = false)
         }
     }
 
@@ -471,9 +479,9 @@ class QuizViewModel : ViewModel() {
             _state.update { it.copy(selectedSystemIds = newSystemIds) }
             updatePreviewQuestionCountInternal()
             if (loadQuestions) {
-                loadFilteredQuestionIds()
+                loadFilteredQuestionIds(appendToHistory = false)
             }
-            saveSession()
+            saveSession(appendToHistory = false)
         }
     }
 
@@ -513,11 +521,11 @@ class QuizViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             if (loadQuestions) {
                 // loadFilteredQuestionIds will update previewQuestionCount
-                loadFilteredQuestionIds(updatePreviewCount = true)
+                loadFilteredQuestionIds(updatePreviewCount = true, appendToHistory = false)
             } else {
                 updatePreviewQuestionCountInternal()
             }
-            saveSession()
+            saveSession(appendToHistory = false)
         }
     }
 

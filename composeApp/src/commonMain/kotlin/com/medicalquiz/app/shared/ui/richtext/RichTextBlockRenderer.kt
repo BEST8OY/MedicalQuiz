@@ -27,7 +27,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text as MaterialText
-import com.medicalquiz.app.shared.ui.theme.LocalFontSize
 
 @Composable
 internal fun RichTextBlockRenderer(
@@ -72,9 +71,8 @@ internal fun RichTextParagraph(
         modifier = modifier,
         style = MaterialTheme.typography.bodyMedium.copy(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = LocalFontSize.current * 1.375f, // assuming 16*1.375=22
-            textIndent = TextIndent.None,
-            fontSize = LocalFontSize.current
+            lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.375f,
+            textIndent = TextIndent.None
         ),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = textAlign,
@@ -148,13 +146,12 @@ private fun RichTextHeading(
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((String) -> Unit)?
 ) {
-    val baseFontSize = LocalFontSize.current
     val style = when (block.level) {
-        1 -> MaterialTheme.typography.headlineMedium.copy(fontSize = baseFontSize * 2.0f)
-        2 -> MaterialTheme.typography.headlineSmall.copy(fontSize = baseFontSize * 1.75f)
-        3 -> MaterialTheme.typography.titleLarge.copy(fontSize = baseFontSize * 1.5f)
-        4 -> MaterialTheme.typography.titleMedium.copy(fontSize = baseFontSize * 1.25f)
-        else -> MaterialTheme.typography.titleSmall.copy(fontSize = baseFontSize * 1.125f)
+        1 -> MaterialTheme.typography.headlineMedium
+        2 -> MaterialTheme.typography.headlineSmall
+        3 -> MaterialTheme.typography.titleLarge
+        4 -> MaterialTheme.typography.titleMedium
+        else -> MaterialTheme.typography.titleSmall
     }
     InteractiveText(
         text = block.text,
@@ -229,7 +226,7 @@ private fun AbstractCard(
             block.title?.let {
                 MaterialText(
                     text = it,
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = LocalFontSize.current * 1.25f),
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }

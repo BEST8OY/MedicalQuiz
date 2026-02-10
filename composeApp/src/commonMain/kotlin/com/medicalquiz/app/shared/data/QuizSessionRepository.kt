@@ -31,6 +31,7 @@ class QuizSessionRepository {
         selectedSystemIds: Set<Long>,
         performanceFilter: PerformanceFilter,
         currentQuestionIndex: Int,
+        appendToHistory: Boolean = true,
     ) {
         try {
             if (databaseName.isEmpty() || currentQuestionIndex < 0) {
@@ -50,6 +51,7 @@ class QuizSessionRepository {
                 ?.id
 
             val session = QuizSession(
+                id = buildSessionId(databaseName, now),
                 id = existingSessionId?.takeIf { it.isNotBlank() } ?: buildSessionId(databaseName, now),
                 databaseName = databaseName,
                 selectedSubjectIds = selectedSubjectIds.toList(),
@@ -59,7 +61,9 @@ class QuizSessionRepository {
                 updatedAtEpochMillis = now,
             )
             writeSession(session)
-            appendHistoryEntry(session)
+            if (appendToHistory) {
+                appendHistoryEntry(session)
+            }
         } catch (e: Exception) {
             Logger.e("QuizSession", "Error saving quiz session", e)
         }

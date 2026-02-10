@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -51,7 +52,6 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.medicalquiz.app.shared.data.models.HighlightColor
 import com.medicalquiz.app.shared.data.models.TextHighlight
-import com.medicalquiz.app.shared.ui.theme.LocalFontSize
 import kotlin.math.roundToInt
 
 /**
@@ -83,6 +83,7 @@ fun SelectableHighlightText(
     text: AnnotatedString,
     highlights: List<TextHighlight>,
     modifier: Modifier = Modifier,
+    textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
     onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
     onHighlightRemove: (highlightId: Long) -> Unit,
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
@@ -202,10 +203,10 @@ fun SelectableHighlightText(
                         }
                     }
                 },
-            style = MaterialTheme.typography.bodyMedium.copy(
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = LocalFontSize.current * 1.375f,
-                fontSize = LocalFontSize.current
+            style = textStyle.copy(
+                color = textStyle.color.takeOrElse { MaterialTheme.colorScheme.onSurfaceVariant },
+                lineHeight = (if (textStyle.fontSize.isSpecified) textStyle.fontSize else MaterialTheme.typography.bodyMedium.fontSize) * 1.375f,
+                fontSize = if (textStyle.fontSize.isSpecified) textStyle.fontSize else MaterialTheme.typography.bodyMedium.fontSize
             ),
             onTextLayout = { layoutResult = it }
         )

@@ -34,7 +34,10 @@ sealed class MedicalQuizRoutes : NavKey {
      * Contains the navigation drawer for in-quiz navigation.
      */
     @Serializable
-    data object Quiz : MedicalQuizRoutes()
+    data class Quiz(
+        val launchedFromHistory: Boolean = false,
+    ) : MedicalQuizRoutes()
+
 
     /**
      * Media viewer screen - full-screen media display.
