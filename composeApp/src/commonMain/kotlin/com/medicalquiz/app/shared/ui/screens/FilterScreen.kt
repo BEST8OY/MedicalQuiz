@@ -1,5 +1,6 @@
 package com.medicalquiz.app.shared.ui.screens
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,17 +15,20 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.FilterAltOff
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -87,7 +91,7 @@ internal fun FilterScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            PrimaryActionButtons(
+            PrimaryActionButtonGroup(
                 hasPreview = hasPreview,
                 hasFilters = hasFilters,
                 onStart = onStart,
@@ -97,14 +101,19 @@ internal fun FilterScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun DatabaseHeaderCard(databaseName: String) {
+    val motionScheme = MaterialTheme.motionScheme
+    val containerColor by animateColorAsState(
+        targetValue = MaterialTheme.colorScheme.secondaryContainer,
+        animationSpec = motionScheme.defaultEffectsSpec()
+    )
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Row(
             modifier = Modifier
@@ -144,6 +153,7 @@ private fun DatabaseHeaderCard(databaseName: String) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun FilterPreviewCard(previewCount: Int) {
     val hasPreview = previewCount > 0
@@ -158,12 +168,19 @@ private fun FilterPreviewCard(previewCount: Int) {
         "Try adjusting your filters to find questions."
     }
 
+    val motionScheme = MaterialTheme.motionScheme
+    val containerColor by animateColorAsState(
+        targetValue = if (hasPreview) 
+            MaterialTheme.colorScheme.primaryContainer 
+        else 
+            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+        animationSpec = motionScheme.defaultEffectsSpec()
+    )
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = if (hasPreview) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-        )
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
@@ -184,7 +201,7 @@ private fun FilterPreviewCard(previewCount: Int) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun FilterSelectionCard(
     title: String,
@@ -193,14 +210,39 @@ private fun FilterSelectionCard(
     isActive: Boolean = false,
     onClick: () -> Unit
 ) {
-    val containerColor = if (isActive)
-        MaterialTheme.colorScheme.primaryContainer
-    else
-        MaterialTheme.colorScheme.surfaceContainerLow
-    val contentColor = if (isActive)
-        MaterialTheme.colorScheme.onPrimaryContainer
-    else
-        MaterialTheme.colorScheme.onSurfaceVariant
+    val motionScheme = MaterialTheme.motionScheme
+
+    val containerColor by animateColorAsState(
+        targetValue = if (isActive)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surfaceContainerLow,
+        animationSpec = motionScheme.defaultEffectsSpec()
+    )
+
+    val contentColor by animateColorAsState(
+        targetValue = if (isActive)
+            MaterialTheme.colorScheme.onPrimaryContainer
+        else
+            MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = motionScheme.defaultEffectsSpec()
+    )
+
+    val iconContainerColor by animateColorAsState(
+        targetValue = if (isActive) 
+            MaterialTheme.colorScheme.primary 
+        else 
+            MaterialTheme.colorScheme.surface,
+        animationSpec = motionScheme.defaultEffectsSpec()
+    )
+
+    val iconColor by animateColorAsState(
+        targetValue = if (isActive) 
+            MaterialTheme.colorScheme.onPrimary 
+        else 
+            MaterialTheme.colorScheme.primary,
+        animationSpec = motionScheme.defaultEffectsSpec()
+    )
 
     Card(
         onClick = onClick,
@@ -217,14 +259,14 @@ private fun FilterSelectionCard(
         ) {
             Surface(
                 shape = MaterialTheme.shapes.small,
-                color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                color = iconContainerColor,
                 modifier = Modifier.size(44.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (isActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+                        tint = iconColor
                     )
                 }
             }
@@ -249,28 +291,55 @@ private fun FilterSelectionCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun PrimaryActionButtons(
+private fun PrimaryActionButtonGroup(
     hasPreview: Boolean,
     hasFilters: Boolean,
     onStart: () -> Unit,
     onClearFilters: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Button(
-            onClick = onStart,
-            enabled = hasPreview,
-            modifier = Modifier.fillMaxWidth()
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
+    ) {
+        ButtonGroup(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            expandedRatio = 0.08f,
         ) {
-            Text(if (hasPreview) "Start Quiz" else "No questions match")
-        }
-        if (hasFilters) {
-            OutlinedButton(
-                onClick = onClearFilters,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(imageVector = Icons.Filled.FilterAltOff, contentDescription = null)
-                Text("Reset Filters", modifier = Modifier.padding(start = 8.dp))
+            clickableItem(
+                onClick = onStart,
+                label = if (hasPreview) "Start Quiz" else "No matches",
+                icon = {
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                },
+                enabled = hasPreview,
+                weight = 1.5f,
+            )
+
+            if (hasFilters) {
+                clickableItem(
+                    onClick = onClearFilters,
+                    label = "Reset",
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.FilterAltOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    weight = 1f,
+                )
             }
         }
     }
