@@ -428,11 +428,14 @@ fun App() {
                     // Media Viewer Screen - full-screen media display
                     entry<MedicalQuizRoutes.MediaViewer> { key ->
                         val mediaDescriptions by mediaDescriptionsFlow.collectAsStateWithLifecycle()
+                        val fontScalePreference = viewModel.settingsRepository?.fontScalePreference
+                            ?.collectAsStateWithLifecycle(null)?.value
 
                         MediaViewerScreen(
                             mediaFiles = key.files,
                             startIndex = key.startIndex,
                             mediaDescriptions = mediaDescriptions,
+                            richTextScale = fontScalePreference ?: 1f,
                             onLinkClick = { url ->
                                 if (!mediaHandler.handleMediaLink(url)) {
                                     // Handle external URLs if not media

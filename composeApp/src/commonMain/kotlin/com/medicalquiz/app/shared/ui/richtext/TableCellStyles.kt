@@ -14,9 +14,9 @@ import androidx.compose.ui.text.TextStyle
 @Composable
 internal fun tableCellTextStyle(isHeaderCell: Boolean): TextStyle =
     if (isHeaderCell) {
-        MaterialTheme.typography.labelMedium
+        MaterialTheme.typography.labelMedium.scaledBy(LocalRichTextScale.current.tableScale)
     } else {
-        MaterialTheme.typography.bodySmall
+        MaterialTheme.typography.bodySmall.scaledBy(LocalRichTextScale.current.tableScale)
     }
 
 /**

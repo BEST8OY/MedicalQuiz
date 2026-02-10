@@ -54,6 +54,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -99,6 +100,7 @@ import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.ui.media.MediaType
 import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
+import com.medicalquiz.app.shared.ui.richtext.RichTextScaleProvider
 import com.medicalquiz.app.shared.utils.HtmlUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -116,6 +118,7 @@ fun MediaViewerScreen(
     mediaFiles: List<String>,
     startIndex: Int = 0,
     mediaDescriptions: Map<String, MediaDescription> = emptyMap(),
+    richTextScale: Float = 1f,
     onLinkClick: ((String) -> Unit)? = null,
     onBack: () -> Unit,
     sharedTransitionKey: String? = null,
@@ -125,6 +128,7 @@ fun MediaViewerScreen(
             mediaFiles = mediaFiles,
             startIndex = startIndex,
             mediaDescriptions = mediaDescriptions,
+            richTextScale = richTextScale,
             onLinkClick = onLinkClick,
             onBack = onBack,
             sharedTransitionKey = sharedTransitionKey,
@@ -138,6 +142,7 @@ private fun SharedTransitionScope.MediaViewerContent(
     mediaFiles: List<String>,
     startIndex: Int,
     mediaDescriptions: Map<String, MediaDescription>,
+    richTextScale: Float,
     onLinkClick: ((String) -> Unit)?,
     onBack: () -> Unit,
     sharedTransitionKey: String?,
@@ -345,16 +350,18 @@ private fun SharedTransitionScope.MediaViewerContent(
     if (showExplanation && currentDescription != null) {
         ExplanationBottomSheet(
             description = currentDescription,
+            richTextScale = richTextScale,
             onDismiss = { showExplanation = false },
             onLinkClick = onLinkClick,
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ExplanationBottomSheet(
     description: MediaDescription,
+    richTextScale: Float,
     onDismiss: () -> Unit,
     onLinkClick: ((String) -> Unit)?,
 ) {
@@ -391,8 +398,7 @@ private fun ExplanationBottomSheet(
             ) {
                 Text(
                     text = description.title.ifBlank { "Explanation" },
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -408,11 +414,13 @@ private fun ExplanationBottomSheet(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
-                RichText(
-                    html = description.description,
-                    modifier = Modifier.fillMaxWidth(),
-                    onLinkClick = onLinkClick,
-                )
+                RichTextScaleProvider(proseScale = richTextScale) {
+                    RichText(
+                        html = description.description,
+                        modifier = Modifier.fillMaxWidth(),
+                        onLinkClick = onLinkClick,
+                    )
+                }
             }
         }
     }
