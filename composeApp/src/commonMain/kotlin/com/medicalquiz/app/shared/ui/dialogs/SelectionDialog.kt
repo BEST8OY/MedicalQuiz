@@ -2,7 +2,6 @@ package com.medicalquiz.app.shared.ui.dialogs
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -18,10 +17,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material3.MaterialShapes
-import androidx.compose.material3.toShape
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
@@ -118,6 +118,7 @@ fun SystemFilterDialog(
 /**
  * Generic selection dialog for filtering items.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun <T> SelectionDialog(
     isVisible: Boolean,
@@ -134,6 +135,8 @@ private fun <T> SelectionDialog(
 ) {
     if (!isVisible) return
 
+    val fastEffectsSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+
     DialogShell(
         onDismiss = onDismiss,
         properties = DialogProperties(
@@ -145,7 +148,8 @@ private fun <T> SelectionDialog(
         AnimatedContent(
             targetState = resource,
             transitionSpec = {
-                fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
+                fadeIn(animationSpec = fastEffectsSpec) togetherWith
+                    fadeOut(animationSpec = fastEffectsSpec)
             },
             label = "selection_dialog_content"
         ) { currentResource ->
@@ -234,7 +238,7 @@ private fun SelectionErrorContent(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Surface(
-                shape = MaterialShapes.Triangle.toShape(),
+                shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.errorContainer,
                 modifier = Modifier.size(56.dp)
             ) {

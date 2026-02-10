@@ -1,7 +1,6 @@
 package com.medicalquiz.app.shared.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,8 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material3.MaterialShapes
-import androidx.compose.material3.toShape
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.FilterAlt
@@ -100,12 +97,11 @@ internal fun FilterScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun DatabaseHeaderCard(databaseName: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialShapes.SoftBoom.toShape(),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
@@ -118,7 +114,7 @@ private fun DatabaseHeaderCard(databaseName: String) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = MaterialShapes.Gem.toShape(),
+                shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.size(40.dp)
             ) {
@@ -148,7 +144,6 @@ private fun DatabaseHeaderCard(databaseName: String) {
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun FilterPreviewCard(previewCount: Int) {
     val hasPreview = previewCount > 0
@@ -165,7 +160,7 @@ private fun FilterPreviewCard(previewCount: Int) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialShapes.SoftBurst.toShape(),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = if (hasPreview) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
         )
@@ -189,7 +184,7 @@ private fun FilterPreviewCard(previewCount: Int) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilterSelectionCard(
     title: String,
@@ -210,7 +205,7 @@ private fun FilterSelectionCard(
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialShapes.Clover4Leaf.toShape(),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Row(
@@ -221,7 +216,7 @@ private fun FilterSelectionCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = MaterialShapes.Puffy.toShape(),
+                shape = MaterialTheme.shapes.small,
                 color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                 modifier = Modifier.size(44.dp)
             ) {
