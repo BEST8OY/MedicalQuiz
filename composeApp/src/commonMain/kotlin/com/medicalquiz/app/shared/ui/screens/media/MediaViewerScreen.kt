@@ -101,7 +101,6 @@ import com.medicalquiz.app.shared.ui.media.MediaType
 import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
 import com.medicalquiz.app.shared.ui.richtext.RichTextScaleProvider
-import com.medicalquiz.app.shared.utils.HtmlUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -231,7 +230,6 @@ private fun SharedTransitionScope.MediaViewerContent(
                         if (it) showUI = false
                     },
                     onSingleTap = onToggleUI,
-                    onLinkClick = onLinkClick,
                     overlayPath = if (page == pagerState.currentPage) overlayPath else null,
                     showOverlay = if (page == pagerState.currentPage) showOverlay else true,
                 )
@@ -432,7 +430,6 @@ private fun MediaContent(
     isActivePage: Boolean,
     onZoomChanged: (Boolean) -> Unit,
     onSingleTap: () -> Unit,
-    onLinkClick: ((String) -> Unit)?,
     overlayPath: String? = null,
     showOverlay: Boolean = true,
 ) {
@@ -469,7 +466,6 @@ private fun MediaContent(
                 fileName = fileName,
                 isActivePage = isActivePage
             )
-            MediaType.HTML -> HtmlContent(fileName = fileName, onLinkClick = onLinkClick)
             else -> UnsupportedContent(fileName = fileName, type = mediaType)
         }
     }
@@ -509,55 +505,6 @@ private fun AudioContent(filePath: String, fileName: String, isActivePage: Boole
         modifier = Modifier.fillMaxSize(),
         isActivePage = isActivePage
     )
-}
-
-@Composable
-private fun HtmlContent(fileName: String, onLinkClick: ((String) -> Unit)?) {
-    val filePath = remember(fileName) {
-        "${StorageProvider.getAppStorageDirectory()}/media/$fileName"
-    }
-
-    val htmlContent by produceState<String?>(initialValue = null, filePath) {
-        value = withContext(Dispatchers.IO) {
-            val raw = FileSystemHelper.readText(filePath)
-            raw?.let(HtmlUtils::sanitizeForRichText)
-        }
-    }
-
-    AnimatedContent(
-        targetState = htmlContent,
-        transitionSpec = { fadeIn() togetherWith fadeOut() }
-    ) { content ->
-        when {
-            content == null -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "Loading…",
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
-            }
-            content.isBlank() -> {
-                UnsupportedContent(fileName = fileName, type = MediaType.HTML)
-            }
-            else -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surface)
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
-                ) {
-                    RichText(
-                        html = content,
-                        modifier = Modifier.fillMaxWidth(),
-                        onLinkClick = onLinkClick,
-                    )
-                }
-            }
-        }
-    }
 }
 
 @Composable

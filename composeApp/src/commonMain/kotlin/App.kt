@@ -42,15 +42,17 @@ import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.theme.AppTheme
 import com.medicalquiz.app.shared.ui.screens.DatabaseSelectionScreen
 import com.medicalquiz.app.shared.ui.screens.FilterScreen
-import com.medicalquiz.app.shared.ui.screens.media.HtmlViewerDialog
+import com.medicalquiz.app.shared.ui.screens.media.HtmlViewerScreen
 import com.medicalquiz.app.shared.ui.screens.media.MediaViewerScreen
 import com.medicalquiz.app.shared.ui.screens.quiz.QuizRoot
 import com.medicalquiz.app.shared.ui.media.MediaHandler
+import com.medicalquiz.app.shared.ui.media.MediaType
 import com.medicalquiz.app.shared.ui.dialogs.PerformanceFilterDialog
 import com.medicalquiz.app.shared.ui.dialogs.SubjectFilterDialog
 import com.medicalquiz.app.shared.ui.dialogs.SystemFilterDialog
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 import com.medicalquiz.app.shared.viewmodel.UiEvent
+import com.medicalquiz.app.shared.utils.MediaTypeUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -66,9 +68,17 @@ private suspend fun navigateToMediaViewer(
     backStack: MutableList<MedicalQuizRoutes>,
     mediaDescriptionsFlow: MutableStateFlow<Map<String, MediaDescription>>
 ) {
-    // Filter unavailable files on IO dispatcher to avoid blocking main thread
+    // Filter unsupported and unavailable files on IO dispatcher to avoid blocking main thread
     val availableFiles = withContext(Dispatchers.IO) {
         files.filter { fileName ->
+            val isPlayableType = when (MediaTypeUtils.fromFileName(fileName)) {
+                MediaType.IMAGE,
+                MediaType.VIDEO,
+                MediaType.AUDIO -> true
+                else -> false
+            }
+            if (!isPlayableType) return@filter false
+
             val path = "${StorageProvider.getAppStorageDirectory()}/media/$fileName"
             FileSystemHelper.exists(path)
         }
@@ -454,9 +464,9 @@ fun App() {
 
                     // HTML Viewer Screen - HTML content display
                     entry<MedicalQuizRoutes.HtmlViewer> { key ->
-                        HtmlViewerDialog(
+                        HtmlViewerScreen(
                             fileName = key.fileName,
-                            onDismiss = dropUnlessResumed {
+                            onBack = dropUnlessResumed {
                                 backStack.removeLastOrNull()
                             },
                             onLinkClick = { url ->
