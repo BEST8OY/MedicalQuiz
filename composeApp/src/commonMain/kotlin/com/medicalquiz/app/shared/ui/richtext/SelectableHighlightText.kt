@@ -204,9 +204,21 @@ fun SelectableHighlightText(
                     }
                 },
             style = textStyle.copy(
-                color = textStyle.color.takeOrElse { MaterialTheme.colorScheme.onSurfaceVariant },
-                lineHeight = (if (textStyle.fontSize.isSpecified) textStyle.fontSize else MaterialTheme.typography.bodyMedium.fontSize) * 1.375f,
-                fontSize = if (textStyle.fontSize.isSpecified) textStyle.fontSize else MaterialTheme.typography.bodyMedium.fontSize
+                color = if (textStyle.color == Color.Unspecified) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    textStyle.color
+                },
+                lineHeight = (if (textStyle.fontSize == androidx.compose.ui.unit.TextUnit.Unspecified) {
+                    MaterialTheme.typography.bodyMedium.fontSize
+                } else {
+                    textStyle.fontSize
+                }) * 1.375f,
+                fontSize = if (textStyle.fontSize == androidx.compose.ui.unit.TextUnit.Unspecified) {
+                    MaterialTheme.typography.bodyMedium.fontSize
+                } else {
+                    textStyle.fontSize
+                },
             ),
             onTextLayout = { layoutResult = it }
         )

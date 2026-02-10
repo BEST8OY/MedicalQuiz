@@ -51,7 +51,6 @@ class QuizSessionRepository {
                 ?.id
 
             val session = QuizSession(
-                id = buildSessionId(databaseName, now),
                 id = existingSessionId?.takeIf { it.isNotBlank() } ?: buildSessionId(databaseName, now),
                 databaseName = databaseName,
                 selectedSubjectIds = selectedSubjectIds.toList(),
