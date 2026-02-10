@@ -34,6 +34,12 @@ private const val MAX_SCROLL_CACHE_SIZE = 100
 
 class QuizViewModel : ViewModel() {
 
+    enum class SessionRestoreResult {
+        Restored,
+        NoSession,
+        DatabaseMismatch,
+    }
+
     private var databaseManager: DatabaseProvider? = null
     internal var settingsRepository: SettingsRepository? = null
         private set
@@ -136,15 +142,15 @@ class QuizViewModel : ViewModel() {
      * Restores quiz session state from the repository.
      * Should be called after database is initialized.
      *
-     * @return true if session was restored, false otherwise
+     * @return restore outcome for session availability and database compatibility
      */
-    fun restoreSession(): Boolean {
-        val session = sessionRepository?.restoreSession() ?: return false
+    fun restoreSession(): SessionRestoreResult {
+        val session = sessionRepository?.restoreSession() ?: return SessionRestoreResult.NoSession
         val currentState = state.value
 
         // Only restore if the database matches
         if (session.databaseName != currentState.databaseName) {
-            return false
+            return SessionRestoreResult.DatabaseMismatch
         }
 
         _state.update {
@@ -155,7 +161,7 @@ class QuizViewModel : ViewModel() {
                 currentQuestionIndex = session.currentQuestionIndex
             )
         }
-        return true
+        return SessionRestoreResult.Restored
     }
 
     private fun saveSession(appendToHistory: Boolean = true) {
@@ -256,7 +262,7 @@ class QuizViewModel : ViewModel() {
             } finally {
                 _state.update { it.copy(isLoading = false) }
                 cacheManager?.trimCachesIfNeeded(index)
-                saveSession()
+                saveSession(appendToHistory = appendToHistory)
             }
         }
     }
@@ -395,7 +401,23 @@ class QuizViewModel : ViewModel() {
                     currentState.selectedSystemIds.toList(),
                     currentState.performanceFilter
                 )
-                val newIndex = currentState.currentQuestionIndex.coerceIn(0, ids.size - 1)
+                if (ids.isEmpty()) {
+                    _state.update {
+                        it.copy(
+                            questionIds = emptyList(),
+                            currentQuestionIndex = 0,
+                            currentQuestion = null,
+                            currentAnswers = emptyList(),
+                            selectedAnswerId = null,
+                            answerSubmitted = false,
+                            previewQuestionCount = if (updatePreviewCount) 0 else it.previewQuestionCount,
+                        )
+                    }
+                    saveSession(appendToHistory = appendToHistory)
+                    return@launch
+                }
+
+                val newIndex = currentState.currentQuestionIndex.coerceIn(0, ids.lastIndex)
                 _state.update {
                     it.copy(
                         questionIds = ids,
@@ -403,7 +425,7 @@ class QuizViewModel : ViewModel() {
                         previewQuestionCount = if (updatePreviewCount) ids.size else it.previewQuestionCount
                     )
                 }
-                loadQuestion(newIndex)
+                loadQuestion(newIndex, appendToHistory = appendToHistory)
             } catch (e: Exception) {
                 Logger.e("QuizViewModel", "Error loading filtered questions", e)
             }
