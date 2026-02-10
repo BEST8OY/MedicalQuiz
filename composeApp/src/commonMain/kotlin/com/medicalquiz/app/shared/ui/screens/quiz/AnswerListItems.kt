@@ -1,7 +1,6 @@
 package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.foundation.clickable
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,11 +8,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,7 +29,6 @@ import com.medicalquiz.app.shared.ui.richtext.RichText
  * - Trailing: Result indicator (percentage or checkmark/x)
  * - Selection state applies to entire list item
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AnswerListItem(
     label: String,
@@ -67,7 +63,7 @@ private fun AnswerListItem(
     // Leading element: Label (A, B, C, D) with radio button style selection
     val leadingContent: @Composable () -> Unit = {
         Surface(
-            shape = if (showResult && isCorrect) MaterialShapes.Heart.toShape() else if (showResult && isSelected && !isCorrect) MaterialShapes.Boom.toShape() else MaterialTheme.shapes.small,
+            shape = MaterialTheme.shapes.small,
             color = if (isSelected) colors.primaryContainer else colors.surfaceContainerHigh,
             modifier = Modifier.padding(end = 8.dp)
         ) {
@@ -127,12 +123,7 @@ private fun AnswerListItem(
 
     // Use Surface wrapper with morphing shapes based on answer state
     Surface(
-        shape = when {
-            showResult && isCorrect -> MaterialShapes.Heart.toShape()
-            showResult && isSelected && !isCorrect -> MaterialShapes.Burst.toShape()
-            isSelected -> MaterialShapes.Flower.toShape()
-            else -> MaterialTheme.shapes.medium
-        },
+        shape = MaterialTheme.shapes.medium,
         color = containerColor,
         modifier = Modifier
             .fillMaxWidth()
@@ -165,7 +156,6 @@ private fun AnswerListItem(
  * - Lists are for discrete, selectable items
  * - Each item should have consistent layout
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AnswerOptions(
     answers: List<Answer>,

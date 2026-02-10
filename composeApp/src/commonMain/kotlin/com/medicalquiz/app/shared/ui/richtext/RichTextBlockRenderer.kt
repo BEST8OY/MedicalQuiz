@@ -1,7 +1,6 @@
 package com.medicalquiz.app.shared.ui.richtext
 
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,10 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -203,13 +200,12 @@ private fun RichTextList(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
     val richTextScale = LocalRichTextScale.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialShapes.Arch.toShape(),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         MaterialText(
@@ -224,7 +220,6 @@ private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AbstractCard(
     block: RichTextBlock.AbstractBlock,
@@ -234,7 +229,7 @@ private fun AbstractCard(
     val richTextScale = LocalRichTextScale.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialShapes.Fan.toShape(),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {

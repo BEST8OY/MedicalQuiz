@@ -53,6 +53,8 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
@@ -60,14 +62,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialShapes
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SplitButtonDefaults
-import androidx.compose.material3.SplitButtonLayout
-import androidx.compose.material3.SplitButtonShapes
-import androidx.compose.material3.toShape
-import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -86,6 +80,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -94,7 +89,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.compose.runtime.produceState
@@ -140,7 +134,7 @@ fun MediaViewerScreen(
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SharedTransitionScope.MediaViewerContent(
     mediaFiles: List<String>,
@@ -199,7 +193,7 @@ private fun SharedTransitionScope.MediaViewerContent(
 
     val backgroundColor by animateColorAsState(
         targetValue = if (showUI) MaterialTheme.colorScheme.surface else Color.Black,
-        animationSpec = tween(400),
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
     )
 
     Box(
@@ -297,67 +291,43 @@ private fun SharedTransitionScope.MediaViewerContent(
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(bottom = 24.dp),
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ButtonGroup(
+                overflowIndicator = { menuState ->
+                    ButtonGroupDefaults.OverflowIndicator(
+                        menuState = menuState,
+                        shape = MaterialTheme.shapes.medium,
+                    )
+                },
+                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
             ) {
                 if (hasOverlay) {
-                    val overlayTrailingShapes = SplitButtonShapes(
-                        shape = MaterialTheme.shapes.medium,
-                        pressedShape = MaterialShapes.Boom.toShape(),
-                        checkedShape = MaterialShapes.Flower.toShape(),
-                    )
-                    SplitButtonLayout(
-                        leadingButton = {
-                            SplitButtonDefaults.LeadingButton(
-                                onClick = { showOverlay = !showOverlay },
-                            ) {
-                                Text("Overlay")
-                            }
-                        },
-                        trailingButton = {
-                            SplitButtonDefaults.TrailingButton(
-                                checked = showOverlay,
-                                onCheckedChange = { showOverlay = it },
-                                shapes = overlayTrailingShapes,
-                            ) {
-                                Icon(
-                                    imageVector = if (showOverlay) {
-                                        Icons.Filled.Visibility
-                                    } else {
-                                        Icons.Filled.VisibilityOff
-                                    },
-                                    contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                                )
-                            }
+                    toggleableItem(
+                        checked = showOverlay,
+                        label = "Overlay",
+                        onCheckedChange = { showOverlay = it },
+                        icon = {
+                            Icon(
+                                imageVector = if (showOverlay) {
+                                    Icons.Filled.Visibility
+                                } else {
+                                    Icons.Filled.VisibilityOff
+                                },
+                                contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                            )
                         },
                     )
                 }
 
                 if (hasDescription) {
-                    val infoTrailingShapes = SplitButtonShapes(
-                        shape = MaterialTheme.shapes.medium,
-                        pressedShape = MaterialShapes.Burst.toShape(),
-                        checkedShape = MaterialShapes.Sunny.toShape(),
-                    )
-                    SplitButtonLayout(
-                        leadingButton = {
-                            SplitButtonDefaults.LeadingButton(
-                                onClick = { showExplanation = !showExplanation },
-                            ) {
-                                Text("Info")
-                            }
-                        },
-                        trailingButton = {
-                            SplitButtonDefaults.TrailingButton(
-                                checked = showExplanation,
-                                onCheckedChange = { showExplanation = it },
-                                shapes = infoTrailingShapes,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Info,
-                                    contentDescription = "Toggle info",
-                                )
-                            }
+                    toggleableItem(
+                        checked = showExplanation,
+                        label = "Info",
+                        onCheckedChange = { showExplanation = it },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = "Toggle info",
+                            )
                         },
                     )
                 }
@@ -444,6 +414,7 @@ private fun ExplanationBottomSheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun MediaContent(
     fileName: String,
@@ -457,14 +428,19 @@ private fun MediaContent(
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
     val filePath = remember(fileName) { "$storageDir/media/$fileName" }
 
+    val defaultEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val fastEffectsSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val fastSpatialSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+
     // Animated content for media type changes
     AnimatedContent(
         targetState = mediaType,
         transitionSpec = {
-            fadeIn(animationSpec = tween(300)) + 
-            scaleIn(initialScale = 0.9f, animationSpec = tween(300)) togetherWith
-            fadeOut(animationSpec = tween(200)) + 
-            scaleOut(targetScale = 1.1f, animationSpec = tween(200))
+            fadeIn(animationSpec = defaultEffectsSpec) +
+                scaleIn(initialScale = 0.9f, animationSpec = defaultSpatialSpec) togetherWith
+                fadeOut(animationSpec = fastEffectsSpec) +
+                scaleOut(targetScale = 1.1f, animationSpec = fastSpatialSpec)
         },
         label = "media_transition"
     ) { type ->
