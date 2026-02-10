@@ -481,10 +481,35 @@ fun App() {
                 }
             }
 
+            val handleBackNavigation = dropUnlessResumed {
+                when (val currentRoute = backStack.lastOrNull()) {
+                    is MedicalQuizRoutes.Quiz -> {
+                        // Keep system back behavior aligned with QuizRoot's in-screen back action.
+                        viewModel.clearSession()
+                        if (currentRoute.launchedFromHistory) {
+                            while (backStack.size > 1) {
+                                backStack.removeLastOrNull()
+                            }
+                        } else {
+                            backStack.removeLastOrNull()
+                        }
+                    }
+
+                    is MedicalQuizRoutes.Filter -> {
+                        // Leaving filter means abandoning the in-progress session setup.
+                        // Clear active session so filter edits don't fork stale sessions.
+                        viewModel.clearSession()
+                        backStack.removeLastOrNull()
+                    }
+
+                    else -> backStack.removeLastOrNull()
+                }
+            }
+
             // NavDisplay with slide animations and predictive back support
             NavDisplay(
                 backStack = backStack,
-                onBack = { backStack.removeLastOrNull() },
+                onBack = handleBackNavigation,
                 entryProvider = entryProvider,
                 entryDecorators = listOf(
                     rememberSaveableStateHolderNavEntryDecorator(),

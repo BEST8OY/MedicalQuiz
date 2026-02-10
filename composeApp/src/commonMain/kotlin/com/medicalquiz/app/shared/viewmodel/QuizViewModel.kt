@@ -256,7 +256,7 @@ class QuizViewModel : ViewModel() {
             } finally {
                 _state.update { it.copy(isLoading = false) }
                 cacheManager?.trimCachesIfNeeded(index)
-                saveSession()
+                saveSession(appendToHistory = appendToHistory)
             }
         }
     }
@@ -403,7 +403,7 @@ class QuizViewModel : ViewModel() {
                         previewQuestionCount = if (updatePreviewCount) ids.size else it.previewQuestionCount
                     )
                 }
-                loadQuestion(newIndex)
+                loadQuestion(newIndex, appendToHistory = appendToHistory)
             } catch (e: Exception) {
                 Logger.e("QuizViewModel", "Error loading filtered questions", e)
             }

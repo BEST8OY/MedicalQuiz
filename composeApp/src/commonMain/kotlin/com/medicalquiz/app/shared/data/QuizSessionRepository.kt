@@ -127,10 +127,19 @@ class QuizSessionRepository {
 
     private fun appendHistoryEntry(session: QuizSession) {
         val history = listHistory()
-            .filterNot { it.id == session.id }
+            .filterNot { existing ->
+                existing.id == session.id || existing.hasSameScopeAs(session)
+            }
             .toMutableList()
         history.add(session)
         saveHistoryList(history)
+    }
+
+    private fun QuizSession.hasSameScopeAs(other: QuizSession): Boolean {
+        return databaseName == other.databaseName &&
+            selectedSubjectIds.toSet() == other.selectedSubjectIds.toSet() &&
+            selectedSystemIds.toSet() == other.selectedSystemIds.toSet() &&
+            performanceFilter == other.performanceFilter
     }
 
     private fun saveHistoryList(history: List<QuizSession>) {
