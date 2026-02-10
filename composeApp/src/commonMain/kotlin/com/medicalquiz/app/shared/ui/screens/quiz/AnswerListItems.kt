@@ -2,6 +2,8 @@ package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -102,14 +104,14 @@ private fun AnswerListItem(
         label = "scale"
     )
 
-    // Animate elevation for tactile feedback
+    // Animate elevation for tactile feedback using MotionScheme
     val elevation by animateDpAsState(
         targetValue = when {
             isPressed -> 4.dp
             isSelected -> 2.dp
             else -> 0.dp
         },
-        animationSpec = motionScheme.defaultEffectsSpec(),
+        animationSpec = motionScheme.defaultSpatialSpec(),
         label = "elevation"
     )
 
