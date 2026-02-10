@@ -34,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.toShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -313,7 +314,7 @@ private fun QuizQuestionCard(
         // Question card - elevated primary content
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialShapes.Heart,
+            shape = MaterialShapes.Heart.toShape(),
             colors = CardDefaults.elevatedCardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
             ),
@@ -457,7 +458,7 @@ private fun QuestionMetadataCard(sections: List<MetadataSection>) {
 
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialShapes.Cookie9Sided,
+        shape = MaterialShapes.Cookie9Sided.toShape(),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
@@ -574,7 +575,7 @@ private fun PerformanceCard(performance: QuestionPerformance?) {
     
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialShapes.Diamond,
+        shape = MaterialShapes.Diamond.toShape(),
         colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),

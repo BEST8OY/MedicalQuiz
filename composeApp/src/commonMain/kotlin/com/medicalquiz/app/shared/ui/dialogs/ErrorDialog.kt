@@ -1,5 +1,6 @@
 package com.medicalquiz.app.shared.ui.dialogs
 
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +31,7 @@ import com.medicalquiz.app.shared.ui.dialogs.components.DialogShell
 /**
  * Displays an error dialog with a warning icon and message.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ErrorDialog(
     errorDialog: Pair<String, String>?,
@@ -44,7 +47,7 @@ fun ErrorDialog(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Surface(
-                shape = MaterialShapes.Arrow,
+                shape = MaterialShapes.Arrow.toShape(),
                 color = MaterialTheme.colorScheme.errorContainer,
                 modifier = Modifier.size(64.dp)
             ) {

@@ -34,6 +34,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.toShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -207,7 +208,7 @@ private fun ToolbarModeButton(
     if (selected) {
         FilledTonalButton(
             onClick = onClick,
-            shape = MaterialShapes.ClamShell
+            shape = MaterialShapes.ClamShell.toShape()
         ) {
             icon()
             Text(text = text)
@@ -215,7 +216,7 @@ private fun ToolbarModeButton(
     } else {
         OutlinedButton(
             onClick = onClick,
-            shape = MaterialShapes.Bun
+            shape = MaterialShapes.Bun.toShape()
         ) {
             icon()
             Text(text = text)

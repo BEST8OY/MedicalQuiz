@@ -1,6 +1,7 @@
 package com.medicalquiz.app.shared.ui.dialogs
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
@@ -213,6 +215,7 @@ private fun SelectionLoadingContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SelectionErrorContent(
     title: String,
@@ -231,7 +234,7 @@ private fun SelectionErrorContent(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Surface(
-                shape = MaterialShapes.Triangle,
+                shape = MaterialShapes.Triangle.toShape(),
                 color = MaterialTheme.colorScheme.errorContainer,
                 modifier = Modifier.size(56.dp)
             ) {

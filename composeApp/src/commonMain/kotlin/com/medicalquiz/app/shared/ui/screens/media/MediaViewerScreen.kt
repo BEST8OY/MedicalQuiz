@@ -60,10 +60,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.SplitButtonShapes
+import androidx.compose.material3.toShape
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -113,7 +116,7 @@ private const val MAX_SCALE = 5f
 private const val DOUBLE_TAP_ZOOM = 2.5f
 private const val MIN_SCALE = 1f
 
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MediaViewerScreen(
     mediaFiles: List<String>,
@@ -299,9 +302,9 @@ private fun SharedTransitionScope.MediaViewerContent(
             ) {
                 if (hasOverlay) {
                     val overlayTrailingShapes = SplitButtonShapes(
-                        shape = ShapeDefaults.MediumShape,
-                        pressedShape = MaterialShapes.Boom,
-                        checkedShape = MaterialShapes.Flower,
+                        shape = MaterialTheme.shapes.medium,
+                        pressedShape = MaterialShapes.Boom.toShape(),
+                        checkedShape = MaterialShapes.Flower.toShape(),
                     )
                     SplitButtonLayout(
                         leadingButton = {
@@ -332,9 +335,9 @@ private fun SharedTransitionScope.MediaViewerContent(
 
                 if (hasDescription) {
                     val infoTrailingShapes = SplitButtonShapes(
-                        shape = ShapeDefaults.MediumShape,
-                        pressedShape = MaterialShapes.Burst,
-                        checkedShape = MaterialShapes.Sunny,
+                        shape = MaterialTheme.shapes.medium,
+                        pressedShape = MaterialShapes.Burst.toShape(),
+                        checkedShape = MaterialShapes.Sunny.toShape(),
                     )
                     SplitButtonLayout(
                         leadingButton = {
