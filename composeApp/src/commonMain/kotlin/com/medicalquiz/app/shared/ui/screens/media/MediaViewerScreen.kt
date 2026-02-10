@@ -197,7 +197,7 @@ private fun SharedTransitionScope.MediaViewerContent(
 
     val backgroundColor by animateColorAsState(
         targetValue = if (showUI) MaterialTheme.colorScheme.surface else Color.Black,
-        animationSpec = tween(400),
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
     )
 
     Box(
@@ -442,6 +442,7 @@ private fun ExplanationBottomSheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun MediaContent(
     fileName: String,
@@ -455,14 +456,19 @@ private fun MediaContent(
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
     val filePath = remember(fileName) { "$storageDir/media/$fileName" }
 
+    val defaultEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val fastEffectsSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val fastSpatialSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+
     // Animated content for media type changes
     AnimatedContent(
         targetState = mediaType,
         transitionSpec = {
-            fadeIn(animationSpec = tween(300)) + 
-            scaleIn(initialScale = 0.9f, animationSpec = tween(300)) togetherWith
-            fadeOut(animationSpec = tween(200)) + 
-            scaleOut(targetScale = 1.1f, animationSpec = tween(200))
+            fadeIn(animationSpec = defaultEffectsSpec) +
+                scaleIn(initialScale = 0.9f, animationSpec = defaultSpatialSpec) togetherWith
+                fadeOut(animationSpec = fastEffectsSpec) +
+                scaleOut(targetScale = 1.1f, animationSpec = fastSpatialSpec)
         },
         label = "media_transition"
     ) { type ->

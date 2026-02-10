@@ -2,7 +2,6 @@ package com.medicalquiz.app.shared.ui.dialogs
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -121,6 +120,7 @@ fun SystemFilterDialog(
 /**
  * Generic selection dialog for filtering items.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun <T> SelectionDialog(
     isVisible: Boolean,
@@ -137,6 +137,8 @@ private fun <T> SelectionDialog(
 ) {
     if (!isVisible) return
 
+    val fastEffectsSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+
     DialogShell(
         onDismiss = onDismiss,
         properties = DialogProperties(
@@ -148,7 +150,8 @@ private fun <T> SelectionDialog(
         AnimatedContent(
             targetState = resource,
             transitionSpec = {
-                fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
+                fadeIn(animationSpec = fastEffectsSpec) togetherWith
+                    fadeOut(animationSpec = fastEffectsSpec)
             },
             label = "selection_dialog_content"
         ) { currentResource ->
