@@ -2,8 +2,6 @@ package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -48,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -136,6 +135,9 @@ private fun HintSection(
     mediaClick: (String) -> Unit,
     showSelectedHighlight: Boolean
 ) {
+    val defaultEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
+
     Surface(
         shape = MaterialTheme.shapes.small,
         color = if (isVisible) {
@@ -179,14 +181,14 @@ private fun HintSection(
             AnimatedVisibility(
                 visible = isVisible,
                 enter = fadeIn(
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                    animationSpec = defaultEffectsSpec,
                 ) + expandVertically(
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                    animationSpec = defaultSpatialSpec,
                 ),
                 exit = fadeOut(
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                    animationSpec = defaultEffectsSpec,
                 ) + shrinkVertically(
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                    animationSpec = defaultSpatialSpec,
                 )
             ) {
                 RichText(
@@ -209,6 +211,9 @@ private fun QuizQuestionCard(
     mediaHandler: MediaHandler,
     bottomClearance: Dp
 ) {
+    val defaultEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
+
     val question = state.currentQuestion
     val answers = state.currentAnswers
     val metadataSections = buildMetadataSections(question)
@@ -363,14 +368,14 @@ private fun QuizQuestionCard(
         AnimatedVisibility(
             visible = state.answerSubmitted && explanationHtml.isNotBlank(),
             enter = fadeIn(
-                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                animationSpec = defaultEffectsSpec,
             ) + expandVertically(
-                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                animationSpec = defaultSpatialSpec,
             ),
             exit = fadeOut(
-                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                animationSpec = defaultEffectsSpec,
             ) + shrinkVertically(
-                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                animationSpec = defaultSpatialSpec,
             )
         ) {
             ElevatedCard(
@@ -408,19 +413,19 @@ private fun QuizQuestionCard(
         // Question metadata & logs container with smooth size animation
         Column(
             modifier = Modifier.animateContentSize(
-                animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                animationSpec = defaultSpatialSpec,
             )
         ) {
             // Question metadata - shown after answering (inside scrollable area)
             AnimatedVisibility(
                 visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
                 enter = fadeIn(
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                    animationSpec = defaultEffectsSpec,
                 ) + expandVertically(
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                    animationSpec = defaultSpatialSpec,
                 ),
                 exit = fadeOut(
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                    animationSpec = defaultEffectsSpec,
                 )
             ) {
                 Column {
@@ -433,12 +438,12 @@ private fun QuizQuestionCard(
             AnimatedVisibility(
                 visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
                 enter = fadeIn(
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                    animationSpec = defaultEffectsSpec,
                 ) + expandVertically(
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                    animationSpec = defaultSpatialSpec,
                 ),
                 exit = fadeOut(
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                    animationSpec = defaultEffectsSpec,
                 )
             ) {
                 Column {

@@ -298,6 +298,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                         shape = MaterialTheme.shapes.medium,
                     )
                 },
+                expandedRatio = ButtonGroupDefaults.ExpandedRatio,
                 horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
             ) {
                 if (hasOverlay) {
@@ -305,6 +306,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                         checked = showOverlay,
                         label = "Overlay",
                         onCheckedChange = { showOverlay = it },
+                        weight = 1f,
                         icon = {
                             Icon(
                                 imageVector = if (showOverlay) {
@@ -323,6 +325,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                         checked = showExplanation,
                         label = "Info",
                         onCheckedChange = { showExplanation = it },
+                        weight = 1f,
                         icon = {
                             Icon(
                                 imageVector = Icons.Filled.Info,
