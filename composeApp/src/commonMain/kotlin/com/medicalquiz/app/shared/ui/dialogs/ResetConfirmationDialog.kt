@@ -1,5 +1,6 @@
 package com.medicalquiz.app.shared.ui.dialogs
 
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -31,6 +33,7 @@ import com.medicalquiz.app.shared.ui.dialogs.components.DialogShell
 /**
  * Confirmation dialog for resetting/clearing logs.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ResetConfirmationDialog(
     isVisible: Boolean,
@@ -45,7 +48,7 @@ fun ResetConfirmationDialog(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Surface(
-                shape = MaterialShapes.Triangle,
+                shape = MaterialShapes.Triangle.toShape(),
                 color = MaterialTheme.colorScheme.errorContainer,
                 modifier = Modifier.size(64.dp)
             ) {

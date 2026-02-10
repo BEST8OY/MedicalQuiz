@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
@@ -135,7 +136,7 @@ fun QuizFloatingToolbar(
                 // Question counter - centered with pill container
                 Surface(
                     onClick = onJumpTo,
-                    shape = MaterialShapes.Pill,
+                    shape = MaterialShapes.Pill.toShape(),
                     color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier
                         .sizeIn(minHeight = 40.dp)
