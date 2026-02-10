@@ -296,7 +296,6 @@ private fun SharedTransitionScope.MediaViewerContent(
             // ButtonGroup with ToggleButtons for overlay and info toggles
             ButtonGroup(
                 expandedRatio = 0.1f,
-                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
             ) {
                 if (hasOverlay) {
                     // Toggle overlay visibility
