@@ -168,7 +168,13 @@ object HtmlUtils {
     fun normalizeAnswerHtml(html: String?): String {
         val trimmed = html?.trim().orEmpty()
         if (trimmed.isEmpty()) return ""
-        return ensureHtmlStructure(trimmed)
+        // Check if already wrapped in a block element - if not, wrap in <p>
+        val blockElementRegex = Regex("^<(p|div|h[1-6]|li|td|th|blockquote)[^>]*>", RegexOption.IGNORE_CASE)
+        return if (blockElementRegex.containsMatchIn(trimmed)) {
+            trimmed
+        } else {
+            "<p>$trimmed</p>"
+        }
     }
 
     // LRU cache for media path lookups to avoid repeated file-existence checks
