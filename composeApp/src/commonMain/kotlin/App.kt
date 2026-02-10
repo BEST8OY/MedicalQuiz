@@ -11,8 +11,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -38,6 +36,7 @@ import com.medicalquiz.app.shared.data.TextHighlightsRepository
 import com.medicalquiz.app.shared.data.UserDataManager
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.navigation.MedicalQuizRoutes
+import com.medicalquiz.app.shared.navigation.QuizLaunchSource
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.theme.AppTheme
@@ -98,6 +97,25 @@ private suspend fun navigateToMediaViewer(
     }
 }
 
+
+private fun MutableList<MedicalQuizRoutes>.popToDatabaseSelection() {
+    while (size > 1) {
+        removeLastOrNull()
+    }
+}
+
+private inline fun handleSessionRestoreResult(
+    result: QuizViewModel.SessionRestoreResult,
+    onRestored: () -> Unit,
+    onUnavailable: () -> Unit = {},
+) {
+    when (result) {
+        QuizViewModel.SessionRestoreResult.Restored -> onRestored()
+        QuizViewModel.SessionRestoreResult.DatabaseMismatch,
+        QuizViewModel.SessionRestoreResult.NoSession -> onUnavailable()
+    }
+}
+
 @Composable
 fun App() {
     // Install Coil's singleton ImageLoader once.
@@ -129,29 +147,6 @@ fun App() {
             // Media descriptions state for viewer
             val mediaDescriptionsFlow = remember { MutableStateFlow<Map<String, MediaDescription>>(emptyMap()) }
 
-            // Navigation back stack with custom save/restore that filters out transient routes
-            // MediaViewer and HtmlViewer are not persisted - users start fresh on those
-            val backStackSaver = remember {
-                listSaver<SnapshotStateList<MedicalQuizRoutes>, String>(
-                    save = { list ->
-                        // Filter out transient routes before saving
-                        list.filter { route ->
-                            route !is MedicalQuizRoutes.MediaViewer &&
-                            route !is MedicalQuizRoutes.HtmlViewer
-                        }.map { kotlinx.serialization.json.Json.encodeToString(it) }
-                    },
-                    restore = { savedList ->
-                        savedList.mapNotNull { jsonString ->
-                            try {
-                                kotlinx.serialization.json.Json.decodeFromString<MedicalQuizRoutes>(jsonString)
-                            } catch (e: Exception) {
-                                null
-                            }
-                        }.toMutableStateList()
-                    }
-                )
-            }
-
             // Navigation state management
             val navStateRepo = remember { NavigationStateRepository() }
             val savedState = remember { navStateRepo.restoreNavigationState() }
@@ -161,14 +156,7 @@ fun App() {
             // stale state from Bundle when app data is cleared. We only persist
             // to file, not to Compose saveable state.
             val backStack: SnapshotStateList<MedicalQuizRoutes> = remember {
-                // Validate saved state - must start with DatabaseSelection
-                val validStack = savedBackStack?.takeIf { stack ->
-                    stack.isNotEmpty() && stack.first() is MedicalQuizRoutes.DatabaseSelection
-                }
-                if (savedBackStack != null && validStack == null) {
-                    navStateRepo.clearNavigationState()
-                }
-                validStack?.toMutableStateList()
+                savedBackStack?.toMutableStateList()
                     ?: mutableStateListOf(MedicalQuizRoutes.DatabaseSelection)
             }
 
@@ -203,10 +191,10 @@ fun App() {
 
                     val hasPendingHistoryRestore = pendingHistoryRestoreToken != handledHistoryRestoreToken
                     if (hasPendingHistoryRestore) {
-                        val sessionRestored = viewModel.restoreSession()
-                        if (sessionRestored) {
-                            viewModel.loadFilteredQuestionIds()
-                        }
+                        handleSessionRestoreResult(
+                            result = viewModel.restoreSession(),
+                            onRestored = { viewModel.loadFilteredQuestionIds() },
+                        )
                         handledHistoryRestoreToken = pendingHistoryRestoreToken
                         return@LaunchedEffect
                     }
@@ -216,17 +204,18 @@ fun App() {
                     val currentState = viewModel.state.value
                     val isOnQuizScreen = backStack.lastOrNull() is MedicalQuizRoutes.Quiz
                     if (isOnQuizScreen && currentState.questionIds.isEmpty()) {
-                        val sessionRestored = viewModel.restoreSession()
-                        if (sessionRestored) {
-                            // Session was restored, load the filtered questions and current question
-                            viewModel.loadFilteredQuestionIds()
-                        } else {
-                            // No saved session or session was for different database,
-                            // go back to filter screen
-                            while (backStack.size > 1) {
-                                backStack.removeLastOrNull()
-                            }
-                        }
+                        handleSessionRestoreResult(
+                            result = viewModel.restoreSession(),
+                            onRestored = {
+                                // Session was restored, load the filtered questions and current question
+                                viewModel.loadFilteredQuestionIds()
+                            },
+                            onUnavailable = {
+                                // No saved session or session was for different database,
+                                // go back to filter screen
+                                backStack.popToDatabaseSelection()
+                            },
+                        )
                     }
                 }
             }
@@ -273,9 +262,7 @@ fun App() {
                         }
                         is UiEvent.NavigateToDatabaseSelection -> {
                             // Pop back to DatabaseSelection for smooth back navigation animation
-                            while (backStack.size > 1) {
-                                backStack.removeLastOrNull()
-                            }
+                            backStack.popToDatabaseSelection()
                             selectedDatabase = null
                             initializedDatabase = null
                             viewModel.closeDatabase()
@@ -313,7 +300,7 @@ fun App() {
                                         selectedDatabase = matchingDatabase
                                         backStack.clear()
                                         backStack.add(MedicalQuizRoutes.DatabaseSelection)
-                                        backStack.add(MedicalQuizRoutes.Quiz(launchedFromHistory = true))
+                                        backStack.add(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
                                     }
                                 }
                             },
@@ -429,9 +416,7 @@ fun App() {
                                 viewModel.clearSession()
                                 // For history-launched quizzes, return to main history screen.
                                 if (key.launchedFromHistory) {
-                                    while (backStack.size > 1) {
-                                        backStack.removeLastOrNull()
-                                    }
+                                    backStack.popToDatabaseSelection()
                                 } else {
                                     // Standard quiz flow: return to Filter.
                                     backStack.removeLastOrNull()
