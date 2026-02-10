@@ -7,18 +7,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -26,20 +22,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.dropUnlessResumed
-import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.ui.media.MediaHandler
 import com.medicalquiz.app.shared.ui.dialogs.ErrorDialog
 import com.medicalquiz.app.shared.ui.dialogs.JumpToDialog
-import com.medicalquiz.app.shared.ui.dialogs.PerformanceFilterDialog
 import com.medicalquiz.app.shared.ui.dialogs.ResetConfirmationDialog
 import com.medicalquiz.app.shared.ui.dialogs.SettingsDialogWithViewModel
-import com.medicalquiz.app.shared.ui.dialogs.SubjectFilterDialog
-import com.medicalquiz.app.shared.ui.dialogs.SystemFilterDialog
 import com.medicalquiz.app.shared.ui.screens.media.PlatformBackHandler
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 import com.medicalquiz.app.shared.viewmodel.UiEvent
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -48,8 +38,6 @@ fun QuizRoot(
     mediaHandler: MediaHandler,
     onNavigateBack: () -> Unit,
 ) {
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
     val isQuizMode = state.questionIds.isNotEmpty() && state.currentQuestion != null
@@ -70,19 +58,13 @@ fun QuizRoot(
     }
 
     // Dialog states - these are overlays within the quiz screen
-    var showPerformanceDialog by rememberSaveable { mutableStateOf(false) }
     var showSettingsDialog by rememberSaveable { mutableStateOf(false) }
     var showJumpToDialog by rememberSaveable { mutableStateOf(false) }
-    var showSubjectDialog by rememberSaveable { mutableStateOf(false) }
-    var showSystemDialog by rememberSaveable { mutableStateOf(false) }
     var showResetLogsConfirmation by rememberSaveable { mutableStateOf(false) }
     var errorDialog by rememberSaveable { mutableStateOf<Pair<String, String>?>(null) }
 
-    val isOverlayVisible = showPerformanceDialog ||
-        showSettingsDialog ||
+    val isOverlayVisible = showSettingsDialog ||
         showJumpToDialog ||
-        showSubjectDialog ||
-        showSystemDialog ||
         showResetLogsConfirmation ||
         errorDialog != null
 
@@ -100,7 +82,6 @@ fun QuizRoot(
     LaunchedEffect(viewModel) {
         viewModel.uiEvents.collect { event ->
             when (event) {
-                is UiEvent.OpenPerformanceDialog -> showPerformanceDialog = true
                 is UiEvent.ShowErrorDialog -> errorDialog = event.title to event.message
                 is UiEvent.ShowResetLogsConfirmation -> showResetLogsConfirmation = true
                 // OpenHtmlFile and OpenMedia are now handled by NavDisplay in App.kt
@@ -109,115 +90,50 @@ fun QuizRoot(
         }
     }
 
-    LaunchedEffect(showSubjectDialog) {
-        if (showSubjectDialog) viewModel.fetchSubjects()
-    }
+    Box(modifier = Modifier.fillMaxSize()) {
+        val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-    LaunchedEffect(showSystemDialog, state.selectedSubjectIds) {
-        if (showSystemDialog) {
-            val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-            viewModel.fetchSystemsForSubjects(subjects)
-        }
-    }
-
-    // Quiz screen with navigation drawer
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = drawerState.isOpen,
-        drawerContent = {
-            NavigationDrawer(
-                subjectCount = state.selectedSubjectIds.size,
-                systemCount = state.selectedSystemIds.size,
-                performanceFilter = state.performanceFilter,
-                onSubjectFilter = {
-                    showSubjectDialog = true
-                    scope.launch { drawerState.close() }
-                },
-                onSystemFilter = {
-                    showSystemDialog = true
-                    scope.launch { drawerState.close() }
-                },
-                onPerformanceFilter = {
-                    viewModel.openPerformanceDialog()
-                    scope.launch { drawerState.close() }
-                },
-                onClearFilters = {
-                    viewModel.applySelectedSubjects(emptySet())
-                    viewModel.applySelectedSystems(emptySet())
-                    viewModel.setPerformanceFilter(PerformanceFilter.ALL, loadQuestions = true)
-                    scope.launch { drawerState.close() }
-                },
-                onSettings = {
-                    showSettingsDialog = true
-                    scope.launch { drawerState.close() }
-                },
-                onChangeDatabase = dropUnlessResumed {
-                    viewModel.navigateToDatabaseSelection()
-                    scope.launch { drawerState.close() }
-                }
-            )
-        }
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            
-            Scaffold(
-                modifier = Modifier.fillMaxSize(),
-                topBar = {
-                    TopBar(
-                        title = title,
-                        questionIndex = state.currentQuestionIndex,
-                        totalQuestions = state.totalQuestions,
-                        onMenuClick = { scope.launch { drawerState.open() } },
-                        onJumpClick = { showJumpToDialog = true },
-                        onResetLogClick = { viewModel.clearCurrentQuestionLog() },
-                        onSettingsClick = { showSettingsDialog = true }
-                    )
-                },
-                contentWindowInsets = WindowInsets.statusBars
-            ) { padding ->
-                QuizScreen(
-                    viewModel = viewModel,
-                    mediaHandler = mediaHandler,
-                    onPrevious = { viewModel.loadPrevious() },
-                    onNext = { viewModel.loadNext() },
-                    onJumpTo = { showJumpToDialog = true },
-                    onOpenSettings = { showSettingsDialog = true },
-                    contentPadding = padding,
-                    bottomClearance = bottomPadding + 80.dp
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                TopBar(
+                    title = title,
+                    onResetLogClick = { viewModel.clearCurrentQuestionLog() },
+                    onSettingsClick = { showSettingsDialog = true }
                 )
-            }
-            
-            // Floating toolbar - overlays content
-            QuizFloatingToolbar(
-                uiState = QuizBottomToolbarUiState(
-                    currentQuestionIndex = state.currentQuestionIndex,
-                    totalQuestions = state.totalQuestions,
-                    hasPreviousQuestion = state.hasPreviousQuestion,
-                    hasNextQuestion = state.hasNextQuestion,
-                ),
+            },
+            contentWindowInsets = WindowInsets.statusBars
+        ) { padding ->
+            QuizScreen(
+                viewModel = viewModel,
+                mediaHandler = mediaHandler,
                 onPrevious = { viewModel.loadPrevious() },
                 onNext = { viewModel.loadNext() },
                 onJumpTo = { showJumpToDialog = true },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = bottomPadding + 16.dp)
+                onOpenSettings = { showSettingsDialog = true },
+                contentPadding = padding,
+                bottomClearance = bottomPadding + 80.dp
             )
         }
-    }
 
-    // Dialogs - rendered as overlays
-    if (showPerformanceDialog) {
-        PerformanceFilterDialog(
-            current = state.performanceFilter,
-            onSelect = { filter ->
-                viewModel.setPerformanceFilter(filter, loadQuestions = isQuizMode)
-                showPerformanceDialog = false
-            },
-            onDismiss = { showPerformanceDialog = false }
+        // Floating toolbar - overlays content
+        QuizFloatingToolbar(
+            uiState = QuizBottomToolbarUiState(
+                currentQuestionIndex = state.currentQuestionIndex,
+                totalQuestions = state.totalQuestions,
+                hasPreviousQuestion = state.hasPreviousQuestion,
+                hasNextQuestion = state.hasNextQuestion,
+            ),
+            onPrevious = { viewModel.loadPrevious() },
+            onNext = { viewModel.loadNext() },
+            onJumpTo = { showJumpToDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = bottomPadding + 16.dp)
         )
     }
 
+    // Dialogs - rendered as overlays
     if (showSettingsDialog) {
         SettingsDialogWithViewModel(
             isVisible = true,
@@ -237,45 +153,6 @@ fun QuizRoot(
                 showJumpToDialog = false
             },
             onDismiss = { showJumpToDialog = false }
-        )
-    }
-
-    if (showSubjectDialog) {
-        SubjectFilterDialog(
-            isVisible = true,
-            resource = state.subjectsResource,
-            selectedIds = state.selectedSubjectIds,
-            onRetry = { viewModel.fetchSubjects() },
-            onApply = { selected ->
-                viewModel.applySelectedSubjects(selected, loadQuestions = isQuizMode)
-                showSubjectDialog = false
-            },
-            onClear = {
-                viewModel.applySelectedSubjects(emptySet(), loadQuestions = isQuizMode)
-                showSubjectDialog = false
-            },
-            onDismiss = { showSubjectDialog = false }
-        )
-    }
-
-    if (showSystemDialog) {
-        SystemFilterDialog(
-            isVisible = true,
-            resource = state.systemsResource,
-            selectedIds = state.selectedSystemIds,
-            onRetry = {
-                val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-                viewModel.fetchSystemsForSubjects(subjects)
-            },
-            onApply = { selected ->
-                viewModel.applySelectedSystems(selected, loadQuestions = isQuizMode)
-                showSystemDialog = false
-            },
-            onClear = {
-                viewModel.applySelectedSystems(emptySet(), loadQuestions = isQuizMode)
-                showSystemDialog = false
-            },
-            onDismiss = { showSystemDialog = false }
         )
     }
 
