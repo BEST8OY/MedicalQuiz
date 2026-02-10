@@ -53,13 +53,13 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.ButtonGroup
-import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -291,48 +291,38 @@ private fun SharedTransitionScope.MediaViewerContent(
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(bottom = 24.dp),
         ) {
-            ButtonGroup(
-                overflowIndicator = { menuState ->
-                    ButtonGroupDefaults.OverflowIndicator(
-                        menuState = menuState,
-                        shape = MaterialTheme.shapes.medium,
-                    )
-                },
-                expandedRatio = ButtonGroupDefaults.ExpandedRatio,
-                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+            // IconButtons for toggling overlay and info
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (hasOverlay) {
-                    toggleableItem(
+                    // Toggle overlay visibility with IconToggleButton
+                    FilledIconToggleButton(
                         checked = showOverlay,
-                        label = "Overlay",
                         onCheckedChange = { showOverlay = it },
-                        weight = 1f,
-                        icon = {
-                            Icon(
-                                imageVector = if (showOverlay) {
-                                    Icons.Filled.Visibility
-                                } else {
-                                    Icons.Filled.VisibilityOff
-                                },
-                                contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                            )
-                        },
-                    )
+                    ) {
+                        Icon(
+                            imageVector = if (showOverlay) {
+                                Icons.Filled.Visibility
+                            } else {
+                                Icons.Filled.VisibilityOff
+                            },
+                            contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                        )
+                    }
                 }
 
                 if (hasDescription) {
-                    toggleableItem(
+                    // Toggle info visibility with IconToggleButton
+                    FilledIconToggleButton(
                         checked = showExplanation,
-                        label = "Info",
                         onCheckedChange = { showExplanation = it },
-                        weight = 1f,
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Filled.Info,
-                                contentDescription = "Toggle info",
-                            )
-                        },
-                    )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = "Toggle info",
+                        )
+                    }
                 }
             }
         }

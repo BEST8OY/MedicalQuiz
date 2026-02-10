@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -30,8 +29,10 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -176,49 +177,40 @@ private fun FloatingToolbar(
         colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
     ) {
-        ButtonGroup(
-            overflowIndicator = { state ->
-                IconButton(
-                    onClick = { state.show() },
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                ) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                }
-            },
-            expandedRatio = 0.1f,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        // Database tab - ToggleButton: icon + text when checked, text only when unchecked
+        ToggleButton(
+            checked = selectedPane == SelectionPane.Database,
+            onCheckedChange = { if (it) onPaneSelected(SelectionPane.Database) },
+            modifier = Modifier.padding(horizontal = 4.dp)
         ) {
-            // Selected button has icon, unselected is text-only
-            toggleableItem(
-                checked = selectedPane == SelectionPane.Database,
-                label = "Databases",
-                icon = if (selectedPane == SelectionPane.Database) {
-                    {
-                        Icon(
-                            Icons.Filled.Storage,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                } else null,
-                onCheckedChange = { if (it) onPaneSelected(SelectionPane.Database) },
-                weight = 1f,
-            )
-            toggleableItem(
-                checked = selectedPane == SelectionPane.History,
-                label = "History",
-                icon = if (selectedPane == SelectionPane.History) {
-                    {
-                        Icon(
-                            Icons.Filled.History,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                } else null,
-                onCheckedChange = { if (it) onPaneSelected(SelectionPane.History) },
-                weight = 1f,
-            )
+            // Show icon only when checked
+            if (selectedPane == SelectionPane.Database) {
+                Icon(
+                    imageVector = Icons.Filled.Storage,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text("Databases")
+        }
+
+        // History tab - ToggleButton: icon + text when checked, text only when unchecked
+        ToggleButton(
+            checked = selectedPane == SelectionPane.History,
+            onCheckedChange = { if (it) onPaneSelected(SelectionPane.History) },
+            modifier = Modifier.padding(horizontal = 4.dp)
+        ) {
+            // Show icon only when checked
+            if (selectedPane == SelectionPane.History) {
+                Icon(
+                    imageVector = Icons.Filled.History,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text("History")
         }
     }
 }
