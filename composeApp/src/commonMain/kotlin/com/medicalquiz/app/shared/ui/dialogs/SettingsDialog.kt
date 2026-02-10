@@ -13,26 +13,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -41,7 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.medicalquiz.app.shared.data.FontScalePresets
 import com.medicalquiz.app.shared.ui.dialogs.components.DialogHeader
 import com.medicalquiz.app.shared.ui.dialogs.components.DialogShell
 
@@ -53,10 +47,10 @@ fun SettingsDialog(
     isVisible: Boolean,
     initialLoggingEnabled: Boolean,
     initialShowMetadata: Boolean,
-    initialFontSize: Float,
+    initialFontScalePreference: Float?,
     onLoggingChanged: (Boolean) -> Unit,
     onShowMetadataChanged: (Boolean) -> Unit,
-    onFontSizeChanged: (Float) -> Unit,
+    onFontScalePreferenceChanged: (Float?) -> Unit,
     onResetLogs: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -68,8 +62,8 @@ fun SettingsDialog(
     var showMetadata by rememberSaveable(initialShowMetadata) {
         mutableStateOf(initialShowMetadata)
     }
-    var fontSize by rememberSaveable(initialFontSize) {
-        mutableFloatStateOf(initialFontSize)
+    var selectedFontOption by rememberSaveable(initialFontScalePreference) {
+        mutableStateOf(FontScaleOption.fromScale(initialFontScalePreference))
     }
 
     DialogShell(onDismiss = onDismiss) {
@@ -110,12 +104,11 @@ fun SettingsDialog(
                     color = MaterialTheme.colorScheme.outlineVariant
                 )
 
-                // Font Size Slider
-                FontSizeControl(
-                    fontSize = fontSize,
-                    onFontSizeChange = { size ->
-                        fontSize = size
-                        onFontSizeChanged(size)
+                FontScaleControl(
+                    selected = selectedFontOption,
+                    onSelected = { option ->
+                        selectedFontOption = option
+                        onFontScalePreferenceChanged(option.scale)
                     }
                 )
 
@@ -223,100 +216,92 @@ private fun SettingsToggleRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun FontSizeControl(
-    fontSize: Float,
-    onFontSizeChange: (Float) -> Unit
+private fun FontScaleControl(
+    selected: FontScaleOption,
+    onSelected: (FontScaleOption) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Font size",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Medium
-            )
+        Text(
+            text = "Reading text size",
+            style = MaterialTheme.typography.titleSmallEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+
+        FontScaleOption.entries.forEach { option ->
             Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .clickable { onSelected(option) },
+                color = if (selected == option) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.4f)
+                },
             ) {
-                Text(
-                    text = "${fontSize.toInt()}sp",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(
+                        selected = selected == option,
+                        onClick = { onSelected(option) },
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = option.label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        option.description?.let { description ->
+                            Text(
+                                text = description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
             }
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            FilledTonalIconButton(
-                onClick = {
-                    val newSize = (fontSize - 1f).coerceAtLeast(12f)
-                    onFontSizeChange(newSize)
-                },
-                enabled = fontSize > 12f,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Remove,
-                    contentDescription = "Decrease",
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            Slider(
-                value = fontSize,
-                onValueChange = onFontSizeChange,
-                valueRange = 12f..24f,
-                steps = 11,
-                modifier = Modifier.weight(1f),
-                colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary
-                )
-            )
-
-            FilledTonalIconButton(
-                onClick = {
-                    val newSize = (fontSize + 1f).coerceAtMost(24f)
-                    onFontSizeChange(newSize)
-                },
-                enabled = fontSize < 24f,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = "Increase",
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-
-        // Preview text
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.small,
-            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f),
         ) {
             Text(
-                text = "Preview: The quick brown fox jumps over the lazy dog.",
+                text = "Applies to question and media description rich text only.",
                 modifier = Modifier.padding(12.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                fontSize = fontSize.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+private enum class FontScaleOption(
+    val label: String,
+    val scale: Float?,
+    val description: String? = null,
+) {
+    FollowSystem("Follow system", null),
+    Compact("Compact", FontScalePresets.COMPACT, "0.9×"),
+    Default("Default", FontScalePresets.DEFAULT, "1.0×"),
+    Large("Large", FontScalePresets.LARGE, "1.15×"),
+    ExtraLarge("Extra large", FontScalePresets.EXTRA_LARGE, "1.3×"),
+    ;
+
+    companion object {
+        fun fromScale(scale: Float?): FontScaleOption =
+            entries.firstOrNull { option -> FontScalePresets.matches(option.scale, scale) } ?: FollowSystem
     }
 }

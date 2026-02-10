@@ -1,6 +1,5 @@
 package com.medicalquiz.app.shared.data
 
-import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.StorageProvider
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,8 +20,8 @@ class SettingsRepository {
     private val _showMetadata = MutableStateFlow(true)
     val showMetadata: StateFlow<Boolean> = _showMetadata.asStateFlow()
 
-    private val _fontSize = MutableStateFlow(16f)
-    val fontSize: StateFlow<Float> = _fontSize.asStateFlow()
+    private val _fontScalePreference = MutableStateFlow<Float?>(null)
+    val fontScalePreference: StateFlow<Float?> = _fontScalePreference.asStateFlow()
 
     private val settingsFile: String
         get() = "${StorageProvider.getAppStorageDirectory()}/settings.json"
@@ -43,8 +42,8 @@ class SettingsRepository {
         saveSettings()
     }
 
-    fun setFontSize(size: Float) {
-        _fontSize.value = size
+    fun setFontScalePreference(scale: Float?) {
+        _fontScalePreference.value = scale
         saveSettings()
     }
 
@@ -55,7 +54,8 @@ class SettingsRepository {
                 val payload = json.decodeFromString(SettingsPayload.serializer(), content)
                 _isLoggingEnabled.value = payload.isLoggingEnabled
                 _showMetadata.value = payload.showMetadata
-                _fontSize.value = payload.fontSize
+                _fontScalePreference.value = payload.fontScalePreference
+                    ?: payload.fontSize?.toLegacyScalePreference()
             }
         } catch (e: Exception) {
             println("Error loading settings: ${e.message}")
@@ -67,7 +67,7 @@ class SettingsRepository {
             val payload = SettingsPayload(
                 isLoggingEnabled = _isLoggingEnabled.value,
                 showMetadata = _showMetadata.value,
-                fontSize = _fontSize.value
+                fontScalePreference = _fontScalePreference.value,
             )
             val jsonString = json.encodeToString(payload)
             FileSystemHelper.writeText(settingsFile, jsonString)
@@ -80,6 +80,15 @@ class SettingsRepository {
     private data class SettingsPayload(
         val isLoggingEnabled: Boolean = true,
         val showMetadata: Boolean = true,
-        val fontSize: Float = 16f
+        val fontScalePreference: Float? = null,
+        // Legacy setting kept for migration when reading older settings files.
+        val fontSize: Float? = null,
     )
+
+    private fun Float.toLegacyScalePreference(): Float =
+        FontScalePresets.nearestTo(this / LEGACY_BASE_FONT_SIZE)
+
+    private companion object {
+        const val LEGACY_BASE_FONT_SIZE = 16f
+    }
 }

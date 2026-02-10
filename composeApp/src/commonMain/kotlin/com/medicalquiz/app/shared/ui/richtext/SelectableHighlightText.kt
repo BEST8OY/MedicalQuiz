@@ -83,7 +83,7 @@ fun SelectableHighlightText(
     text: AnnotatedString,
     highlights: List<TextHighlight>,
     modifier: Modifier = Modifier,
-    textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
+    textStyle: TextStyle = MaterialTheme.typography.bodyMedium.scaledBy(LocalRichTextScale.current.proseScale),
     onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
     onHighlightRemove: (highlightId: Long) -> Unit,
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
