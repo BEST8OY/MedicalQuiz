@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.FilterAltOff
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.ButtonGroup
@@ -24,7 +25,9 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.rememberButtonGroupMenuState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -299,6 +302,8 @@ private fun PrimaryActionButtonGroup(
     onStart: () -> Unit,
     onClearFilters: () -> Unit
 ) {
+    val menuState = rememberButtonGroupMenuState()
+
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
@@ -308,6 +313,14 @@ private fun PrimaryActionButtonGroup(
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
     ) {
         ButtonGroup(
+            overflowIndicator = { state ->
+                IconButton(
+                    onClick = { state.show() },
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp),
