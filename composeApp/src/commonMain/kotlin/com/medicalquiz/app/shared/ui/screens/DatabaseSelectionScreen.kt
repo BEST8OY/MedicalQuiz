@@ -178,15 +178,18 @@ private fun FloatingToolbar(
         colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
     ) {
-        // Database tab - TonalToggleButton: icon + text when checked, text only when unchecked
-        TonalToggleButton(
+        // Database tab - ToggleButton: icon + text when checked, text only when unchecked
+        ToggleButton(
             checked = selectedPane == SelectionPane.Database,
             onCheckedChange = { if (it) onPaneSelected(SelectionPane.Database) },
             modifier = Modifier.padding(horizontal = 4.dp),
             shapes = ToggleButtonDefaults.shapes(
-                shape = ToggleButtonDefaults.roundShape,
-                pressedShape = ToggleButtonDefaults.squareShape,
-                checkedShape = ToggleButtonDefaults.squareShape
+                pressedShape = ToggleButtonDefaults.roundShape,
+                checkedShape = ToggleButtonDefaults.roundShape
+            ),
+            colors = ToggleButtonDefaults.toggleButtonColors(
+                checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
             )
         ) {
             // Show icon only when checked
@@ -201,15 +204,18 @@ private fun FloatingToolbar(
             Text("Databases")
         }
 
-        // History tab - TonalToggleButton: icon + text when checked, text only when unchecked
-        TonalToggleButton(
+        // History tab - ToggleButton: icon + text when checked, text only when unchecked
+        ToggleButton(
             checked = selectedPane == SelectionPane.History,
             onCheckedChange = { if (it) onPaneSelected(SelectionPane.History) },
             modifier = Modifier.padding(horizontal = 4.dp),
             shapes = ToggleButtonDefaults.shapes(
-                shape = ToggleButtonDefaults.roundShape,
-                pressedShape = ToggleButtonDefaults.squareShape,
-                checkedShape = ToggleButtonDefaults.squareShape
+                pressedShape = ToggleButtonDefaults.roundShape,
+                checkedShape = ToggleButtonDefaults.roundShape
+            ),
+            colors = ToggleButtonDefaults.toggleButtonColors(
+                checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
             )
         ) {
             // Show icon only when checked
