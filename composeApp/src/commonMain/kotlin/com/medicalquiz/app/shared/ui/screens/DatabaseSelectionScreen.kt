@@ -12,27 +12,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -40,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -176,48 +176,49 @@ private fun FloatingToolbar(
         colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
     ) {
-        ToolbarModeButton(
-            text = "Databases",
-            icon = {
-                Icon(Icons.Filled.Storage, contentDescription = null)
+        ButtonGroup(
+            overflowIndicator = { state ->
+                IconButton(
+                    onClick = { state.show() },
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                }
             },
-            selected = selectedPane == SelectionPane.Database,
-            onClick = { onPaneSelected(SelectionPane.Database) },
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        ToolbarModeButton(
-            text = "History",
-            icon = {
-                Icon(Icons.Filled.History, contentDescription = null)
-            },
-            selected = selectedPane == SelectionPane.History,
-            onClick = { onPaneSelected(SelectionPane.History) },
-        )
-    }
-}
-
-@Composable
-private fun ToolbarModeButton(
-    text: String,
-    icon: @Composable () -> Unit,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    if (selected) {
-        FilledTonalButton(
-            onClick = onClick,
-            shape = MaterialTheme.shapes.large
+            expandedRatio = 0.1f,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            icon()
-            Text(text = text)
-        }
-    } else {
-        OutlinedButton(
-            onClick = onClick,
-            shape = MaterialTheme.shapes.large
-        ) {
-            icon()
-            Text(text = text)
+            // Selected button has icon, unselected is text-only
+            toggleableItem(
+                checked = selectedPane == SelectionPane.Database,
+                label = "Databases",
+                icon = if (selectedPane == SelectionPane.Database) {
+                    {
+                        Icon(
+                            Icons.Filled.Storage,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                } else null,
+                onCheckedChange = { if (it) onPaneSelected(SelectionPane.Database) },
+                weight = 1f,
+            )
+            toggleableItem(
+                checked = selectedPane == SelectionPane.History,
+                label = "History",
+                icon = if (selectedPane == SelectionPane.History) {
+                    {
+                        Icon(
+                            Icons.Filled.History,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                } else null,
+                onCheckedChange = { if (it) onPaneSelected(SelectionPane.History) },
+                weight = 1f,
+            )
         }
     }
 }
