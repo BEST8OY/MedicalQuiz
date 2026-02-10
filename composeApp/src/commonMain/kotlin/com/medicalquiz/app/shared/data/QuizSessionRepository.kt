@@ -39,8 +39,18 @@ class QuizSessionRepository {
             }
 
             val now = Clock.System.now().toEpochMilliseconds()
+            val existingSession = restoreSession()
+            val existingSessionId = existingSession
+                ?.takeIf {
+                    it.databaseName == databaseName &&
+                        it.selectedSubjectIds.toSet() == selectedSubjectIds &&
+                        it.selectedSystemIds.toSet() == selectedSystemIds &&
+                        it.performanceFilter == performanceFilter
+                }
+                ?.id
+
             val session = QuizSession(
-                id = buildSessionId(databaseName, now),
+                id = existingSessionId?.takeIf { it.isNotBlank() } ?: buildSessionId(databaseName, now),
                 databaseName = databaseName,
                 selectedSubjectIds = selectedSubjectIds.toList(),
                 selectedSystemIds = selectedSystemIds.toList(),
