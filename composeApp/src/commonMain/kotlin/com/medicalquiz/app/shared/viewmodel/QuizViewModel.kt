@@ -551,12 +551,6 @@ class QuizViewModel : ViewModel() {
         }
     }
 
-    fun openPerformanceDialog() {
-        viewModelScope.launch {
-            _uiEvents.emit(UiEvent.OpenPerformanceDialog)
-        }
-    }
-
     fun navigateToDatabaseSelection() {
         viewModelScope.launch {
             _uiEvents.emit(UiEvent.NavigateToDatabaseSelection)

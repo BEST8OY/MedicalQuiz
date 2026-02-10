@@ -269,7 +269,7 @@ fun App() {
                             // Clear the quiz session since we're switching databases
                             sessionRepository.clearSession()
                         }
-                        // Other events (OpenPerformanceDialog, ShowErrorDialog, ShowResetLogsConfirmation)
+                        // Other events are handled in destination-specific screens
                         // are handled within QuizRoot as dialog overlays
                         else -> Unit
                     }
