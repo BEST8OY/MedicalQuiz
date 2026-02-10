@@ -452,6 +452,7 @@ private fun QuizQuestionCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun QuestionMetadataCard(sections: List<MetadataSection>) {
     if (sections.isEmpty()) return
@@ -563,6 +564,7 @@ private fun extractMetadataList(raw: String?): List<String> {
         .filter { it.isNotEmpty() }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun PerformanceCard(performance: QuestionPerformance?) {
     performance ?: return

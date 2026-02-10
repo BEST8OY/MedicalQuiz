@@ -198,6 +198,7 @@ private fun FloatingToolbar(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ToolbarModeButton(
     text: String,
