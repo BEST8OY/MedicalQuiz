@@ -136,7 +136,7 @@ private fun HintSection(
     showSelectedHighlight: Boolean
 ) {
     val defaultEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-    val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Int>()
+    val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
 
     Surface(
         shape = MaterialTheme.shapes.small,
@@ -212,8 +212,7 @@ private fun QuizQuestionCard(
     bottomClearance: Dp
 ) {
     val defaultEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-    val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Int>()
-    val defaultBoundsSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
+    val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
 
     val question = state.currentQuestion
     val answers = state.currentAnswers
@@ -414,7 +413,7 @@ private fun QuizQuestionCard(
         // Question metadata & logs container with smooth size animation
         Column(
             modifier = Modifier.animateContentSize(
-                animationSpec = defaultBoundsSpec,
+                animationSpec = defaultSpatialSpec,
             )
         ) {
             // Question metadata - shown after answering (inside scrollable area)
