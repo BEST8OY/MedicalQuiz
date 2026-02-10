@@ -11,6 +11,7 @@ import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.medicalquiz.app.shared.ui.richtext.RichTextPalette
 
@@ -179,7 +180,11 @@ internal fun AnnotatedString.Builder.appendTextWithStyle(
         },
         background = backgroundColor,
         color = textColor ?: Color.Unspecified,
-        fontSize = if (style.smallText) 12.sp else TextUnit.Unspecified
+        fontSize = when {
+            style.superscript || style.subscript -> 0.75.em
+            style.smallText -> 12.sp
+            else -> TextUnit.Unspecified
+        },
     )
 
     if (style.link != null) {

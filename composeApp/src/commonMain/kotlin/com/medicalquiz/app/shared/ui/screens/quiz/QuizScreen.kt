@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +58,7 @@ import com.medicalquiz.app.shared.data.models.Question
 import com.medicalquiz.app.shared.ui.media.MediaHandler
 import com.medicalquiz.app.shared.ui.richtext.HighlightableRichText
 import com.medicalquiz.app.shared.ui.richtext.RichText
+import com.medicalquiz.app.shared.ui.richtext.RichTextScaleProvider
 import com.medicalquiz.app.shared.ui.screens.quiz.AnswerOptions
 import com.medicalquiz.app.shared.ui.state.QuizUiState
 import com.medicalquiz.app.shared.utils.HtmlUtils
@@ -78,14 +80,18 @@ fun QuizScreen(
     bottomClearance: Dp = 80.dp
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val fontScalePreference = viewModel.settingsRepository?.fontScalePreference
+        ?.collectAsStateWithLifecycle(null)?.value
 
-    QuestionContent(
-        state = state,
-        viewModel = viewModel,
-        mediaHandler = mediaHandler,
-        contentPadding = contentPadding,
-        bottomClearance = bottomClearance
-    )
+    RichTextScaleProvider(proseScale = fontScalePreference ?: 1f) {
+        QuestionContent(
+            state = state,
+            viewModel = viewModel,
+            mediaHandler = mediaHandler,
+            contentPadding = contentPadding,
+            bottomClearance = bottomClearance,
+        )
+    }
 }
 
 @Composable
@@ -119,6 +125,7 @@ private fun QuestionContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun HintSection(
     isVisible: Boolean,
@@ -157,8 +164,7 @@ private fun HintSection(
                 )
                 Text(
                     text = "Hint",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleSmallEmphasized,
                     color = hintContentColor
                 )
                 Spacer(modifier = Modifier.weight(1f))
@@ -195,6 +201,7 @@ private fun HintSection(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun QuizQuestionCard(
     state: QuizUiState,
@@ -382,8 +389,7 @@ private fun QuizQuestionCard(
                 ) {
                     Text(
                         text = "Explanation",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                         color = MaterialTheme.colorScheme.primary
                     )
                     // Use HighlightableRichText for explanation

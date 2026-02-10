@@ -21,17 +21,17 @@ fun SettingsDialogWithViewModel(
         ?.collectAsStateWithLifecycle(false)?.value ?: false
     val showMetadata = viewModel.settingsRepository?.showMetadata
         ?.collectAsStateWithLifecycle(true)?.value ?: true
-    val fontSize = viewModel.settingsRepository?.fontSize
-        ?.collectAsStateWithLifecycle(16f)?.value ?: 16f
+    val fontScalePreference = viewModel.settingsRepository?.fontScalePreference
+        ?.collectAsStateWithLifecycle(null)?.value
 
     SettingsDialog(
         isVisible = isVisible,
         initialLoggingEnabled = loggingEnabled,
         initialShowMetadata = showMetadata,
-        initialFontSize = fontSize,
+        initialFontScalePreference = fontScalePreference,
         onLoggingChanged = { viewModel.settingsRepository?.setLoggingEnabled(it) },
         onShowMetadataChanged = { viewModel.settingsRepository?.setShowMetadata(it) },
-        onFontSizeChanged = { viewModel.settingsRepository?.setFontSize(it) },
+        onFontScalePreferenceChanged = { viewModel.settingsRepository?.setFontScalePreference(it) },
         onResetLogs = {
             onDismiss()
             onResetLogsRequested()

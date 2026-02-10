@@ -256,6 +256,7 @@ private fun HighlightableBulletList(
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((String) -> Unit)?
 ) {
+    val richTextScale = LocalRichTextScale.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         var itemOffset = baseOffset
 
@@ -270,8 +271,8 @@ private fun HighlightableBulletList(
             Row(modifier = Modifier.fillMaxWidth()) {
                 MaterialText(
                     text = "\u2022",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(end = 12.dp)
+                    style = MaterialTheme.typography.bodyLarge.scaledBy(richTextScale.proseScale),
+                    modifier = Modifier.padding(end = 12.dp),
                 )
                 HighlightableListItem(
                     text = itemText,
@@ -306,6 +307,7 @@ private fun HighlightableOrderedList(
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((String) -> Unit)?
 ) {
+    val richTextScale = LocalRichTextScale.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         var itemOffset = baseOffset
 
@@ -320,8 +322,8 @@ private fun HighlightableOrderedList(
             Row(modifier = Modifier.fillMaxWidth()) {
                 MaterialText(
                     text = "${block.start + index}.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(end = 12.dp)
+                    style = MaterialTheme.typography.bodyLarge.scaledBy(richTextScale.proseScale),
+                    modifier = Modifier.padding(end = 12.dp),
                 )
                 HighlightableListItem(
                     text = itemText,

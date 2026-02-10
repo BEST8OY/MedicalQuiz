@@ -1,6 +1,5 @@
 package com.medicalquiz.app.shared.ui.richtext
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -36,19 +35,24 @@ internal fun RichTextBlockRenderer(
     onTooltipClick: ((String) -> Unit)?
 ) {
     when (block) {
-        is RichTextBlock.Paragraph -> RichTextParagraph(block.text, textAlign = block.textAlign, onLinkClick = onLinkClick, onTooltipClick = onTooltipClick)
+        is RichTextBlock.Paragraph -> RichTextParagraph(
+            block.text,
+            textAlign = block.textAlign,
+            onLinkClick = onLinkClick,
+            onTooltipClick = onTooltipClick,
+        )
         is RichTextBlock.Heading -> RichTextHeading(block, onLinkClick, onTooltipClick)
         is RichTextBlock.BulletList -> RichTextList(
             items = block.items,
             markerProvider = { _ -> "\u2022" },
             onLinkClick = onLinkClick,
-            onTooltipClick = onTooltipClick
+            onTooltipClick = onTooltipClick,
         )
         is RichTextBlock.OrderedList -> RichTextList(
             items = block.items,
             markerProvider = { index -> "${block.start + index}." },
             onLinkClick = onLinkClick,
-            onTooltipClick = onTooltipClick
+            onTooltipClick = onTooltipClick,
         )
         is RichTextBlock.CodeBlock -> RichTextCodeBlock(block)
         is RichTextBlock.Table -> RichTextTable(block, onLinkClick, onTooltipClick)
@@ -66,13 +70,16 @@ internal fun RichTextParagraph(
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((String) -> Unit)?
 ) {
+    val proseScale = LocalRichTextScale.current.proseScale
+    val scaledBodyMedium = MaterialTheme.typography.bodyMedium.scaledBy(proseScale)
+
     InteractiveText(
         text = text,
         modifier = modifier,
-        style = MaterialTheme.typography.bodyMedium.copy(
+        style = scaledBodyMedium.copy(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.375f,
-            textIndent = TextIndent.None
+            lineHeight = scaledBodyMedium.fontSize * 1.375f,
+            textIndent = TextIndent.None,
         ),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = textAlign,
@@ -146,13 +153,14 @@ private fun RichTextHeading(
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((String) -> Unit)?
 ) {
+    val richTextScale = LocalRichTextScale.current
     val style = when (block.level) {
         1 -> MaterialTheme.typography.headlineMedium
         2 -> MaterialTheme.typography.headlineSmall
         3 -> MaterialTheme.typography.titleLarge
         4 -> MaterialTheme.typography.titleMedium
         else -> MaterialTheme.typography.titleSmall
-    }
+    }.scaledBy(richTextScale.proseScale)
     InteractiveText(
         text = block.text,
         style = style,
@@ -172,13 +180,14 @@ private fun RichTextList(
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((String) -> Unit)?
 ) {
+    val richTextScale = LocalRichTextScale.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.forEachIndexed { index, item ->
             Row(modifier = Modifier.fillMaxWidth()) {
                 MaterialText(
                     text = markerProvider(index),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(end = 12.dp)
+                    style = MaterialTheme.typography.bodyLarge.scaledBy(richTextScale.proseScale),
+                    modifier = Modifier.padding(end = 12.dp),
                 )
                 RichTextParagraph(
                     text = item,
@@ -193,6 +202,7 @@ private fun RichTextList(
 
 @Composable
 private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
+    val richTextScale = LocalRichTextScale.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -202,8 +212,8 @@ private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
             text = block.text,
             style = MaterialTheme.typography.bodyMedium.copy(
                 fontFamily = FontFamily.Monospace,
-                fontSize = 14.sp
-            ),
+                fontSize = 14.sp,
+            ).scaledBy(richTextScale.proseScale),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(12.dp)
         )
@@ -216,6 +226,7 @@ private fun AbstractCard(
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((String) -> Unit)?
 ) {
+    val richTextScale = LocalRichTextScale.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -226,8 +237,8 @@ private fun AbstractCard(
             block.title?.let {
                 MaterialText(
                     text = it,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = MaterialTheme.typography.titleMedium.scaledBy(richTextScale.proseScale),
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
             if (block.blocks.isNotEmpty()) {
