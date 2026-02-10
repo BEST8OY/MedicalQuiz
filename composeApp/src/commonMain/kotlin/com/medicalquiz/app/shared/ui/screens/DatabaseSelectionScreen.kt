@@ -32,7 +32,7 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TonalToggleButton
+import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -184,6 +184,7 @@ private fun FloatingToolbar(
             onCheckedChange = { if (it) onPaneSelected(SelectionPane.Database) },
             modifier = Modifier.padding(horizontal = 4.dp),
             shapes = ToggleButtonDefaults.shapes(
+                shape = ToggleButtonDefaults.squareShape,
                 pressedShape = ToggleButtonDefaults.roundShape,
                 checkedShape = ToggleButtonDefaults.roundShape
             ),
@@ -210,6 +211,7 @@ private fun FloatingToolbar(
             onCheckedChange = { if (it) onPaneSelected(SelectionPane.History) },
             modifier = Modifier.padding(horizontal = 4.dp),
             shapes = ToggleButtonDefaults.shapes(
+                shape = ToggleButtonDefaults.squareShape,
                 pressedShape = ToggleButtonDefaults.roundShape,
                 checkedShape = ToggleButtonDefaults.roundShape
             ),
