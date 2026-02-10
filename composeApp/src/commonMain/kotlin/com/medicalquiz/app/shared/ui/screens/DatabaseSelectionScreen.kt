@@ -31,6 +31,7 @@ import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -204,12 +205,18 @@ private fun ToolbarModeButton(
     onClick: () -> Unit,
 ) {
     if (selected) {
-        FilledTonalButton(onClick = onClick) {
+        FilledTonalButton(
+            onClick = onClick,
+            shape = MaterialShapes.ClamShell
+        ) {
             icon()
             Text(text = text)
         }
     } else {
-        OutlinedButton(onClick = onClick) {
+        OutlinedButton(
+            onClick = onClick,
+            shape = MaterialShapes.Bun
+        ) {
             icon()
             Text(text = text)
         }

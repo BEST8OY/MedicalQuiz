@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -63,7 +64,7 @@ private fun AnswerListItem(
     // Leading element: Label (A, B, C, D) with radio button style selection
     val leadingContent: @Composable () -> Unit = {
         Surface(
-            shape = MaterialTheme.shapes.small,
+            shape = if (showResult && isCorrect) MaterialShapes.Heart else if (showResult && isSelected && !isCorrect) MaterialShapes.Boom else MaterialTheme.shapes.small,
             color = if (isSelected) colors.primaryContainer else colors.surfaceContainerHigh,
             modifier = Modifier.padding(end = 8.dp)
         ) {
@@ -121,9 +122,14 @@ private fun AnswerListItem(
         }
     }
 
-    // Use Surface wrapper for rounded corners and background color
+    // Use Surface wrapper with morphing shapes based on answer state
     Surface(
-        shape = MaterialTheme.shapes.medium,
+        shape = when {
+            showResult && isCorrect -> MaterialShapes.Heart
+            showResult && isSelected && !isCorrect -> MaterialShapes.Burst
+            isSelected -> MaterialShapes.Flower
+            else -> MaterialTheme.shapes.medium
+        },
         color = containerColor,
         modifier = Modifier
             .fillMaxWidth()

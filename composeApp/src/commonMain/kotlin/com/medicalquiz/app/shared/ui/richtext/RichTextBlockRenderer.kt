@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -205,7 +206,7 @@ private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
     val richTextScale = LocalRichTextScale.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialShapes.Arch,
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         MaterialText(
@@ -229,7 +230,7 @@ private fun AbstractCard(
     val richTextScale = LocalRichTextScale.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialShapes.Fan,
         color = MaterialTheme.colorScheme.surfaceVariant,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
