@@ -2,7 +2,9 @@ package com.medicalquiz.app.shared.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -117,6 +119,7 @@ private val DarkColorScheme = darkColorScheme(
 expect fun getPlatformColorScheme(darkTheme: Boolean): ColorScheme?
 
 @Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun AppTheme(
     useDarkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
@@ -128,6 +131,7 @@ fun AppTheme(
         colorScheme = colorScheme,
         typography = Typography,
         shapes = Shapes,
+        motionScheme = MotionScheme.expressive(),
         content = content
     )
 }
