@@ -39,7 +39,7 @@ data class QuizBottomToolbarUiState(
  * Key design decisions:
  * - Uses standard icon buttons (not filled/square) per M3 guidelines
  * - Next is the primary action (FilledTonalButton in expanded mode)
- * - Previous is secondary (OutlinedButton in expanded, IconButton in compact)
+ * - Previous is secondary (OutlinedButton in compact, IconButton in compact)
  * - Question counter shown as simple text in content area
  * - Always expanded since navigation should always be visible
  */
