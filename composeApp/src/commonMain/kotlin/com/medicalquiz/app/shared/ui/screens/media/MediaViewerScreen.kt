@@ -53,6 +53,8 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
@@ -62,9 +64,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ShapeDefaults
-import androidx.compose.material3.SplitButtonDefaults
-import androidx.compose.material3.SplitButtonLayout
-import androidx.compose.material3.SplitButtonShapes
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
@@ -293,67 +292,43 @@ private fun SharedTransitionScope.MediaViewerContent(
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(bottom = 24.dp),
         ) {
-            Row(
+            ButtonGroup(
+                overflowIndicator = { menuState ->
+                    ButtonGroupDefaults.OverflowIndicator(
+                        menuState = menuState,
+                        shape = MaterialTheme.shapes.medium,
+                    )
+                },
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (hasOverlay) {
-                    val overlayTrailingShapes = SplitButtonShapes(
-                        shape = MaterialTheme.shapes.medium,
-                        pressedShape = MaterialTheme.shapes.medium,
-                        checkedShape = MaterialTheme.shapes.medium,
-                    )
-                    SplitButtonLayout(
-                        leadingButton = {
-                            SplitButtonDefaults.LeadingButton(
-                                onClick = { showOverlay = !showOverlay },
-                            ) {
-                                Text("Overlay")
-                            }
-                        },
-                        trailingButton = {
-                            SplitButtonDefaults.TrailingButton(
-                                checked = showOverlay,
-                                onCheckedChange = { showOverlay = it },
-                                shapes = overlayTrailingShapes,
-                            ) {
-                                Icon(
-                                    imageVector = if (showOverlay) {
-                                        Icons.Filled.Visibility
-                                    } else {
-                                        Icons.Filled.VisibilityOff
-                                    },
-                                    contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                                )
-                            }
+                    toggleableItem(
+                        checked = showOverlay,
+                        label = "Overlay",
+                        onCheckedChange = { showOverlay = it },
+                        icon = {
+                            Icon(
+                                imageVector = if (showOverlay) {
+                                    Icons.Filled.Visibility
+                                } else {
+                                    Icons.Filled.VisibilityOff
+                                },
+                                contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                            )
                         },
                     )
                 }
 
                 if (hasDescription) {
-                    val infoTrailingShapes = SplitButtonShapes(
-                        shape = MaterialTheme.shapes.medium,
-                        pressedShape = MaterialTheme.shapes.medium,
-                        checkedShape = MaterialTheme.shapes.medium,
-                    )
-                    SplitButtonLayout(
-                        leadingButton = {
-                            SplitButtonDefaults.LeadingButton(
-                                onClick = { showExplanation = !showExplanation },
-                            ) {
-                                Text("Info")
-                            }
-                        },
-                        trailingButton = {
-                            SplitButtonDefaults.TrailingButton(
-                                checked = showExplanation,
-                                onCheckedChange = { showExplanation = it },
-                                shapes = infoTrailingShapes,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Info,
-                                    contentDescription = "Toggle info",
-                                )
-                            }
+                    toggleableItem(
+                        checked = showExplanation,
+                        label = "Info",
+                        onCheckedChange = { showExplanation = it },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = "Toggle info",
+                            )
                         },
                     )
                 }
