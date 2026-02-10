@@ -32,7 +32,8 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.TonalToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -177,11 +178,16 @@ private fun FloatingToolbar(
         colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
     ) {
-        // Database tab - ToggleButton: icon + text when checked, text only when unchecked
-        ToggleButton(
+        // Database tab - TonalToggleButton: icon + text when checked, text only when unchecked
+        TonalToggleButton(
             checked = selectedPane == SelectionPane.Database,
             onCheckedChange = { if (it) onPaneSelected(SelectionPane.Database) },
-            modifier = Modifier.padding(horizontal = 4.dp)
+            modifier = Modifier.padding(horizontal = 4.dp),
+            shapes = ToggleButtonDefaults.shapes(
+                shape = ToggleButtonDefaults.roundShape,
+                pressedShape = ToggleButtonDefaults.squareShape,
+                checkedShape = ToggleButtonDefaults.squareShape
+            )
         ) {
             // Show icon only when checked
             if (selectedPane == SelectionPane.Database) {
@@ -195,11 +201,16 @@ private fun FloatingToolbar(
             Text("Databases")
         }
 
-        // History tab - ToggleButton: icon + text when checked, text only when unchecked
-        ToggleButton(
+        // History tab - TonalToggleButton: icon + text when checked, text only when unchecked
+        TonalToggleButton(
             checked = selectedPane == SelectionPane.History,
             onCheckedChange = { if (it) onPaneSelected(SelectionPane.History) },
-            modifier = Modifier.padding(horizontal = 4.dp)
+            modifier = Modifier.padding(horizontal = 4.dp),
+            shapes = ToggleButtonDefaults.shapes(
+                shape = ToggleButtonDefaults.roundShape,
+                pressedShape = ToggleButtonDefaults.squareShape,
+                checkedShape = ToggleButtonDefaults.squareShape
+            )
         ) {
             // Show icon only when checked
             if (selectedPane == SelectionPane.History) {
