@@ -60,9 +60,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MultiChoiceSegmentedButtonRow
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.SplitButtonDefaults
+import androidx.compose.material3.SplitButtonLayout
+import androidx.compose.material3.SplitButtonShapes
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -292,53 +294,68 @@ private fun SharedTransitionScope.MediaViewerContent(
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(bottom = 24.dp),
         ) {
-            val buttonCount = (if (hasOverlay) 1 else 0) + (if (hasDescription) 1 else 0)
-            MultiChoiceSegmentedButtonRow {
-                var buttonIndex = 0
-
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 if (hasOverlay) {
-                    SegmentedButton(
-                        checked = showOverlay,
-                        onCheckedChange = { showOverlay = it },
-                        shape = SegmentedButtonDefaults.itemShape(
-                            index = buttonIndex++,
-                            count = buttonCount,
-                        ),
-                        icon = {
-                            SegmentedButtonDefaults.Icon(showOverlay) {
+                    val overlayTrailingShapes = SplitButtonShapes(
+                        shape = ShapeDefaults.MediumShape,
+                        pressedShape = MaterialShapes.Boom,
+                        checkedShape = MaterialShapes.Flower,
+                    )
+                    SplitButtonLayout(
+                        leadingButton = {
+                            SplitButtonDefaults.LeadingButton(
+                                onClick = { showOverlay = !showOverlay },
+                            ) {
+                                Text("Overlay")
+                            }
+                        },
+                        trailingButton = {
+                            SplitButtonDefaults.TrailingButton(
+                                checked = showOverlay,
+                                onCheckedChange = { showOverlay = it },
+                                shapes = overlayTrailingShapes,
+                            ) {
                                 Icon(
                                     imageVector = if (showOverlay) {
                                         Icons.Filled.Visibility
                                     } else {
                                         Icons.Filled.VisibilityOff
                                     },
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
+                                    contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
                                 )
                             }
                         },
-                        label = { Text("Overlay") },
                     )
                 }
 
                 if (hasDescription) {
-                    SegmentedButton(
-                        checked = showExplanation,
-                        onCheckedChange = { showExplanation = it },
-                        shape = SegmentedButtonDefaults.itemShape(
-                            index = buttonIndex++,
-                            count = buttonCount,
-                        ),
-                        icon = {
-                            SegmentedButtonDefaults.Icon(showExplanation) {
+                    val infoTrailingShapes = SplitButtonShapes(
+                        shape = ShapeDefaults.MediumShape,
+                        pressedShape = MaterialShapes.Burst,
+                        checkedShape = MaterialShapes.Sunny,
+                    )
+                    SplitButtonLayout(
+                        leadingButton = {
+                            SplitButtonDefaults.LeadingButton(
+                                onClick = { showExplanation = !showExplanation },
+                            ) {
+                                Text("Info")
+                            }
+                        },
+                        trailingButton = {
+                            SplitButtonDefaults.TrailingButton(
+                                checked = showExplanation,
+                                onCheckedChange = { showExplanation = it },
+                                shapes = infoTrailingShapes,
+                            ) {
                                 Icon(
                                     imageVector = Icons.Filled.Info,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
+                                    contentDescription = "Toggle info",
                                 )
                             }
                         },
-                        label = { Text("Info") },
                     )
                 }
             }

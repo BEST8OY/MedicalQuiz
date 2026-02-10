@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -132,10 +132,10 @@ fun QuizFloatingToolbar(
                 // Spacer to add spacing between leadingContent and content
                 Spacer(modifier = Modifier.width(8.dp))
                 
-                // Question counter - centered with fully rounded (pill) container
+                // Question counter - centered with pill container
                 Surface(
                     onClick = onJumpTo,
-                    shape = RoundedCornerShape(50),
+                    shape = MaterialShapes.Pill,
                     color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier
                         .sizeIn(minHeight = 40.dp)

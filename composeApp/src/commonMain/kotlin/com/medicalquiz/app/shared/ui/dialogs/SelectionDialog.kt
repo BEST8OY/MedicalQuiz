@@ -17,12 +17,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
@@ -234,7 +231,7 @@ private fun SelectionErrorContent(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Surface(
-                shape = CircleShape,
+                shape = MaterialShapes.Triangle,
                 color = MaterialTheme.colorScheme.errorContainer,
                 modifier = Modifier.size(56.dp)
             ) {

@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.FilterAlt
@@ -102,7 +102,7 @@ internal fun FilterScreen(
 private fun DatabaseHeaderCard(databaseName: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialShapes.SoftBoom,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
@@ -115,7 +115,7 @@ private fun DatabaseHeaderCard(databaseName: String) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = MaterialTheme.shapes.small,
+                shape = MaterialShapes.Gem,
                 color = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.size(40.dp)
             ) {
@@ -161,7 +161,7 @@ private fun FilterPreviewCard(previewCount: Int) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialShapes.SoftBurst,
         colors = CardDefaults.cardColors(
             containerColor = if (hasPreview) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
         )
@@ -206,7 +206,7 @@ private fun FilterSelectionCard(
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialShapes.Clover4Leaf,
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Row(
@@ -217,7 +217,7 @@ private fun FilterSelectionCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = MaterialTheme.shapes.small,
+                shape = MaterialShapes.Puffy,
                 color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                 modifier = Modifier.size(44.dp)
             ) {
