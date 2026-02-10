@@ -440,6 +440,9 @@ private fun HighlightableTable(
                                     else -> Color.Transparent
                                 }
 
+                                val isHeaderCell = row.isHeaderRow || cell.cell.isHeader
+                                val cellTextStyle = tableCellTextStyle(isHeaderCell)
+
                                 Surface(
                                     modifier = Modifier
                                         .weight(weight)
@@ -462,6 +465,7 @@ private fun HighlightableTable(
                                         SelectableHighlightText(
                                             text = cell.cell.text,
                                             highlights = cellHighlights,
+                                            textStyle = cellTextStyle,
                                             onHighlightAdd = { start, end, selectedText, color ->
                                                 onHighlightAdd(
                                                     start + currentCellOffset,

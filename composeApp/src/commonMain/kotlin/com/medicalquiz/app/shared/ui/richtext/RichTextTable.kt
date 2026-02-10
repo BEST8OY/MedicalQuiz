@@ -250,12 +250,11 @@ internal fun TableRowContent(
                 Spacer(modifier = Modifier.weight(weight))
             } else {
                 val isHeaderCell = row.isHeaderRow || cell.cell.isHeader
-                val textStyle = if (isHeaderCell) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium
-                val textColor = when {
-                    isHeaderCell -> MaterialTheme.colorScheme.onSecondaryContainer
-                    cell.cell.classNames.containsInsensitive("abstract") -> MaterialTheme.colorScheme.onSurfaceVariant
-                    else -> MaterialTheme.colorScheme.onSurface
-                }
+                val textStyle = tableCellTextStyle(isHeaderCell)
+                val textColor = tableCellTextColor(
+                    isHeaderCell = isHeaderCell,
+                    isAbstractClass = cell.cell.classNames.containsInsensitive("abstract")
+                )
                 val cellBackground = when {
                     cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                     cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer

@@ -4,7 +4,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -42,7 +41,6 @@ import com.medicalquiz.app.shared.navigation.MedicalQuizRoutes
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.theme.AppTheme
-import com.medicalquiz.app.shared.ui.theme.LocalFontSize
 import com.medicalquiz.app.shared.ui.screens.DatabaseSelectionScreen
 import com.medicalquiz.app.shared.ui.screens.FilterScreen
 import com.medicalquiz.app.shared.ui.screens.media.HtmlViewerDialog
@@ -114,10 +112,8 @@ fun App() {
     }
 
     val settingsRepository = remember { SettingsRepository() }
-    val fontSize by settingsRepository.fontSize.collectAsStateWithLifecycle()
 
-    CompositionLocalProvider(LocalFontSize provides fontSize.sp) {
-        AppTheme {
+    AppTheme {
             val viewModel = viewModel { QuizViewModel() }
             val cacheManager = remember { CacheManager() }
             val scope = rememberCoroutineScope()
@@ -317,8 +313,7 @@ fun App() {
                                         selectedDatabase = matchingDatabase
                                         backStack.clear()
                                         backStack.add(MedicalQuizRoutes.DatabaseSelection)
-                                        backStack.add(MedicalQuizRoutes.Filter)
-                                        backStack.add(MedicalQuizRoutes.Quiz)
+                                        backStack.add(MedicalQuizRoutes.Quiz(launchedFromHistory = true))
                                     }
                                 }
                             },
@@ -362,7 +357,7 @@ fun App() {
                             onStart = dropUnlessResumed {
                                 viewModel.loadFilteredQuestionIds()
                                 viewModel.loadQuestion(0)
-                                backStack.add(MedicalQuizRoutes.Quiz)
+                                backStack.add(MedicalQuizRoutes.Quiz())
                             },
                             onClearFilters = {
                                 viewModel.applySelectedSubjects(emptySet(), loadQuestions = false)
@@ -424,7 +419,7 @@ fun App() {
                     }
 
                     // Quiz Screen - main question display with navigation drawer
-                    entry<MedicalQuizRoutes.Quiz> {
+                    entry<MedicalQuizRoutes.Quiz> { key ->
                         QuizRoot(
                             viewModel = viewModel,
                             mediaHandler = mediaHandler,
@@ -432,8 +427,15 @@ fun App() {
                                 // User is intentionally exiting the quiz - clear the session
                                 // so it won't be restored on next app launch
                                 viewModel.clearSession()
-                                // NavDisplay will pop Quiz from back stack, returning to Filter
-                                backStack.removeLastOrNull()
+                                // For history-launched quizzes, return to main history screen.
+                                if (key.launchedFromHistory) {
+                                    while (backStack.size > 1) {
+                                        backStack.removeLastOrNull()
+                                    }
+                                } else {
+                                    // Standard quiz flow: return to Filter.
+                                    backStack.removeLastOrNull()
+                                }
                             }
                         )
                     }
@@ -507,7 +509,6 @@ fun App() {
             )
         }
     }
-}
 
 /**
  * Formats the performance filter to a user-friendly label.
