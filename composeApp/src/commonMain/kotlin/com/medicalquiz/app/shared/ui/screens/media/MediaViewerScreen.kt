@@ -59,7 +59,6 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ShapeDefaults
@@ -70,7 +69,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -301,8 +299,8 @@ private fun SharedTransitionScope.MediaViewerContent(
                 if (hasOverlay) {
                     val overlayTrailingShapes = SplitButtonShapes(
                         shape = MaterialTheme.shapes.medium,
-                        pressedShape = MaterialShapes.Boom.toShape(),
-                        checkedShape = MaterialShapes.Flower.toShape(),
+                        pressedShape = MaterialTheme.shapes.medium,
+                        checkedShape = MaterialTheme.shapes.medium,
                     )
                     SplitButtonLayout(
                         leadingButton = {
@@ -334,8 +332,8 @@ private fun SharedTransitionScope.MediaViewerContent(
                 if (hasDescription) {
                     val infoTrailingShapes = SplitButtonShapes(
                         shape = MaterialTheme.shapes.medium,
-                        pressedShape = MaterialShapes.Burst.toShape(),
-                        checkedShape = MaterialShapes.Sunny.toShape(),
+                        pressedShape = MaterialTheme.shapes.medium,
+                        checkedShape = MaterialTheme.shapes.medium,
                     )
                     SplitButtonLayout(
                         leadingButton = {

@@ -22,8 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material3.MaterialShapes
-import androidx.compose.material3.toShape
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
@@ -240,7 +238,7 @@ private fun SelectionErrorContent(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Surface(
-                shape = MaterialShapes.Triangle.toShape(),
+                shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.errorContainer,
                 modifier = Modifier.size(56.dp)
             ) {
