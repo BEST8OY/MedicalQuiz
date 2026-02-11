@@ -54,11 +54,9 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ButtonGroup
-import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -300,37 +298,59 @@ private fun SharedTransitionScope.MediaViewerContent(
                 expandedRatio = 0.1f,
             ) {
                 if (hasOverlay) {
-                    // Toggle overlay visibility
-                    toggleableItem(
+                    // Toggle overlay visibility with proper ToggleButton for better animations
+                    ToggleButton(
                         checked = showOverlay,
-                        label = "Overlay",
                         onCheckedChange = { showOverlay = it },
-                        icon = {
-                            Icon(
-                                imageVector = if (showOverlay) {
-                                    Icons.Filled.Visibility
-                                } else {
-                                    Icons.Filled.VisibilityOff
-                                },
-                                contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                            )
-                        },
-                    )
+                        shapes = ToggleButtonDefaults.shapes(
+                            pressedShape = ToggleButtonDefaults.roundShape,
+                            checkedShape = ToggleButtonDefaults.roundShape
+                        ),
+                        colors = ToggleButtonDefaults.toggleButtonColors(
+                            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (showOverlay) {
+                                Icons.Filled.Visibility
+                            } else {
+                                Icons.Filled.VisibilityOff
+                            },
+                            contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        if (showOverlay) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Overlay")
+                        }
+                    }
                 }
 
                 if (hasDescription) {
-                    // Toggle info visibility
-                    toggleableItem(
+                    // Toggle info visibility with proper ToggleButton for better animations
+                    ToggleButton(
                         checked = showExplanation,
-                        label = "Info",
                         onCheckedChange = { showExplanation = it },
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Filled.Info,
-                                contentDescription = "Toggle info",
-                            )
-                        },
-                    )
+                        shapes = ToggleButtonDefaults.shapes(
+                            pressedShape = ToggleButtonDefaults.roundShape,
+                            checkedShape = ToggleButtonDefaults.roundShape
+                        ),
+                        colors = ToggleButtonDefaults.toggleButtonColors(
+                            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = "Toggle info",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        if (showExplanation) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Info")
+                        }
+                    }
                 }
             }
         }
