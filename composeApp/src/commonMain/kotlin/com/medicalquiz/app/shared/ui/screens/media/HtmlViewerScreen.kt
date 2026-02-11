@@ -47,7 +47,7 @@ fun HtmlViewerScreen(
     onBack: () -> Unit,
     onLinkClick: ((String) -> Unit)? = null,
 ) {
-    PlatformBackHandler(enabled = true, onBack = onBack)
+    // PlatformBackHandler removed - let NavDisplay handle predictive back gesture
 
     val filePath = remember(fileName) {
         "${StorageProvider.getAppStorageDirectory()}/media/$fileName"
