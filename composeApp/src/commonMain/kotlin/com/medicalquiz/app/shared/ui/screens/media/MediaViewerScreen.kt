@@ -296,7 +296,7 @@ private fun SharedTransitionScope.MediaViewerContent(
         ) {
             // ButtonGroup with overlay toggle and info clickable button
             Box(
-                modifier = Modifier.widthIn(max = 300.dp)
+                modifier = Modifier.widthIn(max = 280.dp)
             ) {
                 ButtonGroup(
                     overflowIndicator = { },
@@ -308,7 +308,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                             checked = showOverlay,
                             label = "Overlay",
                             onCheckedChange = { showOverlay = it },
-                            weight = 0.3f,
+                            weight = 10.0f,
                             icon = {
                                 Icon(
                                     imageVector = if (showOverlay) {
@@ -327,7 +327,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                         clickableItem(
                             label = "Info",
                             onClick = { showExplanation = true },
-                            weight = 0.2f,
+                            weight = 8.0f,
                             icon = {
                                 Icon(
                                     imageVector = Icons.Filled.Info,
