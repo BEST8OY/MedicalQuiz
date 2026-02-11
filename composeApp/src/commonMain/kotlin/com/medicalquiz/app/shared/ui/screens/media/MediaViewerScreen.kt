@@ -293,65 +293,44 @@ private fun SharedTransitionScope.MediaViewerContent(
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(bottom = 24.dp),
         ) {
-            // ButtonGroup with ToggleButtons for overlay and info toggles
+            // ButtonGroup with overlay toggle and info clickable button
             ButtonGroup(
                 overflowIndicator = { },
                 expandedRatio = 0.1f,
             ) {
                 if (hasOverlay) {
-                    // Toggle overlay visibility with proper ToggleButton for better animations
-                    ToggleButton(
+                    // Toggle overlay visibility
+                    toggleableItem(
                         checked = showOverlay,
+                        label = "Overlay",
                         onCheckedChange = { showOverlay = it },
-                        shapes = ToggleButtonDefaults.shapes(
-                            pressedShape = ToggleButtonDefaults.roundShape,
-                            checkedShape = ToggleButtonDefaults.roundShape
-                        ),
-                        colors = ToggleButtonDefaults.toggleButtonColors(
-                            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (showOverlay) {
-                                Icons.Filled.Visibility
-                            } else {
-                                Icons.Filled.VisibilityOff
-                            },
-                            contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                            modifier = Modifier.size(20.dp)
-                        )
-                        if (showOverlay) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Overlay")
-                        }
-                    }
+                        weight = 0.5f,
+                        icon = {
+                            Icon(
+                                imageVector = if (showOverlay) {
+                                    Icons.Filled.Visibility
+                                } else {
+                                    Icons.Filled.VisibilityOff
+                                },
+                                contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                            )
+                        },
+                    )
                 }
 
                 if (hasDescription) {
-                    // Toggle info visibility with proper ToggleButton for better animations
-                    ToggleButton(
-                        checked = showExplanation,
-                        onCheckedChange = { showExplanation = it },
-                        shapes = ToggleButtonDefaults.shapes(
-                            pressedShape = ToggleButtonDefaults.roundShape,
-                            checkedShape = ToggleButtonDefaults.roundShape
-                        ),
-                        colors = ToggleButtonDefaults.toggleButtonColors(
-                            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Info,
-                            contentDescription = "Toggle info",
-                            modifier = Modifier.size(20.dp)
-                        )
-                        if (showExplanation) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Info")
-                        }
-                    }
+                    // Info button - clickable (opens bottom sheet)
+                    clickableItem(
+                        label = "Info",
+                        onClick = { showExplanation = true },
+                        weight = 0.4f,
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = "Show info",
+                            )
+                        },
+                    )
                 }
             }
         }
