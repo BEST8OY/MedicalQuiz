@@ -308,7 +308,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                             checked = showOverlay,
                             label = "Overlay",
                             onCheckedChange = { showOverlay = it },
-                            weight = 0.5f,
+                            weight = 0.6f,
                             icon = {
                                 Icon(
                                     imageVector = if (showOverlay) {
