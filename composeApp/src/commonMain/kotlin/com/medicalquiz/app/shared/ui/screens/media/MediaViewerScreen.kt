@@ -296,7 +296,7 @@ private fun SharedTransitionScope.MediaViewerContent(
         ) {
             // ButtonGroup with overlay toggle and info clickable button
             Box(
-                modifier = Modifier.widthIn(max = 280.dp)
+                modifier = Modifier.widthIn(max = 240.dp)
             ) {
                 ButtonGroup(
                     overflowIndicator = { },
