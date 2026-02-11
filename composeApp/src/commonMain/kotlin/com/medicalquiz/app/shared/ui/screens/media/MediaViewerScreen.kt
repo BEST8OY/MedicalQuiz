@@ -149,7 +149,6 @@ private fun SharedTransitionScope.MediaViewerContent(
     sharedTransitionKey: String?,
 ) {
     if (mediaFiles.isEmpty()) {
-        PlatformBackHandler(enabled = true, onBack = onBack)
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -161,8 +160,6 @@ private fun SharedTransitionScope.MediaViewerContent(
         }
         return
     }
-
-    PlatformBackHandler(enabled = true, onBack = onBack)
 
     val pagerState = rememberPagerState(
         initialPage = startIndex,
@@ -180,6 +177,10 @@ private fun SharedTransitionScope.MediaViewerContent(
         showOverlay = true
         showExplanation = false
     }
+
+    // Only intercept back when explanation bottom sheet is open
+    // Otherwise let NavDisplay handle predictive back gesture
+    PlatformBackHandler(enabled = showExplanation, onBack = { showExplanation = false })
 
     val onToggleUI: () -> Unit = { showUI = !showUI }
 
