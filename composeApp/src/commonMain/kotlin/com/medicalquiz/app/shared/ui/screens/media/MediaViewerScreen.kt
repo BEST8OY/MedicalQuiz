@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
@@ -294,43 +295,47 @@ private fun SharedTransitionScope.MediaViewerContent(
                 .padding(bottom = 24.dp),
         ) {
             // ButtonGroup with overlay toggle and info clickable button
-            ButtonGroup(
-                overflowIndicator = { },
-                expandedRatio = 0.1f,
+            Box(
+                modifier = Modifier.widthIn(max = 280.dp)
             ) {
-                if (hasOverlay) {
-                    // Toggle overlay visibility
-                    toggleableItem(
-                        checked = showOverlay,
-                        label = "Overlay",
-                        onCheckedChange = { showOverlay = it },
-                        weight = 0.5f,
-                        icon = {
-                            Icon(
-                                imageVector = if (showOverlay) {
-                                    Icons.Filled.Visibility
-                                } else {
-                                    Icons.Filled.VisibilityOff
-                                },
-                                contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                            )
-                        },
-                    )
-                }
+                ButtonGroup(
+                    overflowIndicator = { },
+                    expandedRatio = 0.1f,
+                ) {
+                    if (hasOverlay) {
+                        // Toggle overlay visibility
+                        toggleableItem(
+                            checked = showOverlay,
+                            label = "Overlay",
+                            onCheckedChange = { showOverlay = it },
+                            weight = 0.5f,
+                            icon = {
+                                Icon(
+                                    imageVector = if (showOverlay) {
+                                        Icons.Filled.Visibility
+                                    } else {
+                                        Icons.Filled.VisibilityOff
+                                    },
+                                    contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                                )
+                            },
+                        )
+                    }
 
-                if (hasDescription) {
-                    // Info button - clickable (opens bottom sheet)
-                    clickableItem(
-                        label = "Info",
-                        onClick = { showExplanation = true },
-                        weight = 0.4f,
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Filled.Info,
-                                contentDescription = "Show info",
-                            )
-                        },
-                    )
+                    if (hasDescription) {
+                        // Info button - clickable (opens bottom sheet)
+                        clickableItem(
+                            label = "Info",
+                            onClick = { showExplanation = true },
+                            weight = 0.4f,
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = "Show info",
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }
