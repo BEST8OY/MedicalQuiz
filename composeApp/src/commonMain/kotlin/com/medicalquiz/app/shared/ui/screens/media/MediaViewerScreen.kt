@@ -327,7 +327,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                         clickableItem(
                             label = "Info",
                             onClick = { showExplanation = true },
-                            weight = 8.0f,
+                            weight = 10.0f,
                             icon = {
                                 Icon(
                                     imageVector = Icons.Filled.Info,
