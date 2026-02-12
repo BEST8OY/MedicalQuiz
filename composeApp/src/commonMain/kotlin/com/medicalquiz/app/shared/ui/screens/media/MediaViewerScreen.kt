@@ -2,6 +2,7 @@ package com.medicalquiz.app.shared.ui.screens.media
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDp
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -327,10 +328,14 @@ private fun SharedTransitionScope.MediaViewerContent(
 
         val controlsWidth by controlsTransition.animateDp(
             transitionSpec = {
-                spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
-                )
+                if (initialState == MediaControlsLayout.None || targetState == MediaControlsLayout.None) {
+                    snap()
+                } else {
+                    spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    )
+                }
             },
             label = "media_controls_width",
         ) { layout ->
@@ -355,17 +360,8 @@ private fun SharedTransitionScope.MediaViewerContent(
                 controlsTransition.AnimatedContent(
                     contentAlignment = Alignment.CenterStart,
                     transitionSpec = {
-                        if (initialState == MediaControlsLayout.None || targetState == MediaControlsLayout.None) {
-                            fadeIn(animationSpec = controlsEnterEffects)
-                                .togetherWith(fadeOut(animationSpec = controlsExitEffects))
-                        } else {
-                            (fadeIn(animationSpec = controlsEnterEffects) +
-                                expandHorizontally(expandFrom = Alignment.Start))
-                                .togetherWith(
-                                    fadeOut(animationSpec = controlsExitEffects) +
-                                        shrinkHorizontally(shrinkTowards = Alignment.Start)
-                                )
-                        }
+                        fadeIn(animationSpec = controlsEnterEffects)
+                            .togetherWith(fadeOut(animationSpec = controlsExitEffects))
                     },
                 ) { layout ->
                     when (layout) {
