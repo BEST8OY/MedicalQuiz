@@ -216,6 +216,7 @@ class QuizViewModel : ViewModel() {
             lastFetchedSubjectIds = null
 
             fetchSubjects()
+            updatePreviewQuestionCountInternal()
             // No subjects selected initially, so no systems to fetch
             Logger.d("QuizViewModel", "Database initialization completed")
         } catch (e: Exception) {
@@ -545,8 +546,12 @@ class QuizViewModel : ViewModel() {
     private suspend fun pruneInvalidSystems(): Set<Long> {
         val db = databaseManager ?: return emptySet()
         val subjects = state.value.selectedSubjectIds.toList()
-        if (subjects.isEmpty()) return emptySet()
-        return db.getSystems(subjects).map { it.id }.toSet()
+        val availableSystems = if (subjects.isEmpty()) {
+            db.getSystems(null)
+        } else {
+            db.getSystems(subjects)
+        }
+        return availableSystems.map { it.id }.toSet()
     }
 
     fun setPerformanceFilter(filter: PerformanceFilter, loadQuestions: Boolean = true) {
