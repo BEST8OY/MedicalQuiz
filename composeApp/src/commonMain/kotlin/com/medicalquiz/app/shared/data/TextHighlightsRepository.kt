@@ -113,29 +113,70 @@ class TextHighlightsRepository(
         color: HighlightColor = HighlightColor.YELLOW
     ) {
         val context = currentContextSnapshot() ?: return
+        val sectionHighlightsSnapshot = getHighlightsForSection(section)
+        val normalizedStart = minOf(startOffset, endOffset)
+        val normalizedEnd = maxOf(startOffset, endOffset)
+        if (normalizedStart >= normalizedEnd) return
+
+        val overlappingHighlights = sectionHighlightsSnapshot.filter {
+            it.overlapsOrTouches(normalizedStart, normalizedEnd)
+        }
+
+        val exactSameHighlight = overlappingHighlights.singleOrNull {
+            it.startOffset == normalizedStart &&
+                it.endOffset == normalizedEnd &&
+                it.color == color
+        }
+        if (exactSameHighlight != null && overlappingHighlights.size == 1) return
+
+        val mergedStart = minOf(
+            normalizedStart,
+            overlappingHighlights.minOfOrNull { it.startOffset } ?: normalizedStart
+        )
+        val mergedEnd = maxOf(
+            normalizedEnd,
+            overlappingHighlights.maxOfOrNull { it.endOffset } ?: normalizedEnd
+        )
+        val mergedHighlightedText = mergeHighlightedText(
+            mergedStart = mergedStart,
+            mergedEnd = mergedEnd,
+            normalizedStart = normalizedStart,
+            normalizedEnd = normalizedEnd,
+            highlightedText = highlightedText,
+            overlappingHighlights = overlappingHighlights
+        )
 
         scope.launch(Dispatchers.IO) {
             try {
-                val highlight = userDataManager.addTextHighlight(
+                if (!matchesCurrentContext(context)) return@launch
+
+                val highlight = userDataManager.replaceTextHighlightsWithMerged(
                     dbName = context.dbName,
                     questionId = context.questionId,
                     section = section,
-                    startOffset = startOffset,
-                    endOffset = endOffset,
-                    highlightedText = highlightedText,
+                    removeHighlightIds = overlappingHighlights.map { it.id },
+                    startOffset = mergedStart,
+                    endOffset = mergedEnd,
+                    highlightedText = mergedHighlightedText,
                     color = color
                 )
 
                 if (!matchesCurrentContext(context)) return@launch
 
+                val overlapIds = overlappingHighlights.map { it.id }.toSet()
+                val mergedInMemory = when (section) {
+                    HighlightSection.QUESTION -> _questionHighlights.value
+                    HighlightSection.EXPLANATION -> _explanationHighlights.value
+                }.filterNot { it.id in overlapIds } + highlight
+
                 when (section) {
                     HighlightSection.QUESTION -> {
-                        _questionHighlights.value = (_questionHighlights.value + highlight)
+                        _questionHighlights.value = mergedInMemory
                             .sortedBy { it.startOffset }
                     }
 
                     HighlightSection.EXPLANATION -> {
-                        _explanationHighlights.value = (_explanationHighlights.value + highlight)
+                        _explanationHighlights.value = mergedInMemory
                             .sortedBy { it.startOffset }
                     }
                 }
@@ -149,9 +190,13 @@ class TextHighlightsRepository(
      * Remove a text highlight by ID.
      */
     fun removeHighlight(highlightId: Long) {
+        val context = currentContextSnapshot()
+
         scope.launch(Dispatchers.IO) {
             try {
                 userDataManager.removeTextHighlight(highlightId)
+
+                if (context != null && !matchesCurrentContext(context)) return@launch
 
                 _questionHighlights.value = _questionHighlights.value.filter { it.id != highlightId }
                 _explanationHighlights.value = _explanationHighlights.value.filter { it.id != highlightId }
@@ -165,9 +210,13 @@ class TextHighlightsRepository(
      * Update the color of a text highlight.
      */
     fun updateHighlightColor(highlightId: Long, color: HighlightColor) {
+        val context = currentContextSnapshot()
+
         scope.launch(Dispatchers.IO) {
             try {
                 userDataManager.updateTextHighlightColor(highlightId, color)
+
+                if (context != null && !matchesCurrentContext(context)) return@launch
 
                 _questionHighlights.value = _questionHighlights.value.map {
                     if (it.id == highlightId) it.copy(color = color) else it
@@ -265,5 +314,57 @@ class TextHighlightsRepository(
 
     private fun invalidatePendingLoads() {
         activeLoadRequestId++
+    }
+
+    private data class TextSegment(
+        val startOffset: Int,
+        val endOffset: Int,
+        val text: String
+    )
+
+    private fun mergeHighlightedText(
+        mergedStart: Int,
+        mergedEnd: Int,
+        normalizedStart: Int,
+        normalizedEnd: Int,
+        highlightedText: String,
+        overlappingHighlights: List<TextHighlight>
+    ): String {
+        val totalLength = mergedEnd - mergedStart
+        if (totalLength <= 0) return ""
+
+        val mergedChars = CharArray(totalLength) { '\u0000' }
+        val segments = buildList {
+            overlappingHighlights.forEach {
+                add(TextSegment(it.startOffset, it.endOffset, it.highlightedText))
+            }
+            add(TextSegment(normalizedStart, normalizedEnd, highlightedText))
+        }
+
+        segments.forEach { segment ->
+            val segmentStart = segment.startOffset.coerceAtLeast(mergedStart)
+            val segmentEnd = segment.endOffset.coerceAtMost(mergedEnd)
+            if (segmentStart >= segmentEnd) return@forEach
+
+            val sourceOffset = segmentStart - segment.startOffset
+            val maxWrite = minOf(segmentEnd - segmentStart, segment.text.length - sourceOffset)
+            if (maxWrite <= 0) return@forEach
+
+            for (i in 0 until maxWrite) {
+                mergedChars[(segmentStart - mergedStart) + i] = segment.text[sourceOffset + i]
+            }
+        }
+
+        for (index in mergedChars.indices) {
+            if (mergedChars[index] == '\u0000') {
+                mergedChars[index] = ' '
+            }
+        }
+
+        return mergedChars.concatToString()
+    }
+
+    private fun TextHighlight.overlapsOrTouches(start: Int, end: Int): Boolean {
+        return startOffset <= end && endOffset >= start
     }
 }

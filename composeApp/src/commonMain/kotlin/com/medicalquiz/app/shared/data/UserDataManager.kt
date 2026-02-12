@@ -259,4 +259,78 @@ class UserDataManager {
             Unit
         }
     }
+
+    suspend fun replaceTextHighlightsWithMerged(
+        dbName: String,
+        questionId: Long,
+        section: HighlightSection,
+        removeHighlightIds: List<Long>,
+        startOffset: Int,
+        endOffset: Int,
+        highlightedText: String,
+        color: HighlightColor
+    ): TextHighlight = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val conn = getConnection()
+            val now = System.currentTimeMillis()
+            var insertedId = 0L
+
+            conn.prepare("BEGIN IMMEDIATE").use { it.step() }
+            try {
+                if (removeHighlightIds.isNotEmpty()) {
+                    conn.prepare("DELETE FROM text_highlights WHERE id = ?").use { deleteStmt ->
+                        removeHighlightIds.forEach { highlightId ->
+                            deleteStmt.bindLong(1, highlightId)
+                            deleteStmt.step()
+                            deleteStmt.reset()
+                        }
+                    }
+                }
+
+                conn.prepare(
+                    """
+                    INSERT INTO text_highlights
+                    (db_name, question_id, section, start_offset, end_offset, highlighted_text, color, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """.trimIndent()
+                ).use { insertStmt ->
+                    insertStmt.bindText(1, dbName)
+                    insertStmt.bindLong(2, questionId)
+                    insertStmt.bindText(3, section.name)
+                    insertStmt.bindLong(4, startOffset.toLong())
+                    insertStmt.bindLong(5, endOffset.toLong())
+                    insertStmt.bindText(6, highlightedText)
+                    insertStmt.bindText(7, color.name)
+                    insertStmt.bindLong(8, now)
+                    insertStmt.step()
+                }
+
+                conn.prepare("SELECT last_insert_rowid()").use { rowIdStmt ->
+                    if (rowIdStmt.step()) {
+                        insertedId = rowIdStmt.getLong(0)
+                    }
+                }
+
+                conn.prepare("COMMIT").use { it.step() }
+            } catch (e: Exception) {
+                try {
+                    conn.prepare("ROLLBACK").use { it.step() }
+                } catch (_: Exception) {
+                }
+                throw e
+            }
+
+            TextHighlight(
+                id = insertedId,
+                dbName = dbName,
+                questionId = questionId,
+                section = section,
+                startOffset = startOffset,
+                endOffset = endOffset,
+                highlightedText = highlightedText,
+                color = color,
+                createdAt = now
+            )
+        }
+    }
 }
