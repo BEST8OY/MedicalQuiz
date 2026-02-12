@@ -78,6 +78,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -129,6 +130,9 @@ private enum class MediaControlsLayout {
     InfoOnly,
     OverlayAndInfo,
 }
+
+private fun MediaControlsLayout.isSingleButtonLayout(): Boolean =
+    this == MediaControlsLayout.OverlayOnly || this == MediaControlsLayout.InfoOnly
 
 private fun BottomControlsState.toLayout(): MediaControlsLayout = when {
     hasOverlay && hasDescription -> MediaControlsLayout.OverlayAndInfo
@@ -193,13 +197,23 @@ private fun SharedTransitionScope.MediaViewerContent(
     var showUI by rememberSaveable { mutableStateOf(true) }
     var showExplanation by rememberSaveable { mutableStateOf(false) }
     var showOverlay by rememberSaveable { mutableStateOf(true) }
+    var controlsPageIndex by rememberSaveable {
+        mutableIntStateOf(startIndex.coerceIn(0, mediaFiles.lastIndex))
+    }
 
-    val currentDescription = mediaDescriptions[mediaFiles.getOrNull(pagerState.currentPage)]
+    val currentDescription = mediaDescriptions[mediaFiles.getOrNull(controlsPageIndex)]
 
     LaunchedEffect(pagerState.currentPage) {
         isZoomed = false
         showOverlay = true
         showExplanation = false
+    }
+
+    // Decouple control transitions from in-flight pager movement.
+    LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
+        if (!pagerState.isScrollInProgress) {
+            controlsPageIndex = pagerState.currentPage
+        }
     }
 
     // Only intercept back when explanation bottom sheet is open
@@ -208,7 +222,7 @@ private fun SharedTransitionScope.MediaViewerContent(
 
     val onToggleUI: () -> Unit = { showUI = !showUI }
 
-    val currentFileName = mediaFiles.getOrNull(pagerState.currentPage) ?: ""
+    val currentFileName = mediaFiles.getOrNull(controlsPageIndex) ?: ""
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
     val overlayPath by produceState<String?>(initialValue = null, currentFileName, storageDir) {
         value = withContext(Dispatchers.IO) {
@@ -326,6 +340,9 @@ private fun SharedTransitionScope.MediaViewerContent(
             transitionSpec = {
                 if (initialState == MediaControlsLayout.None || targetState == MediaControlsLayout.None) {
                     snap()
+                } else if (initialState.isSingleButtonLayout() && targetState == MediaControlsLayout.OverlayAndInfo) {
+                    // Avoid text/layout clamping during 1 -> 2 expansion.
+                    snap()
                 } else {
                     spring(
                         dampingRatio = Spring.DampingRatioNoBouncy,
@@ -343,8 +360,16 @@ private fun SharedTransitionScope.MediaViewerContent(
 
         AnimatedVisibility(
             visible = showUI && hasControls,
-            enter = fadeIn() + slideInVertically { it },
-            exit = fadeOut() + slideOutVertically { it },
+            enter = fadeIn(animationSpec = controlsEnterEffects) +
+                slideInVertically(
+                    initialOffsetY = { fullHeight -> fullHeight / 3 },
+                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                ),
+            exit = fadeOut(animationSpec = controlsExitEffects) +
+                slideOutVertically(
+                    targetOffsetY = { fullHeight -> fullHeight / 3 },
+                    animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+                ),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.navigationBars)
