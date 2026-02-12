@@ -339,16 +339,7 @@ private fun SharedTransitionScope.MediaViewerContent(
             }
         }
         val controlsEnterEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-        val controlsExitEffects = MaterialTheme> Task :app:writeReleaseSigningConfigVersions
-
-> Task :composeApp:compileAndroidMain FAILED
-e: file:///home/runner/work/MedicalQuiz/MedicalQuiz/composeApp/src/commonMain/kotlin/com/medicalquiz/app/shared/ui/screens/media/MediaViewerScreen.kt:344:44 Unresolved reference 'controlsEnterEffects'.
-e: file:///home/runner/work/MedicalQuiz/MedicalQuiz/composeApp/src/commonMain/kotlin/com/medicalquiz/app/shared/ui/screens/media/MediaViewerScreen.kt:349:44 Unresolved reference 'controlsExitEffects'.
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1770912569788.json
-
-
-[Incubating] Problems report is available at: file:///home/runner/work/MedicalQuiz/MedicalQuiz/build/reports/problems/problems-report.html
-FAILURE: Build failed with an exception..motionScheme.fastEffectsSpec<Float>()
+        val controlsExitEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
 
         AnimatedVisibility(
             visible = showUI && hasControls,
