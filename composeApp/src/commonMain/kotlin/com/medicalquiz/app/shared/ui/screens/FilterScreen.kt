@@ -395,7 +395,7 @@ private fun ButtonGroupScope.StartQuizButtonGroupItem(
             )
         },
         enabled = hasPreview,
-        weight = 1.5f,
+        weight = 1.25f,
     )
 }
 
