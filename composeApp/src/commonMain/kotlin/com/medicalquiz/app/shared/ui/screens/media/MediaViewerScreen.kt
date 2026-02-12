@@ -330,17 +330,10 @@ private fun SharedTransitionScope.MediaViewerContent(
                 AnimatedContent(
                     targetState = controlsState,
                     transitionSpec = {
-                        fadeIn(
-                            animationSpec = controlsEnterEffectsSpec
-                        ) + slideInVertically(
-                            initialOffsetY = { it / 3 },
-                            animationSpec = controlsEnterSpatialSpec
-                        ) togetherWith fadeOut(
-                            animationSpec = controlsExitEffectsSpec
-                        ) + slideOutVertically(
-                            targetOffsetY = { -it / 4 },
-                            animationSpec = controlsExitSpatialSpec
-                        )
+                        fadeIn(animationSpec = controlsEnterEffectsSpec) +
+                            slideInVertically(initialOffsetY = { it / 3 }) togetherWith
+                            fadeOut(animationSpec = controlsExitEffectsSpec) +
+                            slideOutVertically(targetOffsetY = { -it / 4 })
                     },
                     label = "bottom_controls_content",
                 ) { currentControls ->
