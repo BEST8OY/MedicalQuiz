@@ -341,9 +341,12 @@ private fun PrimaryActionButtonGroup(
                 AnimatedContent(
                     targetState = buttonCount,
                     transitionSpec = {
-                        fadeIn(animationSpec = enterEffects) + slideInVertically(initialOffsetY = { it / 3 })
-                            togetherWith
-                            fadeOut(animationSpec = exitEffects) + slideOutVertically(targetOffsetY = { -it / 4 })
+                        (fadeIn(animationSpec = enterEffects) +
+                            slideInVertically(initialOffsetY = { it / 3 }))
+                            .togetherWith(
+                                fadeOut(animationSpec = exitEffects) +
+                                    slideOutVertically(targetOffsetY = { -it / 4 })
+                            )
                     }
                 ) { count ->
                     Box(modifier = Modifier.width(controlsWidth)) {
