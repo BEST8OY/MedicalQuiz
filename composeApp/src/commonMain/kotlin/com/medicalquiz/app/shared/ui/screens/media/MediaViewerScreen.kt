@@ -14,12 +14,10 @@ import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -319,8 +317,6 @@ private fun SharedTransitionScope.MediaViewerContent(
         }
         val controlsLayout = remember(controlsState) { controlsState.toLayout() }
         val hasControls = controlsLayout != MediaControlsLayout.None
-        val controlsEnterEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-        val controlsExitEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
         val controlsTransition = updateTransition(
             targetState = controlsLayout,
             label = "media_controls_transition",
@@ -357,39 +353,31 @@ private fun SharedTransitionScope.MediaViewerContent(
             Box(
                 modifier = Modifier.width(controlsWidth)
             ) {
-                controlsTransition.AnimatedContent(
-                    contentAlignment = Alignment.CenterStart,
-                    transitionSpec = {
-                        fadeIn(animationSpec = controlsEnterEffects)
-                            .togetherWith(fadeOut(animationSpec = controlsExitEffects))
-                    },
-                ) { layout ->
-                    when (layout) {
-                        MediaControlsLayout.OverlayAndInfo -> {
-                            MediaViewerDualControlButtonGroup(
-                                showOverlay = showOverlay,
-                                onShowOverlayChange = { showOverlay = it },
-                                onShowInfo = { showExplanation = true },
-                            )
-                        }
-                        MediaControlsLayout.OverlayOnly -> {
-                            MediaViewerSingleControlButtonGroup(
-                                type = MediaControlsLayout.OverlayOnly,
-                                showOverlay = showOverlay,
-                                onShowOverlayChange = { showOverlay = it },
-                                onShowInfo = { showExplanation = true },
-                            )
-                        }
-                        MediaControlsLayout.InfoOnly -> {
-                            MediaViewerSingleControlButtonGroup(
-                                type = MediaControlsLayout.InfoOnly,
-                                showOverlay = showOverlay,
-                                onShowOverlayChange = { showOverlay = it },
-                                onShowInfo = { showExplanation = true },
-                            )
-                        }
-                        MediaControlsLayout.None -> Unit
+                when (controlsLayout) {
+                    MediaControlsLayout.OverlayAndInfo -> {
+                        MediaViewerDualControlButtonGroup(
+                            showOverlay = showOverlay,
+                            onShowOverlayChange = { showOverlay = it },
+                            onShowInfo = { showExplanation = true },
+                        )
                     }
+                    MediaControlsLayout.OverlayOnly -> {
+                        MediaViewerSingleControlButtonGroup(
+                            type = MediaControlsLayout.OverlayOnly,
+                            showOverlay = showOverlay,
+                            onShowOverlayChange = { showOverlay = it },
+                            onShowInfo = { showExplanation = true },
+                        )
+                    }
+                    MediaControlsLayout.InfoOnly -> {
+                        MediaViewerSingleControlButtonGroup(
+                            type = MediaControlsLayout.InfoOnly,
+                            showOverlay = showOverlay,
+                            onShowOverlayChange = { showOverlay = it },
+                            onShowInfo = { showExplanation = true },
+                        )
+                    }
+                    MediaControlsLayout.None -> Unit
                 }
             }
         }
