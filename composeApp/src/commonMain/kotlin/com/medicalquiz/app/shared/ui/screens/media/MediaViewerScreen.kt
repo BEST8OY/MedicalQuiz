@@ -1,6 +1,7 @@
 package com.medicalquiz.app.shared.ui.screens.media
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -112,6 +113,14 @@ import kotlin.math.absoluteValue
 private const val MAX_SCALE = 5f
 private const val DOUBLE_TAP_ZOOM = 2.5f
 private const val MIN_SCALE = 1f
+
+private data class BottomControlsState(
+    val hasOverlay: Boolean,
+    val hasDescription: Boolean,
+) {
+    val buttonCount: Int
+        get() = (if (hasOverlay) 1 else 0) + (if (hasDescription) 1 else 0)
+}
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -285,9 +294,25 @@ private fun SharedTransitionScope.MediaViewerContent(
 
         val hasOverlay by derivedStateOf { overlayPath != null }
         val hasDescription = currentDescription != null
+        val controlsState = remember(hasOverlay, hasDescription) {
+            BottomControlsState(
+                hasOverlay = hasOverlay,
+                hasDescription = hasDescription,
+            )
+        }
+        val controlsTargetWidth = when (controlsState.buttonCount) {
+            2 -> 280.dp
+            1 -> 140.dp
+            else -> 0.dp
+        }
+        val controlsWidth by animateDpAsState(
+            targetValue = controlsTargetWidth,
+            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+            label = "controls_width",
+        )
 
         AnimatedVisibility(
-            visible = showUI && (hasOverlay || hasDescription),
+            visible = showUI,
             enter = fadeIn() + slideInVertically { it },
             exit = fadeOut() + slideOutVertically { it },
             modifier = Modifier
@@ -295,47 +320,66 @@ private fun SharedTransitionScope.MediaViewerContent(
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(bottom = 24.dp),
         ) {
-            // ButtonGroup with overlay toggle and info clickable button
             Box(
-                modifier = Modifier.widthIn(max = 280.dp)
+                modifier = Modifier.width(controlsWidth)
             ) {
-                ButtonGroup(
-                    overflowIndicator = { },
-                    expandedRatio = 0.1f,
-                ) {
-                    if (hasOverlay) {
-                        // Toggle overlay visibility
-                        toggleableItem(
-                            checked = showOverlay,
-                            label = "Overlay",
-                            onCheckedChange = { showOverlay = it },
-                            weight = 10.0f,
-                            icon = {
-                                Icon(
-                                    imageVector = if (showOverlay) {
-                                        Icons.Filled.Visibility
-                                    } else {
-                                        Icons.Filled.VisibilityOff
+                AnimatedContent(
+                    targetState = controlsState,
+                    transitionSpec = {
+                        fadeIn(
+                            animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()
+                        ) + slideInVertically(
+                            initialOffsetY = { it / 3 },
+                            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
+                        ) togetherWith fadeOut(
+                            animationSpec = MaterialTheme.motionScheme.fastEffectsSpec()
+                        ) + slideOutVertically(
+                            targetOffsetY = { -it / 4 },
+                            animationSpec = MaterialTheme.motionScheme.fastSpatialSpec()
+                        )
+                    },
+                    label = "bottom_controls_content",
+                ) { currentControls ->
+                    if (currentControls.buttonCount == 0) {
+                        Spacer(modifier = Modifier.height(1.dp))
+                    } else {
+                        ButtonGroup(
+                            overflowIndicator = { },
+                            expandedRatio = 0.1f,
+                        ) {
+                            if (currentControls.hasOverlay) {
+                                toggleableItem(
+                                    checked = showOverlay,
+                                    label = "Overlay",
+                                    onCheckedChange = { showOverlay = it },
+                                    weight = 10.0f,
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (showOverlay) {
+                                                Icons.Filled.Visibility
+                                            } else {
+                                                Icons.Filled.VisibilityOff
+                                            },
+                                            contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                                        )
                                     },
-                                    contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
                                 )
-                            },
-                        )
-                    }
+                            }
 
-                    if (hasDescription) {
-                        // Info button - clickable (opens bottom sheet)
-                        clickableItem(
-                            label = "Info",
-                            onClick = { showExplanation = true },
-                            weight = 9.0f,
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Filled.Info,
-                                    contentDescription = "Show info",
+                            if (currentControls.hasDescription) {
+                                clickableItem(
+                                    label = "Info",
+                                    onClick = { showExplanation = true },
+                                    weight = 9.0f,
+                                    icon = {
+                                        Icon(
+                                            imageVector = Icons.Filled.Info,
+                                            contentDescription = "Show info",
+                                        )
+                                    },
                                 )
-                            },
-                        )
+                            }
+                        }
                     }
                 }
             }
