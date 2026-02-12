@@ -10,6 +10,7 @@ import com.medicalquiz.app.shared.data.models.Answer
 import com.medicalquiz.app.shared.data.models.Question
 import com.medicalquiz.app.shared.data.models.Subject
 import com.medicalquiz.app.shared.data.models.System
+import com.medicalquiz.app.shared.platform.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -31,7 +32,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
                 connection = driver.open(dbPath)
                 checkSchema()
             } catch (e: Exception) {
-                println("Error initializing database: ${e.message}")
+                Logger.e("DatabaseManager", "Error initializing database", e)
                 throw e
             }
         }
@@ -48,7 +49,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
                 }
             }
         } catch (e: Exception) {
-            println("Schema check failed: ${e.message}")
+            Logger.e("DatabaseManager", "Schema check failed, defaulting to string IDs", e)
             isStringIds = true
         }
     }
@@ -89,12 +90,19 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
                 // Join with logs summary if needed for performance filtering
                 if (performanceFilter != PerformanceFilter.ALL) {
                     append(" LEFT JOIN (")
-                    append("   SELECT qid, ")
-                    append("     (CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as lastCorrect,")
-                    append("     MAX(CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as everCorrect,")
-                    append("     MAX(CASE WHEN selectedAnswer != corrAnswer THEN 1 ELSE 0 END) as everIncorrect")
-                    append("   FROM logs")
-                    append("   GROUP BY qid")
+                    append("   SELECT l.qid,")
+                    append("     (CASE WHEN l.selectedAnswer = l.corrAnswer THEN 1 ELSE 0 END) as lastCorrect,")
+                    append("     agg.everCorrect,")
+                    append("     agg.everIncorrect")
+                    append("   FROM logs l")
+                    append("   JOIN (")
+                    append("     SELECT qid,")
+                    append("       MAX(CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as everCorrect,")
+                    append("       MAX(CASE WHEN selectedAnswer != corrAnswer THEN 1 ELSE 0 END) as everIncorrect,")
+                    append("       MAX(rowid) as lastRowId")
+                    append("     FROM logs")
+                    append("     GROUP BY qid")
+                    append("   ) agg ON agg.qid = l.qid AND agg.lastRowId = l.rowid")
                     append(" ) ls ON ls.qid = q.id")
                 }
 
@@ -332,21 +340,40 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
     override suspend fun getQuestionPerformance(qid: Long): QuestionPerformance? = withContext(Dispatchers.IO) {
         mutex.withLock {
             val sql = """
-                SELECT 
-                   (CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as lastCorrect,
-                   MAX(CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as everCorrect,
-                   MAX(CASE WHEN selectedAnswer != corrAnswer THEN 1 ELSE 0 END) as everIncorrect,
-                   COUNT(*) as attempts,
-                   SUM(CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as correctCount,
-                   SUM(CASE WHEN selectedAnswer != corrAnswer THEN 1 ELSE 0 END) as incorrectCount
-                FROM logs
-                WHERE qid = ?
-                GROUP BY qid
+                SELECT
+                   latest.lastCorrect,
+                   agg.everCorrect,
+                   agg.everIncorrect,
+                   agg.attempts,
+                   agg.correctCount,
+                   agg.incorrectCount
+                FROM (
+                    SELECT
+                        qid,
+                        (CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as lastCorrect
+                    FROM logs
+                    WHERE qid = ?
+                    ORDER BY rowid DESC
+                    LIMIT 1
+                ) latest
+                JOIN (
+                    SELECT
+                        qid,
+                        MAX(CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as everCorrect,
+                        MAX(CASE WHEN selectedAnswer != corrAnswer THEN 1 ELSE 0 END) as everIncorrect,
+                        COUNT(*) as attempts,
+                        SUM(CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as correctCount,
+                        SUM(CASE WHEN selectedAnswer != corrAnswer THEN 1 ELSE 0 END) as incorrectCount
+                    FROM logs
+                    WHERE qid = ?
+                    GROUP BY qid
+                ) agg ON agg.qid = latest.qid
             """
             
             var performance: QuestionPerformance? = null
             getConnection().prepare(sql).use { stmt ->
                 stmt.bindLong(1, qid)
+                stmt.bindLong(2, qid)
                 if (stmt.step()) {
                     performance = QuestionPerformance(
                         qid = qid,

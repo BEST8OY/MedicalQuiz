@@ -1,6 +1,7 @@
 package com.medicalquiz.app.shared.data
 
 import com.medicalquiz.app.shared.platform.FileSystemHelper
+import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.platform.StorageProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -58,7 +59,7 @@ class SettingsRepository {
                     ?: payload.fontSize?.toLegacyScalePreference()
             }
         } catch (e: Exception) {
-            println("Error loading settings: ${e.message}")
+            Logger.e("SettingsRepository", "Error loading settings", e)
         }
     }
 
@@ -72,7 +73,7 @@ class SettingsRepository {
             val jsonString = json.encodeToString(payload)
             FileSystemHelper.writeText(settingsFile, jsonString)
         } catch (e: Exception) {
-            println("Error saving settings: ${e.message}")
+            Logger.e("SettingsRepository", "Error saving settings", e)
         }
     }
 

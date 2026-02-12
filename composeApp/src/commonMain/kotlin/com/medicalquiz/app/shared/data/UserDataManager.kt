@@ -5,9 +5,9 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.medicalquiz.app.shared.data.models.HighlightColor
 import com.medicalquiz.app.shared.data.models.HighlightSection
 import com.medicalquiz.app.shared.data.models.TextHighlight
+import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.platform.StorageProvider
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -30,7 +30,7 @@ class UserDataManager {
                 connection = driver.open(dbPath)
                 createTables()
             } catch (e: Exception) {
-                println("Error initializing user data database: ${e.message}")
+                Logger.e("UserDataManager", "Error initializing user data database", e)
                 throw e
             }
         }
