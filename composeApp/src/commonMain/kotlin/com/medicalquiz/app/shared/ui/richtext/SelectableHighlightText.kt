@@ -194,9 +194,27 @@ fun SelectableHighlightText(
                                 selectionState = TextSelectionState()
                             }
                         } else {
-                            // Regular tap
+                            // Regular tap (only act after finger-up with minimal movement)
+                            var upPosition = down.position
+                            var movedTooFar = false
+                            val tapSlopPx = 12f
+
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                upPosition = change.position
+                                if ((upPosition - down.position).getDistance() > tapSlopPx) {
+                                    movedTooFar = true
+                                }
+                                if (!change.pressed) break
+                            }
+
+                            if (movedTooFar) {
+                                return@awaitEachGesture
+                            }
+
                             layoutResult?.let { layout ->
-                                val offset = layout.getOffsetForPosition(down.position)
+                                val offset = layout.getOffsetForPosition(upPosition)
                                 
                                 // Check if tapped on existing highlight
                                 val tappedHighlight = highlights.find { it.contains(offset) }
@@ -207,7 +225,7 @@ fun SelectableHighlightText(
                                         textLength = text.length,
                                         startOffset = tappedHighlight.startOffset,
                                         endOffset = tappedHighlight.endOffset,
-                                        fallbackAnchor = down.position
+                                        fallbackAnchor = upPosition
                                     )
                                     selectionState = TextSelectionState()
                                     return@awaitEachGesture
@@ -252,13 +270,43 @@ fun SelectableHighlightText(
         
         // Selection toolbar - only visible when selection complete (not dragging)
         if (selectionState.hasSelection) {
-            val toolbarPosition = remember(selectionState.anchorPosition, containerSize, selectionPopupSize) {
-                calculatePopupPosition(
-                    anchorPosition = selectionState.anchorPosition,
-                    popupSize = selectionPopupSize,
-                    containerSize = containerSize,
-                    preferAbove = true
-                )
+            val safeTextLength = text.length.coerceAtLeast(1)
+            val normalizedStart = minOf(selectionState.startOffset, selectionState.endOffset)
+                .coerceIn(0, safeTextLength - 1)
+            val normalizedEndExclusive = maxOf(selectionState.startOffset, selectionState.endOffset)
+                .coerceIn(normalizedStart + 1, safeTextLength)
+
+            val toolbarPosition = remember(
+                selectionState.anchorPosition,
+                containerSize,
+                selectionPopupSize,
+                layoutResult,
+                normalizedStart,
+                normalizedEndExclusive
+            ) {
+                val layout = layoutResult
+                if (layout == null) {
+                    calculatePopupPosition(
+                        anchorPosition = selectionState.anchorPosition,
+                        popupSize = selectionPopupSize,
+                        containerSize = containerSize,
+                        preferAbove = true
+                    )
+                } else {
+                    val startLine = layout.getLineForOffset(normalizedStart)
+                    val endLine = layout.getLineForOffset((normalizedEndExclusive - 1).coerceAtLeast(0))
+                    val selectionTop = layout.getLineTop(minOf(startLine, endLine))
+                    val selectionBottom = layout.getLineBottom(maxOf(startLine, endLine))
+
+                    calculateSelectionAwarePopupPosition(
+                        anchorPosition = selectionState.anchorPosition,
+                        popupSize = selectionPopupSize,
+                        containerSize = containerSize,
+                        selectionTop = selectionTop,
+                        selectionBottom = selectionBottom,
+                        preferAbove = true
+                    )
+                }
             }
             
             Popup(
@@ -270,7 +318,7 @@ fun SelectableHighlightText(
                 properties = PopupProperties(
                     focusable = false,
                     dismissOnBackPress = true,
-                    dismissOnClickOutside = true
+                    dismissOnClickOutside = false
                 ),
                 onDismissRequest = { selectionState = TextSelectionState() }
             ) {
@@ -313,12 +361,6 @@ fun SelectableHighlightText(
                     )
                 }
             }
-
-            val safeTextLength = text.length.coerceAtLeast(1)
-            val normalizedStart = minOf(selectionState.startOffset, selectionState.endOffset)
-                .coerceIn(0, safeTextLength - 1)
-            val normalizedEndExclusive = maxOf(selectionState.startOffset, selectionState.endOffset)
-                .coerceIn(normalizedStart + 1, safeTextLength)
 
             layoutResult?.let { layout ->
                 val startHandleOffset = layout.getBoundingBox(normalizedStart)
@@ -557,6 +599,52 @@ private fun calculatePopupPosition(
     return Offset(x, y)
 }
 
+private fun calculateSelectionAwarePopupPosition(
+    anchorPosition: Offset,
+    popupSize: IntSize,
+    containerSize: IntSize,
+    selectionTop: Float,
+    selectionBottom: Float,
+    preferAbove: Boolean
+): Offset {
+    val base = calculatePopupPosition(
+        anchorPosition = anchorPosition,
+        popupSize = popupSize,
+        containerSize = containerSize,
+        preferAbove = preferAbove
+    )
+    if (containerSize == IntSize.Zero || popupSize == IntSize.Zero) return base
+
+    val gap = 12f
+    val padding = 8f
+    val popupHeight = popupSize.height.toFloat()
+    val selectionTopWithGap = (selectionTop - gap).coerceAtLeast(padding)
+    val selectionBottomWithGap = (selectionBottom + gap)
+
+    val overlapsSelection =
+        base.y < selectionBottomWithGap &&
+            (base.y + popupHeight) > selectionTopWithGap
+
+    if (!overlapsSelection) return base
+
+    val aboveY = (selectionTopWithGap - popupHeight).coerceAtLeast(padding)
+    val belowY = selectionBottomWithGap
+    val maxY = (containerSize.height - popupHeight - padding).coerceAtLeast(padding)
+
+    val fitsAbove = aboveY >= padding
+    val fitsBelow = belowY <= maxY
+
+    val y = when {
+        preferAbove && fitsAbove -> aboveY
+        !preferAbove && fitsBelow -> belowY
+        fitsAbove -> aboveY
+        fitsBelow -> belowY
+        else -> base.y.coerceIn(padding, maxY)
+    }
+
+    return Offset(base.x, y)
+}
+
 /**
  * Apply stored highlights as background spans to the text.
  */
@@ -613,20 +701,74 @@ private fun applySelectionToText(
  */
 private fun expandToWordBoundaries(text: String, offset: Int): Pair<Int, Int> {
     if (text.isEmpty()) return 0 to 0
-    
+
     val safeOffset = offset.coerceIn(0, text.lastIndex)
-    
-    var start = safeOffset
-    while (start > 0 && !text[start - 1].isWhitespace()) {
+
+    val pivot = findNearestWordPivot(text, safeOffset)
+        ?: return safeOffset to (safeOffset + 1).coerceAtMost(text.length)
+
+    var start = pivot
+    while (start > 0 && text.isWordSelectionCharAt(start - 1)) {
         start--
     }
-    
-    var end = safeOffset
-    while (end < text.length && !text[end].isWhitespace()) {
+
+    var end = pivot + 1
+    while (end < text.length && text.isWordSelectionCharAt(end)) {
         end++
     }
-    
+
+    while (start < end && !text[start].isLetterOrDigit()) {
+        start++
+    }
+    while (end > start && !text[end - 1].isLetterOrDigit()) {
+        end--
+    }
+
+    if (start >= end) {
+        return pivot to (pivot + 1).coerceAtMost(text.length)
+    }
+
     return start to end
+}
+
+private fun findNearestWordPivot(text: String, offset: Int): Int? {
+    if (text.isWordSelectionCharAt(offset)) return offset
+
+    var right = offset + 1
+    while (right < text.length) {
+        if (text.isWordSelectionCharAt(right)) break
+        right++
+    }
+
+    var left = offset - 1
+    while (left >= 0) {
+        if (text.isWordSelectionCharAt(left)) break
+        left--
+    }
+
+    return when {
+        right < text.length && left >= 0 -> {
+            if ((right - offset) <= (offset - left)) right else left
+        }
+        right < text.length -> right
+        left >= 0 -> left
+        else -> null
+    }
+}
+
+private fun String.isWordSelectionCharAt(index: Int): Boolean {
+    if (index !in indices) return false
+    val character = this[index]
+    if (character.isLetterOrDigit()) return true
+
+    if (character == '\'' || character == '’' || character == '-') {
+        val previous = index - 1
+        val next = index + 1
+        return previous in indices && next in indices &&
+            this[previous].isLetterOrDigit() && this[next].isLetterOrDigit()
+    }
+
+    return false
 }
 
 /**
