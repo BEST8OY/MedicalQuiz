@@ -14,6 +14,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -317,44 +319,58 @@ private fun SharedTransitionScope.MediaViewerContent(
         ) {
             Box(
                 modifier = Modifier
-                    .width(controlsTargetWidth)
                     .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
+                    .width(controlsTargetWidth)
             ) {
-                ButtonGroup(
-                    overflowIndicator = { },
-                    expandedRatio = 0.1f,
-                ) {
-                    if (controlsState.hasOverlay) {
-                        toggleableItem(
-                            checked = showOverlay,
-                            label = "Overlay",
-                            onCheckedChange = { showOverlay = it },
-                            weight = 10.0f,
-                            icon = {
-                                Icon(
-                                    imageVector = if (showOverlay) {
-                                        Icons.Filled.Visibility
-                                    } else {
-                                        Icons.Filled.VisibilityOff
-                                    },
-                                    contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                                )
-                            },
-                        )
-                    }
+                AnimatedContent(
+                    targetState = controlsState,
+                    transitionSpec = {
+                        val expanding = targetState.buttonCount > initialState.buttonCount
+                        (fadeIn(animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                            slideInHorizontally(initialOffsetX = { full -> if (expanding) full / 4 else -full / 4 }))
+                            .togetherWith(
+                                fadeOut(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec()) +
+                                    slideOutHorizontally(targetOffsetX = { full -> if (expanding) -full / 4 else full / 4 })
+                            )
+                    },
+                    label = "media_controls_swap",
+                ) { state ->
+                    ButtonGroup(
+                        overflowIndicator = { },
+                        expandedRatio = 0.1f,
+                    ) {
+                        if (state.hasOverlay) {
+                            toggleableItem(
+                                checked = showOverlay,
+                                label = "Overlay",
+                                onCheckedChange = { showOverlay = it },
+                                weight = 10.0f,
+                                icon = {
+                                    Icon(
+                                        imageVector = if (showOverlay) {
+                                            Icons.Filled.Visibility
+                                        } else {
+                                            Icons.Filled.VisibilityOff
+                                        },
+                                        contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                                    )
+                                },
+                            )
+                        }
 
-                    if (controlsState.hasDescription) {
-                        clickableItem(
-                            label = "Info",
-                            onClick = { showExplanation = true },
-                            weight = 9.0f,
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Filled.Info,
-                                    contentDescription = "Show info",
-                                )
-                            },
-                        )
+                        if (state.hasDescription) {
+                            clickableItem(
+                                label = "Info",
+                                onClick = { showExplanation = true },
+                                weight = 9.0f,
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.Info,
+                                        contentDescription = "Show info",
+                                    )
+                                },
+                            )
+                        }
                     }
                 }
             }

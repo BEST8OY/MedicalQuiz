@@ -2,6 +2,12 @@ package com.medicalquiz.app.shared.ui.screens
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -313,45 +319,59 @@ private fun PrimaryActionButtonGroup(
                 .width(300.dp)
                 .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
         ) {
-            ButtonGroup(
-                overflowIndicator = { state ->
-                    IconButton(
-                        onClick = { state.show() },
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    ) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                expandedRatio = 0.08f,
-            ) {
-                clickableItem(
-                    onClick = onStart,
-                    label = if (hasPreview) "Start Quiz" else "No matches",
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Filled.PlayArrow,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
+            AnimatedContent(
+                targetState = hasFilters,
+                transitionSpec = {
+                    val expanding = targetState && !initialState
+                    (fadeIn(animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                        slideInHorizontally(initialOffsetX = { full -> if (expanding) full / 4 else -full / 4 }))
+                        .togetherWith(
+                            fadeOut(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec()) +
+                                slideOutHorizontally(targetOffsetX = { full -> if (expanding) -full / 4 else full / 4 })
                         )
+                },
+                label = "filter_controls_swap",
+            ) { showReset ->
+                ButtonGroup(
+                    overflowIndicator = { state ->
+                        IconButton(
+                            onClick = { state.show() },
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        ) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                        }
                     },
-                    enabled = hasPreview,
-                    weight = 1.5f,
-                )
-
-                if (hasFilters) {
+                    modifier = Modifier.fillMaxWidth(),
+                    expandedRatio = 0.08f,
+                ) {
                     clickableItem(
-                        onClick = onClearFilters,
-                        label = "Reset",
+                        onClick = onStart,
+                        label = if (hasPreview) "Start Quiz" else "No matches",
                         icon = {
                             Icon(
-                                imageVector = Icons.Filled.FilterAltOff,
+                                imageVector = Icons.Filled.PlayArrow,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         },
-                        weight = 1f,
+                        enabled = hasPreview,
+                        weight = 1.5f,
                     )
+
+                    if (showReset) {
+                        clickableItem(
+                            onClick = onClearFilters,
+                            label = "Reset",
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Filled.FilterAltOff,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            weight = 1f,
+                        )
+                    }
                 }
             }
         }
