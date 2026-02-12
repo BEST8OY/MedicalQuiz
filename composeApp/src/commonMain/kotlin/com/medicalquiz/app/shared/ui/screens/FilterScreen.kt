@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupScope
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -335,48 +336,84 @@ private fun PrimaryActionButtonGroup(
                 },
                 label = "filter_controls_swap",
             ) { showReset ->
-                ButtonGroup(
-                    overflowIndicator = { state ->
-                        IconButton(
-                            onClick = { state.show() },
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        ) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    expandedRatio = 0.08f,
-                ) {
-                    clickableItem(
-                        onClick = onStart,
-                        label = if (hasPreview) "Start Quiz" else "No matches",
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Filled.PlayArrow,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        enabled = hasPreview,
-                        weight = 1.5f,
-                    )
-
-                    if (showReset) {
-                        clickableItem(
-                            onClick = onClearFilters,
-                            label = "Reset",
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Filled.FilterAltOff,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            },
-                            weight = 1f,
-                        )
-                    }
-                }
+                FilterActionControlButtonGroup(
+                    hasPreview = hasPreview,
+                    showReset = showReset,
+                    onStart = onStart,
+                    onClearFilters = onClearFilters,
+                )
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun FilterActionControlButtonGroup(
+    hasPreview: Boolean,
+    showReset: Boolean,
+    onStart: () -> Unit,
+    onClearFilters: () -> Unit,
+) {
+    ButtonGroup(
+        overflowIndicator = { state ->
+            IconButton(
+                onClick = { state.show() },
+                modifier = Modifier.padding(horizontal = 4.dp),
+            ) {
+                Icon(Icons.Default.MoreVert, contentDescription = "More options")
+            }
+        },
+        modifier = Modifier.fillMaxWidth(),
+        expandedRatio = 0.08f,
+    ) {
+        StartQuizButtonGroupItem(
+            hasPreview = hasPreview,
+            onStart = onStart,
+        )
+
+        if (showReset) {
+            ResetFiltersButtonGroupItem(onClearFilters = onClearFilters)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ButtonGroupScope.StartQuizButtonGroupItem(
+    hasPreview: Boolean,
+    onStart: () -> Unit,
+) {
+    clickableItem(
+        onClick = onStart,
+        label = if (hasPreview) "Start Quiz" else "No matches",
+        icon = {
+            Icon(
+                imageVector = Icons.Filled.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
+        },
+        enabled = hasPreview,
+        weight = 1.5f,
+    )
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ButtonGroupScope.ResetFiltersButtonGroupItem(
+    onClearFilters: () -> Unit,
+) {
+    clickableItem(
+        onClick = onClearFilters,
+        label = "Reset",
+        icon = {
+            Icon(
+                imageVector = Icons.Filled.FilterAltOff,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+        },
+        weight = 1f,
+    )
 }

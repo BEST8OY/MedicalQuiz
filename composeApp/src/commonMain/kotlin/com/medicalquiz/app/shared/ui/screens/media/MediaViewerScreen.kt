@@ -338,6 +338,8 @@ private fun SharedTransitionScope.MediaViewerContent(
                 else -> 140.dp
             }
         }
+        val controlsEnterEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+        val controlsExitEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
 
         AnimatedVisibility(
             visible = showUI && hasControls,
