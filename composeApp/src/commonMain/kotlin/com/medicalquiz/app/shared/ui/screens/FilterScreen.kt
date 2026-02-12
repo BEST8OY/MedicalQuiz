@@ -3,10 +3,10 @@ package com.medicalquiz.app.shared.ui.screens
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -326,12 +326,11 @@ private fun PrimaryActionButtonGroup(
                 targetState = hasFilters,
                 contentAlignment = Alignment.CenterStart,
                 transitionSpec = {
-                    val expanding = targetState && !initialState
                     (fadeIn(animationSpec = controlsEnterEffects) +
-                        slideInHorizontally(initialOffsetX = { full -> if (expanding) full / 4 else -full / 4 }))
+                        expandHorizontally(expandFrom = Alignment.Start))
                         .togetherWith(
                             fadeOut(animationSpec = controlsExitEffects) +
-                                slideOutHorizontally(targetOffsetX = { full -> if (expanding) -full / 4 else full / 4 })
+                                shrinkHorizontally(shrinkTowards = Alignment.Start)
                         )
                 },
                 label = "filter_controls_swap",

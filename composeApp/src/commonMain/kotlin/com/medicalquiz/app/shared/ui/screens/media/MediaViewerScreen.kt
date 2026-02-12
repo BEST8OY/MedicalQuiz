@@ -13,12 +13,12 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -331,12 +331,11 @@ private fun SharedTransitionScope.MediaViewerContent(
                     targetState = controlsState,
                     contentAlignment = Alignment.CenterStart,
                     transitionSpec = {
-                        val expanding = targetState.buttonCount > initialState.buttonCount
                         (fadeIn(animationSpec = controlsEnterEffects) +
-                            slideInHorizontally(initialOffsetX = { full -> if (expanding) full / 4 else -full / 4 }))
+                            expandHorizontally(expandFrom = Alignment.Start))
                             .togetherWith(
                                 fadeOut(animationSpec = controlsExitEffects) +
-                                    slideOutHorizontally(targetOffsetX = { full -> if (expanding) -full / 4 else full / 4 })
+                                    shrinkHorizontally(shrinkTowards = Alignment.Start)
                             )
                     },
                     label = "media_controls_swap",
