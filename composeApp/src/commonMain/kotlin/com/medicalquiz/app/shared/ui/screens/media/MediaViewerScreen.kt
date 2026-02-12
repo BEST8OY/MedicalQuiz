@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,7 +40,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
@@ -62,11 +60,8 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -92,7 +87,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -116,14 +110,6 @@ private const val MAX_SCALE = 5f
 private const val DOUBLE_TAP_ZOOM = 2.5f
 private const val MIN_SCALE = 1f
 
-private data class BottomControlsState(
-    val hasOverlay: Boolean,
-    val hasDescription: Boolean,
-) {
-    val buttonCount: Int
-        get() = (if (hasOverlay) 1 else 0) + (if (hasDescription) 1 else 0)
-}
-
 private enum class MediaControlsLayout {
     None,
     OverlayOnly,
@@ -134,7 +120,7 @@ private enum class MediaControlsLayout {
 private fun MediaControlsLayout.isSingleButtonLayout(): Boolean =
     this == MediaControlsLayout.OverlayOnly || this == MediaControlsLayout.InfoOnly
 
-private fun BottomControlsState.toLayout(): MediaControlsLayout = when {
+private fun resolveControlsLayout(hasOverlay: Boolean, hasDescription: Boolean): MediaControlsLayout = when {
     hasOverlay && hasDescription -> MediaControlsLayout.OverlayAndInfo
     hasOverlay -> MediaControlsLayout.OverlayOnly
     hasDescription -> MediaControlsLayout.InfoOnly
@@ -184,7 +170,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                 .windowInsetsPadding(WindowInsets.systemBars),
             contentAlignment = Alignment.Center,
         ) {
-            UnsupportedContent(fileName = "No media", type = MediaType.UNKNOWN)
+            UnsupportedContent(fileName = "No media")
         }
         return
     }
@@ -314,7 +300,6 @@ private fun SharedTransitionScope.MediaViewerContent(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium,
                         )
                     }
                 }
@@ -323,13 +308,9 @@ private fun SharedTransitionScope.MediaViewerContent(
 
         val hasOverlay by derivedStateOf { overlayPath != null }
         val hasDescription = currentDescription != null
-        val controlsState = remember(hasOverlay, hasDescription) {
-            BottomControlsState(
-                hasOverlay = hasOverlay,
-                hasDescription = hasDescription,
-            )
+        val controlsLayout = remember(hasOverlay, hasDescription) {
+            resolveControlsLayout(hasOverlay = hasOverlay, hasDescription = hasDescription)
         }
-        val controlsLayout = remember(controlsState) { controlsState.toLayout() }
         val hasControls = controlsLayout != MediaControlsLayout.None
         val controlsTransition = updateTransition(
             targetState = controlsLayout,
@@ -378,32 +359,12 @@ private fun SharedTransitionScope.MediaViewerContent(
             Box(
                 modifier = Modifier.width(controlsWidth)
             ) {
-                when (controlsLayout) {
-                    MediaControlsLayout.OverlayAndInfo -> {
-                        MediaViewerDualControlButtonGroup(
-                            showOverlay = showOverlay,
-                            onShowOverlayChange = { showOverlay = it },
-                            onShowInfo = { showExplanation = true },
-                        )
-                    }
-                    MediaControlsLayout.OverlayOnly -> {
-                        MediaViewerSingleControlButtonGroup(
-                            type = MediaControlsLayout.OverlayOnly,
-                            showOverlay = showOverlay,
-                            onShowOverlayChange = { showOverlay = it },
-                            onShowInfo = { showExplanation = true },
-                        )
-                    }
-                    MediaControlsLayout.InfoOnly -> {
-                        MediaViewerSingleControlButtonGroup(
-                            type = MediaControlsLayout.InfoOnly,
-                            showOverlay = showOverlay,
-                            onShowOverlayChange = { showOverlay = it },
-                            onShowInfo = { showExplanation = true },
-                        )
-                    }
-                    MediaControlsLayout.None -> Unit
-                }
+                MediaViewerControlButtonGroup(
+                    type = controlsLayout,
+                    showOverlay = showOverlay,
+                    onShowOverlayChange = { showOverlay = it },
+                    onShowInfo = { showExplanation = true },
+                )
             }
         }
     }
@@ -420,49 +381,7 @@ private fun SharedTransitionScope.MediaViewerContent(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun MediaViewerDualControlButtonGroup(
-    showOverlay: Boolean,
-    onShowOverlayChange: (Boolean) -> Unit,
-    onShowInfo: () -> Unit,
-) {
-    ButtonGroup(
-        overflowIndicator = { },
-        expandedRatio = 0.1f,
-    ) {
-        toggleableItem(
-            checked = showOverlay,
-            label = "Overlay",
-            onCheckedChange = onShowOverlayChange,
-            weight = 10.0f,
-            icon = {
-                Icon(
-                    imageVector = if (showOverlay) {
-                        Icons.Filled.Visibility
-                    } else {
-                        Icons.Filled.VisibilityOff
-                    },
-                    contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                )
-            },
-        )
-
-        clickableItem(
-            label = "Info",
-            onClick = onShowInfo,
-            weight = 9.0f,
-            icon = {
-                Icon(
-                    imageVector = Icons.Filled.Info,
-                    contentDescription = "Show info",
-                )
-            },
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun MediaViewerSingleControlButtonGroup(
+private fun MediaViewerControlButtonGroup(
     type: MediaControlsLayout,
     showOverlay: Boolean,
     onShowOverlayChange: (Boolean) -> Unit,
@@ -487,6 +406,36 @@ private fun MediaViewerSingleControlButtonGroup(
                                 Icons.Filled.VisibilityOff
                             },
                             contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                        )
+                    },
+                )
+            }
+            MediaControlsLayout.OverlayAndInfo -> {
+                toggleableItem(
+                    checked = showOverlay,
+                    label = "Overlay",
+                    onCheckedChange = onShowOverlayChange,
+                    weight = 10.0f,
+                    icon = {
+                        Icon(
+                            imageVector = if (showOverlay) {
+                                Icons.Filled.Visibility
+                            } else {
+                                Icons.Filled.VisibilityOff
+                            },
+                            contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                        )
+                    },
+                )
+
+                clickableItem(
+                    label = "Info",
+                    onClick = onShowInfo,
+                    weight = 9.0f,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = "Show info",
                         )
                     },
                 )
@@ -518,61 +467,50 @@ private fun ExplanationBottomSheet(
     onLinkClick: ((String) -> Unit)?,
 ) {
     val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = false
+        skipPartiallyExpanded = false,
     )
-    
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        dragHandle = { 
+        dragHandle = {
             BottomSheetDefaults.DragHandle(
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
             )
         },
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = contentColorFor(MaterialTheme.colorScheme.surface),
         tonalElevation = 6.dp,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
+                .padding(bottom = 32.dp),
         ) {
-            // Header
-            Row(
+            Text(
+                text = description.title.ifBlank { "Explanation" },
+                style = MaterialTheme.typography.headlineSmallEmphasized,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = description.title.ifBlank { "Explanation" },
-                    style = MaterialTheme.typography.headlineSmallEmphasized,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            
+            )
+
             HorizontalDivider(
                 modifier = Modifier.padding(bottom = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
             )
-            
-            // Content
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-            ) {
-                RichTextScaleProvider(proseScale = richTextScale) {
-                    RichText(
-                        html = description.description,
-                        modifier = Modifier.fillMaxWidth(),
-                        onLinkClick = onLinkClick,
-                    )
-                }
+
+            RichTextScaleProvider(proseScale = richTextScale) {
+                RichText(
+                    html = description.description,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    onLinkClick = onLinkClick,
+                )
             }
         }
     }
@@ -626,7 +564,7 @@ private fun MediaContent(
                 fileName = fileName,
                 isActivePage = isActivePage
             )
-            else -> UnsupportedContent(fileName = fileName, type = mediaType)
+            else -> UnsupportedContent(fileName = fileName)
         }
     }
 }
@@ -638,7 +576,7 @@ private fun VideoContent(filePath: String, fileName: String, isActivePage: Boole
     }
 
     if (!fileExists) {
-        UnsupportedContent(fileName = fileName, type = MediaType.VIDEO)
+        UnsupportedContent(fileName = fileName)
         return
     }
 
@@ -656,7 +594,7 @@ private fun AudioContent(filePath: String, fileName: String, isActivePage: Boole
     }
 
     if (!fileExists) {
-        UnsupportedContent(fileName = fileName, type = MediaType.AUDIO)
+        UnsupportedContent(fileName = fileName)
         return
     }
 
@@ -683,7 +621,7 @@ private fun ImageContent(
     }
 
     if (!fileExists) {
-        UnsupportedContent(fileName = fileName, type = MediaType.IMAGE)
+        UnsupportedContent(fileName = fileName)
         return
     }
 
@@ -919,26 +857,26 @@ private fun ImageContent(
 }
 
 @Composable
-private fun UnsupportedContent(fileName: String, type: MediaType) {
+private fun UnsupportedContent(fileName: String) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(32.dp)
+            modifier = Modifier.padding(32.dp),
         ) {
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(80.dp)
+                modifier = Modifier.size(80.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Outlined.Warning,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(40.dp),
                     )
                 }
             }
@@ -955,7 +893,7 @@ private fun UnsupportedContent(fileName: String, type: MediaType) {
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
