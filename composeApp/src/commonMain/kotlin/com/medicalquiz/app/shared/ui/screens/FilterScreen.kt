@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
@@ -33,7 +35,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ButtonGroupMenuState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -309,10 +310,8 @@ private fun PrimaryActionButtonGroup(
     onStart: () -> Unit,
     onClearFilters: () -> Unit
 ) {
-    val menuState = remember { ButtonGroupMenuState() }
-
     // Determine button count: Start always present (enabled/disabled), Reset only when hasFilters
-    val buttonCount = remember(hasPreview, hasFilters) { (if (hasPreview || true) 1 else 0) + (if (hasFilters) 1 else 0) }
+    val buttonCount = remember(hasFilters) { 1 + if (hasFilters) 1 else 0 }
 
     val controlsTargetWidth = when (buttonCount) {
         2 -> 280.dp
@@ -322,9 +321,7 @@ private fun PrimaryActionButtonGroup(
 
     val motionScheme = MaterialTheme.motionScheme
     val enterEffects = motionScheme.defaultEffectsSpec<Float>()
-    val enterSpatial = motionScheme.defaultSpatialSpec<Float>()
     val exitEffects = motionScheme.fastEffectsSpec<Float>()
-    val exitSpatial = motionScheme.fastSpatialSpec<Float>()
 
     val controlsWidth by animateDpAsState(targetValue = controlsTargetWidth, animationSpec = motionScheme.defaultSpatialSpec())
 
