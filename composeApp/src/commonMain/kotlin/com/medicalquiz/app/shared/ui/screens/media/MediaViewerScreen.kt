@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
@@ -356,11 +357,19 @@ private fun MediaViewerControlButtonGroup(
         MediaControlsLayout.InfoOnly,
         MediaControlsLayout.None -> Modifier.width(140.dp)
     }
+    val groupArrangement = if (type == MediaControlsLayout.OverlayAndInfo) {
+        Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+    } else {
+        ButtonGroupDefaults.HorizontalArrangement
+    }
 
     ButtonGroup(
         modifier = groupModifier,
-        overflowIndicator = { },
-        expandedRatio = 0.1f,
+        overflowIndicator = {
+            ButtonGroupDefaults.OverflowIndicator(menuState = it)
+        },
+        horizontalArrangement = groupArrangement,
+        expandedRatio = ButtonGroupDefaults.ExpandedRatio,
     ) {
         when (type) {
             MediaControlsLayout.OverlayOnly -> {
@@ -368,7 +377,7 @@ private fun MediaViewerControlButtonGroup(
                     checked = showOverlay,
                     label = "Overlay",
                     onCheckedChange = onShowOverlayChange,
-                    weight = 10.0f,
+                    weight = 1.1f,
                     icon = {
                         Icon(
                             imageVector = if (showOverlay) {
@@ -386,7 +395,7 @@ private fun MediaViewerControlButtonGroup(
                     checked = showOverlay,
                     label = "Overlay",
                     onCheckedChange = onShowOverlayChange,
-                    weight = 10.0f,
+                    weight = 1.1f,
                     icon = {
                         Icon(
                             imageVector = if (showOverlay) {
@@ -402,7 +411,7 @@ private fun MediaViewerControlButtonGroup(
                 clickableItem(
                     label = "Info",
                     onClick = onShowInfo,
-                    weight = 9.0f,
+                    weight = 1.0f,
                     icon = {
                         Icon(
                             imageVector = Icons.Filled.Info,
@@ -415,7 +424,7 @@ private fun MediaViewerControlButtonGroup(
                 clickableItem(
                     label = "Info",
                     onClick = onShowInfo,
-                    weight = 9.0f,
+                    weight = 1.0f,
                     icon = {
                         Icon(
                             imageVector = Icons.Filled.Info,
