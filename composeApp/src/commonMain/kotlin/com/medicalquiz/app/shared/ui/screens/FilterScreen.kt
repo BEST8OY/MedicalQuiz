@@ -379,7 +379,6 @@ private fun FilterActionControlButtonGroup(
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
 private fun ButtonGroupScope.StartQuizButtonGroupItem(
     hasPreview: Boolean,
     onStart: () -> Unit,
@@ -400,7 +399,6 @@ private fun ButtonGroupScope.StartQuizButtonGroupItem(
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
 private fun ButtonGroupScope.ResetFiltersButtonGroupItem(
     onClearFilters: () -> Unit,
 ) {
