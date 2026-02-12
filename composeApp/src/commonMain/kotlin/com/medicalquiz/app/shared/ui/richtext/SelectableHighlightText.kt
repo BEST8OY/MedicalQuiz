@@ -8,15 +8,11 @@ import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
@@ -39,7 +35,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -95,8 +90,8 @@ fun SelectableHighlightText(
     var editPopupAnchor by remember { mutableStateOf(Offset.Zero) }
     var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    
-    val density = LocalDensity.current
+    var selectionPopupSize by remember { mutableStateOf(IntSize.Zero) }
+    var editPopupSize by remember { mutableStateOf(IntSize.Zero) }
     
     // Build annotated string with highlight backgrounds applied
     val highlightedText = remember(text, highlights) {
@@ -113,11 +108,9 @@ fun SelectableHighlightText(
         }
     }
     
-    BoxWithConstraints(
+    Box(
         modifier = modifier.onSizeChanged { containerSize = it }
     ) {
-        val maxWidthPx = with(density) { maxWidth.toPx() }
-        
         BasicText(
             text = displayText,
             modifier = Modifier
@@ -138,7 +131,13 @@ fun SelectableHighlightText(
                                     startOffset = start,
                                     endOffset = end,
                                     selectedText = text.text.substring(start, end),
-                                    anchorPosition = longPress.position
+                                    anchorPosition = calculateRangeAnchor(
+                                        layoutResult = layout,
+                                        textLength = text.length,
+                                        startOffset = start,
+                                        endOffset = end,
+                                        fallbackAnchor = longPress.position
+                                    )
                                 )
                             }
                             
@@ -158,7 +157,13 @@ fun SelectableHighlightText(
                                         selectionState = selectionState.copy(
                                             endOffset = newEnd,
                                             selectedText = text.text.substring(actualStart, actualEnd),
-                                            anchorPosition = position
+                                            anchorPosition = calculateRangeAnchor(
+                                                layoutResult = layout,
+                                                textLength = text.length,
+                                                startOffset = actualStart,
+                                                endOffset = actualEnd,
+                                                fallbackAnchor = position
+                                            )
                                         )
                                     }
                                 }
@@ -167,7 +172,7 @@ fun SelectableHighlightText(
                             } while (event.changes.any { it.pressed })
                             
                             // Drag ended - show toolbar
-                            if (selectionState.selectionRange.let { it.last > it.first }) {
+                            if (selectionState.startOffset != selectionState.endOffset) {
                                 selectionState = selectionState.copy(isDragging = false)
                             } else {
                                 selectionState = TextSelectionState()
@@ -181,7 +186,13 @@ fun SelectableHighlightText(
                                 val tappedHighlight = highlights.find { it.contains(offset) }
                                 if (tappedHighlight != null) {
                                     editingHighlight = tappedHighlight
-                                    editPopupAnchor = down.position
+                                    editPopupAnchor = calculateRangeAnchor(
+                                        layoutResult = layout,
+                                        textLength = text.length,
+                                        startOffset = tappedHighlight.startOffset,
+                                        endOffset = tappedHighlight.endOffset,
+                                        fallbackAnchor = down.position
+                                    )
                                     selectionState = TextSelectionState()
                                     return@awaitEachGesture
                                 }
@@ -225,10 +236,11 @@ fun SelectableHighlightText(
         
         // Selection toolbar - only visible when selection complete (not dragging)
         if (selectionState.hasSelection) {
-            val toolbarPosition = remember(selectionState.anchorPosition, containerSize) {
-                calculateSmartPosition(
+            val toolbarPosition = remember(selectionState.anchorPosition, containerSize, selectionPopupSize) {
+                calculatePopupPosition(
                     anchorPosition = selectionState.anchorPosition,
-                    containerWidth = maxWidthPx,
+                    popupSize = selectionPopupSize,
+                    containerSize = containerSize,
                     preferAbove = true
                 )
             }
@@ -246,22 +258,27 @@ fun SelectableHighlightText(
                 ),
                 onDismissRequest = { selectionState = TextSelectionState() }
             ) {
-                SelectionToolbar(
-                    onHighlight = { color ->
-                        val range = selectionState.selectionRange
-                        onHighlightAdd(range.first, range.last + 1, selectionState.selectedText, color)
-                        selectionState = TextSelectionState()
-                    },
-                )
+                Box(
+                    modifier = Modifier.onSizeChanged { selectionPopupSize = it }
+                ) {
+                    SelectionToolbar(
+                        onHighlight = { color ->
+                            val range = selectionState.selectionRange
+                            onHighlightAdd(range.first, range.last + 1, selectionState.selectedText, color)
+                            selectionState = TextSelectionState()
+                        },
+                    )
+                }
             }
         }
         
         // Highlight edit popup
         editingHighlight?.let { highlight ->
-            val popupPosition = remember(editPopupAnchor, containerSize) {
-                calculateSmartPosition(
+            val popupPosition = remember(editPopupAnchor, containerSize, editPopupSize) {
+                calculatePopupPosition(
                     anchorPosition = editPopupAnchor,
-                    containerWidth = maxWidthPx,
+                    popupSize = editPopupSize,
+                    containerSize = containerSize,
                     preferAbove = true
                 )
             }
@@ -279,44 +296,101 @@ fun SelectableHighlightText(
                 ),
                 onDismissRequest = { editingHighlight = null }
             ) {
-                HighlightEditPopup(
-                    highlight = highlight,
-                    onColorChange = { color ->
-                        onHighlightColorChange(highlight.id, color)
-                        editingHighlight = null
-                    },
-                    onDelete = {
-                        onHighlightRemove(highlight.id)
-                        editingHighlight = null
-                    }
-                )
+                Box(
+                    modifier = Modifier.onSizeChanged { editPopupSize = it }
+                ) {
+                    HighlightEditPopup(
+                        highlight = highlight,
+                        onColorChange = { color ->
+                            onHighlightColorChange(highlight.id, color)
+                            editingHighlight = null
+                        },
+                        onDelete = {
+                            onHighlightRemove(highlight.id)
+                            editingHighlight = null
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 /**
- * Calculate smart position for popup that stays within bounds.
+ * Calculates a stable popup anchor based on selected text range.
  */
-private fun calculateSmartPosition(
+private fun calculateRangeAnchor(
+    layoutResult: TextLayoutResult,
+    textLength: Int,
+    startOffset: Int,
+    endOffset: Int,
+    fallbackAnchor: Offset
+): Offset {
+    if (textLength <= 0) return fallbackAnchor
+
+    val start = minOf(startOffset, endOffset).coerceIn(0, textLength - 1)
+    val endExclusive = maxOf(startOffset, endOffset).coerceIn(start + 1, textLength)
+    val end = (endExclusive - 1).coerceIn(start, textLength - 1)
+
+    val startBox = layoutResult.getBoundingBox(start)
+    val endBox = layoutResult.getBoundingBox(end)
+
+    val centerX = (startBox.left + endBox.right) / 2f
+    val anchorY = minOf(startBox.top, endBox.top)
+
+    return Offset(
+        x = centerX,
+        y = anchorY
+    )
+}
+
+/**
+ * Calculate popup position that stays in bounds and auto-flips vertically.
+ */
+private fun calculatePopupPosition(
     anchorPosition: Offset,
-    containerWidth: Float,
+    popupSize: IntSize,
+    containerSize: IntSize,
     preferAbove: Boolean
 ): Offset {
-    val toolbarWidth = 220f // Approximate toolbar width
-    val toolbarHeight = 56f
+    if (containerSize == IntSize.Zero) return anchorPosition
+
     val padding = 8f
-    
-    // Calculate X position - center on anchor but keep within bounds
-    val x = (anchorPosition.x - toolbarWidth / 2).coerceIn(padding, containerWidth - toolbarWidth - padding)
-    
-    // Calculate Y position - prefer above anchor
-    val y = if (preferAbove) {
-        (anchorPosition.y - toolbarHeight - 16f).coerceAtLeast(0f)
-    } else {
-        anchorPosition.y + 24f
+    val gap = 12f
+    val popupWidth = popupSize.width.toFloat()
+    val popupHeight = popupSize.height.toFloat()
+    val containerWidth = containerSize.width.toFloat()
+    val containerHeight = containerSize.height.toFloat()
+
+    val minX = padding
+    val maxX = (containerWidth - popupWidth - padding).coerceAtLeast(minX)
+    val centeredX = anchorPosition.x - (popupWidth / 2f)
+    val x = centeredX.coerceIn(minX, maxX)
+
+    val aboveY = anchorPosition.y - popupHeight - gap
+    val belowY = anchorPosition.y + gap
+
+    val fitsAbove = aboveY >= padding
+    val fitsBelow = belowY + popupHeight <= containerHeight - padding
+
+    val preferredY = when {
+        preferAbove && fitsAbove -> aboveY
+        !preferAbove && fitsBelow -> belowY
+        fitsBelow -> belowY
+        fitsAbove -> aboveY
+        else -> {
+            val minY = padding
+            val maxY = (containerHeight - popupHeight - padding).coerceAtLeast(minY)
+            (anchorPosition.y - popupHeight / 2f).coerceIn(minY, maxY)
+        }
     }
-    
+
+    val y = if (popupHeight <= 0f) {
+        (anchorPosition.y - gap).coerceAtLeast(0f)
+    } else {
+        preferredY
+    }
+
     return Offset(x, y)
 }
 
