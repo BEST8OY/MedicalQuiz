@@ -317,7 +317,7 @@ private fun PrimaryActionButtonGroup(
 
         Box(
             modifier = Modifier
-                .width(300.dp)
+                .width(320.dp)
                 .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
         ) {
             AnimatedContent(
@@ -395,7 +395,7 @@ private fun ButtonGroupScope.StartQuizButtonGroupItem(
             )
         },
         enabled = hasPreview,
-        weight = 1.1f,
+        weight = 1.2f,
     )
 }
 
