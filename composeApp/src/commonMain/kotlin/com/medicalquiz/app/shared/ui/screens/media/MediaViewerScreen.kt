@@ -1,7 +1,7 @@
 package com.medicalquiz.app.shared.ui.screens.media
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -307,6 +307,13 @@ private fun SharedTransitionScope.MediaViewerContent(
             2 -> 280.dp
             else -> 140.dp
         }
+        val controlsEnterEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+        val controlsExitEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        val controlsWidth by animateDpAsState(
+            targetValue = controlsTargetWidth,
+            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+            label = "media_controls_width",
+        )
 
         AnimatedVisibility(
             visible = showUI && hasControls,
@@ -318,18 +325,17 @@ private fun SharedTransitionScope.MediaViewerContent(
                 .padding(bottom = 24.dp),
         ) {
             Box(
-                modifier = Modifier
-                    .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
-                    .width(controlsTargetWidth)
+                modifier = Modifier.width(controlsWidth)
             ) {
                 AnimatedContent(
                     targetState = controlsState,
+                    contentAlignment = Alignment.CenterStart,
                     transitionSpec = {
                         val expanding = targetState.buttonCount > initialState.buttonCount
-                        (fadeIn(animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                        (fadeIn(animationSpec = controlsEnterEffects) +
                             slideInHorizontally(initialOffsetX = { full -> if (expanding) full / 4 else -full / 4 }))
                             .togetherWith(
-                                fadeOut(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec()) +
+                                fadeOut(animationSpec = controlsExitEffects) +
                                     slideOutHorizontally(targetOffsetX = { full -> if (expanding) -full / 4 else full / 4 })
                             )
                     },

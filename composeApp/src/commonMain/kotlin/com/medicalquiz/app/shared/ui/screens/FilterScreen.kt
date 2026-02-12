@@ -314,6 +314,9 @@ private fun PrimaryActionButtonGroup(
             .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
+        val controlsEnterEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+        val controlsExitEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+
         Box(
             modifier = Modifier
                 .width(300.dp)
@@ -321,12 +324,13 @@ private fun PrimaryActionButtonGroup(
         ) {
             AnimatedContent(
                 targetState = hasFilters,
+                contentAlignment = Alignment.CenterStart,
                 transitionSpec = {
                     val expanding = targetState && !initialState
-                    (fadeIn(animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                    (fadeIn(animationSpec = controlsEnterEffects) +
                         slideInHorizontally(initialOffsetX = { full -> if (expanding) full / 4 else -full / 4 }))
                         .togetherWith(
-                            fadeOut(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec()) +
+                            fadeOut(animationSpec = controlsExitEffects) +
                                 slideOutHorizontally(targetOffsetX = { full -> if (expanding) -full / 4 else full / 4 })
                         )
                 },
