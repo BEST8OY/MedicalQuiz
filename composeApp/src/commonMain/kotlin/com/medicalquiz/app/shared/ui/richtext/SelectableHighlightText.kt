@@ -57,7 +57,9 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.medicalquiz.app.shared.data.models.HighlightColor
 import com.medicalquiz.app.shared.data.models.TextHighlight
+import com.medicalquiz.app.shared.platform.PlatformKind
 import com.medicalquiz.app.shared.platform.TextIntentLauncher
+import com.medicalquiz.app.shared.platform.getPlatformKind
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -76,6 +78,11 @@ private data class TextSelectionState(
     val showSelectionToolbar: Boolean get() = hasSelectionRange && !isDragging
     val selectionRange: IntRange get() = minOf(startOffset, endOffset) until maxOf(startOffset, endOffset)
 }
+
+private val ANDROID_LONG_PRESS_DRAG_HYSTERESIS = 7.dp
+private val ANDROID_HANDLE_DRAG_HYSTERESIS = 7.dp
+private val DESKTOP_LONG_PRESS_DRAG_HYSTERESIS = 5.dp
+private val DESKTOP_HANDLE_DRAG_HYSTERESIS = 5.dp
 
 /**
  * A wrapper around BasicText that supports text selection for highlighting.
@@ -109,6 +116,26 @@ fun SelectableHighlightText(
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     var selectionPopupSize by remember { mutableStateOf(IntSize.Zero) }
     var editPopupSize by remember { mutableStateOf(IntSize.Zero) }
+    val platformKind = remember { getPlatformKind() }
+    val longPressDragHysteresis = remember(platformKind) {
+        when (platformKind) {
+            PlatformKind.Android -> ANDROID_LONG_PRESS_DRAG_HYSTERESIS
+            PlatformKind.Desktop -> DESKTOP_LONG_PRESS_DRAG_HYSTERESIS
+        }
+    }
+    val handleDragHysteresis = remember(platformKind) {
+        when (platformKind) {
+            PlatformKind.Android -> ANDROID_HANDLE_DRAG_HYSTERESIS
+            PlatformKind.Desktop -> DESKTOP_HANDLE_DRAG_HYSTERESIS
+        }
+    }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val longPressDragHysteresisPx = remember(density) {
+        with(density) { longPressDragHysteresis.toPx() }
+    }
+    val handleDragHysteresisPx = remember(density) {
+        with(density) { handleDragHysteresis.toPx() }
+    }
     
     // Build annotated string with highlight backgrounds applied
     val highlightedText = remember(text, highlights) {
@@ -159,17 +186,29 @@ fun SelectableHighlightText(
                             }
                             
                             // Track drag to extend selection
+                            var lastProcessedPosition = longPress.position
                             do {
                                 val event = awaitPointerEvent()
                                 val position = event.changes.firstOrNull()?.position ?: break
+                                val movementSinceLast = (position - lastProcessedPosition).getDistance()
+                                if (movementSinceLast < longPressDragHysteresisPx) {
+                                    event.changes.forEach { it.consume() }
+                                    continue
+                                }
+                                lastProcessedPosition = position
                                 
                                 layoutResult?.let { layout ->
                                     val offset = layout.getOffsetForPosition(position)
                                     val newEnd = snapOffsetToWordBoundary(
                                         text = text.text,
                                         movedOffset = offset.coerceIn(0, text.length),
-                                        fixedOffset = selectionState.startOffset
+                                        fixedOffset = selectionState.startOffset,
+                                        layoutResult = layout
                                     )
+                                    if (newEnd == selectionState.endOffset) {
+                                        event.changes.forEach { it.consume() }
+                                        return@let
+                                    }
                                     val start = selectionState.startOffset
                                     val actualStart = minOf(start, newEnd)
                                     val actualEnd = maxOf(start, newEnd)
@@ -377,6 +416,7 @@ fun SelectableHighlightText(
                     x = startHandleOffset.left,
                     y = startHandleOffset.bottom,
                     containerSize = containerSize,
+                    dragHysteresisPx = handleDragHysteresisPx,
                     onDragStart = {
                         selectionState = selectionState.copy(isDragging = true)
                     },
@@ -384,8 +424,10 @@ fun SelectableHighlightText(
                         val handleOffset = snapOffsetToWordBoundary(
                             text = text.text,
                             movedOffset = layout.getOffsetForPosition(position).coerceIn(0, text.length),
-                            fixedOffset = selectionState.endOffset
+                            fixedOffset = selectionState.endOffset,
+                            layoutResult = layout
                         )
+                        if (handleOffset == selectionState.startOffset) return@SelectionHandle
                         val existingEnd = selectionState.endOffset
                         val actualStart = minOf(handleOffset, existingEnd)
                         val actualEnd = maxOf(handleOffset, existingEnd)
@@ -416,6 +458,7 @@ fun SelectableHighlightText(
                     x = endHandleOffset.right,
                     y = endHandleOffset.bottom,
                     containerSize = containerSize,
+                    dragHysteresisPx = handleDragHysteresisPx,
                     onDragStart = {
                         selectionState = selectionState.copy(isDragging = true)
                     },
@@ -423,8 +466,10 @@ fun SelectableHighlightText(
                         val handleOffset = snapOffsetToWordBoundary(
                             text = text.text,
                             movedOffset = layout.getOffsetForPosition(position).coerceIn(0, text.length),
-                            fixedOffset = selectionState.startOffset
+                            fixedOffset = selectionState.startOffset,
+                            layoutResult = layout
                         )
+                        if (handleOffset == selectionState.endOffset) return@SelectionHandle
                         val existingStart = selectionState.startOffset
                         val actualStart = minOf(existingStart, handleOffset)
                         val actualEnd = maxOf(existingStart, handleOffset)
@@ -509,6 +554,7 @@ private fun SelectionHandle(
     x: Float,
     y: Float,
     containerSize: IntSize,
+    dragHysteresisPx: Float,
     onDragStart: () -> Unit,
     onDragEnd: () -> Unit,
     onDrag: (Offset) -> Unit
@@ -543,15 +589,21 @@ private fun SelectionHandle(
                     val down = awaitFirstDown(requireUnconsumed = false)
                     down.consume()
                     onDragStart()
+                    var lastDispatchedPosition: Offset? = null
                     do {
                         val event = awaitPointerEvent()
                         val pos = event.changes.firstOrNull()?.position ?: break
-                        onDrag(
-                            Offset(
-                                x = adjustedX + pos.x,
-                                y = adjustedY + pos.y
-                            )
+                        val absolutePosition = Offset(
+                            x = adjustedX + pos.x,
+                            y = adjustedY + pos.y
                         )
+                        val shouldDispatch = lastDispatchedPosition == null ||
+                            (absolutePosition - lastDispatchedPosition!!).getDistance() >= dragHysteresisPx
+
+                        if (shouldDispatch) {
+                            onDrag(absolutePosition)
+                            lastDispatchedPosition = absolutePosition
+                        }
                         event.changes.forEach { it.consume() }
                     } while (event.changes.any { it.pressed })
                     onDragEnd()
@@ -773,7 +825,8 @@ private fun expandToWordBoundaries(text: String, offset: Int): Pair<Int, Int> {
 private fun snapOffsetToWordBoundary(
     text: String,
     movedOffset: Int,
-    fixedOffset: Int
+    fixedOffset: Int,
+    layoutResult: TextLayoutResult?
 ): Int {
     if (text.isEmpty()) return 0
 
@@ -781,11 +834,25 @@ private fun snapOffsetToWordBoundary(
     val clampedForWord = safeMoved.coerceIn(0, text.lastIndex)
     val (wordStart, wordEnd) = expandToWordBoundaries(text, clampedForWord)
 
-    return if (safeMoved <= fixedOffset) {
-        wordStart
-    } else {
-        wordEnd
-    }.coerceIn(0, text.length)
+    val movingBackward = safeMoved <= fixedOffset
+    val primary = if (movingBackward) wordStart else wordEnd
+    val secondary = if (movingBackward) wordEnd else wordStart
+
+    if (layoutResult == null) {
+        return primary.coerceIn(0, text.length)
+    }
+
+    val movedLine = layoutResult.getLineForOffset(clampedForWord)
+
+    fun score(offset: Int): Int {
+        val clampedOffset = offset.coerceIn(0, text.lastIndex)
+        val lineDistance = kotlin.math.abs(layoutResult.getLineForOffset(clampedOffset) - movedLine)
+        val offsetDistance = kotlin.math.abs(offset - safeMoved)
+        return lineDistance * 1000 + offsetDistance
+    }
+
+    val chosen = if (score(primary) <= score(secondary)) primary else secondary
+    return chosen.coerceIn(0, text.length)
 }
 
 private fun findNearestWordPivot(text: String, offset: Int): Int? {
