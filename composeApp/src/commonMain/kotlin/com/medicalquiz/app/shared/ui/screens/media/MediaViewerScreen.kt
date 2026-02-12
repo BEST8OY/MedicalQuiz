@@ -1,7 +1,7 @@
 package com.medicalquiz.app.shared.ui.screens.media
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -14,8 +14,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -307,13 +305,6 @@ private fun SharedTransitionScope.MediaViewerContent(
             2 -> 280.dp
             else -> 140.dp
         }
-        val controlsEnterEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-        val controlsExitEffectsSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-        val controlsWidth by animateDpAsState(
-            targetValue = controlsTargetWidth,
-            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-            label = "controls_width",
-        )
 
         AnimatedVisibility(
             visible = showUI && hasControls,
@@ -325,57 +316,45 @@ private fun SharedTransitionScope.MediaViewerContent(
                 .padding(bottom = 24.dp),
         ) {
             Box(
-                modifier = Modifier.width(controlsWidth)
+                modifier = Modifier
+                    .width(controlsTargetWidth)
+                    .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
             ) {
-                AnimatedContent(
-                    targetState = controlsState,
-                    transitionSpec = {
-                        val expanding = targetState.buttonCount > initialState.buttonCount
-                        (fadeIn(animationSpec = controlsEnterEffectsSpec) +
-                            slideInHorizontally(initialOffsetX = { fullWidth -> if (expanding) fullWidth / 3 else -fullWidth / 3 }))
-                            .togetherWith(
-                                fadeOut(animationSpec = controlsExitEffectsSpec) +
-                                    slideOutHorizontally(targetOffsetX = { fullWidth -> if (expanding) -fullWidth / 3 else fullWidth / 3 })
-                            )
-                    },
-                    label = "bottom_controls_content",
-                ) { currentControls ->
-                    ButtonGroup(
-                        overflowIndicator = { },
-                        expandedRatio = 0.1f,
-                    ) {
-                        if (currentControls.hasOverlay) {
-                            toggleableItem(
-                                checked = showOverlay,
-                                label = "Overlay",
-                                onCheckedChange = { showOverlay = it },
-                                weight = 10.0f,
-                                icon = {
-                                    Icon(
-                                        imageVector = if (showOverlay) {
-                                            Icons.Filled.Visibility
-                                        } else {
-                                            Icons.Filled.VisibilityOff
-                                        },
-                                        contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                                    )
-                                },
-                            )
-                        }
+                ButtonGroup(
+                    overflowIndicator = { },
+                    expandedRatio = 0.1f,
+                ) {
+                    if (controlsState.hasOverlay) {
+                        toggleableItem(
+                            checked = showOverlay,
+                            label = "Overlay",
+                            onCheckedChange = { showOverlay = it },
+                            weight = 10.0f,
+                            icon = {
+                                Icon(
+                                    imageVector = if (showOverlay) {
+                                        Icons.Filled.Visibility
+                                    } else {
+                                        Icons.Filled.VisibilityOff
+                                    },
+                                    contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                                )
+                            },
+                        )
+                    }
 
-                        if (currentControls.hasDescription) {
-                            clickableItem(
-                                label = "Info",
-                                onClick = { showExplanation = true },
-                                weight = 9.0f,
-                                icon = {
-                                    Icon(
-                                        imageVector = Icons.Filled.Info,
-                                        contentDescription = "Show info",
-                                    )
-                                },
-                            )
-                        }
+                    if (controlsState.hasDescription) {
+                        clickableItem(
+                            label = "Info",
+                            onClick = { showExplanation = true },
+                            weight = 9.0f,
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = "Show info",
+                                )
+                            },
+                        )
                     }
                 }
             }

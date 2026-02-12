@@ -1,12 +1,7 @@
 package com.medicalquiz.app.shared.ui.screens
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,7 +32,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -308,71 +302,56 @@ private fun PrimaryActionButtonGroup(
     onStart: () -> Unit,
     onClearFilters: () -> Unit
 ) {
-    // Determine button count: Start always present (enabled/disabled), Reset only when hasFilters
-    val buttonCount = remember(hasFilters) { 1 + if (hasFilters) 1 else 0 }
-
-    val motionScheme = MaterialTheme.motionScheme
-    val enterEffects = motionScheme.defaultEffectsSpec<Float>()
-    val exitEffects = motionScheme.fastEffectsSpec<Float>()
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
-        AnimatedContent(
-            targetState = buttonCount,
-            transitionSpec = {
-                (fadeIn(animationSpec = enterEffects) +
-                    slideInVertically(initialOffsetY = { it / 3 }))
-                    .togetherWith(
-                        fadeOut(animationSpec = exitEffects) +
-                            slideOutVertically(targetOffsetY = { -it / 4 })
-                    )
-            }
-        ) { count ->
-            Box(modifier = Modifier.width(300.dp)) {
-                ButtonGroup(
-                    overflowIndicator = { state ->
-                        IconButton(
-                            onClick = { state.show() },
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        ) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                        }
+        Box(
+            modifier = Modifier
+                .width(300.dp)
+                .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
+        ) {
+            ButtonGroup(
+                overflowIndicator = { state ->
+                    IconButton(
+                        onClick = { state.show() },
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    ) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                expandedRatio = 0.08f,
+            ) {
+                clickableItem(
+                    onClick = onStart,
+                    label = if (hasPreview) "Start Quiz" else "No matches",
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    expandedRatio = 0.08f,
-                ) {
+                    enabled = hasPreview,
+                    weight = 1.5f,
+                )
+
+                if (hasFilters) {
                     clickableItem(
-                        onClick = onStart,
-                        label = if (hasPreview) "Start Quiz" else "No matches",
+                        onClick = onClearFilters,
+                        label = "Reset",
                         icon = {
                             Icon(
-                                imageVector = Icons.Filled.PlayArrow,
+                                imageVector = Icons.Filled.FilterAltOff,
                                 contentDescription = null,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         },
-                        enabled = hasPreview,
-                        weight = 1.5f,
+                        weight = 1f,
                     )
-
-                    if (count == 2) {
-                        clickableItem(
-                            onClick = onClearFilters,
-                            label = "Reset",
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Filled.FilterAltOff,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            },
-                            weight = 1f,
-                        )
-                    }
                 }
             }
         }
