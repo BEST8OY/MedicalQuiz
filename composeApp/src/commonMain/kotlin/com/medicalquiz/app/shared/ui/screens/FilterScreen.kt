@@ -314,7 +314,13 @@ private fun PrimaryActionButtonGroup(
             .fillMaxWidth()
             .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
-    ) {
+    ) {> Task :app:writeReleaseSigningConfigVersions
+
+> Task :composeApp:compileAndroidMain FAILED
+e: file:///home/runner/work/MedicalQuiz/MedicalQuiz/composeApp/src/commonMain/kotlin/com/medicalquiz/app/shared/ui/screens/FilterScreen.kt:370:9 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/MedicalQuiz/MedicalQuiz/composeApp/src/commonMain/kotlin/com/medicalquiz/app/shared/ui/screens/FilterScreen.kt:376:13 @Composable invocations can only happen from the context of a @Composable function
+
+FAILURE: Build failed with an exception.
         val controlsEnterEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
         val controlsExitEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
 
