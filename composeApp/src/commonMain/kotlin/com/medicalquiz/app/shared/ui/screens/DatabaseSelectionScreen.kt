@@ -50,9 +50,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.platform.FileSystemHelper
-import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 
 private enum class SelectionPane {
     Database,
@@ -93,7 +93,7 @@ fun DatabaseSelectionScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
                 ),
@@ -344,10 +344,11 @@ private fun EmptyState(
 private fun formatTimestamp(epochMillis: Long): String {
     if (epochMillis <= 0L) return "Unknown time"
     val localDateTime = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
+    val month = localDateTime.month.ordinal + 1
     return "%04d-%02d-%02d %02d:%02d".format(
         localDateTime.year,
-        localDateTime.monthNumber,
-        localDateTime.dayOfMonth,
+        month,
+        localDateTime.day,
         localDateTime.hour,
         localDateTime.minute,
     )
