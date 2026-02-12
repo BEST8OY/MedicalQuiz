@@ -72,7 +72,8 @@ private data class TextSelectionState(
     val selectedText: String = "",
     val anchorPosition: Offset = Offset.Zero // For popup positioning
 ) {
-    val hasSelection: Boolean get() = isSelecting && startOffset != endOffset && !isDragging
+    val hasSelectionRange: Boolean get() = isSelecting && startOffset != endOffset
+    val showSelectionToolbar: Boolean get() = hasSelectionRange && !isDragging
     val selectionRange: IntRange get() = minOf(startOffset, endOffset) until maxOf(startOffset, endOffset)
 }
 
@@ -164,7 +165,11 @@ fun SelectableHighlightText(
                                 
                                 layoutResult?.let { layout ->
                                     val offset = layout.getOffsetForPosition(position)
-                                    val newEnd = offset.coerceIn(0, text.length)
+                                    val newEnd = snapOffsetToWordBoundary(
+                                        text = text.text,
+                                        movedOffset = offset.coerceIn(0, text.length),
+                                        fixedOffset = selectionState.startOffset
+                                    )
                                     val start = selectionState.startOffset
                                     val actualStart = minOf(start, newEnd)
                                     val actualEnd = maxOf(start, newEnd)
@@ -269,96 +274,98 @@ fun SelectableHighlightText(
         )
         
         // Selection toolbar - only visible when selection complete (not dragging)
-        if (selectionState.hasSelection) {
+        if (selectionState.hasSelectionRange) {
             val safeTextLength = text.length.coerceAtLeast(1)
             val normalizedStart = minOf(selectionState.startOffset, selectionState.endOffset)
                 .coerceIn(0, safeTextLength - 1)
             val normalizedEndExclusive = maxOf(selectionState.startOffset, selectionState.endOffset)
                 .coerceIn(normalizedStart + 1, safeTextLength)
 
-            val toolbarPosition = remember(
-                selectionState.anchorPosition,
-                containerSize,
-                selectionPopupSize,
-                layoutResult,
-                normalizedStart,
-                normalizedEndExclusive
-            ) {
-                val layout = layoutResult
-                if (layout == null) {
-                    calculatePopupPosition(
-                        anchorPosition = selectionState.anchorPosition,
-                        popupSize = selectionPopupSize,
-                        containerSize = containerSize,
-                        preferAbove = true
-                    )
-                } else {
-                    val startLine = layout.getLineForOffset(normalizedStart)
-                    val endLine = layout.getLineForOffset((normalizedEndExclusive - 1).coerceAtLeast(0))
-                    val selectionTop = layout.getLineTop(minOf(startLine, endLine))
-                    val selectionBottom = layout.getLineBottom(maxOf(startLine, endLine))
-
-                    calculateSelectionAwarePopupPosition(
-                        anchorPosition = selectionState.anchorPosition,
-                        popupSize = selectionPopupSize,
-                        containerSize = containerSize,
-                        selectionTop = selectionTop,
-                        selectionBottom = selectionBottom,
-                        preferAbove = true
-                    )
-                }
-            }
-            
-            Popup(
-                alignment = Alignment.TopStart,
-                offset = IntOffset(
-                    x = toolbarPosition.x.roundToInt(),
-                    y = toolbarPosition.y.roundToInt()
-                ),
-                properties = PopupProperties(
-                    focusable = false,
-                    dismissOnBackPress = true,
-                    dismissOnClickOutside = false
-                ),
-                onDismissRequest = { selectionState = TextSelectionState() }
-            ) {
-                Box(
-                    modifier = Modifier.onSizeChanged { selectionPopupSize = it }
+            if (selectionState.showSelectionToolbar) {
+                val toolbarPosition = remember(
+                    selectionState.anchorPosition,
+                    containerSize,
+                    selectionPopupSize,
+                    layoutResult,
+                    normalizedStart,
+                    normalizedEndExclusive
                 ) {
-                    SelectionToolbar(
-                        selectedText = selectionState.selectedText,
-                        onCopy = {
-                            if (selectionState.selectedText.isNotBlank()) {
-                                clipboardManager.setText(AnnotatedString(selectionState.selectedText))
-                            }
-                            selectionState = TextSelectionState()
-                        },
-                        onOpenExternal = {
-                            if (selectionState.selectedText.isNotBlank()) {
-                                val opened = TextIntentLauncher.openSelectedText(selectionState.selectedText)
-                                if (!opened) {
-                                    lastExternalOpenText = selectionState.selectedText
-                                    coroutineScope.launch {
-                                        val result = snackbarHostState.showSnackbar(
-                                            message = "No compatible app found",
-                                            actionLabel = "Copy",
-                                            duration = SnackbarDuration.Short
-                                        )
-                                        if (result == SnackbarResult.ActionPerformed && lastExternalOpenText.isNotBlank()) {
-                                            clipboardManager.setText(AnnotatedString(lastExternalOpenText))
-                                        }
-                                    }
-                                    return@SelectionToolbar
+                    val layout = layoutResult
+                    if (layout == null) {
+                        calculatePopupPosition(
+                            anchorPosition = selectionState.anchorPosition,
+                            popupSize = selectionPopupSize,
+                            containerSize = containerSize,
+                            preferAbove = true
+                        )
+                    } else {
+                        val startLine = layout.getLineForOffset(normalizedStart)
+                        val endLine = layout.getLineForOffset((normalizedEndExclusive - 1).coerceAtLeast(0))
+                        val selectionTop = layout.getLineTop(minOf(startLine, endLine))
+                        val selectionBottom = layout.getLineBottom(maxOf(startLine, endLine))
+
+                        calculateSelectionAwarePopupPosition(
+                            anchorPosition = selectionState.anchorPosition,
+                            popupSize = selectionPopupSize,
+                            containerSize = containerSize,
+                            selectionTop = selectionTop,
+                            selectionBottom = selectionBottom,
+                            preferAbove = true
+                        )
+                    }
+                }
+
+                Popup(
+                    alignment = Alignment.TopStart,
+                    offset = IntOffset(
+                        x = toolbarPosition.x.roundToInt(),
+                        y = toolbarPosition.y.roundToInt()
+                    ),
+                    properties = PopupProperties(
+                        focusable = false,
+                        dismissOnBackPress = true,
+                        dismissOnClickOutside = false
+                    ),
+                    onDismissRequest = { selectionState = TextSelectionState() }
+                ) {
+                    Box(
+                        modifier = Modifier.onSizeChanged { selectionPopupSize = it }
+                    ) {
+                        SelectionToolbar(
+                            selectedText = selectionState.selectedText,
+                            onCopy = {
+                                if (selectionState.selectedText.isNotBlank()) {
+                                    clipboardManager.setText(AnnotatedString(selectionState.selectedText))
                                 }
-                            }
-                            selectionState = TextSelectionState()
-                        },
-                        onHighlight = { color ->
-                            val range = selectionState.selectionRange
-                            onHighlightAdd(range.first, range.last + 1, selectionState.selectedText, color)
-                            selectionState = TextSelectionState()
-                        },
-                    )
+                                selectionState = TextSelectionState()
+                            },
+                            onOpenExternal = {
+                                if (selectionState.selectedText.isNotBlank()) {
+                                    val opened = TextIntentLauncher.openSelectedText(selectionState.selectedText)
+                                    if (!opened) {
+                                        lastExternalOpenText = selectionState.selectedText
+                                        coroutineScope.launch {
+                                            val result = snackbarHostState.showSnackbar(
+                                                message = "No compatible app found",
+                                                actionLabel = "Copy",
+                                                duration = SnackbarDuration.Short
+                                            )
+                                            if (result == SnackbarResult.ActionPerformed && lastExternalOpenText.isNotBlank()) {
+                                                clipboardManager.setText(AnnotatedString(lastExternalOpenText))
+                                            }
+                                        }
+                                        return@SelectionToolbar
+                                    }
+                                }
+                                selectionState = TextSelectionState()
+                            },
+                            onHighlight = { color ->
+                                val range = selectionState.selectionRange
+                                onHighlightAdd(range.first, range.last + 1, selectionState.selectedText, color)
+                                selectionState = TextSelectionState()
+                            },
+                        )
+                    }
                 }
             }
 
@@ -370,8 +377,15 @@ fun SelectableHighlightText(
                     x = startHandleOffset.left,
                     y = startHandleOffset.bottom,
                     containerSize = containerSize,
+                    onDragStart = {
+                        selectionState = selectionState.copy(isDragging = true)
+                    },
                     onDrag = { position ->
-                        val handleOffset = layout.getOffsetForPosition(position).coerceIn(0, text.length)
+                        val handleOffset = snapOffsetToWordBoundary(
+                            text = text.text,
+                            movedOffset = layout.getOffsetForPosition(position).coerceIn(0, text.length),
+                            fixedOffset = selectionState.endOffset
+                        )
                         val existingEnd = selectionState.endOffset
                         val actualStart = minOf(handleOffset, existingEnd)
                         val actualEnd = maxOf(handleOffset, existingEnd)
@@ -388,6 +402,13 @@ fun SelectableHighlightText(
                                 )
                             )
                         }
+                    },
+                    onDragEnd = {
+                        if (selectionState.startOffset != selectionState.endOffset) {
+                            selectionState = selectionState.copy(isDragging = false)
+                        } else {
+                            selectionState = TextSelectionState()
+                        }
                     }
                 )
 
@@ -395,8 +416,15 @@ fun SelectableHighlightText(
                     x = endHandleOffset.right,
                     y = endHandleOffset.bottom,
                     containerSize = containerSize,
+                    onDragStart = {
+                        selectionState = selectionState.copy(isDragging = true)
+                    },
                     onDrag = { position ->
-                        val handleOffset = layout.getOffsetForPosition(position).coerceIn(0, text.length)
+                        val handleOffset = snapOffsetToWordBoundary(
+                            text = text.text,
+                            movedOffset = layout.getOffsetForPosition(position).coerceIn(0, text.length),
+                            fixedOffset = selectionState.startOffset
+                        )
                         val existingStart = selectionState.startOffset
                         val actualStart = minOf(existingStart, handleOffset)
                         val actualEnd = maxOf(existingStart, handleOffset)
@@ -412,6 +440,13 @@ fun SelectableHighlightText(
                                     fallbackAnchor = position
                                 )
                             )
+                        }
+                    },
+                    onDragEnd = {
+                        if (selectionState.startOffset != selectionState.endOffset) {
+                            selectionState = selectionState.copy(isDragging = false)
+                        } else {
+                            selectionState = TextSelectionState()
                         }
                     }
                 )
@@ -474,6 +509,8 @@ private fun SelectionHandle(
     x: Float,
     y: Float,
     containerSize: IntSize,
+    onDragStart: () -> Unit,
+    onDragEnd: () -> Unit,
     onDrag: (Offset) -> Unit
 ) {
     val handleRadius = 7.dp
@@ -505,6 +542,7 @@ private fun SelectionHandle(
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     down.consume()
+                    onDragStart()
                     do {
                         val event = awaitPointerEvent()
                         val pos = event.changes.firstOrNull()?.position ?: break
@@ -516,6 +554,7 @@ private fun SelectionHandle(
                         )
                         event.changes.forEach { it.consume() }
                     } while (event.changes.any { it.pressed })
+                    onDragEnd()
                 }
             }
     )
@@ -729,6 +768,24 @@ private fun expandToWordBoundaries(text: String, offset: Int): Pair<Int, Int> {
     }
 
     return start to end
+}
+
+private fun snapOffsetToWordBoundary(
+    text: String,
+    movedOffset: Int,
+    fixedOffset: Int
+): Int {
+    if (text.isEmpty()) return 0
+
+    val safeMoved = movedOffset.coerceIn(0, text.length)
+    val clampedForWord = safeMoved.coerceIn(0, text.lastIndex)
+    val (wordStart, wordEnd) = expandToWordBoundaries(text, clampedForWord)
+
+    return if (safeMoved <= fixedOffset) {
+        wordStart
+    } else {
+        wordEnd
+    }.coerceIn(0, text.length)
 }
 
 private fun findNearestWordPivot(text: String, offset: Int): Int? {
