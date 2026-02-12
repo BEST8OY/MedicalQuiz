@@ -1,7 +1,7 @@
 package com.medicalquiz.app.shared.ui.screens.media
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -9,13 +9,12 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -80,7 +79,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -326,22 +324,21 @@ private fun SharedTransitionScope.MediaViewerContent(
         }
         val controlsEnterEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
         val controlsExitEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-        var previousButtonCount by remember { mutableIntStateOf(controlsState.buttonCount) }
-        val isSwapBetweenVisibleStates = previousButtonCount > 0 && controlsState.buttonCount > 0
+        val controlsTransition = updateTransition(
+            targetState = controlsLayout,
+            label = "media_controls_transition",
+        )
 
-        val controlsWidth by animateDpAsState(
+        val controlsWidth by controlsTransition.animateDp(
             targetValue = controlsTargetWidth,
-            animationSpec = if (isSwapBetweenVisibleStates) {
-                MaterialTheme.motionScheme.defaultSpatialSpec()
-            } else {
-                tween(durationMillis = 0)
+            transitionSpec = {
+                spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                )
             },
             label = "media_controls_width",
         )
-
-        LaunchedEffect(controlsState.buttonCount) {
-            previousButtonCount = controlsState.buttonCount
-        }
 
         AnimatedVisibility(
             visible = showUI && hasControls,
@@ -355,45 +352,24 @@ private fun SharedTransitionScope.MediaViewerContent(
             Box(
                 modifier = Modifier.width(controlsWidth)
             ) {
-                if (isSwapBetweenVisibleStates) {
-                    AnimatedContent(
-                        targetState = controlsLayout,
-                        contentAlignment = Alignment.CenterStart,
-                        transitionSpec = {
+                controlsTransition.AnimatedContent(
+                    contentAlignment = Alignment.CenterStart,
+                    transitionSpec = {
+                        if (initialState == MediaControlsLayout.None || targetState == MediaControlsLayout.None) {
                             fadeIn(animationSpec = controlsEnterEffects)
                                 .togetherWith(fadeOut(animationSpec = controlsExitEffects))
-                        },
-                        label = "media_controls_swap",
-                    ) { layout ->
-                        when (layout) {
-                            MediaControlsLayout.OverlayAndInfo -> {
-                                MediaViewerDualControlButtonGroup(
-                                    showOverlay = showOverlay,
-                                    onShowOverlayChange = { showOverlay = it },
-                                    onShowInfo = { showExplanation = true },
+                        } else {
+                            (fadeIn(animationSpec = controlsEnterEffects) +
+                                expandHorizontally(expandFrom = Alignment.Start))
+                                .togetherWith(
+                                    fadeOut(animationSpec = controlsExitEffects) +
+                                        shrinkHorizontally(shrinkTowards = Alignment.Start)
                                 )
-                            }
-                            MediaControlsLayout.OverlayOnly -> {
-                                MediaViewerSingleControlButtonGroup(
-                                    type = MediaControlsLayout.OverlayOnly,
-                                    showOverlay = showOverlay,
-                                    onShowOverlayChange = { showOverlay = it },
-                                    onShowInfo = { showExplanation = true },
-                                )
-                            }
-                            MediaControlsLayout.InfoOnly -> {
-                                MediaViewerSingleControlButtonGroup(
-                                    type = MediaControlsLayout.InfoOnly,
-                                    showOverlay = showOverlay,
-                                    onShowOverlayChange = { showOverlay = it },
-                                    onShowInfo = { showExplanation = true },
-                                )
-                            }
-                            MediaControlsLayout.None -> Unit
                         }
-                    }
-                } else {
-                    when (controlsLayout) {
+                    },
+                    label = "media_controls_swap",
+                ) { layout ->
+                    when (layout) {
                         MediaControlsLayout.OverlayAndInfo -> {
                             MediaViewerDualControlButtonGroup(
                                 showOverlay = showOverlay,
