@@ -3,10 +3,8 @@ package com.medicalquiz.app.shared.ui.screens
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -327,12 +325,8 @@ private fun PrimaryActionButtonGroup(
                 targetState = hasFilters,
                 contentAlignment = Alignment.CenterStart,
                 transitionSpec = {
-                    (fadeIn(animationSpec = controlsEnterEffects) +
-                        expandHorizontally(expandFrom = Alignment.Start))
-                        .togetherWith(
-                            fadeOut(animationSpec = controlsExitEffects) +
-                                shrinkHorizontally(shrinkTowards = Alignment.Start)
-                        )
+                    fadeIn(animationSpec = controlsEnterEffects)
+                        .togetherWith(fadeOut(animationSpec = controlsExitEffects))
                 },
                 label = "filter_controls_swap",
             ) { showReset ->
@@ -355,25 +349,32 @@ private fun FilterActionControlButtonGroup(
     onStart: () -> Unit,
     onClearFilters: () -> Unit,
 ) {
-    ButtonGroup(
-        overflowIndicator = { state ->
-            IconButton(
-                onClick = { state.show() },
-                modifier = Modifier.padding(horizontal = 4.dp),
-            ) {
-                Icon(Icons.Default.MoreVert, contentDescription = "More options")
-            }
-        },
-        modifier = Modifier.fillMaxWidth(),
-        expandedRatio = 0.08f,
-    ) {
-        StartQuizButtonGroupItem(
-            hasPreview = hasPreview,
-            onStart = onStart,
-        )
+    val groupModifier = if (showReset) Modifier.fillMaxWidth() else Modifier.width(176.dp)
 
-        if (showReset) {
-            ResetFiltersButtonGroupItem(onClearFilters = onClearFilters)
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        ButtonGroup(
+            overflowIndicator = { state ->
+                IconButton(
+                    onClick = { state.show() },
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                ) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                }
+            },
+            modifier = groupModifier,
+            expandedRatio = 0.08f,
+        ) {
+            StartQuizButtonGroupItem(
+                hasPreview = hasPreview,
+                onStart = onStart,
+            )
+
+            if (showReset) {
+                ResetFiltersButtonGroupItem(onClearFilters = onClearFilters)
+            }
         }
     }
 }

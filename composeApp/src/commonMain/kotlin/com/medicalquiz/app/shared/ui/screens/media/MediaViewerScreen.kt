@@ -1,8 +1,6 @@
 package com.medicalquiz.app.shared.ui.screens.media
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDp
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -10,7 +8,6 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -73,7 +70,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -116,9 +112,6 @@ private enum class MediaControlsLayout {
     InfoOnly,
     OverlayAndInfo,
 }
-
-private fun MediaControlsLayout.isSingleButtonLayout(): Boolean =
-    this == MediaControlsLayout.OverlayOnly || this == MediaControlsLayout.InfoOnly
 
 private fun resolveControlsLayout(hasOverlay: Boolean, hasDescription: Boolean): MediaControlsLayout = when {
     hasOverlay && hasDescription -> MediaControlsLayout.OverlayAndInfo
@@ -183,23 +176,13 @@ private fun SharedTransitionScope.MediaViewerContent(
     var showUI by rememberSaveable { mutableStateOf(true) }
     var showExplanation by rememberSaveable { mutableStateOf(false) }
     var showOverlay by rememberSaveable { mutableStateOf(true) }
-    var controlsPageIndex by rememberSaveable {
-        mutableIntStateOf(startIndex.coerceIn(0, mediaFiles.lastIndex))
-    }
-
-    val currentDescription = mediaDescriptions[mediaFiles.getOrNull(controlsPageIndex)]
+    val currentFileName = mediaFiles.getOrNull(pagerState.currentPage) ?: ""
+    val currentDescription = mediaDescriptions[currentFileName]
 
     LaunchedEffect(pagerState.currentPage) {
         isZoomed = false
         showOverlay = true
         showExplanation = false
-    }
-
-    // Decouple control transitions from in-flight pager movement.
-    LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
-        if (!pagerState.isScrollInProgress) {
-            controlsPageIndex = pagerState.currentPage
-        }
     }
 
     // Only intercept back when explanation bottom sheet is open
@@ -208,16 +191,18 @@ private fun SharedTransitionScope.MediaViewerContent(
 
     val onToggleUI: () -> Unit = { showUI = !showUI }
 
-    val currentFileName = mediaFiles.getOrNull(controlsPageIndex) ?: ""
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
-    val overlayPath by produceState<String?>(initialValue = null, currentFileName, storageDir) {
+    val overlayPathsByFile by produceState<Map<String, String?>>(initialValue = emptyMap(), mediaFiles, storageDir) {
         value = withContext(Dispatchers.IO) {
-            if (!currentFileName.startsWith("big_", ignoreCase = true)) return@withContext null
-            val overlayFile = currentFileName.substringBeforeLast('.') + ".svg"
-            val path = "$storageDir/media/$overlayFile"
-            if (FileSystemHelper.exists(path)) path else null
+            mediaFiles.associateWith { fileName ->
+                if (!fileName.startsWith("big_", ignoreCase = true)) return@associateWith null
+                val overlayFile = fileName.substringBeforeLast('.') + ".svg"
+                val path = "$storageDir/media/$overlayFile"
+                if (FileSystemHelper.exists(path)) path else null
+            }
         }
     }
+    val currentOverlayPath = overlayPathsByFile[currentFileName]
 
     val backgroundColor by animateColorAsState(
         targetValue = if (showUI) MaterialTheme.colorScheme.surface else Color.Black,
@@ -257,7 +242,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                         if (it) showUI = false
                     },
                     onSingleTap = onToggleUI,
-                    overlayPath = if (page == pagerState.currentPage) overlayPath else null,
+                    overlayPath = if (page == pagerState.currentPage) currentOverlayPath else null,
                     showOverlay = if (page == pagerState.currentPage) showOverlay else true,
                 )
             }
@@ -306,38 +291,13 @@ private fun SharedTransitionScope.MediaViewerContent(
             }
         }
 
-        val hasOverlay by derivedStateOf { overlayPath != null }
+        val hasOverlay by derivedStateOf { currentOverlayPath != null }
         val hasDescription = currentDescription != null
         val controlsLayout = remember(hasOverlay, hasDescription) {
             resolveControlsLayout(hasOverlay = hasOverlay, hasDescription = hasDescription)
         }
         val hasControls = controlsLayout != MediaControlsLayout.None
-        val controlsTransition = updateTransition(
-            targetState = controlsLayout,
-            label = "media_controls_transition",
-        )
-
-        val controlsWidth by controlsTransition.animateDp(
-            transitionSpec = {
-                if (initialState == MediaControlsLayout.None || targetState == MediaControlsLayout.None) {
-                    snap()
-                } else if (initialState.isSingleButtonLayout() && targetState == MediaControlsLayout.OverlayAndInfo) {
-                    // Avoid text/layout clamping during 1 -> 2 expansion.
-                    snap()
-                } else {
-                    spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow,
-                    )
-                }
-            },
-            label = "media_controls_width",
-        ) { layout ->
-            when (layout) {
-                MediaControlsLayout.OverlayAndInfo -> 280.dp
-                else -> 140.dp
-            }
-        }
+        val controlsWidth = 280.dp
         val controlsEnterEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
         val controlsExitEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
 
@@ -359,7 +319,8 @@ private fun SharedTransitionScope.MediaViewerContent(
                 .padding(bottom = 24.dp),
         ) {
             Box(
-                modifier = Modifier.width(controlsWidth)
+                modifier = Modifier.width(controlsWidth),
+                contentAlignment = Alignment.Center,
             ) {
                 MediaViewerControlButtonGroup(
                     type = controlsLayout,
@@ -389,7 +350,15 @@ private fun MediaViewerControlButtonGroup(
     onShowOverlayChange: (Boolean) -> Unit,
     onShowInfo: () -> Unit,
 ) {
+    val groupModifier = when (type) {
+        MediaControlsLayout.OverlayAndInfo -> Modifier.fillMaxWidth()
+        MediaControlsLayout.OverlayOnly,
+        MediaControlsLayout.InfoOnly,
+        MediaControlsLayout.None -> Modifier.width(140.dp)
+    }
+
     ButtonGroup(
+        modifier = groupModifier,
         overflowIndicator = { },
         expandedRatio = 0.1f,
     ) {
