@@ -14,6 +14,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -300,15 +302,13 @@ private fun SharedTransitionScope.MediaViewerContent(
                 hasDescription = hasDescription,
             )
         }
+        val hasControls = controlsState.buttonCount > 0
         val controlsTargetWidth = when (controlsState.buttonCount) {
             2 -> 280.dp
-            1 -> 140.dp
-            else -> 0.dp
+            else -> 140.dp
         }
         val controlsEnterEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-        val controlsEnterSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
         val controlsExitEffectsSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-        val controlsExitSpatialSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
         val controlsWidth by animateDpAsState(
             targetValue = controlsTargetWidth,
             animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
@@ -316,7 +316,7 @@ private fun SharedTransitionScope.MediaViewerContent(
         )
 
         AnimatedVisibility(
-            visible = showUI,
+            visible = showUI && hasControls,
             enter = fadeIn() + slideInVertically { it },
             exit = fadeOut() + slideOutVertically { it },
             modifier = Modifier
@@ -330,52 +330,51 @@ private fun SharedTransitionScope.MediaViewerContent(
                 AnimatedContent(
                     targetState = controlsState,
                     transitionSpec = {
-                        fadeIn(animationSpec = controlsEnterEffectsSpec) +
-                            slideInVertically(initialOffsetY = { it / 3 }) togetherWith
-                            fadeOut(animationSpec = controlsExitEffectsSpec) +
-                            slideOutVertically(targetOffsetY = { -it / 4 })
+                        val expanding = targetState.buttonCount > initialState.buttonCount
+                        (fadeIn(animationSpec = controlsEnterEffectsSpec) +
+                            slideInHorizontally(initialOffsetX = { fullWidth -> if (expanding) fullWidth / 3 else -fullWidth / 3 }))
+                            .togetherWith(
+                                fadeOut(animationSpec = controlsExitEffectsSpec) +
+                                    slideOutHorizontally(targetOffsetX = { fullWidth -> if (expanding) -fullWidth / 3 else fullWidth / 3 })
+                            )
                     },
                     label = "bottom_controls_content",
                 ) { currentControls ->
-                    if (currentControls.buttonCount == 0) {
-                        Spacer(modifier = Modifier.height(1.dp))
-                    } else {
-                        ButtonGroup(
-                            overflowIndicator = { },
-                            expandedRatio = 0.1f,
-                        ) {
-                            if (currentControls.hasOverlay) {
-                                toggleableItem(
-                                    checked = showOverlay,
-                                    label = "Overlay",
-                                    onCheckedChange = { showOverlay = it },
-                                    weight = 10.0f,
-                                    icon = {
-                                        Icon(
-                                            imageVector = if (showOverlay) {
-                                                Icons.Filled.Visibility
-                                            } else {
-                                                Icons.Filled.VisibilityOff
-                                            },
-                                            contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                                        )
-                                    },
-                                )
-                            }
+                    ButtonGroup(
+                        overflowIndicator = { },
+                        expandedRatio = 0.1f,
+                    ) {
+                        if (currentControls.hasOverlay) {
+                            toggleableItem(
+                                checked = showOverlay,
+                                label = "Overlay",
+                                onCheckedChange = { showOverlay = it },
+                                weight = 10.0f,
+                                icon = {
+                                    Icon(
+                                        imageVector = if (showOverlay) {
+                                            Icons.Filled.Visibility
+                                        } else {
+                                            Icons.Filled.VisibilityOff
+                                        },
+                                        contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                                    )
+                                },
+                            )
+                        }
 
-                            if (currentControls.hasDescription) {
-                                clickableItem(
-                                    label = "Info",
-                                    onClick = { showExplanation = true },
-                                    weight = 9.0f,
-                                    icon = {
-                                        Icon(
-                                            imageVector = Icons.Filled.Info,
-                                            contentDescription = "Show info",
-                                        )
-                                    },
-                                )
-                            }
+                        if (currentControls.hasDescription) {
+                            clickableItem(
+                                label = "Info",
+                                onClick = { showExplanation = true },
+                                weight = 9.0f,
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.Info,
+                                        contentDescription = "Show info",
+                                    )
+                                },
+                            )
                         }
                     }
                 }

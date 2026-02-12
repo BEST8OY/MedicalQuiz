@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,7 +28,6 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -313,86 +311,67 @@ private fun PrimaryActionButtonGroup(
     // Determine button count: Start always present (enabled/disabled), Reset only when hasFilters
     val buttonCount = remember(hasFilters) { 1 + if (hasFilters) 1 else 0 }
 
-    val controlsTargetWidth = when (buttonCount) {
-        2 -> 280.dp
-        1 -> 140.dp
-        else -> 0.dp
-    }
-
     val motionScheme = MaterialTheme.motionScheme
     val enterEffects = motionScheme.defaultEffectsSpec<Float>()
     val exitEffects = motionScheme.fastEffectsSpec<Float>()
 
-    val controlsWidth by animateDpAsState(targetValue = controlsTargetWidth, animationSpec = motionScheme.defaultSpatialSpec())
-
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
-        ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp)
-    ) {
-        Box(modifier = Modifier
+    Box(
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp)) {
-            // Keep full-width card but animate the button group's width
-            Box(modifier = Modifier.align(Alignment.CenterStart)) {
-                AnimatedContent(
-                    targetState = buttonCount,
-                    transitionSpec = {
-                        (fadeIn(animationSpec = enterEffects) +
-                            slideInVertically(initialOffsetY = { it / 3 }))
-                            .togetherWith(
-                                fadeOut(animationSpec = exitEffects) +
-                                    slideOutVertically(targetOffsetY = { -it / 4 })
-                            )
-                    }
-                ) { count ->
-                    Box(modifier = Modifier.width(controlsWidth)) {
-                        ButtonGroup(
-                            overflowIndicator = { state ->
-                                IconButton(
-                                    onClick = { state.show() },
-                                    modifier = Modifier.padding(horizontal = 4.dp)
-                                ) {
-                                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(0.dp),
-                            expandedRatio = 0.08f,
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        AnimatedContent(
+            targetState = buttonCount,
+            transitionSpec = {
+                (fadeIn(animationSpec = enterEffects) +
+                    slideInVertically(initialOffsetY = { it / 3 }))
+                    .togetherWith(
+                        fadeOut(animationSpec = exitEffects) +
+                            slideOutVertically(targetOffsetY = { -it / 4 })
+                    )
+            }
+        ) { count ->
+            Box(modifier = Modifier.width(300.dp)) {
+                ButtonGroup(
+                    overflowIndicator = { state ->
+                        IconButton(
+                            onClick = { state.show() },
+                            modifier = Modifier.padding(horizontal = 4.dp)
                         ) {
-                            clickableItem(
-                                onClick = onStart,
-                                label = if (hasPreview) "Start Quiz" else "No matches",
-                                icon = {
-                                    Icon(
-                                        imageVector = Icons.Filled.PlayArrow,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                enabled = hasPreview,
-                                weight = 1.5f,
-                            )
-
-                            if (count == 2) {
-                                clickableItem(
-                                    onClick = onClearFilters,
-                                    label = "Reset",
-                                    icon = {
-                                        Icon(
-                                            imageVector = Icons.Filled.FilterAltOff,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    },
-                                    weight = 1f,
-                                )
-                            }
+                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
                         }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    expandedRatio = 0.08f,
+                ) {
+                    clickableItem(
+                        onClick = onStart,
+                        label = if (hasPreview) "Start Quiz" else "No matches",
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Filled.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        enabled = hasPreview,
+                        weight = 1.5f,
+                    )
+
+                    if (count == 2) {
+                        clickableItem(
+                            onClick = onClearFilters,
+                            label = "Reset",
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Filled.FilterAltOff,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            weight = 1f,
+                        )
                     }
                 }
             }
