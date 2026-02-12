@@ -318,10 +318,6 @@ private fun SharedTransitionScope.MediaViewerContent(
         }
         val controlsLayout = remember(controlsState) { controlsState.toLayout() }
         val hasControls = controlsLayout != MediaControlsLayout.None
-        val controlsTargetWidth = when (controlsLayout) {
-            MediaControlsLayout.OverlayAndInfo -> 280.dp
-            else -> 140.dp
-        }
         val controlsEnterEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
         val controlsExitEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
         val controlsTransition = updateTransition(
@@ -330,7 +326,6 @@ private fun SharedTransitionScope.MediaViewerContent(
         )
 
         val controlsWidth by controlsTransition.animateDp(
-            targetValue = controlsTargetWidth,
             transitionSpec = {
                 spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
@@ -338,7 +333,12 @@ private fun SharedTransitionScope.MediaViewerContent(
                 )
             },
             label = "media_controls_width",
-        )
+        ) { layout ->
+            when (layout) {
+                MediaControlsLayout.OverlayAndInfo -> 280.dp
+                else -> 140.dp
+            }
+        }
 
         AnimatedVisibility(
             visible = showUI && hasControls,
@@ -367,7 +367,6 @@ private fun SharedTransitionScope.MediaViewerContent(
                                 )
                         }
                     },
-                    label = "media_controls_swap",
                 ) { layout ->
                     when (layout) {
                         MediaControlsLayout.OverlayAndInfo -> {
