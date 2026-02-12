@@ -216,6 +216,7 @@ class QuizViewModel : ViewModel() {
             lastFetchedSubjectIds = null
 
             fetchSubjects()
+            fetchSystemsForSubjects(null)
             updatePreviewQuestionCountInternal()
             // No subjects selected initially, so no systems to fetch
             Logger.d("QuizViewModel", "Database initialization completed")
@@ -471,6 +472,12 @@ class QuizViewModel : ViewModel() {
 
             val prunedSelectedSystems = previouslySelectedSystems.intersect(validSystems)
             _state.update { it.copy(selectedSystemIds = prunedSelectedSystems) }
+
+            val subjectsForSystems = newSubjectIds
+                .takeIf { it.isNotEmpty() }
+                ?.toList()
+            fetchSystemsForSubjects(subjectsForSystems)
+
             if (loadQuestions) {
                 // loadFilteredQuestionIds will update previewQuestionCount
                 loadFilteredQuestionIds(updatePreviewCount = true, appendToHistory = false)
@@ -522,7 +529,7 @@ class QuizViewModel : ViewModel() {
     fun fetchSystemsForSubjects(subjectIds: List<Long>?) {
         if (shouldSkipSystemFetch(subjectIds)) return
         
-        lastFetchedSubjectIds = subjectIds?.toList()
+        lastFetchedSubjectIds = subjectIds?.toList() ?: emptyList()
 
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(systemsResource = Resource.Loading) }
@@ -538,9 +545,9 @@ class QuizViewModel : ViewModel() {
     }
 
     private fun shouldSkipSystemFetch(subjectIds: List<Long>?): Boolean {
-        if (lastFetchedSubjectIds == null) return false
-        if (subjectIds == null) return lastFetchedSubjectIds == null
-        return lastFetchedSubjectIds!!.toSet() == subjectIds.toSet()
+        val lastFetched = lastFetchedSubjectIds ?: return false
+        val normalizedRequested = subjectIds?.toSet() ?: emptySet()
+        return lastFetched.toSet() == normalizedRequested
     }
 
     private suspend fun pruneInvalidSystems(): Set<Long> {
