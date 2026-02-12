@@ -15,17 +15,25 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,11 +43,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -47,6 +57,8 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.medicalquiz.app.shared.data.models.HighlightColor
 import com.medicalquiz.app.shared.data.models.TextHighlight
+import com.medicalquiz.app.shared.platform.TextIntentLauncher
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
@@ -85,6 +97,10 @@ fun SelectableHighlightText(
     onLinkClick: ((String) -> Unit)? = null,
     onTooltipClick: ((String) -> Unit)? = null
 ) {
+    val clipboardManager = LocalClipboardManager.current
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var lastExternalOpenText by remember { mutableStateOf("") }
     var selectionState by remember { mutableStateOf(TextSelectionState()) }
     var editingHighlight by remember { mutableStateOf<TextHighlight?>(null) }
     var editPopupAnchor by remember { mutableStateOf(Offset.Zero) }
@@ -262,6 +278,33 @@ fun SelectableHighlightText(
                     modifier = Modifier.onSizeChanged { selectionPopupSize = it }
                 ) {
                     SelectionToolbar(
+                        selectedText = selectionState.selectedText,
+                        onCopy = {
+                            if (selectionState.selectedText.isNotBlank()) {
+                                clipboardManager.setText(AnnotatedString(selectionState.selectedText))
+                            }
+                            selectionState = TextSelectionState()
+                        },
+                        onOpenExternal = {
+                            if (selectionState.selectedText.isNotBlank()) {
+                                val opened = TextIntentLauncher.openSelectedText(selectionState.selectedText)
+                                if (!opened) {
+                                    lastExternalOpenText = selectionState.selectedText
+                                    coroutineScope.launch {
+                                        val result = snackbarHostState.showSnackbar(
+                                            message = "No compatible app found",
+                                            actionLabel = "Copy",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed && lastExternalOpenText.isNotBlank()) {
+                                            clipboardManager.setText(AnnotatedString(lastExternalOpenText))
+                                        }
+                                    }
+                                    return@SelectionToolbar
+                                }
+                            }
+                            selectionState = TextSelectionState()
+                        },
                         onHighlight = { color ->
                             val range = selectionState.selectionRange
                             onHighlightAdd(range.first, range.last + 1, selectionState.selectedText, color)
@@ -269,6 +312,67 @@ fun SelectableHighlightText(
                         },
                     )
                 }
+            }
+
+            val safeTextLength = text.length.coerceAtLeast(1)
+            val normalizedStart = minOf(selectionState.startOffset, selectionState.endOffset)
+                .coerceIn(0, safeTextLength - 1)
+            val normalizedEndExclusive = maxOf(selectionState.startOffset, selectionState.endOffset)
+                .coerceIn(normalizedStart + 1, safeTextLength)
+
+            layoutResult?.let { layout ->
+                val startHandleOffset = layout.getBoundingBox(normalizedStart)
+                val endHandleOffset = layout.getBoundingBox((normalizedEndExclusive - 1).coerceAtLeast(0))
+
+                SelectionHandle(
+                    x = startHandleOffset.left,
+                    y = startHandleOffset.bottom,
+                    containerSize = containerSize,
+                    onDrag = { position ->
+                        val handleOffset = layout.getOffsetForPosition(position).coerceIn(0, text.length)
+                        val existingEnd = selectionState.endOffset
+                        val actualStart = minOf(handleOffset, existingEnd)
+                        val actualEnd = maxOf(handleOffset, existingEnd)
+                        if (actualEnd > actualStart) {
+                            selectionState = selectionState.copy(
+                                startOffset = handleOffset,
+                                selectedText = text.text.substring(actualStart, actualEnd),
+                                anchorPosition = calculateRangeAnchor(
+                                    layoutResult = layout,
+                                    textLength = text.length,
+                                    startOffset = actualStart,
+                                    endOffset = actualEnd,
+                                    fallbackAnchor = position
+                                )
+                            )
+                        }
+                    }
+                )
+
+                SelectionHandle(
+                    x = endHandleOffset.right,
+                    y = endHandleOffset.bottom,
+                    containerSize = containerSize,
+                    onDrag = { position ->
+                        val handleOffset = layout.getOffsetForPosition(position).coerceIn(0, text.length)
+                        val existingStart = selectionState.startOffset
+                        val actualStart = minOf(existingStart, handleOffset)
+                        val actualEnd = maxOf(existingStart, handleOffset)
+                        if (actualEnd > actualStart) {
+                            selectionState = selectionState.copy(
+                                endOffset = handleOffset,
+                                selectedText = text.text.substring(actualStart, actualEnd),
+                                anchorPosition = calculateRangeAnchor(
+                                    layoutResult = layout,
+                                    textLength = text.length,
+                                    startOffset = actualStart,
+                                    endOffset = actualEnd,
+                                    fallbackAnchor = position
+                                )
+                            )
+                        }
+                    }
+                )
             }
         }
         
@@ -313,7 +417,65 @@ fun SelectableHighlightText(
                 }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        )
     }
+}
+
+@Composable
+private fun SelectionHandle(
+    x: Float,
+    y: Float,
+    containerSize: IntSize,
+    onDrag: (Offset) -> Unit
+) {
+    val handleRadius = 7.dp
+    val handleDiameterPx = with(androidx.compose.ui.platform.LocalDensity.current) {
+        (handleRadius * 2).toPx()
+    }
+
+    val maxX = (containerSize.width - handleDiameterPx).coerceAtLeast(0f)
+    val maxY = (containerSize.height - handleDiameterPx).coerceAtLeast(0f)
+
+    val adjustedX = (x - handleDiameterPx / 2f).coerceIn(0f, maxX)
+    val adjustedY = y.coerceIn(0f, maxY)
+
+    Box(
+        modifier = Modifier
+            .graphicsLayer {
+                translationX = adjustedX
+                translationY = adjustedY
+            }
+            .size(handleRadius * 2)
+            .drawBehind {
+                drawCircle(
+                    color = MaterialTheme.colorScheme.primary,
+                    radius = size.minDimension / 2f
+                )
+            }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    down.consume()
+                    do {
+                        val event = awaitPointerEvent()
+                        val pos = event.changes.firstOrNull()?.position ?: break
+                        onDrag(
+                            Offset(
+                                x = adjustedX + pos.x,
+                                y = adjustedY + pos.y
+                            )
+                        )
+                        event.changes.forEach { it.consume() }
+                    } while (event.changes.any { it.pressed })
+                }
+            }
+    )
 }
 
 /**
@@ -472,6 +634,9 @@ private fun expandToWordBoundaries(text: String, offset: Int): Pair<Int, Int> {
  */
 @Composable
 private fun SelectionToolbar(
+    selectedText: String,
+    onCopy: () -> Unit,
+    onOpenExternal: () -> Unit,
     onHighlight: (HighlightColor) -> Unit,
 ) {
     Surface(
@@ -480,18 +645,84 @@ private fun SelectionToolbar(
         shadowElevation = 4.dp,
         color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
     ) {
-        Row(
+        androidx.compose.foundation.layout.Column(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ToolbarActionButton(
+                    icon = Icons.Rounded.ContentCopy,
+                    label = "Copy",
+                    enabled = selectedText.isNotBlank(),
+                    onClick = onCopy
+                )
+                ToolbarActionButton(
+                    icon = Icons.Rounded.OpenInNew,
+                    label = "Dictionary",
+                    enabled = selectedText.isNotBlank(),
+                    onClick = onOpenExternal
+                )
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                HighlightColor.entries.forEach { color ->
+                    HighlightColorChip(
+                        color = color,
+                        isSelected = false,
+                        onClick = { onHighlight(color) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolbarActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = if (enabled) {
+            MaterialTheme.colorScheme.surfaceContainerHighest
+        } else {
+            MaterialTheme.colorScheme.surfaceContainer
+        },
+        modifier = Modifier.clickable(enabled = enabled, onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            HighlightColor.entries.forEach { color ->
-                HighlightColorChip(
-                    color = color,
-                    isSelected = false,
-                    onClick = { onHighlight(color) }
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = if (enabled) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                }
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                }
+            )
         }
     }
 }
