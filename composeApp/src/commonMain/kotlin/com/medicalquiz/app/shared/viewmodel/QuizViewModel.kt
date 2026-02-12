@@ -10,12 +10,9 @@ import com.medicalquiz.app.shared.data.database.DatabaseProvider
 import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.data.database.QuestionPerformance
-import com.medicalquiz.app.shared.data.models.Subject
-import com.medicalquiz.app.shared.data.models.System
 import com.medicalquiz.app.shared.ui.state.QuizUiState
 import com.medicalquiz.app.shared.utils.Resource
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -460,6 +457,7 @@ class QuizViewModel : ViewModel() {
 
     fun applySelectedSubjects(newSubjectIds: Set<Long>, loadQuestions: Boolean = true) {
         viewModelScope.launch(Dispatchers.IO) {
+            val previouslySelectedSystems = state.value.selectedSystemIds
             _state.update { it.copy(selectedSubjectIds = newSubjectIds) }
 
             val validSystems = if (newSubjectIds.isEmpty()) {
@@ -470,7 +468,8 @@ class QuizViewModel : ViewModel() {
                     ?.toSet() ?: emptySet()
             }
 
-            _state.update { it.copy(selectedSystemIds = validSystems) }
+            val prunedSelectedSystems = previouslySelectedSystems.intersect(validSystems)
+            _state.update { it.copy(selectedSystemIds = prunedSelectedSystems) }
             if (loadQuestions) {
                 // loadFilteredQuestionIds will update previewQuestionCount
                 loadFilteredQuestionIds(updatePreviewCount = true, appendToHistory = false)
@@ -503,7 +502,14 @@ class QuizViewModel : ViewModel() {
 
     fun applySelectedSystems(newSystemIds: Set<Long>, loadQuestions: Boolean = true) {
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(selectedSystemIds = newSystemIds) }
+            val validSystems = pruneInvalidSystems()
+            val normalizedSelection = if (validSystems.isEmpty()) {
+                emptySet()
+            } else {
+                newSystemIds.intersect(validSystems)
+            }
+
+            _state.update { it.copy(selectedSystemIds = normalizedSelection) }
             updatePreviewQuestionCountInternal()
             if (loadQuestions) {
                 loadFilteredQuestionIds(appendToHistory = false)

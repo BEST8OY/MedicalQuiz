@@ -3,6 +3,7 @@ package com.medicalquiz.app.shared.data
 import com.medicalquiz.app.shared.data.models.HighlightColor
 import com.medicalquiz.app.shared.data.models.HighlightSection
 import com.medicalquiz.app.shared.data.models.TextHighlight
+import com.medicalquiz.app.shared.platform.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,7 +82,7 @@ class TextHighlightsRepository(
                 }
             } catch (e: Exception) {
                 if (isRequestActive(requestId, context)) {
-                    println("Error loading text highlights: ${e.message}")
+                    Logger.e("TextHighlightsRepository", "Error loading text highlights", e)
                     clearCachedHighlights()
                 }
             } finally {
@@ -181,7 +182,7 @@ class TextHighlightsRepository(
                     }
                 }
             } catch (e: Exception) {
-                println("Error adding text highlight: ${e.message}")
+                Logger.e("TextHighlightsRepository", "Error adding text highlight", e)
             }
         }
     }
@@ -201,7 +202,7 @@ class TextHighlightsRepository(
                 _questionHighlights.value = _questionHighlights.value.filter { it.id != highlightId }
                 _explanationHighlights.value = _explanationHighlights.value.filter { it.id != highlightId }
             } catch (e: Exception) {
-                println("Error removing text highlight: ${e.message}")
+                Logger.e("TextHighlightsRepository", "Error removing text highlight", e)
             }
         }
     }
@@ -225,7 +226,7 @@ class TextHighlightsRepository(
                     if (it.id == highlightId) it.copy(color = color) else it
                 }
             } catch (e: Exception) {
-                println("Error updating highlight color: ${e.message}")
+                Logger.e("TextHighlightsRepository", "Error updating highlight color", e)
             }
         }
     }
@@ -258,7 +259,7 @@ class TextHighlightsRepository(
                 if (!matchesCurrentContext(context)) return@launch
                 clearCachedHighlights()
             } catch (e: Exception) {
-                println("Error clearing highlights: ${e.message}")
+                Logger.e("TextHighlightsRepository", "Error clearing highlights", e)
             }
         }
     }
@@ -284,7 +285,7 @@ class TextHighlightsRepository(
                     HighlightSection.EXPLANATION -> _explanationHighlights.value = emptyList()
                 }
             } catch (e: Exception) {
-                println("Error clearing section highlights: ${e.message}")
+                Logger.e("TextHighlightsRepository", "Error clearing section highlights", e)
             }
         }
     }

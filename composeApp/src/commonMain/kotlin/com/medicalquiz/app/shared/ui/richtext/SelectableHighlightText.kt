@@ -435,6 +435,7 @@ private fun SelectionHandle(
     onDrag: (Offset) -> Unit
 ) {
     val handleRadius = 7.dp
+    val handleColor = MaterialTheme.colorScheme.primary
     val handleDiameterPx = with(androidx.compose.ui.platform.LocalDensity.current) {
         (handleRadius * 2).toPx()
     }
@@ -454,7 +455,7 @@ private fun SelectionHandle(
             .size(handleRadius * 2)
             .drawBehind {
                 drawCircle(
-                    color = MaterialTheme.colorScheme.primary,
+                    color = handleColor,
                     radius = size.minDimension / 2f
                 )
             }
