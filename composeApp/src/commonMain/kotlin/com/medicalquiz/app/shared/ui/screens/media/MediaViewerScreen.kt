@@ -305,6 +305,10 @@ private fun SharedTransitionScope.MediaViewerContent(
             1 -> 140.dp
             else -> 0.dp
         }
+        val controlsEnterEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+        val controlsEnterSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+        val controlsExitEffectsSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        val controlsExitSpatialSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
         val controlsWidth by animateDpAsState(
             targetValue = controlsTargetWidth,
             animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
@@ -327,15 +331,15 @@ private fun SharedTransitionScope.MediaViewerContent(
                     targetState = controlsState,
                     transitionSpec = {
                         fadeIn(
-                            animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()
+                            animationSpec = controlsEnterEffectsSpec
                         ) + slideInVertically(
                             initialOffsetY = { it / 3 },
-                            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
+                            animationSpec = controlsEnterSpatialSpec
                         ) togetherWith fadeOut(
-                            animationSpec = MaterialTheme.motionScheme.fastEffectsSpec()
+                            animationSpec = controlsExitEffectsSpec
                         ) + slideOutVertically(
                             targetOffsetY = { -it / 4 },
-                            animationSpec = MaterialTheme.motionScheme.fastSpatialSpec()
+                            animationSpec = controlsExitSpatialSpec
                         )
                     },
                     label = "bottom_controls_content",
