@@ -80,6 +80,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -123,6 +124,20 @@ private data class BottomControlsState(
 ) {
     val buttonCount: Int
         get() = (if (hasOverlay) 1 else 0) + (if (hasDescription) 1 else 0)
+}
+
+private enum class MediaControlsLayout {
+    None,
+    OverlayOnly,
+    InfoOnly,
+    OverlayAndInfo,
+}
+
+private fun BottomControlsState.toLayout(): MediaControlsLayout = when {
+    hasOverlay && hasDescription -> MediaControlsLayout.OverlayAndInfo
+    hasOverlay -> MediaControlsLayout.OverlayOnly
+    hasDescription -> MediaControlsLayout.InfoOnly
+    else -> MediaControlsLayout.None
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -303,18 +318,30 @@ private fun SharedTransitionScope.MediaViewerContent(
                 hasDescription = hasDescription,
             )
         }
-        val hasControls = controlsState.buttonCount > 0
-        val controlsTargetWidth = when (controlsState.buttonCount) {
-            2 -> 280.dp
+        val controlsLayout = remember(controlsState) { controlsState.toLayout() }
+        val hasControls = controlsLayout != MediaControlsLayout.None
+        val controlsTargetWidth = when (controlsLayout) {
+            MediaControlsLayout.OverlayAndInfo -> 280.dp
             else -> 140.dp
         }
         val controlsEnterEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
         val controlsExitEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        var previousButtonCount by remember { mutableIntStateOf(controlsState.buttonCount) }
+        val isSwapBetweenVisibleStates = previousButtonCount > 0 && controlsState.buttonCount > 0
+
         val controlsWidth by animateDpAsState(
             targetValue = controlsTargetWidth,
-            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+            animationSpec = if (isSwapBetweenVisibleStates) {
+                MaterialTheme.motionScheme.defaultSpatialSpec()
+            } else {
+                tween(durationMillis = 0)
+            },
             label = "media_controls_width",
         )
+
+        LaunchedEffect(controlsState.buttonCount) {
+            previousButtonCount = controlsState.buttonCount
+        }
 
         AnimatedVisibility(
             visible = showUI && hasControls,
@@ -328,55 +355,69 @@ private fun SharedTransitionScope.MediaViewerContent(
             Box(
                 modifier = Modifier.width(controlsWidth)
             ) {
-                AnimatedContent(
-                    targetState = controlsState,
-                    contentAlignment = Alignment.CenterStart,
-                    transitionSpec = {
-                        (fadeIn(animationSpec = controlsEnterEffects) +
-                            expandHorizontally(expandFrom = Alignment.Start))
-                            .togetherWith(
-                                fadeOut(animationSpec = controlsExitEffects) +
-                                    shrinkHorizontally(shrinkTowards = Alignment.Start)
-                            )
-                    },
-                    label = "media_controls_swap",
-                ) { state ->
-                    ButtonGroup(
-                        overflowIndicator = { },
-                        expandedRatio = 0.1f,
-                    ) {
-                        if (state.hasOverlay) {
-                            toggleableItem(
-                                checked = showOverlay,
-                                label = "Overlay",
-                                onCheckedChange = { showOverlay = it },
-                                weight = 10.0f,
-                                icon = {
-                                    Icon(
-                                        imageVector = if (showOverlay) {
-                                            Icons.Filled.Visibility
-                                        } else {
-                                            Icons.Filled.VisibilityOff
-                                        },
-                                        contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                                    )
-                                },
+                if (isSwapBetweenVisibleStates) {
+                    AnimatedContent(
+                        targetState = controlsLayout,
+                        contentAlignment = Alignment.CenterStart,
+                        transitionSpec = {
+                            fadeIn(animationSpec = controlsEnterEffects)
+                                .togetherWith(fadeOut(animationSpec = controlsExitEffects))
+                        },
+                        label = "media_controls_swap",
+                    ) { layout ->
+                        when (layout) {
+                            MediaControlsLayout.OverlayAndInfo -> {
+                                MediaViewerDualControlButtonGroup(
+                                    showOverlay = showOverlay,
+                                    onShowOverlayChange = { showOverlay = it },
+                                    onShowInfo = { showExplanation = true },
+                                )
+                            }
+                            MediaControlsLayout.OverlayOnly -> {
+                                MediaViewerSingleControlButtonGroup(
+                                    type = MediaControlsLayout.OverlayOnly,
+                                    showOverlay = showOverlay,
+                                    onShowOverlayChange = { showOverlay = it },
+                                    onShowInfo = { showExplanation = true },
+                                )
+                            }
+                            MediaControlsLayout.InfoOnly -> {
+                                MediaViewerSingleControlButtonGroup(
+                                    type = MediaControlsLayout.InfoOnly,
+                                    showOverlay = showOverlay,
+                                    onShowOverlayChange = { showOverlay = it },
+                                    onShowInfo = { showExplanation = true },
+                                )
+                            }
+                            MediaControlsLayout.None -> Unit
+                        }
+                    }
+                } else {
+                    when (controlsLayout) {
+                        MediaControlsLayout.OverlayAndInfo -> {
+                            MediaViewerDualControlButtonGroup(
+                                showOverlay = showOverlay,
+                                onShowOverlayChange = { showOverlay = it },
+                                onShowInfo = { showExplanation = true },
                             )
                         }
-
-                        if (state.hasDescription) {
-                            clickableItem(
-                                label = "Info",
-                                onClick = { showExplanation = true },
-                                weight = 9.0f,
-                                icon = {
-                                    Icon(
-                                        imageVector = Icons.Filled.Info,
-                                        contentDescription = "Show info",
-                                    )
-                                },
+                        MediaControlsLayout.OverlayOnly -> {
+                            MediaViewerSingleControlButtonGroup(
+                                type = MediaControlsLayout.OverlayOnly,
+                                showOverlay = showOverlay,
+                                onShowOverlayChange = { showOverlay = it },
+                                onShowInfo = { showExplanation = true },
                             )
                         }
+                        MediaControlsLayout.InfoOnly -> {
+                            MediaViewerSingleControlButtonGroup(
+                                type = MediaControlsLayout.InfoOnly,
+                                showOverlay = showOverlay,
+                                onShowOverlayChange = { showOverlay = it },
+                                onShowInfo = { showExplanation = true },
+                            )
+                        }
+                        MediaControlsLayout.None -> Unit
                     }
                 }
             }
@@ -390,6 +431,97 @@ private fun SharedTransitionScope.MediaViewerContent(
             onDismiss = { showExplanation = false },
             onLinkClick = onLinkClick,
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun MediaViewerDualControlButtonGroup(
+    showOverlay: Boolean,
+    onShowOverlayChange: (Boolean) -> Unit,
+    onShowInfo: () -> Unit,
+) {
+    ButtonGroup(
+        overflowIndicator = { },
+        expandedRatio = 0.1f,
+    ) {
+        toggleableItem(
+            checked = showOverlay,
+            label = "Overlay",
+            onCheckedChange = onShowOverlayChange,
+            weight = 10.0f,
+            icon = {
+                Icon(
+                    imageVector = if (showOverlay) {
+                        Icons.Filled.Visibility
+                    } else {
+                        Icons.Filled.VisibilityOff
+                    },
+                    contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                )
+            },
+        )
+
+        clickableItem(
+            label = "Info",
+            onClick = onShowInfo,
+            weight = 9.0f,
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.Info,
+                    contentDescription = "Show info",
+                )
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun MediaViewerSingleControlButtonGroup(
+    type: MediaControlsLayout,
+    showOverlay: Boolean,
+    onShowOverlayChange: (Boolean) -> Unit,
+    onShowInfo: () -> Unit,
+) {
+    ButtonGroup(
+        overflowIndicator = { },
+        expandedRatio = 0.1f,
+    ) {
+        when (type) {
+            MediaControlsLayout.OverlayOnly -> {
+                toggleableItem(
+                    checked = showOverlay,
+                    label = "Overlay",
+                    onCheckedChange = onShowOverlayChange,
+                    weight = 10.0f,
+                    icon = {
+                        Icon(
+                            imageVector = if (showOverlay) {
+                                Icons.Filled.Visibility
+                            } else {
+                                Icons.Filled.VisibilityOff
+                            },
+                            contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                        )
+                    },
+                )
+            }
+            MediaControlsLayout.InfoOnly -> {
+                clickableItem(
+                    label = "Info",
+                    onClick = onShowInfo,
+                    weight = 9.0f,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = "Show info",
+                        )
+                    },
+                )
+            }
+            else -> Unit
+        }
     }
 }
 
