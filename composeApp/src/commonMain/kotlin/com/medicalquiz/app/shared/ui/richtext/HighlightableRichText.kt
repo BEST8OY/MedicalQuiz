@@ -13,22 +13,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -84,13 +76,12 @@ fun HighlightableRichText(
         HighlightSection.EXPLANATION -> explanationHighlightsState?.value ?: emptyList()
     }
     
-    val resolvedLinkHandler = rememberLinkHandler(onLinkClick)
-    val resolvedMediaHandler = rememberMediaHandler(onMediaClick)
-    var tooltipMessage by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(blocks) { tooltipMessage = null }
-    val resolvedTooltipHandler = remember(onTooltipClick) {
-        onTooltipClick ?: { message -> tooltipMessage = message }
-    }
+    val resolvedLinkHandler = rememberResolvedLinkHandler(onLinkClick, sourceTag = "HighlightableRichText")
+    val resolvedMediaHandler = rememberResolvedMediaHandler(onMediaClick)
+    val tooltipSupport = rememberRichTextTooltipSupport(
+        resetKey = blocks,
+        onTooltipClick = onTooltipClick
+    )
     
     Column(
         modifier = modifier,
@@ -115,7 +106,7 @@ fun HighlightableRichText(
                 },
                 onLinkClick = resolvedLinkHandler,
                 onMediaClick = resolvedMediaHandler,
-                onTooltipClick = resolvedTooltipHandler
+                onTooltipClick = tooltipSupport.onTooltipClick
             )
             
             // Update cumulative offset based on block content
@@ -123,22 +114,10 @@ fun HighlightableRichText(
         }
     }
     
-    tooltipMessage?.let { message ->
-        AlertDialog(
-            onDismissRequest = { tooltipMessage = null },
-            confirmButton = {
-                TextButton(onClick = { tooltipMessage = null }) {
-                    MaterialText(text = "Close")
-                }
-            },
-            text = {
-                MaterialText(text = message)
-            },
-            title = {
-                MaterialText(text = "Description")
-            }
-        )
-    }
+    RichTextTooltipBottomSheet(
+        content = tooltipSupport.tooltipContent,
+        onDismissRequest = tooltipSupport.dismissTooltip
+    )
 }
 
 /**
@@ -154,22 +133,20 @@ private fun HighlightableBlockRenderer(
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: (String) -> Unit,
     onMediaClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     when (block) {
         is RichTextBlock.Paragraph -> {
-            val blockHighlights = getHighlightsForRange(
-                highlights, 
-                baseOffset, 
-                baseOffset + block.text.length
-            ).map { it.adjustedForOffset(-baseOffset) }
+            val blockHighlights = mapHighlightsToLocal(
+                highlights = highlights,
+                start = baseOffset,
+                end = baseOffset + block.text.length
+            )
             
             SelectableHighlightText(
                 text = block.text,
                 highlights = blockHighlights,
-                onHighlightAdd = { start, end, text, color ->
-                    onHighlightAdd(start + baseOffset, end + baseOffset, text, color)
-                },
+                onHighlightAdd = mapOnHighlightAddToGlobal(baseOffset, onHighlightAdd),
                 onHighlightRemove = onHighlightRemove,
                 onHighlightColorChange = onHighlightColorChange,
                 onLinkClick = onLinkClick,
@@ -184,8 +161,9 @@ private fun HighlightableBlockRenderer(
         
         is RichTextBlock.BulletList -> {
             // Render each list item as individually highlightable
-            HighlightableBulletList(
-                block = block,
+            HighlightableList(
+                items = block.items,
+                markerProvider = { _ -> "\u2022" },
                 highlights = highlights,
                 baseOffset = baseOffset,
                 onHighlightAdd = onHighlightAdd,
@@ -198,8 +176,9 @@ private fun HighlightableBlockRenderer(
 
         is RichTextBlock.OrderedList -> {
             // Render each list item as individually highlightable
-            HighlightableOrderedList(
-                block = block,
+            HighlightableList(
+                items = block.items,
+                markerProvider = { index -> "${block.start + index}." },
                 highlights = highlights,
                 baseOffset = baseOffset,
                 onHighlightAdd = onHighlightAdd,
@@ -243,85 +222,35 @@ private fun HighlightableBlockRenderer(
 }
 
 /**
- * Renders a bullet list with per-item highlight support.
+ * Renders a list with per-item highlight support.
  */
 @Composable
-private fun HighlightableBulletList(
-    block: RichTextBlock.BulletList,
+private fun HighlightableList(
+    items: List<AnnotatedString>,
+    markerProvider: (index: Int) -> String,
     highlights: List<TextHighlight>,
     baseOffset: Int,
     onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
     onHighlightRemove: (highlightId: Long) -> Unit,
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     val richTextScale = LocalRichTextScale.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         var itemOffset = baseOffset
 
-        block.items.forEachIndexed { index, itemText ->
+        items.forEachIndexed { index, itemText ->
             val itemLength = itemText.length
-            val itemHighlights = getHighlightsForRange(
-                highlights,
-                itemOffset,
-                itemOffset + itemLength
-            ).map { it.adjustedForOffset(-itemOffset) }
+            val itemHighlights = mapHighlightsToLocal(
+                highlights = highlights,
+                start = itemOffset,
+                end = itemOffset + itemLength
+            )
 
             Row(modifier = Modifier.fillMaxWidth()) {
                 MaterialText(
-                    text = "\u2022",
-                    style = MaterialTheme.typography.bodyLarge.scaledBy(richTextScale.proseScale),
-                    modifier = Modifier.padding(end = 12.dp),
-                )
-                HighlightableListItem(
-                    text = itemText,
-                    highlights = itemHighlights,
-                    baseOffset = itemOffset,
-                    onHighlightAdd = onHighlightAdd,
-                    onHighlightRemove = onHighlightRemove,
-                    onHighlightColorChange = onHighlightColorChange,
-                    onLinkClick = onLinkClick,
-                    onTooltipClick = onTooltipClick,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            // Move to next item ( +1 for separator)
-            itemOffset += itemLength + 1
-        }
-    }
-}
-
-/**
- * Renders an ordered list with per-item highlight support.
- */
-@Composable
-private fun HighlightableOrderedList(
-    block: RichTextBlock.OrderedList,
-    highlights: List<TextHighlight>,
-    baseOffset: Int,
-    onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
-    onHighlightRemove: (highlightId: Long) -> Unit,
-    onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
-    onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
-) {
-    val richTextScale = LocalRichTextScale.current
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        var itemOffset = baseOffset
-
-        block.items.forEachIndexed { index, itemText ->
-            val itemLength = itemText.length
-            val itemHighlights = getHighlightsForRange(
-                highlights,
-                itemOffset,
-                itemOffset + itemLength
-            ).map { it.adjustedForOffset(-itemOffset) }
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                MaterialText(
-                    text = "${block.start + index}.",
+                    text = markerProvider(index),
                     style = MaterialTheme.typography.bodyLarge.scaledBy(richTextScale.proseScale),
                     modifier = Modifier.padding(end = 12.dp),
                 )
@@ -356,15 +285,13 @@ private fun HighlightableListItem(
     onHighlightRemove: (highlightId: Long) -> Unit,
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?,
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     SelectableHighlightText(
         text = text,
         highlights = highlights,
-        onHighlightAdd = { start, end, selectedText, color ->
-            onHighlightAdd(start + baseOffset, end + baseOffset, selectedText, color)
-        },
+        onHighlightAdd = mapOnHighlightAddToGlobal(baseOffset, onHighlightAdd),
         onHighlightRemove = onHighlightRemove,
         onHighlightColorChange = onHighlightColorChange,
         onLinkClick = onLinkClick,
@@ -385,7 +312,7 @@ private fun HighlightableTable(
     onHighlightRemove: (highlightId: Long) -> Unit,
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     if (block.columnCount == 0) return
 
@@ -408,88 +335,35 @@ private fun HighlightableTable(
                     .width(tableWidth)
             ) {
                 renderModel.rows.forEachIndexed { rowIndex, row ->
-                    val effectiveRowClasses = row.classNames + block.classNames
-                    val baseBackground = when {
-                        row.isHeaderRow -> MaterialTheme.colorScheme.secondaryContainer
-                        effectiveRowClasses.containsInsensitive("abstract") -> MaterialTheme.colorScheme.surfaceVariant
-                        else -> MaterialTheme.colorScheme.surface
-                    }
+                    TableRowContent(
+                        row = row,
+                        tableClassNames = block.classNames,
+                        onLinkClick = onLinkClick,
+                        onTooltipClick = onTooltipClick,
+                        customCellContent = { cell, cellTextStyle ->
+                            val currentCellOffset = cellOffset
+                            val cellLength = cell.cell.text.length
+                            val cellHighlights = mapHighlightsToLocal(
+                                highlights = highlights,
+                                start = currentCellOffset,
+                                end = currentCellOffset + cellLength
+                            )
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(baseBackground)
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        row.cells.forEach { cell ->
-                            val weight = cell.cell.width ?: cell.columnSpan.coerceAtLeast(1).toFloat()
+                            SelectableHighlightText(
+                                text = cell.cell.text,
+                                highlights = cellHighlights,
+                                textStyle = cellTextStyle,
+                                onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
+                                onHighlightRemove = onHighlightRemove,
+                                onHighlightColorChange = onHighlightColorChange,
+                                onLinkClick = onLinkClick,
+                                onTooltipClick = onTooltipClick,
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
-                            if (!cell.isVisible) {
-                                Spacer(modifier = Modifier.weight(weight))
-                            } else {
-                                val currentCellOffset = cellOffset
-                                val cellLength = cell.cell.text.length
-                                val cellHighlights = getHighlightsForRange(
-                                    highlights,
-                                    currentCellOffset,
-                                    currentCellOffset + cellLength
-                                ).map { it.adjustedForOffset(-currentCellOffset) }
-
-                                val cellBackground = when {
-                                    cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                    cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer
-                                    else -> Color.Transparent
-                                }
-
-                                val isHeaderCell = row.isHeaderRow || cell.cell.isHeader
-                                val cellTextStyle = tableCellTextStyle(isHeaderCell)
-
-                                Surface(
-                                    modifier = Modifier
-                                        .weight(weight)
-                                        .padding(horizontal = 4.dp),
-                                    color = cellBackground,
-                                    tonalElevation = if (cellBackground == Color.Transparent) 0.dp else 1.dp,
-                                    shape = MaterialTheme.shapes.extraSmall
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 4.dp)
-                                            .padding(start = cell.cell.paddingStart),
-                                        contentAlignment = when (cell.cell.alignment) {
-                                            TextAlign.Center -> Alignment.Center
-                                            TextAlign.End, TextAlign.Right -> Alignment.CenterEnd
-                                            else -> Alignment.CenterStart
-                                        }
-                                    ) {
-                                        SelectableHighlightText(
-                                            text = cell.cell.text,
-                                            highlights = cellHighlights,
-                                            textStyle = cellTextStyle,
-                                            onHighlightAdd = { start, end, selectedText, color ->
-                                                onHighlightAdd(
-                                                    start + currentCellOffset,
-                                                    end + currentCellOffset,
-                                                    selectedText,
-                                                    color
-                                                )
-                                            },
-                                            onHighlightRemove = onHighlightRemove,
-                                            onHighlightColorChange = onHighlightColorChange,
-                                            onLinkClick = onLinkClick,
-                                            onTooltipClick = onTooltipClick,
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                    }
-                                }
-
-                                // Advance offset for this cell
-                                cellOffset += cellLength
-                            }
+                            cellOffset += cellLength
                         }
-                    }
+                    )
 
                     if (rowIndex != renderModel.rows.lastIndex) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
@@ -547,21 +421,20 @@ private fun TextHighlight.adjustedForOffset(offset: Int): TextHighlight {
     )
 }
 
-@Composable
-private fun rememberLinkHandler(onLinkClick: ((String) -> Unit)?): (String) -> Unit {
-    val uriHandler = LocalUriHandler.current
-    return remember(onLinkClick, uriHandler) {
-        onLinkClick ?: { url ->
-            try {
-                uriHandler.openUri(url)
-            } catch (e: Exception) {
-                println("HighlightableRichText: Failed to open URL '$url': ${e.message}")
-            }
-        }
-    }
+private fun mapHighlightsToLocal(
+    highlights: List<TextHighlight>,
+    start: Int,
+    end: Int
+): List<TextHighlight> {
+    return getHighlightsForRange(highlights, start, end)
+        .map { it.adjustedForOffset(-start) }
 }
 
-@Composable
-private fun rememberMediaHandler(onMediaClick: ((String) -> Unit)?): (String) -> Unit {
-    return remember(onMediaClick) { onMediaClick ?: {} }
+private fun mapOnHighlightAddToGlobal(
+    baseOffset: Int,
+    onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit
+): (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit {
+    return { start, end, text, color ->
+        onHighlightAdd(start + baseOffset, end + baseOffset, text, color)
+    }
 }

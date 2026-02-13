@@ -32,7 +32,7 @@ internal fun RichTextBlockRenderer(
     block: RichTextBlock,
     onLinkClick: (String) -> Unit,
     onMediaClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     when (block) {
         is RichTextBlock.Paragraph -> RichTextParagraph(
@@ -68,7 +68,7 @@ internal fun RichTextParagraph(
     textAlign: TextAlign = TextAlign.Start,
     modifier: Modifier = Modifier,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     val proseScale = LocalRichTextScale.current.proseScale
     val scaledBodyMedium = MaterialTheme.typography.bodyMedium.scaledBy(proseScale)
@@ -96,7 +96,7 @@ internal fun InteractiveText(
     color: Color,
     textAlign: TextAlign? = null,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?,
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
     maxLines: Int = Int.MAX_VALUE,
     overflow: TextOverflow = TextOverflow.Visible
 ) {
@@ -114,19 +114,12 @@ internal fun InteractiveText(
             detectTapGestures { pos ->
                 layoutResult.value?.let { layout ->
                     val offset = layout.getOffsetForPosition(pos)
-                    // First check for tooltip annotations
-                    text.getStringAnnotations("TOOLTIP", offset, offset).firstOrNull()?.let {
-                        onTooltipClick?.invoke(it.item)
-                        return@detectTapGestures
-                    }
-                    // Then check for URL annotations
-                    text.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
-                        if (it.item.isNotBlank()) {
-                            onLinkClick(it.item)
-                        }
-                    }
-                    // If no annotation at this position, don't consume the click
-                    // (gesture will naturally not propagate, but we've only handled actual links)
+                    handleAnnotatedTextTap(
+                        text = text,
+                        offset = offset,
+                        onLinkClick = onLinkClick,
+                        onTooltipClick = onTooltipClick
+                    )
                 }
             }
         }
@@ -151,7 +144,7 @@ internal fun InteractiveText(
 private fun RichTextHeading(
     block: RichTextBlock.Heading,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     val richTextScale = LocalRichTextScale.current
     val style = when (block.level) {
@@ -178,7 +171,7 @@ private fun RichTextList(
     items: List<AnnotatedString>,
     markerProvider: (index: Int) -> String,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     val richTextScale = LocalRichTextScale.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -224,7 +217,7 @@ private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
 private fun AbstractCard(
     block: RichTextBlock.AbstractBlock,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     val richTextScale = LocalRichTextScale.current
     Surface(

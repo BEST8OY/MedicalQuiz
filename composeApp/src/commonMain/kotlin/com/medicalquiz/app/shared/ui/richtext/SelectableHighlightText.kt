@@ -38,9 +38,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private val ANDROID_LONG_PRESS_DRAG_HYSTERESIS = 7.dp
-private val ANDROID_HANDLE_DRAG_HYSTERESIS = 7.dp
 private val DESKTOP_LONG_PRESS_DRAG_HYSTERESIS = 5.dp
-private val DESKTOP_HANDLE_DRAG_HYSTERESIS = 5.dp
 
 @Composable
 fun SelectableHighlightText(
@@ -52,7 +50,7 @@ fun SelectableHighlightText(
     onHighlightRemove: (highlightId: Long) -> Unit,
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: ((String) -> Unit)? = null,
-    onTooltipClick: ((String) -> Unit)? = null
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)? = null
 ) {
     val clipboardManager = LocalClipboardManager.current
     val coroutineScope = rememberCoroutineScope()
@@ -73,19 +71,9 @@ fun SelectableHighlightText(
             PlatformKind.Desktop -> DESKTOP_LONG_PRESS_DRAG_HYSTERESIS
         }
     }
-    val handleDragHysteresis = remember(platformKind) {
-        when (platformKind) {
-            PlatformKind.Android -> ANDROID_HANDLE_DRAG_HYSTERESIS
-            PlatformKind.Desktop -> DESKTOP_HANDLE_DRAG_HYSTERESIS
-        }
-    }
-
     val density = androidx.compose.ui.platform.LocalDensity.current
     val longPressDragHysteresisPx = remember(density) {
         with(density) { longPressDragHysteresis.toPx() }
-    }
-    val handleDragHysteresisPx = remember(density) {
-        with(density) { handleDragHysteresis.toPx() }
     }
 
     val highlightedText = remember(text, highlights) {
@@ -192,9 +180,9 @@ fun SelectableHighlightText(
                         y = toolbarPosition.y.roundToInt()
                     ),
                     properties = PopupProperties(
-                        focusable = false,
+                        focusable = true,
                         dismissOnBackPress = true,
-                        dismissOnClickOutside = false
+                        dismissOnClickOutside = true
                     ),
                     onDismissRequest = { selectionState = TextSelectionState() }
                 ) {
@@ -237,73 +225,6 @@ fun SelectableHighlightText(
                         )
                     }
                 }
-            }
-
-            layoutResult?.let { layout ->
-                val startHandleOffset = layout.getBoundingBox(normalizedStart)
-                val endHandleOffset = layout.getBoundingBox((normalizedEndExclusive - 1).coerceAtLeast(0))
-
-                SelectionHandle(
-                    x = startHandleOffset.left,
-                    y = startHandleOffset.bottom,
-                    containerSize = containerSize,
-                    dragHysteresisPx = handleDragHysteresisPx,
-                    onDragStart = {
-                        selectionState = selectionState.copy(isDragging = true)
-                    },
-                    onDrag = { position ->
-                        val handleOffset = snapOffsetToWordBoundary(
-                            text = text.text,
-                            movedOffset = layout.getOffsetForPosition(position).coerceIn(0, text.length),
-                            fixedOffset = selectionState.endOffset,
-                            layoutResult = layout,
-                            previousOffset = selectionState.startOffset
-                        )
-                        selectionState = updateSelectionFromHandleOffset(
-                            currentState = selectionState,
-                            movingStartHandle = true,
-                            newHandleOffset = handleOffset,
-                            textContent = text.text,
-                            layoutResult = layout,
-                            textLength = text.length,
-                            fallbackAnchor = position
-                        )
-                    },
-                    onDragEnd = {
-                        selectionState = finishSelectionDrag(selectionState)
-                    }
-                )
-
-                SelectionHandle(
-                    x = endHandleOffset.right,
-                    y = endHandleOffset.bottom,
-                    containerSize = containerSize,
-                    dragHysteresisPx = handleDragHysteresisPx,
-                    onDragStart = {
-                        selectionState = selectionState.copy(isDragging = true)
-                    },
-                    onDrag = { position ->
-                        val handleOffset = snapOffsetToWordBoundary(
-                            text = text.text,
-                            movedOffset = layout.getOffsetForPosition(position).coerceIn(0, text.length),
-                            fixedOffset = selectionState.startOffset,
-                            layoutResult = layout,
-                            previousOffset = selectionState.endOffset
-                        )
-                        selectionState = updateSelectionFromHandleOffset(
-                            currentState = selectionState,
-                            movingStartHandle = false,
-                            newHandleOffset = handleOffset,
-                            textContent = text.text,
-                            layoutResult = layout,
-                            textLength = text.length,
-                            fallbackAnchor = position
-                        )
-                    },
-                    onDragEnd = {
-                        selectionState = finishSelectionDrag(selectionState)
-                    }
-                )
             }
         }
 

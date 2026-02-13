@@ -2,17 +2,10 @@ package com.medicalquiz.app.shared.ui.richtext
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.ui.richtext.parser.RichTextParser
 
@@ -60,13 +53,12 @@ fun RichText(
     onTooltipClick: ((String) -> Unit)? = null
 ) {
     if (blocks.isEmpty()) return
-    val resolvedLinkHandler = rememberLinkHandler(onLinkClick)
-    val resolvedMediaHandler = rememberMediaHandler(onMediaClick)
-    var tooltipMessage by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(blocks) { tooltipMessage = null }
-    val resolvedTooltipHandler = remember(onTooltipClick) {
-        onTooltipClick ?: { message -> tooltipMessage = message }
-    }
+    val resolvedLinkHandler = rememberResolvedLinkHandler(onLinkClick, sourceTag = "RichText")
+    val resolvedMediaHandler = rememberResolvedMediaHandler(onMediaClick)
+    val tooltipSupport = rememberRichTextTooltipSupport(
+        resetKey = blocks,
+        onTooltipClick = onTooltipClick
+    )
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -76,26 +68,14 @@ fun RichText(
                 block = block,
                 onLinkClick = resolvedLinkHandler,
                 onMediaClick = resolvedMediaHandler,
-                onTooltipClick = resolvedTooltipHandler
+                onTooltipClick = tooltipSupport.onTooltipClick
             )
         }
     }
-    tooltipMessage?.let { message ->
-        AlertDialog(
-            onDismissRequest = { tooltipMessage = null },
-            confirmButton = {
-                TextButton(onClick = { tooltipMessage = null }) {
-                    androidx.compose.material3.Text(text = "Close")
-                }
-            },
-            text = {
-                androidx.compose.material3.Text(text = message)
-            },
-            title = {
-                androidx.compose.material3.Text(text = "Description")
-            }
-        )
-    }
+    RichTextTooltipBottomSheet(
+        content = tooltipSupport.tooltipContent,
+        onDismissRequest = tooltipSupport.dismissTooltip
+    )
 }
 
 @Composable
@@ -109,29 +89,6 @@ private fun rememberRichTextBlocks(
         if (sanitizedHtml.isEmpty()) emptyList()
         else RichTextParser.parse(sanitizedHtml, palette, showSelectedHighlight)
     }
-}
-
-@Composable
-private fun rememberLinkHandler(onLinkClick: ((String) -> Unit)?): (String) -> Unit {
-    val uriHandler = LocalUriHandler.current
-    return remember(onLinkClick, uriHandler) {
-        onLinkClick ?: { url ->
-            try {
-                uriHandler.openUri(url)
-            } catch (e: Exception) {
-                // Log the failure for debugging
-                println("RichText: Failed to open URL '$url': ${e.message}")
-            } catch (e: Error) {
-                // Log critical errors but don't crash
-                println("RichText: Critical error opening URL '$url': ${e.message}")
-            }
-        }
-    }
-}
-
-@Composable
-private fun rememberMediaHandler(onMediaClick: ((String) -> Unit)?): (String) -> Unit {
-    return remember(onMediaClick) { onMediaClick ?: {} }
 }
 
 @Composable

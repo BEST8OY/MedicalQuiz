@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.unit.max
+import androidx.compose.ui.text.TextStyle
 import kotlin.collections.ArrayDeque
 import kotlin.collections.buildList
 import kotlin.math.max
@@ -42,7 +43,7 @@ private const val MAX_COLUMN_ITERATIONS = 500
 internal fun RichTextTable(
     block: RichTextBlock.Table,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     if (block.columnCount == 0) return
     val renderModel = remember(block) { block.toRenderModel() }
@@ -229,7 +230,8 @@ internal fun TableRowContent(
     row: TableRenderedRow,
     tableClassNames: Set<String>,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((String) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
+    customCellContent: (@Composable (cell: TableRenderedCell, textStyle: TextStyle) -> Unit)? = null
 ) {
     val effectiveRowClasses = row.classNames + tableClassNames
     val baseBackground = when {
@@ -279,17 +281,21 @@ internal fun TableRowContent(
                             else -> Alignment.CenterStart
                         }
                     ) {
-                        InteractiveText(
-                            text = cell.cell.text,
-                            modifier = Modifier,
-                            style = textStyle,
-                            color = textColor,
-                            textAlign = cell.cell.alignment,
-                            onLinkClick = onLinkClick,
-                            onTooltipClick = onTooltipClick,
-                            maxLines = Int.MAX_VALUE,
-                            overflow = TextOverflow.Visible
-                        )
+                        if (customCellContent != null) {
+                            customCellContent(cell, textStyle)
+                        } else {
+                            InteractiveText(
+                                text = cell.cell.text,
+                                modifier = Modifier,
+                                style = textStyle,
+                                color = textColor,
+                                textAlign = cell.cell.alignment,
+                                onLinkClick = onLinkClick,
+                                onTooltipClick = onTooltipClick,
+                                maxLines = Int.MAX_VALUE,
+                                overflow = TextOverflow.Visible
+                            )
+                        }
                     }
                 }
             }
