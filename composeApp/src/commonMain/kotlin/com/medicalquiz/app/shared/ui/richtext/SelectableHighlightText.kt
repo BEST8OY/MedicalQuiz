@@ -41,7 +41,7 @@ private val ANDROID_LONG_PRESS_DRAG_HYSTERESIS = 7.dp
 private val DESKTOP_LONG_PRESS_DRAG_HYSTERESIS = 5.dp
 
 @Composable
-fun SelectableHighlightText(
+internal fun SelectableHighlightText(
     text: AnnotatedString,
     highlights: List<TextHighlight>,
     modifier: Modifier = Modifier,
