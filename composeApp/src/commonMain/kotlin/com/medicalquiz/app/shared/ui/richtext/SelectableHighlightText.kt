@@ -79,10 +79,6 @@ internal fun SelectableHighlightText(
     val highlightedText = remember(text, highlights) {
         applyHighlightsToText(text, highlights)
     }
-    val highlightsById = remember(highlights) {
-        highlights.associateBy { it.id }
-    }
-
     val selectionColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
     val displayText = remember(highlightedText, selectionState, selectionColor) {
         if (selectionState.isSelecting) {
@@ -101,9 +97,7 @@ internal fun SelectableHighlightText(
                 .fillMaxWidth()
                 .selectableHighlightGestures(
                     text = text,
-                    highlightedText = highlightedText,
                     highlights = highlights,
-                    highlightsById = highlightsById,
                     longPressDragHysteresisPx = longPressDragHysteresisPx,
                     currentLayoutResult = { layoutResult },
                     currentSelectionState = { selectionState },

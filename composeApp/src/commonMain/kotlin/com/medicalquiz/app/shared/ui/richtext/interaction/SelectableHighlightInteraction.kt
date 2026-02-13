@@ -28,9 +28,7 @@ internal data class TextSelectionState(
 
 internal fun Modifier.selectableHighlightGestures(
     text: AnnotatedString,
-    highlightedText: AnnotatedString,
     highlights: List<TextHighlight>,
-    highlightsById: Map<Long, TextHighlight>,
     longPressDragHysteresisPx: Float,
     currentLayoutResult: () -> TextLayoutResult?,
     currentSelectionState: () -> TextSelectionState,
@@ -112,7 +110,7 @@ internal fun Modifier.selectableHighlightGestures(
             } else {
                 var upPosition = down.position
                 var movedTooFar = false
-                val tapSlopPx = 12f
+                val tapSlopPx = 18f
 
                 while (true) {
                     val event = awaitPointerEvent()
@@ -132,8 +130,7 @@ internal fun Modifier.selectableHighlightGestures(
                     val offset = layout.getOffsetForPosition(upPosition)
 
                     val tappedHighlight = findTappedHighlight(
-                        annotatedText = highlightedText,
-                        highlightsById = highlightsById,
+                        highlights = highlights,
                         tappedOffset = offset,
                         textLength = text.length
                     )
@@ -170,8 +167,7 @@ internal fun Modifier.selectableHighlightGestures(
 }
 
 internal fun findTappedHighlight(
-    annotatedText: AnnotatedString,
-    highlightsById: Map<Long, TextHighlight>,
+    highlights: List<TextHighlight>,
     tappedOffset: Int,
     textLength: Int
 ): TextHighlight? {
@@ -181,15 +177,13 @@ internal fun findTappedHighlight(
         .map { it.coerceIn(0, textLength - 1) }
         .distinct()
 
-    val candidateHighlights = candidateOffsets
-        .mapNotNull { offset ->
-            annotatedText
-                .getStringAnnotations("HIGHLIGHT", offset, offset)
-                .firstOrNull()
-                ?.item
-                ?.toLongOrNull()
-                ?.let(highlightsById::get)
+    val candidateHighlights = highlights.filter { highlight ->
+        val start = highlight.startOffset.coerceAtLeast(0)
+        val endExclusive = highlight.endOffset.coerceAtLeast(start)
+        candidateOffsets.any { offset ->
+            offset in start until endExclusive
         }
+    }
 
     return candidateHighlights
         .maxByOrNull { it.endOffset - it.startOffset }
