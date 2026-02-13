@@ -427,7 +427,15 @@ private fun mapHighlightsToLocal(
     end: Int
 ): List<TextHighlight> {
     return getHighlightsForRange(highlights, start, end)
-        .map { it.adjustedForOffset(-start) }
+        .mapNotNull { highlight ->
+            val localStart = (max(highlight.startOffset, start) - start).coerceAtLeast(0)
+            val localEnd = (kotlin.math.min(highlight.endOffset, end) - start).coerceAtLeast(localStart)
+            if (localEnd <= localStart) return@mapNotNull null
+            highlight.copy(
+                startOffset = localStart,
+                endOffset = localEnd
+            )
+        }
 }
 
 private fun mapOnHighlightAddToGlobal(

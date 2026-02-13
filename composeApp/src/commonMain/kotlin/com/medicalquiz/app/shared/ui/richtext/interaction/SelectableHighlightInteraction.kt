@@ -46,6 +46,7 @@ internal fun Modifier.selectableHighlightGestures(
             if (longPress != null) {
                 currentLayoutResult()?.let { layout ->
                     val offset = layout.getOffsetForPosition(longPress.position)
+
                     val (start, end) = expandToWordBoundaries(text.text, offset)
                     setSelectionState(
                         TextSelectionState(
@@ -108,26 +109,10 @@ internal fun Modifier.selectableHighlightGestures(
 
                 setSelectionState(finishSelectionDrag(currentSelectionState()))
             } else {
-                var upPosition = down.position
-                var movedTooFar = false
-                val tapSlopPx = 18f
-
-                while (true) {
-                    val event = awaitPointerEvent()
-                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                    upPosition = change.position
-                    if ((upPosition - down.position).getDistance() > tapSlopPx) {
-                        movedTooFar = true
-                    }
-                    if (!change.pressed) break
-                }
-
-                if (movedTooFar) {
-                    return@awaitEachGesture
-                }
+                val tapPosition = down.position
 
                 currentLayoutResult()?.let { layout ->
-                    val offset = layout.getOffsetForPosition(upPosition)
+                    val offset = layout.getOffsetForPosition(tapPosition)
 
                     val tappedHighlight = findTappedHighlight(
                         highlights = highlights,
@@ -142,7 +127,7 @@ internal fun Modifier.selectableHighlightGestures(
                                 textLength = text.length,
                                 startOffset = tappedHighlight.startOffset,
                                 endOffset = tappedHighlight.endOffset,
-                                fallbackAnchor = upPosition
+                                fallbackAnchor = tapPosition
                             )
                         )
                         setSelectionState(TextSelectionState())
@@ -173,7 +158,8 @@ internal fun findTappedHighlight(
 ): TextHighlight? {
     if (textLength <= 0) return null
 
-    val candidateOffsets = listOf(tappedOffset, tappedOffset - 1, tappedOffset + 1)
+    val candidateOffsets = (-2..2)
+        .map { delta -> tappedOffset + delta }
         .map { it.coerceIn(0, textLength - 1) }
         .distinct()
 
