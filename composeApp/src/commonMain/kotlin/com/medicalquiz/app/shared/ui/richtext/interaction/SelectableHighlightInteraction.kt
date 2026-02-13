@@ -3,24 +3,12 @@ package com.medicalquiz.app.shared.ui.richtext
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.data.models.TextHighlight
-
-private val SELECTION_HANDLE_VISUAL_RADIUS = 7.dp
-private val SELECTION_HANDLE_TOUCH_TARGET = 36.dp
 
 /**
  * State for text selection within SelectableRichText.
@@ -50,7 +38,7 @@ internal fun Modifier.selectableHighlightGestures(
     setEditingHighlight: (TextHighlight?) -> Unit,
     setEditPopupAnchor: (Offset) -> Unit,
     onLinkClick: ((String) -> Unit)?,
-    onTooltipClick: ((String) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ): Modifier {
     return pointerInput(text, highlights) {
         awaitEachGesture {
@@ -164,12 +152,12 @@ internal fun Modifier.selectableHighlightGestures(
                         return@awaitEachGesture
                     }
 
-                    text.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
-                        onLinkClick?.invoke(it.item)
-                        return@awaitEachGesture
-                    }
-                    text.getStringAnnotations("TOOLTIP", offset, offset).firstOrNull()?.let {
-                        onTooltipClick?.invoke(it.item)
+                    if (handleAnnotatedTextTap(
+                            text = text,
+                            offset = offset,
+                            onLinkClick = onLinkClick,
+                            onTooltipClick = onTooltipClick
+                        )) {
                         return@awaitEachGesture
                     }
 
@@ -179,92 +167,6 @@ internal fun Modifier.selectableHighlightGestures(
             }
         }
     }
-}
-
-@Composable
-internal fun SelectionHandle(
-    x: Float,
-    y: Float,
-    containerSize: IntSize,
-    dragHysteresisPx: Float,
-    onDragStart: () -> Unit,
-    onDragEnd: () -> Unit,
-    onDrag: (Offset) -> Unit
-) {
-    val handleRadius = SELECTION_HANDLE_VISUAL_RADIUS
-    val handleTouchTarget = SELECTION_HANDLE_TOUCH_TARGET
-    val handleColor = MaterialTheme.colorScheme.primary
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val handleDiameterPx = with(density) {
-        (handleRadius * 2).toPx()
-    }
-    val touchTargetPx = with(density) {
-        handleTouchTarget.toPx()
-    }
-
-    val maxVisualX = (containerSize.width - handleDiameterPx).coerceAtLeast(0f)
-    val maxVisualY = (containerSize.height - handleDiameterPx).coerceAtLeast(0f)
-    val visualX = (x - handleDiameterPx / 2f).coerceIn(0f, maxVisualX)
-    val visualY = y.coerceIn(0f, maxVisualY)
-    val visualCenter = Offset(
-        x = visualX + handleDiameterPx / 2f,
-        y = visualY + handleDiameterPx / 2f
-    )
-
-    val maxTouchX = (containerSize.width - touchTargetPx).coerceAtLeast(0f)
-    val maxTouchY = (containerSize.height - touchTargetPx).coerceAtLeast(0f)
-    val adjustedX = (visualCenter.x - touchTargetPx / 2f).coerceIn(0f, maxTouchX)
-    val adjustedY = (visualCenter.y - touchTargetPx / 2f).coerceIn(0f, maxTouchY)
-
-    Box(
-        modifier = Modifier
-            .graphicsLayer {
-                translationX = adjustedX
-                translationY = adjustedY
-            }
-            .size(handleTouchTarget)
-            .drawBehind {
-                drawCircle(
-                    color = handleColor,
-                    radius = handleDiameterPx / 2f,
-                    center = Offset(
-                        x = visualCenter.x - adjustedX,
-                        y = visualCenter.y - adjustedY
-                    )
-                )
-            }
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    down.consume()
-                    onDragStart()
-
-                    var currentAbsolutePosition = visualCenter
-                    var lastDispatchedPosition: Offset? = null
-                    var pointerPressed = true
-                    while (pointerPressed) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        currentAbsolutePosition = Offset(
-                            x = (currentAbsolutePosition.x + change.positionChange().x)
-                                .coerceIn(0f, containerSize.width.toFloat()),
-                            y = (currentAbsolutePosition.y + change.positionChange().y)
-                                .coerceIn(0f, containerSize.height.toFloat())
-                        )
-                        val shouldDispatch = lastDispatchedPosition == null ||
-                            (currentAbsolutePosition - lastDispatchedPosition!!).getDistance() >= dragHysteresisPx
-
-                        if (shouldDispatch) {
-                            onDrag(currentAbsolutePosition)
-                            lastDispatchedPosition = currentAbsolutePosition
-                        }
-                        change.consume()
-                        pointerPressed = change.pressed
-                    }
-                    onDragEnd()
-                }
-            }
-    )
 }
 
 internal fun findTappedHighlight(
