@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Repository for managing text highlights within question content.
@@ -28,6 +30,7 @@ class TextHighlightsRepository(
     private var currentDbName: String = ""
     private var currentQuestionId: Long = -1
     private var activeLoadRequestId: Long = 0
+    private val highlightMutationMutex = Mutex()
 
     // Highlights for current question, grouped by section
     private val _questionHighlights = MutableStateFlow<List<TextHighlight>>(emptyList())
@@ -114,71 +117,73 @@ class TextHighlightsRepository(
         color: HighlightColor = HighlightColor.YELLOW
     ) {
         val context = currentContextSnapshot() ?: return
-        val sectionHighlightsSnapshot = getHighlightsForSection(section)
         val normalizedStart = minOf(startOffset, endOffset)
         val normalizedEnd = maxOf(startOffset, endOffset)
         if (normalizedStart >= normalizedEnd) return
 
-        val overlappingHighlights = sectionHighlightsSnapshot.filter {
-            it.overlapsOrTouches(normalizedStart, normalizedEnd)
-        }
-
-        val exactSameHighlight = overlappingHighlights.singleOrNull {
-            it.startOffset == normalizedStart &&
-                it.endOffset == normalizedEnd &&
-                it.color == color
-        }
-        if (exactSameHighlight != null && overlappingHighlights.size == 1) return
-
-        val mergedStart = minOf(
-            normalizedStart,
-            overlappingHighlights.minOfOrNull { it.startOffset } ?: normalizedStart
-        )
-        val mergedEnd = maxOf(
-            normalizedEnd,
-            overlappingHighlights.maxOfOrNull { it.endOffset } ?: normalizedEnd
-        )
-        val mergedHighlightedText = mergeHighlightedText(
-            mergedStart = mergedStart,
-            mergedEnd = mergedEnd,
-            normalizedStart = normalizedStart,
-            normalizedEnd = normalizedEnd,
-            highlightedText = highlightedText,
-            overlappingHighlights = overlappingHighlights
-        )
-
         scope.launch(Dispatchers.IO) {
             try {
-                if (!matchesCurrentContext(context)) return@launch
+                highlightMutationMutex.withLock {
+                    if (!matchesCurrentContext(context)) return@withLock
 
-                val highlight = userDataManager.replaceTextHighlightsWithMerged(
-                    dbName = context.dbName,
-                    questionId = context.questionId,
-                    section = section,
-                    removeHighlightIds = overlappingHighlights.map { it.id },
-                    startOffset = mergedStart,
-                    endOffset = mergedEnd,
-                    highlightedText = mergedHighlightedText,
-                    color = color
-                )
-
-                if (!matchesCurrentContext(context)) return@launch
-
-                val overlapIds = overlappingHighlights.map { it.id }.toSet()
-                val mergedInMemory = when (section) {
-                    HighlightSection.QUESTION -> _questionHighlights.value
-                    HighlightSection.EXPLANATION -> _explanationHighlights.value
-                }.filterNot { it.id in overlapIds } + highlight
-
-                when (section) {
-                    HighlightSection.QUESTION -> {
-                        _questionHighlights.value = mergedInMemory
-                            .sortedBy { it.startOffset }
+                    val latestSectionHighlights = getHighlightsForSection(section)
+                    val overlappingHighlights = latestSectionHighlights.filter {
+                        it.overlapsStrictly(normalizedStart, normalizedEnd)
                     }
 
-                    HighlightSection.EXPLANATION -> {
-                        _explanationHighlights.value = mergedInMemory
-                            .sortedBy { it.startOffset }
+                    val exactSameHighlight = overlappingHighlights.singleOrNull {
+                        it.startOffset == normalizedStart &&
+                            it.endOffset == normalizedEnd &&
+                            it.color == color
+                    }
+                    if (exactSameHighlight != null && overlappingHighlights.size == 1) return@withLock
+
+                    val mergedStart = minOf(
+                        normalizedStart,
+                        overlappingHighlights.minOfOrNull { it.startOffset } ?: normalizedStart
+                    )
+                    val mergedEnd = maxOf(
+                        normalizedEnd,
+                        overlappingHighlights.maxOfOrNull { it.endOffset } ?: normalizedEnd
+                    )
+                    val mergedHighlightedText = mergeHighlightedText(
+                        mergedStart = mergedStart,
+                        mergedEnd = mergedEnd,
+                        normalizedStart = normalizedStart,
+                        normalizedEnd = normalizedEnd,
+                        highlightedText = highlightedText,
+                        overlappingHighlights = overlappingHighlights
+                    )
+
+                    val highlight = userDataManager.replaceTextHighlightsWithMerged(
+                        dbName = context.dbName,
+                        questionId = context.questionId,
+                        section = section,
+                        removeHighlightIds = overlappingHighlights.map { it.id },
+                        startOffset = mergedStart,
+                        endOffset = mergedEnd,
+                        highlightedText = mergedHighlightedText,
+                        color = color
+                    )
+
+                    if (!matchesCurrentContext(context)) return@withLock
+
+                    val overlapIds = overlappingHighlights.map { it.id }.toSet()
+                    val mergedInMemory = when (section) {
+                        HighlightSection.QUESTION -> _questionHighlights.value
+                        HighlightSection.EXPLANATION -> _explanationHighlights.value
+                    }.filterNot { it.id in overlapIds } + highlight
+
+                    when (section) {
+                        HighlightSection.QUESTION -> {
+                            _questionHighlights.value = mergedInMemory
+                                .sortedBy { it.startOffset }
+                        }
+
+                        HighlightSection.EXPLANATION -> {
+                            _explanationHighlights.value = mergedInMemory
+                                .sortedBy { it.startOffset }
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -356,16 +361,30 @@ class TextHighlightsRepository(
             }
         }
 
-        for (index in mergedChars.indices) {
-            if (mergedChars[index] == '\u0000') {
-                mergedChars[index] = ' '
+        val hasGap = mergedChars.any { it == '\u0000' }
+        if (hasGap) {
+            return if (normalizedStart == mergedStart && normalizedEnd == mergedEnd) {
+                highlightedText
+            } else {
+                (overlappingHighlights + TextHighlight(
+                    dbName = "",
+                    questionId = -1,
+                    section = HighlightSection.QUESTION,
+                    startOffset = normalizedStart,
+                    endOffset = normalizedEnd,
+                    highlightedText = highlightedText,
+                    color = HighlightColor.YELLOW,
+                    createdAt = 0L
+                ))
+                    .sortedBy { it.startOffset }
+                    .joinToString(separator = "") { it.highlightedText }
             }
         }
 
         return mergedChars.concatToString()
     }
 
-    private fun TextHighlight.overlapsOrTouches(start: Int, end: Int): Boolean {
-        return startOffset <= end && endOffset >= start
+    private fun TextHighlight.overlapsStrictly(start: Int, end: Int): Boolean {
+        return startOffset < end && endOffset > start
     }
 }
