@@ -238,7 +238,9 @@ private fun AbstractCard(
                 RichText(
                     blocks = block.blocks,
                     onLinkClick = onLinkClick,
-                    onTooltipClick = onTooltipClick
+                    onTooltipClick = onTooltipClick?.let { callback ->
+                        { message -> callback(RichTextTooltipContent(title = message, message = message)) }
+                    }
                 )
             }
         }
