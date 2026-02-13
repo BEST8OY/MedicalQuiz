@@ -114,6 +114,17 @@ internal fun Modifier.selectableHighlightGestures(
                 currentLayoutResult()?.let { layout ->
                     val offset = layout.getOffsetForPosition(tapPosition)
 
+                    if (handleAnnotatedTextTap(
+                            text = text,
+                            offset = offset,
+                            onLinkClick = onLinkClick,
+                            onTooltipClick = onTooltipClick
+                        )) {
+                        setSelectionState(TextSelectionState())
+                        setEditingHighlight(null)
+                        return@awaitEachGesture
+                    }
+
                     val tappedHighlight = findTappedHighlight(
                         highlights = highlights,
                         tappedOffset = offset,
@@ -130,16 +141,6 @@ internal fun Modifier.selectableHighlightGestures(
                                 fallbackAnchor = tapPosition
                             )
                         )
-                        setSelectionState(TextSelectionState())
-                        return@awaitEachGesture
-                    }
-
-                    if (handleAnnotatedTextTap(
-                            text = text,
-                            offset = offset,
-                            onLinkClick = onLinkClick,
-                            onTooltipClick = onTooltipClick
-                        )) {
                         return@awaitEachGesture
                     }
 
@@ -158,17 +159,25 @@ internal fun findTappedHighlight(
 ): TextHighlight? {
     if (textLength <= 0) return null
 
-    val candidateOffsets = (-2..2)
-        .map { delta -> tappedOffset + delta }
+    fun TextHighlight.containsOffset(offset: Int): Boolean {
+        val start = startOffset.coerceAtLeast(0)
+        val endExclusive = endOffset.coerceAtLeast(start)
+        return offset in start until endExclusive
+    }
+
+    val clampedTap = tappedOffset.coerceIn(0, textLength - 1)
+    val exactCandidates = highlights.filter { it.containsOffset(clampedTap) }
+
+    if (exactCandidates.isNotEmpty()) {
+        return exactCandidates.maxByOrNull { it.endOffset - it.startOffset }
+    }
+
+    val fallbackOffsets = listOf(clampedTap - 1, clampedTap + 1)
         .map { it.coerceIn(0, textLength - 1) }
         .distinct()
 
     val candidateHighlights = highlights.filter { highlight ->
-        val start = highlight.startOffset.coerceAtLeast(0)
-        val endExclusive = highlight.endOffset.coerceAtLeast(start)
-        candidateOffsets.any { offset ->
-            offset in start until endExclusive
-        }
+        fallbackOffsets.any { offset -> highlight.containsOffset(offset) }
     }
 
     return candidateHighlights
@@ -193,10 +202,18 @@ internal fun expandToWordBoundaries(text: String, offset: Int): Pair<Int, Int> {
         end++
     }
 
+    while (end < text.length && text.isTrailingWordBoundaryCharAt(end, previousIndex = end - 1)) {
+        end++
+    }
+
     while (start < end && !text[start].isLetterOrDigit()) {
         start++
     }
-    while (end > start && !text[end - 1].isLetterOrDigit()) {
+    while (end > start) {
+        val endIndex = end - 1
+        val endChar = text[endIndex]
+        if (endChar.isLetterOrDigit()) break
+        if (text.isTrailingWordBoundaryCharAt(endIndex, previousIndex = endIndex - 1)) break
         end--
     }
 
@@ -253,6 +270,13 @@ internal fun snapOffsetToWordBoundary(
         else -> primary
     }
     return chosen.coerceIn(0, text.length)
+}
+
+private fun String.isTrailingWordBoundaryCharAt(index: Int, previousIndex: Int): Boolean {
+    if (index !in indices || previousIndex !in indices) return false
+    if (!this[previousIndex].isLetterOrDigit()) return false
+
+    return this[index] == ')' || this[index] == ']' || this[index] == '}'
 }
 
 private fun findNearestWordPivot(text: String, offset: Int): Int? {
