@@ -44,8 +44,11 @@ internal fun Modifier.selectableHighlightGestures(
             val longPress = awaitLongPressOrCancellation(down.id)
 
             if (longPress != null) {
+                var initialPressOffset: Int? = null
+
                 currentLayoutResult()?.let { layout ->
                     val offset = layout.getOffsetForPosition(longPress.position)
+                    initialPressOffset = offset
 
                     val (start, end) = expandToWordBoundaries(text.text, offset)
                     setSelectionState(
@@ -80,22 +83,38 @@ internal fun Modifier.selectableHighlightGestures(
                     currentLayoutResult()?.let { layout ->
                         val selectionState = currentSelectionState()
                         val offset = layout.getOffsetForPosition(position)
-                        val newEnd = snapOffsetToWordBoundary(
+                        val movingStartHandle = initialPressOffset?.let { offset < it }
+                            ?: (offset < selectionState.startOffset)
+                        val fixedOffset = if (movingStartHandle) {
+                            selectionState.endOffset
+                        } else {
+                            selectionState.startOffset
+                        }
+                        val newHandleOffset = snapOffsetToWordBoundary(
                             text = text.text,
                             movedOffset = offset.coerceIn(0, text.length),
-                            fixedOffset = selectionState.startOffset,
+                            fixedOffset = fixedOffset,
                             layoutResult = layout,
-                            previousOffset = selectionState.endOffset
+                            previousOffset = if (movingStartHandle) {
+                                selectionState.startOffset
+                            } else {
+                                selectionState.endOffset
+                            }
                         )
-                        if (newEnd == selectionState.endOffset) {
+                        val previousHandleOffset = if (movingStartHandle) {
+                            selectionState.startOffset
+                        } else {
+                            selectionState.endOffset
+                        }
+                        if (newHandleOffset == previousHandleOffset) {
                             event.changes.forEach { it.consume() }
                             return@let
                         }
                         setSelectionState(
                             updateSelectionFromHandleOffset(
                                 currentState = selectionState,
-                                movingStartHandle = false,
-                                newHandleOffset = newEnd,
+                                movingStartHandle = movingStartHandle,
+                                newHandleOffset = newHandleOffset,
                                 textContent = text.text,
                                 layoutResult = layout,
                                 textLength = text.length,
