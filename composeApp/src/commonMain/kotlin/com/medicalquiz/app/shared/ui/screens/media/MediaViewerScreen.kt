@@ -455,13 +455,13 @@ private fun ExplanationBottomSheet(
         sheetState = sheetState,
         dragHandle = {
             BottomSheetDefaults.DragHandle(
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                color = MaterialTheme.colorScheme.outlineVariant,
             )
         },
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = contentColorFor(MaterialTheme.colorScheme.surface),
         tonalElevation = 6.dp,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
+        scrimColor = MaterialTheme.colorScheme.scrim,
     ) {
         Column(
             modifier = Modifier
@@ -480,7 +480,7 @@ private fun ExplanationBottomSheet(
 
             HorizontalDivider(
                 modifier = Modifier.padding(bottom = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.outlineVariant,
             )
 
             RichTextScaleProvider(proseScale = richTextScale) {
@@ -818,7 +818,7 @@ private fun ImageContent(
                 ) {
                     Text(
                         text = "Loading…",
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
@@ -870,7 +870,7 @@ private fun UnsupportedContent(fileName: String) {
             Text(
                 text = fileName,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,

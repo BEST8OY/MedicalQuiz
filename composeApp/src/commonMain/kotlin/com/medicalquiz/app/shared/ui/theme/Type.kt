@@ -7,7 +7,22 @@ import androidx.compose.ui.text.font.FontWeight
 private val BaseTypography = Typography()
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-val Typography = BaseTypography.copy(
+val AppTypography = Typography(
+    displayLarge = BaseTypography.displayLarge,
+    displayMedium = BaseTypography.displayMedium,
+    displaySmall = BaseTypography.displaySmall,
+    headlineLarge = BaseTypography.headlineLarge,
+    headlineMedium = BaseTypography.headlineMedium,
+    headlineSmall = BaseTypography.headlineSmall,
+    titleLarge = BaseTypography.titleLarge,
+    titleMedium = BaseTypography.titleMedium,
+    titleSmall = BaseTypography.titleSmall,
+    bodyLarge = BaseTypography.bodyLarge,
+    bodyMedium = BaseTypography.bodyMedium,
+    bodySmall = BaseTypography.bodySmall,
+    labelLarge = BaseTypography.labelLarge,
+    labelMedium = BaseTypography.labelMedium,
+    labelSmall = BaseTypography.labelSmall,
     displayLargeEmphasized = BaseTypography.displayLarge.copy(fontWeight = FontWeight.Medium),
     displayMediumEmphasized = BaseTypography.displayMedium.copy(fontWeight = FontWeight.Medium),
     displaySmallEmphasized = BaseTypography.displaySmall.copy(fontWeight = FontWeight.Medium),

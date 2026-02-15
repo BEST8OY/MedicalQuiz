@@ -110,7 +110,7 @@ private fun ToolbarActionButton(
                 tint = if (enabled) {
                     MaterialTheme.colorScheme.onSurface
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    MaterialTheme.colorScheme.onSurfaceVariant
                 }
             )
             Text(
@@ -120,7 +120,7 @@ private fun ToolbarActionButton(
                 color = if (enabled) {
                     MaterialTheme.colorScheme.onSurface
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    MaterialTheme.colorScheme.onSurfaceVariant
                 }
             )
         }

@@ -112,7 +112,7 @@ fun QuizFloatingToolbar(
                     ) {
                         Text(
                             text = questionLabel,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelLargeEmphasized,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                         )

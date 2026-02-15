@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -29,6 +30,7 @@ import com.medicalquiz.app.shared.ui.dialogs.components.DialogShell
  * Displays an error dialog with a warning icon and message.
  */
 @Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun ErrorDialog(
     errorDialog: Pair<String, String>?,
     onDismiss: () -> Unit
@@ -61,7 +63,7 @@ fun ErrorDialog(
 
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleLargeEmphasized,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center
             )

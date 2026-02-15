@@ -79,7 +79,7 @@ internal fun SelectableHighlightText(
     val highlightedText = remember(text, highlights) {
         applyHighlightsToText(text, highlights)
     }
-    val selectionColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+    val selectionColor = MaterialTheme.colorScheme.secondaryContainer
     val displayText = remember(highlightedText, selectionState, selectionColor) {
         if (selectionState.isSelecting) {
             applySelectionToText(highlightedText, selectionState.selectionRange, selectionColor)

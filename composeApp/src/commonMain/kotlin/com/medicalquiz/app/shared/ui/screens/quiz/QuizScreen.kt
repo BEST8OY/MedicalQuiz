@@ -143,7 +143,7 @@ private fun HintSection(
         color = if (isVisible) {
             MaterialTheme.colorScheme.secondaryContainer
         } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
+            MaterialTheme.colorScheme.surfaceContainer
         },
         modifier = Modifier.fillMaxWidth(),
         onClick = if (canToggle) onToggle else ({})
@@ -174,7 +174,7 @@ private fun HintSection(
                     Icon(
                         imageVector = if (isVisible) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = hintContentColor.copy(alpha = 0.6f)
+                        tint = hintContentColor
                     )
                 }
             }
@@ -247,7 +247,11 @@ private fun QuizQuestionCard(
 
     if (question == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = "Select a question to begin", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = "Select a question to begin",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         return
     }
@@ -319,7 +323,7 @@ private fun QuizQuestionCard(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.large,
             colors = CardDefaults.elevatedCardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
             ),
             elevation = CardDefaults.elevatedCardElevation(
                 defaultElevation = 1.dp
@@ -382,7 +386,7 @@ private fun QuizQuestionCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
                 colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
                 ),
                 elevation = CardDefaults.elevatedCardElevation(
                     defaultElevation = 1.dp
@@ -395,7 +399,7 @@ private fun QuizQuestionCard(
                     Text(
                         text = "Explanation",
                         style = MaterialTheme.typography.titleMediumEmphasized,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     // Use HighlightableRichText for explanation
                     HighlightableRichText(
@@ -463,7 +467,7 @@ private fun QuestionMetadataCard(sections: List<MetadataSection>) {
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
         elevation = CardDefaults.elevatedCardElevation(
             defaultElevation = 2.dp
@@ -543,14 +547,14 @@ private fun MetadataChipGroupRow(label: String, values: List<String>) {
 private fun MetadataTag(text: String) {
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Text(
             text = text,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -580,7 +584,7 @@ private fun PerformanceCard(performance: QuestionPerformance?) {
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.outlinedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
         border = androidx.compose.foundation.BorderStroke(
             width = 1.dp,
@@ -634,7 +638,7 @@ private fun PerformanceStat(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = color.copy(alpha = 0.7f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

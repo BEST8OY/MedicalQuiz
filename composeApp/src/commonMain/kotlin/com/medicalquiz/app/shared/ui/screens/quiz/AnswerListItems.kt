@@ -76,7 +76,7 @@ private fun AnswerListItem(
             showResult && isCorrect -> colors.tertiaryContainer
             showResult && isSelected && !isCorrect -> colors.errorContainer
             isSelected -> colors.primaryContainer
-            else -> colors.surfaceContainerLowest
+            else -> colors.surfaceContainerLow
         },
         animationSpec = motionScheme.defaultEffectsSpec(),
         label = "containerColor"
@@ -244,7 +244,11 @@ private fun AnswerListItem(
                     showSelectedHighlight = showResult
                 )
             },
-            leadingContent = leadingContent,
+                    containerColor = containerColor,
+                    headlineColor = contentColor,
+                    supportingColor = contentColor,
+                    leadingIconColor = contentColor,
+                    trailingIconColor = contentColor,
             trailingContent = trailingContent,
             colors = ListItemDefaults.colors(
                 containerColor = containerColor

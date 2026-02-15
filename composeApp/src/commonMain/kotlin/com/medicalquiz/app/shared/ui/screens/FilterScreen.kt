@@ -58,7 +58,10 @@ internal fun FilterScreen(
     val hasPreview = previewCount > 0
     val hasFilters = subjectCount > 0 || systemCount > 0 || performanceLabel != "All Questions"
 
-    Surface(modifier = Modifier.fillMaxSize()) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -147,7 +150,7 @@ private fun DatabaseHeaderCard(databaseName: String) {
                 Text(
                     text = "Database",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
                 Text(
                     text = databaseName.ifEmpty { "Unknown" },
@@ -180,7 +183,7 @@ private fun FilterPreviewCard(previewCount: Int) {
         targetValue = if (hasPreview) 
             MaterialTheme.colorScheme.primaryContainer 
         else 
-            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+            MaterialTheme.colorScheme.errorContainer,
         animationSpec = motionScheme.defaultEffectsSpec()
     )
 
@@ -202,7 +205,7 @@ private fun FilterPreviewCard(previewCount: Int) {
             Text(
                 text = supportingText,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (hasPreview) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                color = if (hasPreview) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
             )
         }
     }
@@ -239,7 +242,7 @@ private fun FilterSelectionCard(
         targetValue = if (isActive) 
             MaterialTheme.colorScheme.primary 
         else 
-            MaterialTheme.colorScheme.surface,
+            MaterialTheme.colorScheme.surfaceContainerHighest,
         animationSpec = motionScheme.defaultEffectsSpec()
     )
 
@@ -247,7 +250,7 @@ private fun FilterSelectionCard(
         targetValue = if (isActive) 
             MaterialTheme.colorScheme.onPrimary 
         else 
-            MaterialTheme.colorScheme.primary,
+            MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = motionScheme.defaultEffectsSpec()
     )
 
