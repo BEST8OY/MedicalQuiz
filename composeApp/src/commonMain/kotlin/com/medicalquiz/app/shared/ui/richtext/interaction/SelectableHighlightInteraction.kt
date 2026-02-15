@@ -3,6 +3,7 @@ package com.medicalquiz.app.shared.ui.richtext
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
@@ -109,7 +110,12 @@ internal fun Modifier.selectableHighlightGestures(
 
                 setSelectionState(finishSelectionDrag(currentSelectionState()))
             } else {
-                val tapPosition = down.position
+                val up = waitForUpOrCancellation()
+                if (up == null) {
+                    return@awaitEachGesture
+                }
+
+                val tapPosition = up.position
 
                 currentLayoutResult()?.let { layout ->
                     val offset = layout.getOffsetForPosition(tapPosition)
