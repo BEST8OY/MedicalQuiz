@@ -124,7 +124,7 @@ fun SettingsDialog(
                             .padding(top = 16.dp)
                             .clip(MaterialTheme.shapes.medium)
                             .clickable(onClick = onResetLogs),
-                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Row(
                             modifier = Modifier
@@ -143,12 +143,12 @@ fun SettingsDialog(
                                     text = "Clear log history",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = "Remove all saved answer logs",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -184,9 +184,9 @@ private fun SettingsToggleRow(
             .clip(MaterialTheme.shapes.medium)
             .clickable { onCheckedChange(!checked) },
         color = if (checked)
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.secondaryContainer
         else
-            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f)
+            MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Row(
             modifier = Modifier
@@ -239,9 +239,9 @@ private fun FontScaleControl(
                     .clip(MaterialTheme.shapes.medium)
                     .clickable { onSelected(option) },
                 color = if (selected == option) {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                    MaterialTheme.colorScheme.secondaryContainer
                 } else {
-                    MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.4f)
+                    MaterialTheme.colorScheme.surfaceContainerLow
                 },
             ) {
                 Row(
@@ -276,7 +276,7 @@ private fun FontScaleControl(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.small,
-            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
         ) {
             Text(
                 text = "Applies to question and media description rich text only.",

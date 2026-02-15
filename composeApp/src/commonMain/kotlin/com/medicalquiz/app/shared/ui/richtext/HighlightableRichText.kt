@@ -366,7 +366,7 @@ private fun HighlightableTable(
                     )
 
                     if (rowIndex != renderModel.rows.lastIndex) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                 }
             }

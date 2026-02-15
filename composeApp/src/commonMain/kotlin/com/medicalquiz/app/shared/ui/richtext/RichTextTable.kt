@@ -70,7 +70,7 @@ internal fun RichTextTable(
                         onTooltipClick = onTooltipClick
                     )
                     if (index != renderModel.rows.lastIndex) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                 }
             }
@@ -258,7 +258,7 @@ internal fun TableRowContent(
                     isAbstractClass = cell.cell.classNames.containsInsensitive("abstract")
                 )
                 val cellBackground = when {
-                    cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.secondaryContainer
                     cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer
                     else -> Color.Transparent
                 }

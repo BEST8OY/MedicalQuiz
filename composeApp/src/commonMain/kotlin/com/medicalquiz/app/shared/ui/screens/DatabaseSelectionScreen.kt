@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -86,16 +87,21 @@ fun DatabaseSelectionScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Medical Quiz")
+                        Text(
+                            text = "Medical Quiz",
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
                         Text(
                             text = if (selectedPane == SelectionPane.Database) "Select database" else "Recent sessions",
                             style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
                 actions = {
                     if (selectedPane == SelectionPane.Database) {
@@ -244,7 +250,7 @@ private fun HistoryItemCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Row(
             modifier = Modifier
@@ -256,7 +262,7 @@ private fun HistoryItemCard(
             Icon(
                 imageVector = Icons.Filled.History,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(28.dp),
             )
             Column(modifier = Modifier.weight(1f)) {
@@ -264,11 +270,13 @@ private fun HistoryItemCard(
                     text = entry.databaseName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "Question ${entry.currentQuestionIndex + 1}",
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = formatTimestamp(entry.updatedAtEpochMillis),
@@ -282,6 +290,11 @@ private fun HistoryItemCard(
                 leadingIcon = {
                     Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                 },
+                colors = AssistChipDefaults.assistChipColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    labelColor = MaterialTheme.colorScheme.onErrorContainer,
+                    leadingIconContentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
             )
         }
     }
@@ -296,7 +309,7 @@ private fun DatabaseItemCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Row(
             modifier = Modifier
@@ -308,13 +321,14 @@ private fun DatabaseItemCard(
             Icon(
                 imageVector = Icons.Filled.Storage,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(32.dp),
             )
             Text(
                 text = name,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
     }
@@ -332,7 +346,11 @@ private fun EmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(text = title, style = MaterialTheme.typography.titleLarge)
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,

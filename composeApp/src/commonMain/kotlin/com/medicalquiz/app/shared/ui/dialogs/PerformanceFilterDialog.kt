@@ -116,7 +116,7 @@ private fun PerformanceFilterItem(
                     text = filter.description(),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (isSelected)
-                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        MaterialTheme.colorScheme.onPrimaryContainer
                     else
                         MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -77,7 +77,7 @@ fun HtmlViewerScreen(
                         text = fileName,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMediumEmphasized,
                     )
                 },
                 navigationIcon = {

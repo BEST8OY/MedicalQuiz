@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +32,7 @@ import com.medicalquiz.app.shared.ui.dialogs.components.DialogShell
  * Confirmation dialog for resetting/clearing logs.
  */
 @Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun ResetConfirmationDialog(
     isVisible: Boolean,
     onConfirm: () -> Unit,
@@ -62,7 +64,7 @@ fun ResetConfirmationDialog(
 
             Text(
                 text = "Reset log history?",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleLargeEmphasized,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center
             )

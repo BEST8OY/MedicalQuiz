@@ -366,7 +366,7 @@ private fun <T> SelectionListContent(
             singleLine = true,
             shape = MaterialTheme.shapes.medium,
             colors = OutlinedTextFieldDefaults.colors(
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
             )
         )
 
@@ -459,7 +459,7 @@ private fun SelectionItem(
     onCheckedChange: (Boolean) -> Unit
 ) {
     val backgroundColor = if (isChecked) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+        MaterialTheme.colorScheme.secondaryContainer
     } else {
         Color.Transparent
     }
