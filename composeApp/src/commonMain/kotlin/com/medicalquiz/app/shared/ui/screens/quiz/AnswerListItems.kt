@@ -244,11 +244,7 @@ private fun AnswerListItem(
                     showSelectedHighlight = showResult
                 )
             },
-                    containerColor = containerColor,
-                    headlineColor = contentColor,
-                    supportingColor = contentColor,
-                    leadingIconColor = contentColor,
-                    trailingIconColor = contentColor,
+            leadingContent = leadingContent,
             trailingContent = trailingContent,
             colors = ListItemDefaults.colors(
                 containerColor = containerColor
