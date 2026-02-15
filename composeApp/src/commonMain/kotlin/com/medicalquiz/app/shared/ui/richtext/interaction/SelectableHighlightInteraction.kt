@@ -109,11 +109,12 @@ internal fun Modifier.selectableHighlightGestures(
 
                 setSelectionState(finishSelectionDrag(currentSelectionState()))
             } else {
-                if (down.isConsumed) {
+                val upChange = currentEvent.changes.firstOrNull { !it.pressed } ?: return@awaitEachGesture
+                if (upChange.isConsumed) {
                     return@awaitEachGesture
                 }
 
-                val tapPosition = down.position
+                val tapPosition = upChange.position
                 val clearSelectionAndEditing = {
                     setSelectionState(TextSelectionState())
                     setEditingHighlight(null)
