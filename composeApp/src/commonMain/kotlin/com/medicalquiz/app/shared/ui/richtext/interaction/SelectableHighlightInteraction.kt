@@ -109,19 +109,28 @@ internal fun Modifier.selectableHighlightGestures(
 
                 setSelectionState(finishSelectionDrag(currentSelectionState()))
             } else {
-                val tapPosition = down.position
+                val upChange = currentEvent.changes.firstOrNull { !it.pressed } ?: return@awaitEachGesture
+                if (upChange.isConsumed) {
+                    return@awaitEachGesture
+                }
+
+                val tapPosition = upChange.position
+                val clearSelectionAndEditing = {
+                    setSelectionState(TextSelectionState())
+                    setEditingHighlight(null)
+                }
 
                 currentLayoutResult()?.let { layout ->
                     val offset = layout.getOffsetForPosition(tapPosition)
 
-                    if (handleAnnotatedTextTap(
-                            text = text,
-                            offset = offset,
-                            onLinkClick = onLinkClick,
-                            onTooltipClick = onTooltipClick
-                        )) {
-                        setSelectionState(TextSelectionState())
-                        setEditingHighlight(null)
+                    val handledAnnotatedTap = handleAnnotatedTextTap(
+                        text = text,
+                        offset = offset,
+                        onLinkClick = onLinkClick,
+                        onTooltipClick = onTooltipClick
+                    )
+                    if (handledAnnotatedTap) {
+                        clearSelectionAndEditing()
                         return@awaitEachGesture
                     }
 
@@ -130,22 +139,21 @@ internal fun Modifier.selectableHighlightGestures(
                         tappedOffset = offset,
                         textLength = text.length
                     )
-                    if (tappedHighlight != null) {
-                        setEditingHighlight(tappedHighlight)
-                        setEditPopupAnchor(
-                            calculateRangeAnchor(
-                                layoutResult = layout,
-                                textLength = text.length,
-                                startOffset = tappedHighlight.startOffset,
-                                endOffset = tappedHighlight.endOffset,
-                                fallbackAnchor = tapPosition
-                            )
-                        )
+                    if (tappedHighlight == null) {
+                        clearSelectionAndEditing()
                         return@awaitEachGesture
                     }
 
-                    setSelectionState(TextSelectionState())
-                    setEditingHighlight(null)
+                    setEditingHighlight(tappedHighlight)
+                    setEditPopupAnchor(
+                        calculateRangeAnchor(
+                            layoutResult = layout,
+                            textLength = text.length,
+                            startOffset = tappedHighlight.startOffset,
+                            endOffset = tappedHighlight.endOffset,
+                            fallbackAnchor = tapPosition
+                        )
+                    )
                 }
             }
         }
@@ -167,10 +175,7 @@ internal fun findTappedHighlight(
 
     val clampedTap = tappedOffset.coerceIn(0, textLength - 1)
     val exactCandidates = highlights.filter { it.containsOffset(clampedTap) }
-
-    if (exactCandidates.isNotEmpty()) {
-        return exactCandidates.maxByOrNull { it.endOffset - it.startOffset }
-    }
+    exactCandidates.maxByOrNull(TextHighlight::length)?.let { return it }
 
     val fallbackOffsets = listOf(clampedTap - 1, clampedTap + 1)
         .map { it.coerceIn(0, textLength - 1) }
@@ -180,9 +185,10 @@ internal fun findTappedHighlight(
         fallbackOffsets.any { offset -> highlight.containsOffset(offset) }
     }
 
-    return candidateHighlights
-        .maxByOrNull { it.endOffset - it.startOffset }
+    return candidateHighlights.maxByOrNull(TextHighlight::length)
 }
+
+private fun TextHighlight.length(): Int = endOffset - startOffset
 
 internal fun expandToWordBoundaries(text: String, offset: Int): Pair<Int, Int> {
     if (text.isEmpty()) return 0 to 0
