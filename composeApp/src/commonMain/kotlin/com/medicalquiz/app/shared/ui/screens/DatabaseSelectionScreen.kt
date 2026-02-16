@@ -362,6 +362,7 @@ private fun HistoryItemCard(
     onSwipeRename: () -> Unit,
     onSelectChanged: () -> Unit,
 ) {
+    var shouldResetSwipe by remember(entry.id) { mutableStateOf(false) }
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             when (value) {
@@ -369,9 +370,17 @@ private fun HistoryItemCard(
                 SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
                 SwipeToDismissBoxValue.Settled -> Unit
             }
+            shouldResetSwipe = value != SwipeToDismissBoxValue.Settled
             false
         },
     )
+
+    if (shouldResetSwipe) {
+        LaunchedEffect(shouldResetSwipe, entry.id) {
+            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+            shouldResetSwipe = false
+        }
+    }
 
     val cardShape = MaterialTheme.shapes.large
 
