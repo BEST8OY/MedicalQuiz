@@ -369,7 +369,9 @@ private fun HistoryItemCard(
 ) {
     var isResetInProgress by remember(entry.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val dismissState = rememberSwipeToDismissBoxState()
+    val dismissState = rememberSwipeToDismissBoxState(
+        positionalThreshold = { totalDistance -> totalDistance * 0.35f },
+    )
 
     val cardShape = MaterialTheme.shapes.large
 
@@ -384,12 +386,12 @@ private fun HistoryItemCard(
         onDismiss = { dismissValue ->
             scope.launch {
                 isResetInProgress = true
+                dismissState.reset()
                 when (dismissValue) {
                     SwipeToDismissBoxValue.EndToStart -> onSwipeDelete()
                     SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
                     SwipeToDismissBoxValue.Settled -> Unit
                 }
-                dismissState.reset()
                 isResetInProgress = false
             }
         },
