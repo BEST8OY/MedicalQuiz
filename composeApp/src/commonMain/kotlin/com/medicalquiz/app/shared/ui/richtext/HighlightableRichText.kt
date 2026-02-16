@@ -317,6 +317,9 @@ private fun HighlightableTable(
     if (block.columnCount == 0) return
 
     val renderModel = remember(block) { block.toRenderModel() }
+    val cellBaseOffsets = remember(renderModel, baseOffset) {
+        buildTableCellBaseOffsets(renderModel, baseOffset)
+    }
     val scrollState = rememberScrollState()
     val minTableWidth = 120.dp * renderModel.columnCount
 
@@ -327,7 +330,6 @@ private fun HighlightableTable(
     ) {
         BoxWithConstraints {
             val tableWidth = max(minTableWidth, maxWidth)
-            var cellOffset = baseOffset
 
             Column(
                 modifier = Modifier
@@ -340,28 +342,33 @@ private fun HighlightableTable(
                         tableClassNames = block.classNames,
                         onLinkClick = onLinkClick,
                         onTooltipClick = onTooltipClick,
-                        customCellContent = { cell, cellTextStyle ->
-                            val currentCellOffset = cellOffset
-                            val cellLength = cell.cell.text.length
-                            val cellHighlights = mapHighlightsToLocal(
-                                highlights = highlights,
-                                start = currentCellOffset,
-                                end = currentCellOffset + cellLength
-                            )
+                        customCellContent = { cell, cellTextStyle, cellIndex ->
+                            val currentCellOffset = if (cell.isVisible) {
+                                cellBaseOffsets.getOrNull(rowIndex)?.getOrNull(cellIndex)
+                            } else {
+                                null
+                            }
 
-                            SelectableHighlightText(
-                                text = cell.cell.text,
-                                highlights = cellHighlights,
-                                textStyle = cellTextStyle,
-                                onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
-                                onHighlightRemove = onHighlightRemove,
-                                onHighlightColorChange = onHighlightColorChange,
-                                onLinkClick = onLinkClick,
-                                onTooltipClick = onTooltipClick,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                            if (currentCellOffset != null) {
+                                val cellLength = cell.cell.text.length
+                                val cellHighlights = mapHighlightsToLocal(
+                                    highlights = highlights,
+                                    start = currentCellOffset,
+                                    end = currentCellOffset + cellLength
+                                )
 
-                            cellOffset += cellLength
+                                SelectableHighlightText(
+                                    text = cell.cell.text,
+                                    highlights = cellHighlights,
+                                    textStyle = cellTextStyle,
+                                    onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
+                                    onHighlightRemove = onHighlightRemove,
+                                    onHighlightColorChange = onHighlightColorChange,
+                                    onLinkClick = onLinkClick,
+                                    onTooltipClick = onTooltipClick,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         }
                     )
 
@@ -369,6 +376,25 @@ private fun HighlightableTable(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                 }
+            }
+        }
+    }
+}
+
+
+private fun buildTableCellBaseOffsets(
+    renderModel: TableRenderModel,
+    baseOffset: Int
+): List<List<Int?>> {
+    var runningOffset = baseOffset
+    return renderModel.rows.map { row ->
+        row.cells.map { cell ->
+            if (!cell.isVisible) {
+                null
+            } else {
+                val start = runningOffset
+                runningOffset += cell.cell.text.length
+                start
             }
         }
     }
