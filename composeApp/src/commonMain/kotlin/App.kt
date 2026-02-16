@@ -314,8 +314,12 @@ fun App() {
                                     }
                                 }
                             },
-                            onDeleteHistoryEntry = { entryId ->
-                                sessionRepository.deleteHistoryEntry(entryId)
+                            onDeleteHistoryEntries = { entryIds ->
+                                sessionRepository.deleteHistoryEntries(entryIds)
+                                sessionHistory = sessionRepository.listHistory()
+                            },
+                            onRenameHistoryEntry = { entryId, newName ->
+                                sessionRepository.renameHistoryEntry(entryId, newName)
                                 sessionHistory = sessionRepository.listHistory()
                             }
                         )
