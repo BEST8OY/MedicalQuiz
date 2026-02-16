@@ -315,7 +315,7 @@ private fun QuizQuestionCard(
             .fillMaxSize()
             .verticalScroll(scrollState)
             .padding(horizontal = 16.dp)
-            .padding(bottom = bottomClearance + 16.dp),
+            .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Question card - elevated primary content
