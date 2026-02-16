@@ -73,7 +73,7 @@ private fun AnswerListItem(
     // Animate container color using MotionScheme
     val containerColor by animateColorAsState(
         targetValue = when {
-            showResult && isCorrect -> colors.surfaceContainerHighest
+            showResult && isCorrect -> colors.tertiaryContainer
             showResult && isSelected && !isCorrect -> colors.errorContainer
             isSelected -> colors.primaryContainer
             else -> colors.surfaceContainerLow
@@ -85,7 +85,7 @@ private fun AnswerListItem(
     // Animate content color using MotionScheme
     val contentColor by animateColorAsState(
         targetValue = when {
-            showResult && isCorrect -> colors.onSurface
+            showResult && isCorrect -> colors.onTertiaryContainer
             showResult && isSelected && !isCorrect -> colors.onErrorContainer
             isSelected -> colors.onPrimaryContainer
             else -> colors.onSurface
@@ -118,11 +118,11 @@ private fun AnswerListItem(
     // Leading element: Label (A, B, C, D) with animated selection state
     val leadingContent: @Composable () -> Unit = {
         val labelContainerColor by animateColorAsState(
-            targetValue = if (isSelected) colors.primary else colors.surfaceContainerHigh,
+            targetValue = if (showResult && isCorrect) colors.tertiary else if (isSelected) colors.primary else colors.secondaryContainer,
             animationSpec = motionScheme.defaultEffectsSpec()
         )
         val labelContentColor by animateColorAsState(
-            targetValue = if (isSelected) colors.onPrimary else colors.onSurfaceVariant,
+            targetValue = if (showResult && isCorrect) colors.onTertiary else if (isSelected) colors.onPrimary else colors.onSecondaryContainer,
             animationSpec = motionScheme.defaultEffectsSpec()
         )
 
@@ -247,7 +247,10 @@ private fun AnswerListItem(
             leadingContent = leadingContent,
             trailingContent = trailingContent,
             colors = ListItemDefaults.colors(
-                containerColor = containerColor
+                containerColor = containerColor,
+                headlineColor = contentColor,
+                leadingIconColor = contentColor,
+                trailingIconColor = contentColor
             ),
             modifier = Modifier.fillMaxWidth()
         )

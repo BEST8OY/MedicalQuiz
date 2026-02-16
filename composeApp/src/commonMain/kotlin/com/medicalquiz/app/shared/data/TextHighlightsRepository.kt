@@ -200,12 +200,14 @@ class TextHighlightsRepository(
 
         scope.launch(Dispatchers.IO) {
             try {
-                userDataManager.removeTextHighlight(highlightId)
+                highlightMutationMutex.withLock {
+                    userDataManager.removeTextHighlight(highlightId)
 
-                if (context != null && !matchesCurrentContext(context)) return@launch
+                    if (context != null && !matchesCurrentContext(context)) return@withLock
 
-                _questionHighlights.value = _questionHighlights.value.filter { it.id != highlightId }
-                _explanationHighlights.value = _explanationHighlights.value.filter { it.id != highlightId }
+                    _questionHighlights.value = _questionHighlights.value.filter { it.id != highlightId }
+                    _explanationHighlights.value = _explanationHighlights.value.filter { it.id != highlightId }
+                }
             } catch (e: Exception) {
                 Logger.e("TextHighlightsRepository", "Error removing text highlight", e)
             }
@@ -220,15 +222,17 @@ class TextHighlightsRepository(
 
         scope.launch(Dispatchers.IO) {
             try {
-                userDataManager.updateTextHighlightColor(highlightId, color)
+                highlightMutationMutex.withLock {
+                    userDataManager.updateTextHighlightColor(highlightId, color)
 
-                if (context != null && !matchesCurrentContext(context)) return@launch
+                    if (context != null && !matchesCurrentContext(context)) return@withLock
 
-                _questionHighlights.value = _questionHighlights.value.map {
-                    if (it.id == highlightId) it.copy(color = color) else it
-                }
-                _explanationHighlights.value = _explanationHighlights.value.map {
-                    if (it.id == highlightId) it.copy(color = color) else it
+                    _questionHighlights.value = _questionHighlights.value.map {
+                        if (it.id == highlightId) it.copy(color = color) else it
+                    }
+                    _explanationHighlights.value = _explanationHighlights.value.map {
+                        if (it.id == highlightId) it.copy(color = color) else it
+                    }
                 }
             } catch (e: Exception) {
                 Logger.e("TextHighlightsRepository", "Error updating highlight color", e)
@@ -260,9 +264,11 @@ class TextHighlightsRepository(
 
         scope.launch(Dispatchers.IO) {
             try {
-                userDataManager.clearTextHighlightsForQuestion(context.dbName, context.questionId)
-                if (!matchesCurrentContext(context)) return@launch
-                clearCachedHighlights()
+                highlightMutationMutex.withLock {
+                    userDataManager.clearTextHighlightsForQuestion(context.dbName, context.questionId)
+                    if (!matchesCurrentContext(context)) return@withLock
+                    clearCachedHighlights()
+                }
             } catch (e: Exception) {
                 Logger.e("TextHighlightsRepository", "Error clearing highlights", e)
             }
@@ -277,17 +283,19 @@ class TextHighlightsRepository(
 
         scope.launch(Dispatchers.IO) {
             try {
-                userDataManager.clearTextHighlightsForQuestion(
-                    context.dbName,
-                    context.questionId,
-                    section
-                )
+                highlightMutationMutex.withLock {
+                    userDataManager.clearTextHighlightsForQuestion(
+                        context.dbName,
+                        context.questionId,
+                        section
+                    )
 
-                if (!matchesCurrentContext(context)) return@launch
+                    if (!matchesCurrentContext(context)) return@withLock
 
-                when (section) {
-                    HighlightSection.QUESTION -> _questionHighlights.value = emptyList()
-                    HighlightSection.EXPLANATION -> _explanationHighlights.value = emptyList()
+                    when (section) {
+                        HighlightSection.QUESTION -> _questionHighlights.value = emptyList()
+                        HighlightSection.EXPLANATION -> _explanationHighlights.value = emptyList()
+                    }
                 }
             } catch (e: Exception) {
                 Logger.e("TextHighlightsRepository", "Error clearing section highlights", e)
