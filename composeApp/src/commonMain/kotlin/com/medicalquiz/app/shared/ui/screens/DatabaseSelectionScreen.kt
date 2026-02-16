@@ -194,7 +194,7 @@ fun DatabaseSelectionScreen(
                                 },
                                 onSwipeRename = {
                                     renameTargetId = entry.id
-                                    renameText = entry.databaseName
+                                    renameText = entry.displayName()
                                 },
                                 onSelectChanged = {
                                     selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
@@ -436,12 +436,19 @@ private fun HistoryItemCard(
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = entry.databaseName,
+                        text = entry.displayName(),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
+                    if (entry.displayName() != entry.databaseName) {
+                        Text(
+                            text = "Database: ${entry.databaseName}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     Text(
                         text = "Question ${entry.currentQuestionIndex + 1}",
                         style = MaterialTheme.typography.bodyMedium,
@@ -519,6 +526,9 @@ private fun EmptyState(
         )
     }
 }
+
+private fun QuizSessionRepository.QuizSession.displayName(): String =
+    entryName.ifBlank { databaseName }
 
 private fun formatTimestamp(epochMillis: Long): String {
     if (epochMillis <= 0L) return "Unknown time"

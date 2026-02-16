@@ -110,12 +110,12 @@ class QuizSessionRepository {
             val history = listHistory().toMutableList()
             val index = history.indexOfFirst { it.id == entryId }
             if (index < 0) return@runCatching
-            history[index] = history[index].copy(databaseName = trimmedName)
+            history[index] = history[index].copy(entryName = trimmedName)
             saveHistoryList(history)
 
             val activeSession = restoreSession()
             if (activeSession?.id == entryId) {
-                writeSession(activeSession.copy(databaseName = trimmedName))
+                writeSession(activeSession.copy(entryName = trimmedName))
             }
         }.onFailure {
             Logger.e("QuizSession", "Error renaming history entry", it)
@@ -157,10 +157,14 @@ class QuizSessionRepository {
     }
 
     private fun appendHistoryEntry(session: QuizSession) {
-        val history = listHistory()
-            .filterNot { it.id == session.id }
-            .toMutableList()
-        history.add(session)
+        val history = listHistory().toMutableList()
+        val existingEntry = history.firstOrNull { it.id == session.id }
+        history.removeAll { it.id == session.id }
+        history.add(
+            session.copy(
+                entryName = existingEntry?.entryName.orEmpty(),
+            ),
+        )
         saveHistoryList(history)
     }
 
@@ -179,6 +183,7 @@ class QuizSessionRepository {
     private fun QuizSession.normalized(): QuizSession = copy(
         selectedSubjectIds = selectedSubjectIds.distinct().sorted(),
         selectedSystemIds = selectedSystemIds.distinct().sorted(),
+        entryName = entryName.trim(),
         currentQuestionIndex = currentQuestionIndex.coerceAtLeast(0),
     )
 
@@ -203,6 +208,7 @@ class QuizSessionRepository {
     data class QuizSession(
         val id: String = "",
         val databaseName: String,
+        val entryName: String = "",
         val selectedSubjectIds: List<Long>,
         val selectedSystemIds: List<Long>,
         val performanceFilter: PerformanceFilter,
