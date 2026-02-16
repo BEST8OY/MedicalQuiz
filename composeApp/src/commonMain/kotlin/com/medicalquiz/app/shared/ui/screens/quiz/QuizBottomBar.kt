@@ -51,7 +51,6 @@ fun QuizFloatingToolbar(
     onJumpTo: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = MaterialTheme.colorScheme
     BoxWithConstraints(modifier = modifier) {
         val isExpanded = maxWidth >= 600.dp
         val currentQuestionNumber = uiState.currentQuestionIndex + 1
@@ -60,10 +59,7 @@ fun QuizFloatingToolbar(
         HorizontalFloatingToolbar(
             expanded = true,
             modifier = Modifier.padding(horizontal = if (isExpanded) 24.dp else 16.dp),
-            colors = FloatingToolbarDefaults.standardFloatingToolbarColors(
-                toolbarContainerColor = colors.surfaceContainerHigh,
-                toolbarContentColor = colors.onSurface
-            ),
+            colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             leadingContent = {
                 // Previous - standard IconButton (supplementary navigation)
@@ -103,7 +99,7 @@ fun QuizFloatingToolbar(
                 Surface(
                     onClick = onJumpTo,
                     shape = MaterialTheme.shapes.extraLarge,
-                    color = colors.primaryContainer,
+                    MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier
                         .sizeIn(minHeight = 40.dp)
                         .semantics {
@@ -118,7 +114,7 @@ fun QuizFloatingToolbar(
                             text = questionLabel,
                             style = MaterialTheme.typography.labelLargeEmphasized,
                             fontWeight = FontWeight.SemiBold,
-                            color = colors.onPrimaryContainer,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                     }
                 }

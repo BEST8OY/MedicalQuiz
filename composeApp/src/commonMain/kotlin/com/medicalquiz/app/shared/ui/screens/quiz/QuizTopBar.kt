@@ -21,12 +21,11 @@ internal fun TopBar(
     onResetLogClick: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
-    val colors = MaterialTheme.colorScheme
     CenterAlignedTopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = colors.surfaceContainer,
-            titleContentColor = colors.onSurface,
-            actionIconContentColor = colors.onSurfaceVariant,
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
         title = {
             Text(

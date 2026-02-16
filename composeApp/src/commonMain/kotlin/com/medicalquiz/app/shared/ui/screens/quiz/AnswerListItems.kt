@@ -65,7 +65,6 @@ private fun AnswerListItem(
     onLinkClick: (String) -> Unit,
     onMediaClick: (String) -> Unit
 ) {
-    val colors = MaterialTheme.colorScheme
     val motionScheme = MaterialTheme.motionScheme
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -73,10 +72,10 @@ private fun AnswerListItem(
     // Animate container color using MotionScheme
     val containerColor by animateColorAsState(
         targetValue = when {
-            showResult && isCorrect -> colors.tertiaryContainer
-            showResult && isSelected && !isCorrect -> colors.errorContainer
-            isSelected -> colors.primaryContainer
-            else -> colors.surfaceContainerLow
+            showResult && isCorrect -> MaterialTheme.colorScheme.tertiaryContainer
+            showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.errorContainer
+            isSelected -> MaterialTheme.colorScheme.primaryContainer
+            else -> MaterialTheme.colorScheme.surfaceContainerLow
         },
         animationSpec = motionScheme.defaultEffectsSpec(),
         label = "containerColor"
@@ -85,10 +84,10 @@ private fun AnswerListItem(
     // Animate content color using MotionScheme
     val contentColor by animateColorAsState(
         targetValue = when {
-            showResult && isCorrect -> colors.onTertiaryContainer
-            showResult && isSelected && !isCorrect -> colors.onErrorContainer
-            isSelected -> colors.onPrimaryContainer
-            else -> colors.onSurface
+            showResult && isCorrect -> MaterialTheme.colorScheme.onPrimary
+            showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.onErrorContainer
+            isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
+            else -> MaterialTheme.colorScheme.onSurface
         },
         animationSpec = motionScheme.defaultEffectsSpec(),
         label = "contentColor"
@@ -118,11 +117,11 @@ private fun AnswerListItem(
     // Leading element: Label (A, B, C, D) with animated selection state
     val leadingContent: @Composable () -> Unit = {
         val labelContainerColor by animateColorAsState(
-            targetValue = if (showResult && isCorrect) colors.tertiary else if (isSelected) colors.primary else colors.secondaryContainer,
+            targetValue = if (showResult && isCorrect) MaterialTheme.colorScheme.tertiary else if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
             animationSpec = motionScheme.defaultEffectsSpec()
         )
         val labelContentColor by animateColorAsState(
-            targetValue = if (showResult && isCorrect) colors.onTertiary else if (isSelected) colors.onPrimary else colors.onSecondaryContainer,
+            targetValue = if (showResult && isCorrect) MaterialTheme.colorScheme.onTertiary else if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
             animationSpec = motionScheme.defaultEffectsSpec()
         )
 
@@ -172,7 +171,7 @@ private fun AnswerListItem(
                 show && pct != null -> {
                     Surface(
                         shape = MaterialTheme.shapes.small,
-                        color = colors.secondaryContainer,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Text(
@@ -180,20 +179,20 @@ private fun AnswerListItem(
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                            color = colors.onSecondaryContainer
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     }
                 }
                 show && correct -> {
                     Surface(
                         shape = MaterialTheme.shapes.small,
-                        color = colors.tertiaryContainer,
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Check,
                             contentDescription = "Correct",
-                            tint = colors.onTertiaryContainer,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
                             modifier = Modifier.padding(8.dp)
                         )
                     }
@@ -201,13 +200,13 @@ private fun AnswerListItem(
                 show && !correct -> {
                     Surface(
                         shape = MaterialTheme.shapes.small,
-                        color = colors.errorContainer,
+                        color = MaterialTheme.colorScheme.errorContainer,
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Clear,
                             contentDescription = "Incorrect",
-                            tint = colors.onErrorContainer,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.padding(8.dp)
                         )
                     }
