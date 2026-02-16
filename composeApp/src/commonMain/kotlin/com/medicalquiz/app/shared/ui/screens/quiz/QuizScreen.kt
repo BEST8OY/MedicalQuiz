@@ -135,15 +135,16 @@ private fun HintSection(
     mediaClick: (String) -> Unit,
     showSelectedHighlight: Boolean
 ) {
+    val colors = MaterialTheme.colorScheme
     val defaultEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
 
     Surface(
         shape = MaterialTheme.shapes.small,
         color = if (isVisible) {
-            MaterialTheme.colorScheme.secondaryContainer
+            colors.secondaryContainer
         } else {
-            MaterialTheme.colorScheme.surfaceContainer
+            colors.surfaceContainerHigh
         },
         modifier = Modifier.fillMaxWidth(),
         onClick = if (canToggle) onToggle else ({})
@@ -155,9 +156,9 @@ private fun HintSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val hintContentColor = if (isVisible) {
-                    MaterialTheme.colorScheme.onSecondaryContainer
+                    colors.onSecondaryContainer
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    colors.onSurfaceVariant
                 }
                 Icon(
                     imageVector = Icons.Rounded.Lightbulb,
