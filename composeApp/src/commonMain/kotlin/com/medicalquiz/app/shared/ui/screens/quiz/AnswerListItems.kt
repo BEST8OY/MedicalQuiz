@@ -73,7 +73,7 @@ private fun AnswerListItem(
     // Animate container color using MotionScheme
     val containerColor by animateColorAsState(
         targetValue = when {
-            showResult && isCorrect -> colors.tertiaryContainer
+            showResult && isCorrect -> colors.surfaceContainerHighest
             showResult && isSelected && !isCorrect -> colors.errorContainer
             isSelected -> colors.primaryContainer
             else -> colors.surfaceContainerLow
@@ -85,7 +85,7 @@ private fun AnswerListItem(
     // Animate content color using MotionScheme
     val contentColor by animateColorAsState(
         targetValue = when {
-            showResult && isCorrect -> colors.onTertiaryContainer
+            showResult && isCorrect -> colors.onSurface
             showResult && isSelected && !isCorrect -> colors.onErrorContainer
             isSelected -> colors.onPrimaryContainer
             else -> colors.onSurface
