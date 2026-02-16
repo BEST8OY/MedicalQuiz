@@ -1,5 +1,7 @@
 package com.medicalquiz.app.shared.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,13 +18,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -33,11 +36,16 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -66,11 +74,16 @@ fun DatabaseSelectionScreen(
     historyEntries: List<QuizSessionRepository.QuizSession>,
     onDatabaseSelected: (String) -> Unit,
     onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
-    onDeleteHistoryEntry: (String) -> Unit,
+    onDeleteHistoryEntries: (Set<String>) -> Unit,
+    onRenameHistoryEntry: (String, String) -> Unit,
 ) {
     var databases by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var isLoading by rememberSaveable { mutableStateOf(true) }
     var selectedPane by rememberSaveable { mutableStateOf(SelectionPane.Database) }
+    var selectedHistoryEntryIds by rememberSaveable { mutableStateOf(setOf<String>()) }
+    var deleteTargetEntryIds by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    var renameTargetId by rememberSaveable { mutableStateOf<String?>(null) }
+    var renameText by rememberSaveable { mutableStateOf("") }
 
     fun loadDatabases() {
         isLoading = true
@@ -104,9 +117,21 @@ fun DatabaseSelectionScreen(
                     actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
                 actions = {
-                    if (selectedPane == SelectionPane.Database) {
-                        IconButton(onClick = { loadDatabases() }) {
-                            Icon(Icons.Filled.Refresh, contentDescription = "Refresh databases")
+                    when (selectedPane) {
+                        SelectionPane.Database -> {
+                            IconButton(onClick = { loadDatabases() }) {
+                                Icon(Icons.Filled.Refresh, contentDescription = "Refresh databases")
+                            }
+                        }
+                        SelectionPane.History -> {
+                            if (selectedHistoryEntryIds.isNotEmpty()) {
+                                IconButton(onClick = { selectedHistoryEntryIds = emptySet() }) {
+                                    Icon(Icons.Filled.Close, contentDescription = "Cancel selection")
+                                }
+                                IconButton(onClick = { deleteTargetEntryIds = selectedHistoryEntryIds }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "Delete selected entries")
+                                }
+                            }
                         }
                     }
                 },
@@ -151,8 +176,28 @@ fun DatabaseSelectionScreen(
                         items(historyEntries, key = { it.id }) { entry ->
                             HistoryItemCard(
                                 entry = entry,
-                                onClick = { onHistorySelected(entry) },
-                                onDelete = { onDeleteHistoryEntry(entry.id) },
+                                isSelected = entry.id in selectedHistoryEntryIds,
+                                selectionModeEnabled = selectedHistoryEntryIds.isNotEmpty(),
+                                onClick = {
+                                    if (selectedHistoryEntryIds.isNotEmpty()) {
+                                        selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
+                                    } else {
+                                        onHistorySelected(entry)
+                                    }
+                                },
+                                onLongPress = {
+                                    selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
+                                },
+                                onSwipeDelete = {
+                                    deleteTargetEntryIds = setOf(entry.id)
+                                },
+                                onSwipeRename = {
+                                    renameTargetId = entry.id
+                                    renameText = entry.databaseName
+                                },
+                                onSelectChanged = {
+                                    selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
+                                },
                             )
                         }
                     }
@@ -166,6 +211,71 @@ fun DatabaseSelectionScreen(
                     .align(Alignment.BottomCenter)
                     .padding(16.dp)
                     .navigationBarsPadding(),
+            )
+        }
+
+        if (deleteTargetEntryIds.isNotEmpty()) {
+            AlertDialog(
+                onDismissRequest = { deleteTargetEntryIds = emptySet() },
+                title = { Text("Delete ${deleteTargetEntryIds.size} entr${if (deleteTargetEntryIds.size == 1) "y" else "ies"}?") },
+                text = { Text("This action cannot be undone.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onDeleteHistoryEntries(deleteTargetEntryIds)
+                            selectedHistoryEntryIds = selectedHistoryEntryIds - deleteTargetEntryIds
+                            deleteTargetEntryIds = emptySet()
+                        },
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { deleteTargetEntryIds = emptySet() }) {
+                        Text("Cancel")
+                    }
+                },
+            )
+        }
+
+        if (renameTargetId != null) {
+            AlertDialog(
+                onDismissRequest = {
+                    renameTargetId = null
+                    renameText = ""
+                },
+                title = { Text("Rename entry") },
+                text = {
+                    OutlinedTextField(
+                        value = renameText,
+                        onValueChange = { renameText = it },
+                        singleLine = true,
+                        label = { Text("Entry name") },
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val targetId = renameTargetId ?: return@TextButton
+                            onRenameHistoryEntry(targetId, renameText)
+                            renameTargetId = null
+                            renameText = ""
+                        },
+                        enabled = renameText.isNotBlank(),
+                    ) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            renameTargetId = null
+                            renameText = ""
+                        },
+                    ) {
+                        Text("Cancel")
+                    }
+                },
             )
         }
     }
@@ -243,62 +353,107 @@ private fun FloatingToolbar(
 @Composable
 private fun HistoryItemCard(
     entry: QuizSessionRepository.QuizSession,
+    isSelected: Boolean,
+    selectionModeEnabled: Boolean,
     onClick: () -> Unit,
-    onDelete: () -> Unit,
+    onLongPress: () -> Unit,
+    onSwipeDelete: () -> Unit,
+    onSwipeRename: () -> Unit,
+    onSelectChanged: () -> Unit,
 ) {
-    Card(
-        onClick = onClick,
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.EndToStart -> onSwipeDelete()
+                SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
+            false
+        },
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Filled.History,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(28.dp),
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = entry.databaseName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Question ${entry.currentQuestionIndex + 1}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = formatTimestamp(entry.updatedAtEpochMillis),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
+        backgroundContent = {
+            val isDeleteDirection = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        if (isDeleteDirection) MaterialTheme.colorScheme.errorContainer
+                        else MaterialTheme.colorScheme.tertiaryContainer,
+                    )
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (isDeleteDirection) Arrangement.End else Arrangement.Start,
+            ) {
+                Icon(
+                    imageVector = if (isDeleteDirection) Icons.Filled.Delete else Icons.Filled.Edit,
+                    contentDescription = null,
+                    tint = if (isDeleteDirection) MaterialTheme.colorScheme.onErrorContainer
+                    else MaterialTheme.colorScheme.onTertiaryContainer,
                 )
             }
-            AssistChip(
-                onClick = onDelete,
-                label = { Text("Delete") },
-                leadingIcon = {
-                    Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                },
-                colors = AssistChipDefaults.assistChipColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    labelColor = MaterialTheme.colorScheme.onErrorContainer,
-                    leadingIconContentColor = MaterialTheme.colorScheme.onErrorContainer,
-                ),
-            )
+        },
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(onClick = onClick, onLongClick = onLongPress),
+            shape = MaterialTheme.shapes.large,
+            colors = CardDefaults.cardColors(
+                containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                else MaterialTheme.colorScheme.surfaceContainer,
+            ),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (selectionModeEnabled) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onSelectChanged() },
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Filled.History,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(28.dp),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = entry.databaseName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Question ${entry.currentQuestionIndex + 1}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = formatTimestamp(entry.updatedAtEpochMillis),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }
+
+private fun Set<String>.toggle(id: String): Set<String> =
+    if (id in this) this - id else this + id
 
 @Composable
 private fun DatabaseItemCard(

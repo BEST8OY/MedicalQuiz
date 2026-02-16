@@ -87,14 +87,38 @@ class QuizSessionRepository {
     }
 
     fun deleteHistoryEntry(entryId: String) {
+        deleteHistoryEntries(setOf(entryId))
+    }
+
+    fun deleteHistoryEntries(entryIds: Set<String>) {
+        if (entryIds.isEmpty()) return
         runCatching {
-            val updated = listHistory().filterNot { it.id == entryId }
+            val updated = listHistory().filterNot { it.id in entryIds }
             saveHistoryList(updated)
-            if (restoreSession()?.id == entryId) {
+            if (restoreSession()?.id in entryIds) {
                 clearSession()
             }
         }.onFailure {
-            Logger.e("QuizSession", "Error deleting history entry", it)
+            Logger.e("QuizSession", "Error deleting history entries", it)
+        }
+    }
+
+    fun renameHistoryEntry(entryId: String, newName: String) {
+        val trimmedName = newName.trim()
+        if (trimmedName.isBlank()) return
+        runCatching {
+            val history = listHistory().toMutableList()
+            val index = history.indexOfFirst { it.id == entryId }
+            if (index < 0) return@runCatching
+            history[index] = history[index].copy(databaseName = trimmedName)
+            saveHistoryList(history)
+
+            val activeSession = restoreSession()
+            if (activeSession?.id == entryId) {
+                writeSession(activeSession.copy(databaseName = trimmedName))
+            }
+        }.onFailure {
+            Logger.e("QuizSession", "Error renaming history entry", it)
         }
     }
 
