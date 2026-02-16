@@ -51,6 +51,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,6 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.platform.FileSystemHelper
+import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
@@ -365,26 +367,9 @@ private fun HistoryItemCard(
     onSwipeRename: () -> Unit,
     onSelectChanged: () -> Unit,
 ) {
-    var shouldResetSwipe by remember(entry.id) { mutableStateOf(false) }
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (!swipingEnabled || shouldResetSwipe) return@rememberSwipeToDismissBoxState false
-            when (value) {
-                SwipeToDismissBoxValue.EndToStart -> onSwipeDelete()
-                SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
-                SwipeToDismissBoxValue.Settled -> Unit
-            }
-            shouldResetSwipe = value != SwipeToDismissBoxValue.Settled
-            false
-        },
-    )
-
-    if (shouldResetSwipe) {
-        LaunchedEffect(shouldResetSwipe, entry.id) {
-            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
-            shouldResetSwipe = false
-        }
-    }
+    var isResetInProgress by remember(entry.id) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val dismissState = rememberSwipeToDismissBoxState()
 
     val cardShape = MaterialTheme.shapes.large
 
@@ -395,6 +380,20 @@ private fun HistoryItemCard(
             .clip(cardShape),
         enableDismissFromStartToEnd = swipingEnabled,
         enableDismissFromEndToStart = swipingEnabled,
+        gesturesEnabled = swipingEnabled && !isResetInProgress,
+        onDismiss = { dismissValue ->
+            if (isResetInProgress) return@SwipeToDismissBox
+            scope.launch {
+                isResetInProgress = true
+                when (dismissValue) {
+                    SwipeToDismissBoxValue.EndToStart -> onSwipeDelete()
+                    SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
+                    SwipeToDismissBoxValue.Settled -> Unit
+                }
+                dismissState.reset()
+                isResetInProgress = false
+            }
+        },
         backgroundContent = {
             val isDeleteDirection = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
             val backgroundColor = when (dismissState.dismissDirection) {
