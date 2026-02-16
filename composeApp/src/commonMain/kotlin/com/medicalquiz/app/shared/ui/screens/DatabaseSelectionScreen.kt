@@ -180,6 +180,7 @@ fun DatabaseSelectionScreen(
                                 entry = entry,
                                 isSelected = entry.id in selectedHistoryEntryIds,
                                 selectionModeEnabled = selectedHistoryEntryIds.isNotEmpty(),
+                                swipingEnabled = selectedHistoryEntryIds.isEmpty(),
                                 onClick = {
                                     if (selectedHistoryEntryIds.isNotEmpty()) {
                                         selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
@@ -357,6 +358,7 @@ private fun HistoryItemCard(
     entry: QuizSessionRepository.QuizSession,
     isSelected: Boolean,
     selectionModeEnabled: Boolean,
+    swipingEnabled: Boolean,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
     onSwipeDelete: () -> Unit,
@@ -366,6 +368,7 @@ private fun HistoryItemCard(
     var shouldResetSwipe by remember(entry.id) { mutableStateOf(false) }
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
+            if (!swipingEnabled || shouldResetSwipe) return@rememberSwipeToDismissBoxState false
             when (value) {
                 SwipeToDismissBoxValue.EndToStart -> onSwipeDelete()
                 SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
@@ -390,8 +393,8 @@ private fun HistoryItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(cardShape),
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = true,
+        enableDismissFromStartToEnd = swipingEnabled,
+        enableDismissFromEndToStart = swipingEnabled,
         backgroundContent = {
             val isDeleteDirection = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
             val backgroundColor = when (dismissState.dismissDirection) {
