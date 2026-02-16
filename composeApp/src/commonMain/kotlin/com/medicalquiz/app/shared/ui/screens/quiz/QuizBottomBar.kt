@@ -99,7 +99,7 @@ fun QuizFloatingToolbar(
                 Surface(
                     onClick = onJumpTo,
                     shape = MaterialTheme.shapes.extraLarge,
-                    MaterialTheme.colorScheme.secondaryContainer,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier
                         .sizeIn(minHeight = 40.dp)
                         .semantics {
