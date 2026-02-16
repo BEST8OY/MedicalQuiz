@@ -55,6 +55,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -393,24 +394,28 @@ private fun HistoryItemCard(
         enableDismissFromEndToStart = true,
         backgroundContent = {
             val isDeleteDirection = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
+            val backgroundColor = when (dismissState.dismissDirection) {
+                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
+                SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.tertiaryContainer
+                SwipeToDismissBoxValue.Settled -> Color.Transparent
+            }
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        if (isDeleteDirection) MaterialTheme.colorScheme.errorContainer
-                        else MaterialTheme.colorScheme.tertiaryContainer,
-                    )
                     .clip(cardShape)
+                    .background(backgroundColor)
                     .padding(horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = if (isDeleteDirection) Arrangement.End else Arrangement.Start,
             ) {
-                Icon(
-                    imageVector = if (isDeleteDirection) Icons.Filled.Delete else Icons.Filled.Edit,
-                    contentDescription = null,
-                    tint = if (isDeleteDirection) MaterialTheme.colorScheme.onErrorContainer
-                    else MaterialTheme.colorScheme.onTertiaryContainer,
-                )
+                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
+                    Icon(
+                        imageVector = if (isDeleteDirection) Icons.Filled.Delete else Icons.Filled.Edit,
+                        contentDescription = null,
+                        tint = if (isDeleteDirection) MaterialTheme.colorScheme.onErrorContainer
+                        else MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                }
             }
         },
     ) {
@@ -423,6 +428,7 @@ private fun HistoryItemCard(
                 containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
                 else MaterialTheme.colorScheme.surfaceContainer,
             ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         ) {
             Row(
                 modifier = Modifier
