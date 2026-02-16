@@ -231,7 +231,7 @@ internal fun TableRowContent(
     tableClassNames: Set<String>,
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
-    customCellContent: (@Composable (cell: TableRenderedCell, textStyle: TextStyle) -> Unit)? = null
+    customCellContent: (@Composable (cell: TableRenderedCell, textStyle: TextStyle, cellIndex: Int) -> Unit)? = null
 ) {
     val effectiveRowClasses = row.classNames + tableClassNames
     val baseBackground = when {
@@ -246,7 +246,7 @@ internal fun TableRowContent(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        row.cells.forEach { cell ->
+        row.cells.forEachIndexed { cellIndex, cell ->
             val weight = cell.cell.width ?: cell.columnSpan.coerceAtLeast(1).toFloat()
             if (!cell.isVisible) {
                 Spacer(modifier = Modifier.weight(weight))
@@ -282,7 +282,7 @@ internal fun TableRowContent(
                         }
                     ) {
                         if (customCellContent != null) {
-                            customCellContent(cell, textStyle)
+                            customCellContent(cell, textStyle, cellIndex)
                         } else {
                             InteractiveText(
                                 text = cell.cell.text,
