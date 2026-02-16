@@ -382,7 +382,6 @@ private fun HistoryItemCard(
         enableDismissFromEndToStart = swipingEnabled,
         gesturesEnabled = swipingEnabled && !isResetInProgress,
         onDismiss = { dismissValue ->
-            if (isResetInProgress) return@SwipeToDismissBox
             scope.launch {
                 isResetInProgress = true
                 when (dismissValue) {
@@ -451,15 +450,16 @@ private fun HistoryItemCard(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(28.dp),
                 )
+                val entryDisplayName = entry.displayName()
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = entry.displayName(),
+                        text = entryDisplayName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
-                    if (entry.displayName() != entry.databaseName) {
+                    if (entryDisplayName != entry.databaseName) {
                         Text(
                             text = "Database: ${entry.databaseName}",
                             style = MaterialTheme.typography.bodySmall,
