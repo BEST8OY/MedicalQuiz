@@ -54,6 +54,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -372,9 +373,13 @@ private fun HistoryItemCard(
         },
     )
 
+    val cardShape = MaterialTheme.shapes.large
+
     SwipeToDismissBox(
         state = dismissState,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(cardShape),
         enableDismissFromStartToEnd = true,
         enableDismissFromEndToStart = true,
         backgroundContent = {
@@ -386,6 +391,7 @@ private fun HistoryItemCard(
                         if (isDeleteDirection) MaterialTheme.colorScheme.errorContainer
                         else MaterialTheme.colorScheme.tertiaryContainer,
                     )
+                    .clip(cardShape)
                     .padding(horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = if (isDeleteDirection) Arrangement.End else Arrangement.Start,
@@ -403,7 +409,7 @@ private fun HistoryItemCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .combinedClickable(onClick = onClick, onLongClick = onLongPress),
-            shape = MaterialTheme.shapes.large,
+            shape = cardShape,
             colors = CardDefaults.cardColors(
                 containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
                 else MaterialTheme.colorScheme.surfaceContainer,
