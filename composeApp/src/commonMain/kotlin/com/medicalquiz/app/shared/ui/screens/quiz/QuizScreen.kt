@@ -463,14 +463,15 @@ private fun QuizQuestionCard(
 private fun QuestionMetadataCard(sections: List<MetadataSection>) {
     if (sections.isEmpty()) return
 
-    ElevatedCard(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.elevatedCardColors(
+        colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = 2.dp
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant,
         )
     ) {
         Column(
