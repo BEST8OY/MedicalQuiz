@@ -183,8 +183,9 @@ internal fun SelectableHighlightText(
                         SelectionToolbar(
                             selectedText = selectionState.selectedText,
                             onCopy = {
-                                if (selectionState.selectedText.isNotBlank()) {
-                                    coroutineScope.launch { clipboard.setPlainText(AnnotatedString(selectionState.selectedText)) }
+                                val copiedText = selectionState.selectedText
+                                if (copiedText.isNotBlank()) {
+                                    clipboard.setPlainText(AnnotatedString(copiedText))
                                 }
                                 selectionState = TextSelectionState()
                             },
@@ -200,7 +201,8 @@ internal fun SelectableHighlightText(
                                                 duration = SnackbarDuration.Short
                                             )
                                             if (result == SnackbarResult.ActionPerformed && lastExternalOpenText.isNotBlank()) {
-                                                clipboard.setPlainText(AnnotatedString(lastExternalOpenText))
+                                                val copiedText = lastExternalOpenText
+                                                clipboard.setPlainText(AnnotatedString(copiedText))
                                             }
                                         }
                                         return@SelectionToolbar
