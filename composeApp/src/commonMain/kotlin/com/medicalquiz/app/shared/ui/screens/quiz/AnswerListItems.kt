@@ -134,15 +134,15 @@ private fun AnswerListItem(
         )
 
         val targetShape = when {
-            showResult && isCorrect -> MaterialShapes.Sunny
+            showResult && isCorrect -> MaterialShapes.Gem
             isSelected -> MaterialShapes.Pill
-            else -> MaterialShapes.Cookie4Sided
+            else -> MaterialShapes.Burst
         }
 
         MorphingMaterialShapeBadge(
-            from = MaterialShapes.Cookie4Sided,
+            from = MaterialShapes.Pill,
             to = targetShape,
-            progress = if (targetShape == MaterialShapes.Cookie4Sided) 0f else 1f,
+            progress = if (targetShape == MaterialShapes.Pill) 0f else 1f,
             backgroundColor = labelContainerColor,
             size = 40.dp,
             modifier = Modifier.padding(end = 8.dp)
@@ -183,7 +183,7 @@ private fun AnswerListItem(
                 show && pct != null -> {
                     MorphingMaterialShapeBadge(
                         from = MaterialShapes.Pill,
-                        to = MaterialShapes.Oval,
+                        to = MaterialShapes.Arch,
                         progress = 1f,
                         backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
                         size = 42.dp,
