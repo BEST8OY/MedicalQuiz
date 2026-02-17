@@ -21,7 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -53,8 +53,7 @@ internal fun SelectableHighlightText(
     onLinkClick: ((String) -> Unit)? = null,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)? = null
 ) {
-    @Suppress("DEPRECATION")
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var lastExternalOpenText by remember { mutableStateOf("") }
@@ -185,7 +184,7 @@ internal fun SelectableHighlightText(
                             selectedText = selectionState.selectedText,
                             onCopy = {
                                 if (selectionState.selectedText.isNotBlank()) {
-                                    clipboardManager.setText(AnnotatedString(selectionState.selectedText))
+                                    coroutineScope.launch { clipboard.setPlainText(AnnotatedString(selectionState.selectedText)) }
                                 }
                                 selectionState = TextSelectionState()
                             },
@@ -201,7 +200,7 @@ internal fun SelectableHighlightText(
                                                 duration = SnackbarDuration.Short
                                             )
                                             if (result == SnackbarResult.ActionPerformed && lastExternalOpenText.isNotBlank()) {
-                                                clipboardManager.setText(AnnotatedString(lastExternalOpenText))
+                                                clipboard.setPlainText(AnnotatedString(lastExternalOpenText))
                                             }
                                         }
                                         return@SelectionToolbar
