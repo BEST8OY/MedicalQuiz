@@ -34,7 +34,12 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     val clickTarget = block.mediaRef ?: block.source
     val sharedTransitionScope = LocalAppSharedTransitionScope.current
     val navAnimatedScope = LocalNavAnimatedContentScope.current
-    val sharedKey = remember(clickTarget) { "media:$clickTarget" }
+    val sharedKey = remember(block.source, block.mediaRef) {
+        val fileName = block.mediaRef
+            ?: extractMediaRef(block.source)
+            ?: clickTarget
+        "media:${HtmlUtils.normalizeFileName(fileName)}"
+    }
 
     val mediaModifier = if (sharedTransitionScope != null) {
         with(sharedTransitionScope) {

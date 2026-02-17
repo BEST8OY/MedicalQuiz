@@ -537,7 +537,7 @@ private fun MediaContent(
                 overlayPath = overlayPath,
                 showOverlay = showOverlay,
                 sharedTransitionScope = sharedTransitionScope,
-                sharedTransitionKey = sharedTransitionKey ?: "media:$fileName",
+                sharedTransitionKey = sharedTransitionKey,
             )
             MediaType.VIDEO -> VideoContent(
                 filePath = filePath,
@@ -598,7 +598,7 @@ private fun ImageContent(
     overlayPath: String? = null,
     showOverlay: Boolean = true,
     sharedTransitionScope: SharedTransitionScope? = null,
-    sharedTransitionKey: String = "media:$fileName",
+    sharedTransitionKey: String? = null,
 ) {
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
     val filePath = remember(fileName) { "$storageDir/media/$fileName" }
@@ -808,12 +808,13 @@ private fun ImageContent(
         ) {
             var isLoading by remember { mutableStateOf(true) }
 
-            val imageModifier = if (sharedTransitionScope != null) {
+            val matchingSharedKey = sharedTransitionKey?.takeIf { it == "media:$fileName" }
+            val imageModifier = if (sharedTransitionScope != null && matchingSharedKey != null) {
                 with(sharedTransitionScope) {
                     Modifier
                         .fillMaxSize()
                         .sharedBounds(
-                            sharedContentState = rememberSharedContentState(key = sharedTransitionKey),
+                            sharedContentState = rememberSharedContentState(key = matchingSharedKey),
                             animatedVisibilityScope = androidx.navigation3.ui.LocalNavAnimatedContentScope.current
                         )
                 }

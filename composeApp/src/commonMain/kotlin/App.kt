@@ -57,6 +57,7 @@ import com.medicalquiz.app.shared.ui.dialogs.SystemFilterDialog
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 import com.medicalquiz.app.shared.viewmodel.UiEvent
 import com.medicalquiz.app.shared.utils.MediaTypeUtils
+import com.medicalquiz.app.shared.utils.HtmlUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -105,7 +106,9 @@ private suspend fun navigateToMediaViewer(
         backStack.add(
             MedicalQuizRoutes.MediaViewer(
                 files = availableFiles,
-                startIndex = safeIndex
+                startIndex = safeIndex,
+                sharedTransitionKey = availableFiles.getOrNull(safeIndex)
+                    ?.let { "media:${HtmlUtils.normalizeFileName(it)}" }
             )
         )
     }
@@ -453,6 +456,7 @@ fun App() {
                         MediaViewerScreen(
                             mediaFiles = key.files,
                             startIndex = key.startIndex,
+                            sharedTransitionKey = key.sharedTransitionKey,
                             mediaDescriptions = mediaDescriptions,
                             richTextScale = fontScalePreference ?: 1f,
                             onLinkClick = { url ->

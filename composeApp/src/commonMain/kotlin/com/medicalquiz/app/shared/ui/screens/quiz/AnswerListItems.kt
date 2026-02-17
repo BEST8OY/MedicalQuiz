@@ -29,7 +29,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.toPath
@@ -182,6 +181,7 @@ private fun AnswerListItem(
             when {
                 show && pct != null -> {
                     ResultBadge(
+                        shape = MaterialShapes.Oval,
                         backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.padding(start = 8.dp)
@@ -196,6 +196,7 @@ private fun AnswerListItem(
 
                 show && correct -> {
                     ResultBadge(
+                        shape = MaterialShapes.SoftBurst,
                         backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
                         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
                         modifier = Modifier.padding(start = 8.dp)
@@ -209,6 +210,7 @@ private fun AnswerListItem(
 
                 show && !correct -> {
                     ResultBadge(
+                        shape = MaterialShapes.SoftBoom,
                         backgroundColor = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.padding(start = 8.dp)
@@ -263,19 +265,24 @@ private fun AnswerListItem(
 
 @Composable
 private fun ResultBadge(
+    shape: RoundedPolygon,
     backgroundColor: Color,
     contentColor: Color,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    Surface(
-        color = backgroundColor,
-        contentColor = contentColor,
-        shape = ShapeDefaults.Small,
-        modifier = modifier.size(42.dp)
+    MorphingMaterialShapeBadge(
+        from = shape,
+        to = shape,
+        progress = 1f,
+        backgroundColor = backgroundColor,
+        size = 42.dp,
+        modifier = modifier,
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            content()
+        Surface(color = Color.Transparent, contentColor = contentColor) {
+            Box(contentAlignment = Alignment.Center) {
+                content()
+            }
         }
     }
 }

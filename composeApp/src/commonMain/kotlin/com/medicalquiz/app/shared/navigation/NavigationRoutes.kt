@@ -31,6 +31,7 @@ sealed class MedicalQuizRoutes : NavKey {
     data class MediaViewer(
         val files: List<String>,
         val startIndex: Int = 0,
+        val sharedTransitionKey: String? = null,
     ) : MedicalQuizRoutes()
 
     @Serializable
