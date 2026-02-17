@@ -29,6 +29,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.toPath
@@ -180,53 +181,41 @@ private fun AnswerListItem(
         ) { (show, correct, pct) ->
             when {
                 show && pct != null -> {
-                    MorphingMaterialShapeBadge(
-                        from = MaterialShapes.Pill,
-                        to = MaterialShapes.Oval,
-                        progress = 1f,
+                    ResultBadge(
                         backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
-                        size = 42.dp,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Text(
                             text = "$pct%",
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
 
                 show && correct -> {
-                    MorphingMaterialShapeBadge(
-                        from = MaterialShapes.Pill,
-                        to = MaterialShapes.SoftBurst,
-                        progress = 1f,
+                    ResultBadge(
                         backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        size = 42.dp,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Check,
                             contentDescription = "Correct",
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer
                         )
                     }
                 }
 
                 show && !correct -> {
-                    MorphingMaterialShapeBadge(
-                        from = MaterialShapes.Pill,
-                        to = MaterialShapes.SoftBoom,
-                        progress = 1f,
+                    ResultBadge(
                         backgroundColor = MaterialTheme.colorScheme.errorContainer,
-                        size = 42.dp,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Clear,
                             contentDescription = "Incorrect",
-                            tint = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
                 }
@@ -269,6 +258,25 @@ private fun AnswerListItem(
             ),
             modifier = Modifier.fillMaxWidth()
         )
+    }
+}
+
+@Composable
+private fun ResultBadge(
+    backgroundColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        color = backgroundColor,
+        contentColor = contentColor,
+        shape = ShapeDefaults.Small,
+        modifier = modifier.size(42.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            content()
+        }
     }
 }
 
