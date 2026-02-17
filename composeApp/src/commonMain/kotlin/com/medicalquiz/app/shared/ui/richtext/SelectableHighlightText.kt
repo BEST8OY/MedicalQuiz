@@ -9,6 +9,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,7 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -52,7 +53,7 @@ internal fun SelectableHighlightText(
     onLinkClick: ((String) -> Unit)? = null,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)? = null
 ) {
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var lastExternalOpenText by remember { mutableStateOf("") }
@@ -108,11 +109,7 @@ internal fun SelectableHighlightText(
                     onTooltipClick = onTooltipClick
                 ),
             style = textStyle.copy(
-                color = if (textStyle.color == Color.Unspecified) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    textStyle.color
-                },
+                color = if (textStyle.color != Color.Unspecified) textStyle.color else LocalContentColor.current,
                 lineHeight = (if (textStyle.fontSize == androidx.compose.ui.unit.TextUnit.Unspecified) {
                     MaterialTheme.typography.bodyMedium.fontSize
                 } else {
@@ -187,7 +184,7 @@ internal fun SelectableHighlightText(
                             selectedText = selectionState.selectedText,
                             onCopy = {
                                 if (selectionState.selectedText.isNotBlank()) {
-                                    clipboardManager.setText(AnnotatedString(selectionState.selectedText))
+                                    coroutineScope.launch { clipboard.setPlainText(AnnotatedString(selectionState.selectedText)) }
                                 }
                                 selectionState = TextSelectionState()
                             },
@@ -203,7 +200,7 @@ internal fun SelectableHighlightText(
                                                 duration = SnackbarDuration.Short
                                             )
                                             if (result == SnackbarResult.ActionPerformed && lastExternalOpenText.isNotBlank()) {
-                                                clipboardManager.setText(AnnotatedString(lastExternalOpenText))
+                                                clipboard.setPlainText(AnnotatedString(lastExternalOpenText))
                                             }
                                         }
                                         return@SelectionToolbar

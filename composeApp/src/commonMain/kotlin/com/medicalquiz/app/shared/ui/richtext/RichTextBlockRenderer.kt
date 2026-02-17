@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -77,11 +78,9 @@ internal fun RichTextParagraph(
         text = text,
         modifier = modifier,
         style = scaledBodyMedium.copy(
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
             lineHeight = scaledBodyMedium.fontSize * 1.375f,
             textIndent = TextIndent.None,
         ),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = textAlign,
         onLinkClick = onLinkClick,
         onTooltipClick = onTooltipClick
@@ -93,7 +92,7 @@ internal fun InteractiveText(
     text: AnnotatedString,
     modifier: Modifier = Modifier,
     style: TextStyle,
-    color: Color,
+    color: Color = Color.Unspecified,
     textAlign: TextAlign? = null,
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
@@ -131,7 +130,7 @@ internal fun InteractiveText(
         text = text,
         modifier = textModifier,
         style = style.copy(
-            color = color,
+            color = if (color != Color.Unspecified) color else if (style.color != Color.Unspecified) style.color else LocalContentColor.current,
             textAlign = textAlign ?: TextAlign.Start
         ),
         maxLines = maxLines,
@@ -157,7 +156,6 @@ private fun RichTextHeading(
     InteractiveText(
         text = block.text,
         style = style,
-        color = MaterialTheme.colorScheme.onSurface,
         textAlign = block.textAlign,
         onLinkClick = onLinkClick,
         onTooltipClick = onTooltipClick,
@@ -207,7 +205,6 @@ private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
                 fontFamily = FontFamily.Monospace,
                 fontSize = 14.sp,
             ).scaledBy(richTextScale.proseScale),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(12.dp)
         )
     }
@@ -231,7 +228,6 @@ private fun AbstractCard(
                 MaterialText(
                     text = it,
                     style = MaterialTheme.typography.titleMedium.scaledBy(richTextScale.proseScale),
-                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
             if (block.blocks.isNotEmpty()) {
