@@ -109,7 +109,7 @@ internal fun SelectableHighlightText(
                     onTooltipClick = onTooltipClick
                 ),
             style = textStyle.copy(
-                color = textStyle.color.takeOrElse { LocalContentColor.current },
+                color = if (textStyle.color != Color.Unspecified) textStyle.color else LocalContentColor.current,
                 lineHeight = (if (textStyle.fontSize == androidx.compose.ui.unit.TextUnit.Unspecified) {
                     MaterialTheme.typography.bodyMedium.fontSize
                 } else {

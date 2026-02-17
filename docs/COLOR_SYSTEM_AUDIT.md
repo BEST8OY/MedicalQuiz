@@ -28,9 +28,7 @@
 Literal colors bypass semantic theming and can break dark mode / dynamic color consistency.
 
 Hotspots:
-- `desktopMain/.../VideoPlayer.desktop.kt` (multiple `Color.White` / `Color.Black` usages)
-- `desktopMain/.../AudioPlayer.desktop.kt` (`Color.White`)
-- `commonMain/.../MediaViewerScreen.kt` (`Color.Black`)
+- `desktopMain/.../VideoPlayer.desktop.kt` (remaining intentional `Color.Black` media canvas background only)
 
 **Recommendation**
 - Keep only true media-black requirements as explicit literals (video canvas/background), and document them inline.
@@ -76,7 +74,12 @@ Some components rely on inherited `LocalContentColor`, while others directly set
 - [ ] Any literal color? If yes, is it an approved exception?
 
 ## Prioritized remediation backlog
-1. Replace non-essential literal colors in desktop media controls with semantic roles.
-2. Introduce a small shared guideline helper doc for color precedence in Compose components.
-3. Audit `richtext` subpackage remaining explicit `onSurface*` usages and classify each as intentional vs. inherited.
-4. Add a lightweight static check script in CI to flag new literal color usages (`Color.White/Black/...`) outside approved paths.
+1. Introduce a small shared guideline helper doc for color precedence in Compose components.
+2. Audit `richtext` subpackage remaining explicit `onSurface*` usages and classify each as intentional vs. inherited.
+3. Add a lightweight static check script in CI to flag new literal color usages (`Color.White/Black/...`) outside approved paths.
+
+
+## Remediation status updates
+- Replaced non-essential `Color.White` usage in desktop media error/overlay text and icon controls with semantic/inherited content colors.
+- Replaced media viewer non-UI background fallback from literal black to `surfaceDim` for theme consistency.
+- Remaining literal color usage is now limited to the desktop video rendering canvas (`SwingPanel` background), treated as an allowed media exception.

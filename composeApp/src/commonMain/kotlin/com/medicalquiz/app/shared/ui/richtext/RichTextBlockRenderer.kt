@@ -130,7 +130,7 @@ internal fun InteractiveText(
         text = text,
         modifier = textModifier,
         style = style.copy(
-            color = color.takeOrElse { style.color.takeOrElse { LocalContentColor.current } },
+            color = if (color != Color.Unspecified) color else if (style.color != Color.Unspecified) style.color else LocalContentColor.current,
             textAlign = textAlign ?: TextAlign.Start
         ),
         maxLines = maxLines,

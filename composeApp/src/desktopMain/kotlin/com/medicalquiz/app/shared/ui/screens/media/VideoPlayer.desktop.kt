@@ -93,8 +93,7 @@ actual fun VideoPlayer(
                 Spacer(Modifier.height(16.dp))
                 Text(
                     text = errorMessage!!,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White
+                    style = MaterialTheme.typography.bodyLarge
                 )
                 Spacer(Modifier.height(16.dp))
                 Button(
@@ -142,13 +141,16 @@ actual fun VideoPlayer(
             )
 
             // Control overlay
-            Column(
+            Surface(
+                color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f),
+                contentColor = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(16.dp)
             ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
                 // Progress bar
                 if (duration > 0) {
                     LinearProgressIndicator(
@@ -174,7 +176,6 @@ actual fun VideoPlayer(
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
                             contentDescription = if (isPlaying) "Pause video" else "Play video",
-                            tint = Color.White,
                             modifier = Modifier.size(32.dp)
                         )
                     }
@@ -183,7 +184,6 @@ actual fun VideoPlayer(
                     if (duration > 0) {
                         Text(
                             text = "${formatTime(currentTime)} / ${formatTime(duration)}",
-                            color = Color.White,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -196,7 +196,6 @@ actual fun VideoPlayer(
                         Icon(
                             imageVector = Icons.Default.VolumeUp,
                             contentDescription = "Volume",
-                            tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(Modifier.width(8.dp))
@@ -211,6 +210,7 @@ actual fun VideoPlayer(
                         )
                     }
                 }
+            }
             }
         } else {
             // Loading state while VLC is being discovered

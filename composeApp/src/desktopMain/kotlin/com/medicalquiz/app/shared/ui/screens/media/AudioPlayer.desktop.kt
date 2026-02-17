@@ -9,7 +9,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.platform.VlcDiscovery
 import kotlinx.coroutines.delay
@@ -125,8 +124,7 @@ actual fun AudioPlayer(
                 Spacer(Modifier.height(16.dp))
                 Text(
                     text = errorMessage!!,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White
+                    style = MaterialTheme.typography.bodyLarge
                 )
                 Spacer(Modifier.height(16.dp))
                 Button(

@@ -79,7 +79,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -206,7 +205,7 @@ private fun SharedTransitionScope.MediaViewerContent(
     val currentOverlayPath = overlayPathsByFile[currentFileName]
 
     val backgroundColor by animateColorAsState(
-        targetValue = if (showUI) MaterialTheme.colorScheme.surface else Color.Black,
+        targetValue = if (showUI) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceDim,
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
     )
 
