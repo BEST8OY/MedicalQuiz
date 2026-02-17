@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -77,11 +78,11 @@ internal fun RichTextParagraph(
         text = text,
         modifier = modifier,
         style = scaledBodyMedium.copy(
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = LocalContentColor.current,
             lineHeight = scaledBodyMedium.fontSize * 1.375f,
             textIndent = TextIndent.None,
         ),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = LocalContentColor.current,
         textAlign = textAlign,
         onLinkClick = onLinkClick,
         onTooltipClick = onTooltipClick
@@ -157,7 +158,7 @@ private fun RichTextHeading(
     InteractiveText(
         text = block.text,
         style = style,
-        color = MaterialTheme.colorScheme.onSurface,
+        color = LocalContentColor.current,
         textAlign = block.textAlign,
         onLinkClick = onLinkClick,
         onTooltipClick = onTooltipClick,
@@ -207,7 +208,7 @@ private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
                 fontFamily = FontFamily.Monospace,
                 fontSize = 14.sp,
             ).scaledBy(richTextScale.proseScale),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = LocalContentColor.current,
             modifier = Modifier.padding(12.dp)
         )
     }
@@ -231,7 +232,7 @@ private fun AbstractCard(
                 MaterialText(
                     text = it,
                     style = MaterialTheme.typography.titleMedium.scaledBy(richTextScale.proseScale),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = LocalContentColor.current,
                 )
             }
             if (block.blocks.isNotEmpty()) {
