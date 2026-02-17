@@ -12,7 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -60,7 +60,7 @@ internal fun SelectionToolbar(
                     onClick = onCopy
                 )
                 ToolbarActionButton(
-                    icon = Icons.Rounded.OpenInNew,
+                    icon = Icons.AutoMirrored.Rounded.OpenInNew,
                     label = "Dictionary",
                     enabled = selectedText.isNotBlank(),
                     onClick = onOpenExternal
