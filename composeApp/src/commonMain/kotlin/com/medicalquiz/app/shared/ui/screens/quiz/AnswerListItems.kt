@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Clear
@@ -26,31 +27,31 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.toPath
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.graphics.shapes.Morph
+import androidx.graphics.shapes.RoundedPolygon
 import com.medicalquiz.app.shared.data.models.Answer
+import kotlin.math.min
 import com.medicalquiz.app.shared.ui.richtext.RichText
 
-/**
- * Answer list item following Material 3 guidelines for lists with MotionScheme animations.
- *
- * Per M3 guidelines:
- * - Use lists for selecting discrete items
- * - Leading element: A, B, C, D label
- * - Headline: Answer text (HTML content)
- * - Trailing: Result indicator (percentage or checkmark/x)
- * - Selection state applies to entire list item
- * - Press animations using MotionScheme for tactile feedback
- */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AnswerListItem(
@@ -69,7 +70,6 @@ private fun AnswerListItem(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Animate container color using MotionScheme
     val containerColor by animateColorAsState(
         targetValue = when {
             showResult && isCorrect -> MaterialTheme.colorScheme.tertiaryContainer
@@ -81,7 +81,6 @@ private fun AnswerListItem(
         label = "containerColor"
     )
 
-    // Animate content color using MotionScheme
     val contentColor by animateColorAsState(
         targetValue = when {
             showResult && isCorrect -> MaterialTheme.colorScheme.onTertiaryContainer
@@ -93,7 +92,6 @@ private fun AnswerListItem(
         label = "contentColor"
     )
 
-    // Animate scale for press feedback
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.98f else 1f,
         animationSpec = spring(
@@ -103,7 +101,6 @@ private fun AnswerListItem(
         label = "scale"
     )
 
-    // Animate elevation for tactile feedback using MotionScheme
     val elevation by animateDpAsState(
         targetValue = when {
             isPressed -> 4.dp
@@ -114,46 +111,60 @@ private fun AnswerListItem(
         label = "elevation"
     )
 
-    // Leading element: Label (A, B, C, D) with animated selection state
     val leadingContent: @Composable () -> Unit = {
         val labelContainerColor by animateColorAsState(
-            targetValue = if (showResult && isCorrect) MaterialTheme.colorScheme.tertiary else if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
+            targetValue = if (showResult && isCorrect) {
+                MaterialTheme.colorScheme.tertiary
+            } else if (isSelected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.secondaryContainer
+            },
             animationSpec = motionScheme.defaultEffectsSpec()
         )
         val labelContentColor by animateColorAsState(
-            targetValue = if (showResult && isCorrect) MaterialTheme.colorScheme.onTertiary else if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
+            targetValue = if (showResult && isCorrect) {
+                MaterialTheme.colorScheme.onTertiary
+            } else if (isSelected) {
+                MaterialTheme.colorScheme.onPrimary
+            } else {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            },
             animationSpec = motionScheme.defaultEffectsSpec()
         )
 
-        Surface(
-            shape = MaterialTheme.shapes.small,
-            color = labelContainerColor,
-            shadowElevation = if (isSelected) 2.dp else 0.dp,
+        val targetShape = when {
+            showResult && isCorrect -> MaterialShapes.Sunny
+            isSelected -> MaterialShapes.Pill
+            else -> MaterialShapes.Cookie4Sided
+        }
+
+        MorphingMaterialShapeBadge(
+            from = MaterialShapes.Cookie4Sided,
+            to = targetShape,
+            progress = if (targetShape == MaterialShapes.Cookie4Sided) 0f else 1f,
+            backgroundColor = labelContainerColor,
+            size = 40.dp,
             modifier = Modifier.padding(end = 8.dp)
         ) {
-            Box(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                AnimatedContent(
-                    targetState = label,
-                    transitionSpec = {
-                        fadeIn(animationSpec = motionScheme.fastEffectsSpec()) togetherWith
+            AnimatedContent(
+                targetState = label,
+                transitionSpec = {
+                    fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
                         fadeOut(animationSpec = motionScheme.fastEffectsSpec())
-                    }
-                ) { text ->
-                    Text(
-                        text = text,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = labelContentColor
-                    )
-                }
+                },
+                label = "label"
+            ) { text ->
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = labelContentColor
+                )
             }
         }
     }
 
-    // Trailing element: Result indicator with MotionScheme animations
     val trailingContent: @Composable () -> Unit = {
         AnimatedContent(
             targetState = Triple(showResult, isCorrect, percentage),
@@ -169,57 +180,62 @@ private fun AnswerListItem(
         ) { (show, correct, pct) ->
             when {
                 show && pct != null -> {
-                    Surface(
-                        shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.secondaryContainer,
+                    MorphingMaterialShapeBadge(
+                        from = MaterialShapes.Pill,
+                        to = MaterialShapes.Oval,
+                        progress = 1f,
+                        backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
+                        size = 42.dp,
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Text(
                             text = "$pct%",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     }
                 }
+
                 show && correct -> {
-                    Surface(
-                        shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                    MorphingMaterialShapeBadge(
+                        from = MaterialShapes.Pill,
+                        to = MaterialShapes.SoftBurst,
+                        progress = 1f,
+                        backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        size = 42.dp,
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Check,
                             contentDescription = "Correct",
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                            modifier = Modifier.padding(8.dp)
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer
                         )
                     }
                 }
+
                 show && !correct -> {
-                    Surface(
-                        shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.errorContainer,
+                    MorphingMaterialShapeBadge(
+                        from = MaterialShapes.Pill,
+                        to = MaterialShapes.SoftBoom,
+                        progress = 1f,
+                        backgroundColor = MaterialTheme.colorScheme.errorContainer,
+                        size = 42.dp,
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Clear,
                             contentDescription = "Incorrect",
-                            tint = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.padding(8.dp)
+                            tint = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
                 }
-                else -> {
-                    // No trailing element - selection shown via background color
-                    Box(modifier = Modifier.padding(start = 8.dp))
-                }
+
+                else -> Box(modifier = Modifier.padding(start = 8.dp))
             }
         }
     }
 
-    // Use Surface wrapper with morphing shapes based on answer state
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = containerColor,
@@ -256,14 +272,58 @@ private fun AnswerListItem(
     }
 }
 
-/**
- * Answer options section using List-based layout with MotionScheme animations.
- *
- * Per M3 Guidelines:
- * - Use spacing between list items for cleaner appearance
- * - Lists are for discrete, selectable items
- * - Each item should have consistent layout
- */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun MorphingMaterialShapeBadge(
+    from: RoundedPolygon,
+    to: RoundedPolygon,
+    progress: Float,
+    backgroundColor: Color,
+    size: Dp,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val motionScheme = MaterialTheme.motionScheme
+    val morph = remember(from, to) { Morph(from, to) }
+    val morphProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = motionScheme.defaultSpatialSpec(),
+        label = "morphProgress"
+    )
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(size)
+            .drawWithCache {
+                val minDimension = min(this@drawWithCache.size.width, this@drawWithCache.size.height)
+                val shapePath = morph.toPath(
+                    progress = morphProgress,
+                    path = Path(),
+                    startAngle = 0
+                )
+                shapePath.transform(
+                    Matrix().apply {
+                        resetToPivotedTransform(
+                            pivotX = 0.5f,
+                            pivotY = 0.5f,
+                            translationX = this@drawWithCache.size.width / 2f,
+                            translationY = this@drawWithCache.size.height / 2f,
+                            scaleX = minDimension,
+                            scaleY = minDimension
+                        )
+                    }
+                )
+                onDrawBehind {
+                    drawPath(path = shapePath, color = backgroundColor, style = Fill)
+                }
+            }
+    ) {
+        content()
+    }
+}
+
+
 @Composable
 fun AnswerOptions(
     answers: List<Answer>,
