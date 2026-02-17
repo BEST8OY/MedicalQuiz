@@ -84,7 +84,7 @@ private fun AnswerListItem(
     // Animate content color using MotionScheme
     val contentColor by animateColorAsState(
         targetValue = when {
-            showResult && isCorrect -> MaterialTheme.colorScheme.onPrimary
+            showResult && isCorrect -> MaterialTheme.colorScheme.onTertiaryContainer
             showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.onErrorContainer
             isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
             else -> MaterialTheme.colorScheme.onSurface
