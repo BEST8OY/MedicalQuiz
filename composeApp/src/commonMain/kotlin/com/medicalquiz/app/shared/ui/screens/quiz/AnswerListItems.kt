@@ -182,7 +182,7 @@ private fun AnswerListItem(
                 show && pct != null -> {
                     MorphingMaterialShapeBadge(
                         from = MaterialShapes.Pill,
-                        to = MaterialShapes.Burst,
+                        to = MaterialShapes.Oval,
                         progress = 1f,
                         backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
                         size = 42.dp,
