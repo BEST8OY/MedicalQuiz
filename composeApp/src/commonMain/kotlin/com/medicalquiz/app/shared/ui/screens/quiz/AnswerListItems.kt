@@ -20,11 +20,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
@@ -70,6 +66,10 @@ private fun AnswerListItem(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
+    // Note: in "Instant Feedback" mode, the isSelected (primaryContainer) color is 
+    // effectively skipped as showResult triggers simultaneously. It is preserved 
+    // for potential "Select then Submit" modes and to drive other UI traits 
+    // like elevation and badge shape morphing.
     val containerColor by animateColorAsState(
         targetValue = when {
             showResult && isCorrect -> MaterialTheme.colorScheme.tertiaryContainer
@@ -167,7 +167,7 @@ private fun AnswerListItem(
 
     val trailingContent: @Composable () -> Unit = {
         AnimatedContent(
-            targetState = Triple(showResult, isCorrect, percentage),
+            targetState = showResult to percentage,
             transitionSpec = {
                 scaleIn(
                     animationSpec = motionScheme.defaultEffectsSpec(),
@@ -176,8 +176,9 @@ private fun AnswerListItem(
                     animationSpec = motionScheme.defaultEffectsSpec(),
                     targetScale = 0.7f
                 )
-            }
-        ) { (show, correct, pct) ->
+            },
+            label = "trailingContent"
+        ) { (show, pct) ->
             when {
                 show && pct != null -> {
                     MorphingMaterialShapeBadge(
@@ -193,40 +194,6 @@ private fun AnswerListItem(
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
-                }
-
-                show && correct -> {
-                    MorphingMaterialShapeBadge(
-                        from = MaterialShapes.Pill,
-                        to = MaterialShapes.SoftBurst,
-                        progress = 1f,
-                        backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        size = 42.dp,
-                        modifier = Modifier.padding(start = 8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = "Correct",
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                    }
-                }
-
-                show && !correct -> {
-                    MorphingMaterialShapeBadge(
-                        from = MaterialShapes.Pill,
-                        to = MaterialShapes.SoftBoom,
-                        progress = 1f,
-                        backgroundColor = MaterialTheme.colorScheme.errorContainer,
-                        size = 42.dp,
-                        modifier = Modifier.padding(start = 8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Clear,
-                            contentDescription = "Incorrect",
-                            tint = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
                 }
