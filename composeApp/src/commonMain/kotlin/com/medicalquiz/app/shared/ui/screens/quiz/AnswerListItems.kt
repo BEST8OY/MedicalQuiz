@@ -135,8 +135,8 @@ private fun AnswerListItem(
 
         val targetShape = when {
             showResult && isCorrect -> MaterialShapes.Gem
-            isSelected -> MaterialShapes.Pill
-            else -> MaterialShapes.Burst
+            isSelected -> MaterialShapes.Burst
+            else -> MaterialShapes.Pill
         }
 
         MorphingMaterialShapeBadge(
