@@ -78,11 +78,9 @@ internal fun RichTextParagraph(
         text = text,
         modifier = modifier,
         style = scaledBodyMedium.copy(
-            color = LocalContentColor.current,
             lineHeight = scaledBodyMedium.fontSize * 1.375f,
             textIndent = TextIndent.None,
         ),
-        color = LocalContentColor.current,
         textAlign = textAlign,
         onLinkClick = onLinkClick,
         onTooltipClick = onTooltipClick
@@ -94,7 +92,7 @@ internal fun InteractiveText(
     text: AnnotatedString,
     modifier: Modifier = Modifier,
     style: TextStyle,
-    color: Color,
+    color: Color = Color.Unspecified,
     textAlign: TextAlign? = null,
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
@@ -132,7 +130,7 @@ internal fun InteractiveText(
         text = text,
         modifier = textModifier,
         style = style.copy(
-            color = color,
+            color = color.takeOrElse { style.color.takeOrElse { LocalContentColor.current } },
             textAlign = textAlign ?: TextAlign.Start
         ),
         maxLines = maxLines,
@@ -158,7 +156,6 @@ private fun RichTextHeading(
     InteractiveText(
         text = block.text,
         style = style,
-        color = LocalContentColor.current,
         textAlign = block.textAlign,
         onLinkClick = onLinkClick,
         onTooltipClick = onTooltipClick,
@@ -208,7 +205,6 @@ private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
                 fontFamily = FontFamily.Monospace,
                 fontSize = 14.sp,
             ).scaledBy(richTextScale.proseScale),
-            color = LocalContentColor.current,
             modifier = Modifier.padding(12.dp)
         )
     }
@@ -232,7 +228,6 @@ private fun AbstractCard(
                 MaterialText(
                     text = it,
                     style = MaterialTheme.typography.titleMedium.scaledBy(richTextScale.proseScale),
-                    color = LocalContentColor.current,
                 )
             }
             if (block.blocks.isNotEmpty()) {
