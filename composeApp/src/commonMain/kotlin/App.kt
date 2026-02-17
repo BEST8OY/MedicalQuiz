@@ -3,7 +3,10 @@ package com.medicalquiz.app.shared
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +50,7 @@ import com.medicalquiz.app.shared.ui.screens.media.MediaViewerScreen
 import com.medicalquiz.app.shared.ui.screens.quiz.QuizRoot
 import com.medicalquiz.app.shared.ui.media.MediaHandler
 import com.medicalquiz.app.shared.ui.media.MediaType
+import com.medicalquiz.app.shared.ui.navigation.LocalAppSharedTransitionScope
 import com.medicalquiz.app.shared.ui.dialogs.PerformanceFilterDialog
 import com.medicalquiz.app.shared.ui.dialogs.SubjectFilterDialog
 import com.medicalquiz.app.shared.ui.dialogs.SystemFilterDialog
@@ -126,6 +130,7 @@ private inline fun handleSessionRestoreResult(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun App() {
     // Install Coil's singleton ImageLoader once.
@@ -483,32 +488,36 @@ fun App() {
                 }
             }
 
-            // NavDisplay with slide animations and predictive back support
-            NavDisplay(
-                backStack = backStack,
-                onBack = { backStack.removeLastOrNull() },
-                entryProvider = entryProvider,
-                entryDecorators = listOf(
-                    rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator()
-                ),
-                transitionSpec = {
-                    // Forward navigation: slide in from right, slide out to left
-                    slideInHorizontally(initialOffsetX = { it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { -it })
-                },
-                popTransitionSpec = {
-                    // Back navigation: slide in from left, slide out to right
-                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { it })
-                },
-                predictivePopTransitionSpec = {
-                    // Predictive back gesture (Android 13+): slide in from left, slide out to right
-                    // Same as popTransitionSpec but used during gesture
-                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { it })
+            SharedTransitionLayout {
+                CompositionLocalProvider(LocalAppSharedTransitionScope provides this) {
+                    // NavDisplay with slide animations and predictive back support
+                    NavDisplay(
+                        backStack = backStack,
+                        onBack = { backStack.removeLastOrNull() },
+                        entryProvider = entryProvider,
+                        entryDecorators = listOf(
+                            rememberSaveableStateHolderNavEntryDecorator(),
+                            rememberViewModelStoreNavEntryDecorator()
+                        ),
+                        transitionSpec = {
+                            // Forward navigation: slide in from right, slide out to left
+                            slideInHorizontally(initialOffsetX = { it }) togetherWith
+                                slideOutHorizontally(targetOffsetX = { -it })
+                        },
+                        popTransitionSpec = {
+                            // Back navigation: slide in from left, slide out to right
+                            slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                                slideOutHorizontally(targetOffsetX = { it })
+                        },
+                        predictivePopTransitionSpec = {
+                            // Predictive back gesture (Android 13+): slide in from left, slide out to right
+                            // Same as popTransitionSpec but used during gesture
+                            slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                                slideOutHorizontally(targetOffsetX = { it })
+                        }
+                    )
                 }
-            )
+            }
         }
     }
 

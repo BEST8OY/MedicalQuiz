@@ -4,7 +4,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -96,6 +95,7 @@ import com.medicalquiz.app.shared.ui.media.MediaType
 import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
 import com.medicalquiz.app.shared.ui.richtext.RichTextScaleProvider
+import com.medicalquiz.app.shared.ui.navigation.LocalAppSharedTransitionScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -131,22 +131,21 @@ fun MediaViewerScreen(
     onBack: () -> Unit,
     sharedTransitionKey: String? = null,
 ) {
-    SharedTransitionLayout {
-        MediaViewerContent(
-            mediaFiles = mediaFiles,
-            startIndex = startIndex,
-            mediaDescriptions = mediaDescriptions,
-            richTextScale = richTextScale,
-            onLinkClick = onLinkClick,
-            onBack = onBack,
-            sharedTransitionKey = sharedTransitionKey,
-        )
-    }
+    MediaViewerContent(
+        mediaFiles = mediaFiles,
+        startIndex = startIndex,
+        mediaDescriptions = mediaDescriptions,
+        richTextScale = richTextScale,
+        onLinkClick = onLinkClick,
+        onBack = onBack,
+        sharedTransitionKey = sharedTransitionKey,
+        sharedTransitionScope = LocalAppSharedTransitionScope.current,
+    )
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SharedTransitionScope.MediaViewerContent(
+private fun MediaViewerContent(
     mediaFiles: List<String>,
     startIndex: Int,
     mediaDescriptions: Map<String, MediaDescription>,
@@ -154,6 +153,7 @@ private fun SharedTransitionScope.MediaViewerContent(
     onLinkClick: ((String) -> Unit)?,
     onBack: () -> Unit,
     sharedTransitionKey: String?,
+    sharedTransitionScope: SharedTransitionScope?,
 ) {
     if (mediaFiles.isEmpty()) {
         Box(
@@ -244,6 +244,8 @@ private fun SharedTransitionScope.MediaViewerContent(
                     onSingleTap = onToggleUI,
                     overlayPath = if (page == pagerState.currentPage) currentOverlayPath else null,
                     showOverlay = if (page == pagerState.currentPage) showOverlay else true,
+                    sharedTransitionScope = sharedTransitionScope,
+                    sharedTransitionKey = sharedTransitionKey,
                 )
             }
         }
@@ -504,6 +506,8 @@ private fun MediaContent(
     onSingleTap: () -> Unit,
     overlayPath: String? = null,
     showOverlay: Boolean = true,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    sharedTransitionKey: String? = null,
 ) {
     val mediaType = remember(fileName) { getMediaType(fileName) }
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
@@ -532,6 +536,8 @@ private fun MediaContent(
                 onSingleTap = onSingleTap,
                 overlayPath = overlayPath,
                 showOverlay = showOverlay,
+                sharedTransitionScope = sharedTransitionScope,
+                sharedTransitionKey = sharedTransitionKey ?: "media:$fileName",
             )
             MediaType.VIDEO -> VideoContent(
                 filePath = filePath,
@@ -591,6 +597,8 @@ private fun ImageContent(
     onSingleTap: () -> Unit,
     overlayPath: String? = null,
     showOverlay: Boolean = true,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    sharedTransitionKey: String = "media:$fileName",
 ) {
     val storageDir = remember { StorageProvider.getAppStorageDirectory() }
     val filePath = remember(fileName) { "$storageDir/media/$fileName" }
@@ -800,10 +808,23 @@ private fun ImageContent(
         ) {
             var isLoading by remember { mutableStateOf(true) }
 
+            val imageModifier = if (sharedTransitionScope != null) {
+                with(sharedTransitionScope) {
+                    Modifier
+                        .fillMaxSize()
+                        .sharedBounds(
+                            sharedContentState = rememberSharedContentState(key = sharedTransitionKey),
+                            animatedVisibilityScope = androidx.navigation3.ui.LocalNavAnimatedContentScope.current
+                        )
+                }
+            } else {
+                Modifier.fillMaxSize()
+            }
+
             AsyncImage(
                 model = filePath,
                 contentDescription = fileName,
-                modifier = Modifier.fillMaxSize(),
+                modifier = imageModifier,
                 contentScale = ContentScale.Fit,
                 onState = { state ->
                     isLoading = state is AsyncImagePainter.State.Loading
