@@ -53,6 +53,7 @@ internal fun SelectableHighlightText(
     onLinkClick: ((String) -> Unit)? = null,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)? = null
 ) {
+    @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
