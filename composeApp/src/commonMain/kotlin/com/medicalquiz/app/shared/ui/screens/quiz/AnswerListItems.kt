@@ -37,9 +37,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.text.font.FontWeight
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import com.medicalquiz.app.shared.data.models.Answer
+import kotlin.math.min
 import com.medicalquiz.app.shared.ui.richtext.RichText
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -143,7 +145,6 @@ private fun AnswerListItem(
             progress = if (targetShape == MaterialShapes.Cookie4Sided) 0f else 1f,
             backgroundColor = labelContainerColor,
             size = 40.dp,
-            shadowElevation = if (isSelected) 2.dp else 0.dp,
             modifier = Modifier.padding(end = 8.dp)
         ) {
             AnimatedContent(
@@ -280,7 +281,6 @@ private fun MorphingMaterialShapeBadge(
     backgroundColor: Color,
     size: Dp,
     modifier: Modifier = Modifier,
-    shadowElevation: Dp = 0.dp,
     content: @Composable () -> Unit
 ) {
     val motionScheme = MaterialTheme.motionScheme
@@ -291,26 +291,38 @@ private fun MorphingMaterialShapeBadge(
         label = "morphProgress"
     )
 
-    Surface(
-        shape = MaterialTheme.shapes.small,
-        color = Color.Transparent,
-        shadowElevation = shadowElevation,
+    Box(
+        contentAlignment = Alignment.Center,
         modifier = modifier
             .size(size)
-            .drawBehind {
+            .drawWithCache {
+                val minDimension = min(this@drawWithCache.size.width, this@drawWithCache.size.height)
                 val shapePath = morph.toPath(
                     progress = morphProgress,
                     path = Path(),
                     startAngle = 0
                 )
-                drawPath(path = shapePath, color = backgroundColor, style = Fill)
+                shapePath.transform(
+                    Matrix().apply {
+                        resetToPivotedTransform(
+                            pivotX = 0.5f,
+                            pivotY = 0.5f,
+                            translationX = this@drawWithCache.size.width / 2f,
+                            translationY = this@drawWithCache.size.height / 2f,
+                            scaleX = minDimension,
+                            scaleY = minDimension
+                        )
+                    }
+                )
+                onDrawBehind {
+                    drawPath(path = shapePath, color = backgroundColor, style = Fill)
+                }
             }
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size)) {
-            content()
-        }
+        content()
     }
 }
+
 
 @Composable
 fun AnswerOptions(
