@@ -369,7 +369,15 @@ private fun HistoryItemCard(
     onSwipeRename: () -> Unit,
     onSelectChanged: () -> Unit,
 ) {
-    val dismissState = rememberSwipeToDismissBoxState()
+    val dismissState = rememberSwipeToDismissBoxState(
+        positionalThreshold = { totalDistance -> totalDistance * 0.35f },
+    )
+
+    LaunchedEffect(swipingEnabled) {
+        if (!swipingEnabled && dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
+            dismissState.reset()
+        }
+    }
 
     LaunchedEffect(dismissState.currentValue, swipingEnabled) {
         if (!swipingEnabled) return@LaunchedEffect
