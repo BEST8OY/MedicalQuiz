@@ -40,6 +40,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -51,7 +52,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -62,7 +62,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.platform.FileSystemHelper
-import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
@@ -109,7 +108,11 @@ fun DatabaseSelectionScreen(
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = if (selectedPane == SelectionPane.Database) "Select database" else "Recent sessions",
+                            text = when {
+                                selectedPane == SelectionPane.Database -> "Select database"
+                                selectedHistoryEntryIds.isNotEmpty() -> "${selectedHistoryEntryIds.size} selected"
+                                else -> "Recent sessions"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -177,6 +180,24 @@ fun DatabaseSelectionScreen(
                             )
                         }
                     } else {
+                        item {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.medium,
+                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            ) {
+                                Text(
+                                    text = if (selectedHistoryEntryIds.isEmpty()) {
+                                        "Tip: swipe right to rename, swipe left to delete, or long-press to select multiple entries."
+                                    } else {
+                                        "Selection mode is active. Use the top actions to delete selected entries."
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                )
+                            }
+                        }
                         items(historyEntries, key = { it.id }) { entry ->
                             HistoryItemCard(
                                 entry = entry,
@@ -367,9 +388,19 @@ private fun HistoryItemCard(
     onSwipeRename: () -> Unit,
     onSelectChanged: () -> Unit,
 ) {
-    var isResetInProgress by remember(entry.id) { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val dismissState = rememberSwipeToDismissBoxState()
+
+    LaunchedEffect(dismissState.currentValue, swipingEnabled) {
+        if (!swipingEnabled) return@LaunchedEffect
+
+        when (dismissState.currentValue) {
+            SwipeToDismissBoxValue.EndToStart -> onSwipeDelete()
+            SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
+            SwipeToDismissBoxValue.Settled -> return@LaunchedEffect
+        }
+
+        dismissState.reset()
+    }
 
     val cardShape = MaterialTheme.shapes.large
 
@@ -380,19 +411,7 @@ private fun HistoryItemCard(
             .clip(cardShape),
         enableDismissFromStartToEnd = swipingEnabled,
         enableDismissFromEndToStart = swipingEnabled,
-        gesturesEnabled = swipingEnabled && !isResetInProgress,
-        onDismiss = { dismissValue ->
-            scope.launch {
-                isResetInProgress = true
-                dismissState.reset()
-                when (dismissValue) {
-                    SwipeToDismissBoxValue.EndToStart -> onSwipeDelete()
-                    SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
-                    SwipeToDismissBoxValue.Settled -> Unit
-                }
-                isResetInProgress = false
-            }
-        },
+        gesturesEnabled = swipingEnabled,
         backgroundContent = {
             val isDeleteDirection = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
             val backgroundColor = when (dismissState.dismissDirection) {

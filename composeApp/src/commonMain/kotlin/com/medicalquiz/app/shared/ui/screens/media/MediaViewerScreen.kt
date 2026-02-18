@@ -460,7 +460,7 @@ private fun ExplanationBottomSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = contentColorFor(MaterialTheme.colorScheme.surface),
         tonalElevation = 6.dp,
-        scrimColor = MaterialTheme.colorScheme.scrim,
+        scrimColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.52f),
     ) {
         Column(
             modifier = Modifier

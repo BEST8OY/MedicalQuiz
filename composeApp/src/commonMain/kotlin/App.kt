@@ -43,6 +43,7 @@ import com.medicalquiz.app.shared.ui.theme.AppTheme
 import com.medicalquiz.app.shared.ui.screens.DatabaseSelectionScreen
 import com.medicalquiz.app.shared.ui.screens.FilterScreen
 import com.medicalquiz.app.shared.ui.screens.media.HtmlViewerScreen
+import com.medicalquiz.app.shared.ui.screens.SettingsScreen
 import com.medicalquiz.app.shared.ui.screens.media.MediaViewerScreen
 import com.medicalquiz.app.shared.ui.screens.quiz.QuizRoot
 import com.medicalquiz.app.shared.ui.media.MediaHandler
@@ -435,7 +436,19 @@ fun App() {
                                     // Standard quiz flow: return to Filter.
                                     backStack.removeLastOrNull()
                                 }
+                            },
+                            onOpenSettingsScreen = dropUnlessResumed {
+                                backStack.add(MedicalQuizRoutes.Settings)
                             }
+                        )
+                    }
+
+
+                    entry<MedicalQuizRoutes.Settings> {
+                        SettingsScreen(
+                            viewModel = viewModel,
+                            onBack = dropUnlessResumed { backStack.removeLastOrNull() },
+                            onResetLogs = { viewModel.clearLogsFromDb() },
                         )
                     }
 
