@@ -40,7 +40,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -180,24 +179,6 @@ fun DatabaseSelectionScreen(
                             )
                         }
                     } else {
-                        item {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = MaterialTheme.shapes.medium,
-                                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                            ) {
-                                Text(
-                                    text = if (selectedHistoryEntryIds.isEmpty()) {
-                                        "Tip: swipe right to rename, swipe left to delete, or long-press to select multiple entries."
-                                    } else {
-                                        "Selection mode is active. Use the top actions to delete selected entries."
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                )
-                            }
-                        }
                         items(historyEntries, key = { it.id }) { entry ->
                             HistoryItemCard(
                                 entry = entry,
@@ -429,11 +410,21 @@ private fun HistoryItemCard(
                 horizontalArrangement = if (isDeleteDirection) Arrangement.End else Arrangement.Start,
             ) {
                 if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
+                    val actionTint = if (isDeleteDirection) {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    } else {
+                        MaterialTheme.colorScheme.onTertiaryContainer
+                    }
                     Icon(
                         imageVector = if (isDeleteDirection) Icons.Filled.Delete else Icons.Filled.Edit,
                         contentDescription = null,
-                        tint = if (isDeleteDirection) MaterialTheme.colorScheme.onErrorContainer
-                        else MaterialTheme.colorScheme.onTertiaryContainer,
+                        tint = actionTint,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isDeleteDirection) "Delete" else "Rename",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = actionTint,
                     )
                 }
             }
