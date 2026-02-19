@@ -402,7 +402,6 @@ private fun HistoryItemCard(
         },
         backgroundContent = {
             val isDeleteDirection = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
-            val isArmed = dismissState.targetValue != SwipeToDismissBoxValue.Settled
             val backgroundColor = when (dismissState.dismissDirection) {
                 SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
                 SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.tertiaryContainer
@@ -428,14 +427,6 @@ private fun HistoryItemCard(
                         contentDescription = null,
                         tint = actionTint,
                     )
-                    if (isArmed) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (isDeleteDirection) "Release to delete" else "Release to rename",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = actionTint,
-                        )
-                    }
                 }
             }
         },
