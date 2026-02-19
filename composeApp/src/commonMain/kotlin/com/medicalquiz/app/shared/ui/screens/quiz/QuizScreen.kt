@@ -247,8 +247,11 @@ private fun QuizQuestionCard(
     }
 
     if (question == null) {
+        val shouldShowLoading = state.isLoading ||
+            (state.questionIds.isNotEmpty() && state.currentQuestionIndex >= 0)
+
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            if (state.isLoading) {
+            if (shouldShowLoading) {
                 LoadingIndicator()
             } else {
                 Text(
