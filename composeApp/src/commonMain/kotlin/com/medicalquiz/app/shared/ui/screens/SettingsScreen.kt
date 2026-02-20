@@ -49,12 +49,12 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onResetLogs: () -> Unit,
 ) {
-    val loggingEnabled = viewModel.settingsRepository?.isLoggingEnabled
-        ?.collectAsStateWithLifecycle(false)?.value ?: false
-    val showMetadata = viewModel.settingsRepository?.showMetadata
-        ?.collectAsStateWithLifecycle(true)?.value ?: true
-    val fontScalePreference = viewModel.settingsRepository?.fontScalePreference
-        ?.collectAsStateWithLifecycle(null)?.value
+    val loggingEnabled = viewModel.settingsRepository.isLoggingEnabled
+        .collectAsStateWithLifecycle(false).value
+    val showMetadata = viewModel.settingsRepository.showMetadata
+        .collectAsStateWithLifecycle(true).value
+    val fontScalePreference = viewModel.settingsRepository.fontScalePreference
+        .collectAsStateWithLifecycle(null).value
 
     var selectedFontOption by rememberSaveable(fontScalePreference) {
         mutableStateOf(FontScaleOption.fromScale(fontScalePreference))
@@ -88,14 +88,14 @@ fun SettingsScreen(
                 title = "Answer logging",
                 description = "Track your progress and review history",
                 checked = loggingEnabled,
-                onCheckedChange = { viewModel.settingsRepository?.setLoggingEnabled(it) }
+                onCheckedChange = { viewModel.settingsRepository.setLoggingEnabled(it) }
             )
 
             SettingsToggleRow(
                 title = "Show metadata",
                 description = "Display subject and system info after answering",
                 checked = showMetadata,
-                onCheckedChange = { viewModel.settingsRepository?.setShowMetadata(it) }
+                onCheckedChange = { viewModel.settingsRepository.setShowMetadata(it) }
             )
 
             HorizontalDivider(
@@ -107,7 +107,7 @@ fun SettingsScreen(
                 selected = selectedFontOption,
                 onSelected = { option ->
                     selectedFontOption = option
-                    viewModel.settingsRepository?.setFontScalePreference(option.scale)
+                    viewModel.settingsRepository.setFontScalePreference(option.scale)
                 }
             )
 

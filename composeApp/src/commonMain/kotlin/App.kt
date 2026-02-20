@@ -3,6 +3,9 @@ package com.medicalquiz.app.shared
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -20,6 +23,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.lifecycle.createSavedStateHandle
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -127,6 +133,24 @@ private inline fun handleSessionRestoreResult(
     }
 }
 
+private suspend fun ensureDatabaseInitialized(
+    dbName: String,
+    initializedDatabase: String?,
+    viewModel: QuizViewModel,
+    onDatabaseInitialized: (String) -> Unit,
+) {
+    val hasDatabaseManager = viewModel.getDatabaseManager() != null
+    if (initializedDatabase == dbName && hasDatabaseManager) return
+
+    val dbPath = FileSystemHelper.getDatabasePath(dbName)
+    val databaseManager = DatabaseManager(dbPath)
+    databaseManager.init()
+
+    viewModel.setDatabaseManager(databaseManager)
+    viewModel.setDatabaseName(dbName.removeSuffix(".db"))
+    onDatabaseInitialized(dbName)
+}
+
 @Composable
 fun App() {
     // Install Coil's singleton ImageLoader once.
@@ -143,7 +167,6 @@ fun App() {
     val settingsRepository = remember { SettingsRepository() }
 
     AppTheme {
-            val viewModel = viewModel { QuizViewModel() }
             val cacheManager = remember { CacheManager() }
             val scope = rememberCoroutineScope()
 
@@ -155,8 +178,29 @@ fun App() {
             val sessionRepository = remember { QuizSessionRepository() }
             var sessionHistory by remember { mutableStateOf(sessionRepository.listHistory()) }
 
+            val quizViewModelFactory = remember(
+                settingsRepository,
+                textHighlightsRepository,
+                cacheManager,
+                sessionRepository,
+            ) {
+                viewModelFactory {
+                    initializer {
+                        QuizViewModel(
+                            settingsRepository = settingsRepository,
+                            textHighlightsRepository = textHighlightsRepository,
+                            cacheManager = cacheManager,
+                            sessionRepository = sessionRepository,
+                            savedStateHandle = createSavedStateHandle(),
+                        )
+                    }
+                }
+            }
+            val viewModel = viewModel<QuizViewModel>(factory = quizViewModelFactory)
+
             // Media descriptions state for viewer
             val mediaDescriptionsFlow = remember { MutableStateFlow<Map<String, MediaDescription>>(emptyMap()) }
+            val snackbarHostState = remember { SnackbarHostState() }
 
             // Navigation state management
             val navStateRepo = remember { NavigationStateRepository() }
@@ -174,34 +218,24 @@ fun App() {
             // Database state - restore from saved state or use null for fresh start
             var selectedDatabase by rememberSaveable { mutableStateOf<String?>(savedDbName) }
             var initializedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
-            var pendingHistoryRestoreToken by rememberSaveable { mutableStateOf(0) }
-            var handledHistoryRestoreToken by rememberSaveable { mutableStateOf(0) }
+            var pendingLaunchSource by rememberSaveable { mutableStateOf<QuizLaunchSource?>(null) }
 
-            // Initialize common dependencies
             LaunchedEffect(Unit) {
                 userDataManager.init()
-                viewModel.setSettingsRepository(settingsRepository)
-                viewModel.setTextHighlightsRepository(textHighlightsRepository)
-                viewModel.setCacheManager(cacheManager)
-                viewModel.setSessionRepository(sessionRepository)
             }
 
             // Handle database initialization when selected
-            LaunchedEffect(selectedDatabase, pendingHistoryRestoreToken) {
+            LaunchedEffect(selectedDatabase, pendingLaunchSource, backStack.lastOrNull()) {
                 selectedDatabase?.let { dbName ->
-                    val hasDatabaseManager = viewModel.getDatabaseManager() != null
-                    if (initializedDatabase != dbName || !hasDatabaseManager) {
-                        val dbPath = FileSystemHelper.getDatabasePath(dbName)
-                        val databaseManager = DatabaseManager(dbPath)
-                        databaseManager.init()
+                    ensureDatabaseInitialized(
+                        dbName = dbName,
+                        initializedDatabase = initializedDatabase,
+                        viewModel = viewModel,
+                        onDatabaseInitialized = { initializedDatabase = it },
+                    )
 
-                        viewModel.setDatabaseManager(databaseManager)
-                        viewModel.setDatabaseName(dbName.removeSuffix(".db"))
-                        initializedDatabase = dbName
-                    }
-
-                    val hasPendingHistoryRestore = pendingHistoryRestoreToken != handledHistoryRestoreToken
-                    if (hasPendingHistoryRestore) {
+                    val restoreFromHistory = pendingLaunchSource == QuizLaunchSource.History
+                    if (restoreFromHistory) {
                         handleSessionRestoreResult(
                             result = viewModel.restoreSession(),
                             onRestored = { viewModel.loadFilteredQuestionIds() },
@@ -210,7 +244,7 @@ fun App() {
                                 backStack.popToDatabaseSelection()
                             },
                         )
-                        handledHistoryRestoreToken = pendingHistoryRestoreToken
+                        pendingLaunchSource = null
                         return@LaunchedEffect
                     }
 
@@ -284,8 +318,9 @@ fun App() {
                             // Clear the quiz session since we're switching databases
                             sessionRepository.clearSession()
                         }
-                        // Other events are handled in destination-specific screens
-                        // are handled within QuizRoot as dialog overlays
+                        is UiEvent.ShowToast -> {
+                            snackbarHostState.showSnackbar(event.message)
+                        }
                         else -> Unit
                     }
                 }
@@ -308,11 +343,12 @@ fun App() {
                                     it.removeSuffix(".db") == entry.databaseName
                                 } ?: return@DatabaseSelectionScreen
 
-                                val restoredEntry = sessionRepository.restoreHistoryEntry(entry.id)
-                                    ?: return@DatabaseSelectionScreen
+                                if (sessionRepository.restoreHistoryEntry(entry.id) == null) {
+                                    return@DatabaseSelectionScreen
+                                }
 
                                 viewModel.setLoadingState(true)
-                                pendingHistoryRestoreToken += 1
+                                pendingLaunchSource = QuizLaunchSource.History
                                 selectedDatabase = matchingDatabase
                                 backStack.clear()
                                 backStack.add(MedicalQuizRoutes.DatabaseSelection)
@@ -458,8 +494,8 @@ fun App() {
                     // Media Viewer Screen - full-screen media display
                     entry<MedicalQuizRoutes.MediaViewer> { key ->
                         val mediaDescriptions by mediaDescriptionsFlow.collectAsStateWithLifecycle()
-                        val fontScalePreference = viewModel.settingsRepository?.fontScalePreference
-                            ?.collectAsStateWithLifecycle(null)?.value
+                        val fontScalePreference = viewModel.settingsRepository.fontScalePreference
+                            .collectAsStateWithLifecycle(null).value
 
                         MediaViewerScreen(
                             mediaFiles = key.files,
@@ -499,32 +535,36 @@ fun App() {
                 }
             }
 
-            // NavDisplay with slide animations and predictive back support
-            NavDisplay(
-                backStack = backStack,
-                onBack = { backStack.removeLastOrNull() },
-                entryProvider = entryProvider,
-                entryDecorators = listOf(
-                    rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator()
-                ),
-                transitionSpec = {
-                    // Forward navigation: slide in from right, slide out to left
-                    slideInHorizontally(initialOffsetX = { it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { -it })
-                },
-                popTransitionSpec = {
-                    // Back navigation: slide in from left, slide out to right
-                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { it })
-                },
-                predictivePopTransitionSpec = {
-                    // Predictive back gesture (Android 13+): slide in from left, slide out to right
-                    // Same as popTransitionSpec but used during gesture
-                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { it })
-                }
-            )
+            Box {
+                // NavDisplay with slide animations and predictive back support
+                NavDisplay(
+                    backStack = backStack,
+                    onBack = { backStack.removeLastOrNull() },
+                    entryProvider = entryProvider,
+                    entryDecorators = listOf(
+                        rememberSaveableStateHolderNavEntryDecorator(),
+                        rememberViewModelStoreNavEntryDecorator()
+                    ),
+                    transitionSpec = {
+                        // Forward navigation: slide in from right, slide out to left
+                        slideInHorizontally(initialOffsetX = { it }) togetherWith
+                            slideOutHorizontally(targetOffsetX = { -it })
+                    },
+                    popTransitionSpec = {
+                        // Back navigation: slide in from left, slide out to right
+                        slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                            slideOutHorizontally(targetOffsetX = { it })
+                    },
+                    predictivePopTransitionSpec = {
+                        // Predictive back gesture (Android 13+): slide in from left, slide out to right
+                        // Same as popTransitionSpec but used during gesture
+                        slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                            slideOutHorizontally(targetOffsetX = { it })
+                    }
+                )
+
+                SnackbarHost(hostState = snackbarHostState)
+            }
         }
     }
 

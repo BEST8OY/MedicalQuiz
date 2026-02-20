@@ -11,7 +11,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,12 +22,9 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.shared.ui.media.MediaHandler
-import com.medicalquiz.app.shared.ui.dialogs.ErrorDialog
 import com.medicalquiz.app.shared.ui.dialogs.JumpToDialog
-import com.medicalquiz.app.shared.ui.dialogs.ResetConfirmationDialog
 import com.medicalquiz.app.shared.ui.screens.media.PlatformBackHandler
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
-import com.medicalquiz.app.shared.viewmodel.UiEvent
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -59,12 +55,7 @@ fun QuizRoot(
 
     // Dialog states - these are overlays within the quiz screen
     var showJumpToDialog by rememberSaveable { mutableStateOf(false) }
-    var showResetLogsConfirmation by rememberSaveable { mutableStateOf(false) }
-    var errorDialog by rememberSaveable { mutableStateOf<Pair<String, String>?>(null) }
-
-    val isOverlayVisible = showJumpToDialog ||
-        showResetLogsConfirmation ||
-        errorDialog != null
+    val isOverlayVisible = showJumpToDialog
 
     // In pre-quiz mode, back button should navigate back to filter screen.
     // PlatformBackHandler is used here instead of NavDisplay's onBack because:
@@ -75,18 +66,6 @@ fun QuizRoot(
         enabled = !isQuizMode && !isOverlayVisible,
         onBack = onNavigateBack
     )
-
-    // Event handling from ViewModel
-    LaunchedEffect(viewModel) {
-        viewModel.uiEvents.collect { event ->
-            when (event) {
-                is UiEvent.ShowErrorDialog -> errorDialog = event.title to event.message
-                is UiEvent.ShowResetLogsConfirmation -> showResetLogsConfirmation = true
-                // OpenHtmlFile and OpenMedia are now handled by NavDisplay in App.kt
-                else -> Unit
-            }
-        }
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -145,21 +124,5 @@ fun QuizRoot(
         )
     }
 
-    if (showResetLogsConfirmation) {
-        ResetConfirmationDialog(
-            isVisible = true,
-            onConfirm = {
-                showResetLogsConfirmation = false
-                viewModel.clearLogsFromDb()
-            },
-            onDismiss = { showResetLogsConfirmation = false }
-        )
-    }
 
-    errorDialog?.let { (title, message) ->
-        ErrorDialog(
-            errorDialog = title to message,
-            onDismiss = { errorDialog = null }
-        )
-    }
 }

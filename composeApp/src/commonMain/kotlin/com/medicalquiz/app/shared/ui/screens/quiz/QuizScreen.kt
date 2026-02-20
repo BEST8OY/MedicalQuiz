@@ -80,8 +80,8 @@ fun QuizScreen(
     bottomClearance: Dp = 80.dp
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val fontScalePreference = viewModel.settingsRepository?.fontScalePreference
-        ?.collectAsStateWithLifecycle(null)?.value
+    val fontScalePreference = viewModel.settingsRepository.fontScalePreference
+        .collectAsStateWithLifecycle(null).value
 
     RichTextScaleProvider(proseScale = fontScalePreference ?: 1f) {
         QuestionContent(
