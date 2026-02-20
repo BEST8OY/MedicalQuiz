@@ -198,6 +198,10 @@ fun App() {
             }
             val viewModel = viewModel<QuizViewModel>(factory = quizViewModelFactory)
 
+            LaunchedEffect(viewModel, textHighlightsRepository) {
+                viewModel.rebindTextHighlightsRepository(textHighlightsRepository)
+            }
+
             // Media descriptions state for viewer
             val mediaDescriptionsFlow = remember { MutableStateFlow<Map<String, MediaDescription>>(emptyMap()) }
             val snackbarHostState = remember { SnackbarHostState() }
@@ -219,13 +223,16 @@ fun App() {
             var selectedDatabase by rememberSaveable { mutableStateOf<String?>(savedDbName) }
             var initializedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
             var pendingLaunchSource by rememberSaveable { mutableStateOf<QuizLaunchSource?>(null) }
+            var shouldAttemptSessionRestore by rememberSaveable {
+                mutableStateOf(savedBackStack?.lastOrNull() is MedicalQuizRoutes.Quiz)
+            }
 
             LaunchedEffect(Unit) {
                 userDataManager.init()
             }
 
             // Handle database initialization when selected
-            LaunchedEffect(selectedDatabase, pendingLaunchSource, backStack.lastOrNull()) {
+            LaunchedEffect(selectedDatabase, pendingLaunchSource, shouldAttemptSessionRestore) {
                 selectedDatabase?.let { dbName ->
                     ensureDatabaseInitialized(
                         dbName = dbName,
@@ -251,8 +258,7 @@ fun App() {
                     // If we're on the Quiz screen but questionIds is empty (app restart),
                     // restore quiz session from saved state
                     val currentState = viewModel.state.value
-                    val isOnQuizScreen = backStack.lastOrNull() is MedicalQuizRoutes.Quiz
-                    if (isOnQuizScreen && currentState.questionIds.isEmpty() && !currentState.isLoading) {
+                    if (shouldAttemptSessionRestore && currentState.questionIds.isEmpty() && !currentState.isLoading) {
                         handleSessionRestoreResult(
                             result = viewModel.restoreSession(),
                             onRestored = {
@@ -265,6 +271,7 @@ fun App() {
                                 backStack.popToDatabaseSelection()
                             },
                         )
+                        shouldAttemptSessionRestore = false
                     }
                 }
             }

@@ -35,7 +35,7 @@ private const val MAX_SCROLL_CACHE_SIZE = 100
 
 class QuizViewModel(
     internal val settingsRepository: SettingsRepository,
-    private val textHighlightsRepository: TextHighlightsRepository,
+    textHighlightsRepository: TextHighlightsRepository,
     private val cacheManager: CacheManager,
     private val sessionRepository: QuizSessionRepository,
     private val savedStateHandle: SavedStateHandle,
@@ -57,6 +57,7 @@ class QuizViewModel(
 
     private var databaseManager: DatabaseProvider? = null
     private var settingsObservationJob: Job? = null
+    private var textHighlightsRepository: TextHighlightsRepository = textHighlightsRepository
 
     private var testId = Random.nextLong().toString()
 
@@ -248,6 +249,18 @@ class QuizViewModel(
     }
 
     fun getTestId(): String = testId
+
+    fun rebindTextHighlightsRepository(repository: TextHighlightsRepository) {
+        if (textHighlightsRepository === repository) return
+        textHighlightsRepository = repository
+        val currentState = state.value
+        if (currentState.databaseName.isNotEmpty()) {
+            textHighlightsRepository.setCurrentDatabase(currentState.databaseName)
+        }
+        currentState.currentQuestion?.id?.let { questionId ->
+            textHighlightsRepository.loadHighlightsForQuestion(questionId)
+        }
+    }
 
     fun loadQuestion(
         index: Int,
