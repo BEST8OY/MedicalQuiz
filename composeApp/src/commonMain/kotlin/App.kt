@@ -252,7 +252,7 @@ fun App() {
                     // restore quiz session from saved state
                     val currentState = viewModel.state.value
                     val isOnQuizScreen = backStack.lastOrNull() is MedicalQuizRoutes.Quiz
-                    if (isOnQuizScreen && currentState.questionIds.isEmpty()) {
+                    if (isOnQuizScreen && currentState.questionIds.isEmpty() && !currentState.isLoading) {
                         handleSessionRestoreResult(
                             result = viewModel.restoreSession(),
                             onRestored = {
@@ -397,7 +397,6 @@ fun App() {
                             onSelectPerformance = { showPerformanceDialog = true },
                             onStart = dropUnlessResumed {
                                 viewModel.loadFilteredQuestionIds()
-                                viewModel.loadQuestion(0)
                                 backStack.add(MedicalQuizRoutes.Quiz())
                             },
                             onClearFilters = {

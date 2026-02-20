@@ -435,7 +435,9 @@ class QuizViewModel(
                             isLoading = false,
                         )
                     }
-                    saveSession(appendToHistory = appendToHistory)
+                    // No quiz was started (no matching questions), so keep active session
+                    // state in sync without polluting history.
+                    saveSession(appendToHistory = false)
                     return@launch
                 }
 
