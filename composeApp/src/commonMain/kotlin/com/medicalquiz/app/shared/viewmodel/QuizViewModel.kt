@@ -164,9 +164,9 @@ class QuizViewModel(
      */
     suspend fun restoreSession(): SessionRestoreResult {
         return when (val result = quizSessionBoundaryUseCase.restoreSessionForDatabase(state.value.databaseName)) {
-            QuizSessionBoundaryUseCase.RestoreResult.NoSession -> SessionRestoreResult.NoSession
-            QuizSessionBoundaryUseCase.RestoreResult.DatabaseMismatch -> SessionRestoreResult.DatabaseMismatch
-            is QuizSessionBoundaryUseCase.RestoreResult.Restored -> {
+            com.medicalquiz.app.shared.domain.QuizSessionBoundaryUseCase.RestoreResult.NoSession -> SessionRestoreResult.NoSession
+            com.medicalquiz.app.shared.domain.QuizSessionBoundaryUseCase.RestoreResult.DatabaseMismatch -> SessionRestoreResult.DatabaseMismatch
+            is com.medicalquiz.app.shared.domain.QuizSessionBoundaryUseCase.RestoreResult.Restored -> {
                 _state.update {
                     it.copy(
                         selectedSubjectIds = result.selectedSubjectIds,

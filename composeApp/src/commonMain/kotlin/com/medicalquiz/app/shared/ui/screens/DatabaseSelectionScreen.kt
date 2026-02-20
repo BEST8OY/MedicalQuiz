@@ -365,7 +365,7 @@ private fun HistoryItemCard(
     )
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(swipingEnabled) {
+    androidx.compose.runtime.LaunchedEffect(swipingEnabled) {
         if (!swipingEnabled && dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
             dismissState.reset()
         }
