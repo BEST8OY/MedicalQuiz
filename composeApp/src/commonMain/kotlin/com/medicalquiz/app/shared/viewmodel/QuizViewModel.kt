@@ -610,6 +610,12 @@ class QuizViewModel(
         persistStateSnapshot()
         // Notify text highlights repository of database switch
         textHighlightsRepository.setCurrentDatabase(name)
+
+        // If a question was already loaded before database name propagation finished,
+        // reload highlights now that repository context is guaranteed.
+        state.value.currentQuestion?.id?.let { questionId ->
+            textHighlightsRepository.loadHighlightsForQuestion(questionId)
+        }
     }
 
     private suspend fun updatePreviewQuestionCountInternal() {
