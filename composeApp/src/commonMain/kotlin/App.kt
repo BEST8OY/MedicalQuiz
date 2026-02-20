@@ -205,6 +205,10 @@ fun App() {
                         handleSessionRestoreResult(
                             result = viewModel.restoreSession(),
                             onRestored = { viewModel.loadFilteredQuestionIds() },
+                            onUnavailable = {
+                                viewModel.setLoadingState(false)
+                                backStack.popToDatabaseSelection()
+                            },
                         )
                         handledHistoryRestoreToken = pendingHistoryRestoreToken
                         return@LaunchedEffect
@@ -307,6 +311,7 @@ fun App() {
                                 if (matchingDatabase != null) {
                                     val restoredEntry = sessionRepository.restoreHistoryEntry(entry.id)
                                     if (restoredEntry != null) {
+                                        viewModel.setLoadingState(true)
                                         pendingHistoryRestoreToken += 1
                                         selectedDatabase = matchingDatabase
                                         backStack.clear()
