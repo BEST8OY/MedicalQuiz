@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Solid Minimalist Card minus the Medical Cross and Checkmark Negative Space holes -->
+    <path
+        android:fillColor="#000000"
+        android:fillType="evenOdd"
+        android:pathData="
+            M 42 30 L 66 30 A 6 6 0 0 1 72 36 L 72 72 A 6 6 0 0 1 66 78 L 42 78 A 6 6 0 0 1 36 72 L 36 36 A 6 6 0 0 1 42 30 Z 
+            M 51 35 h 6 v 6 h 6 v 6 h -6 v 6 h -6 v -6 h -6 v -6 h 6 v -6 Z 
+            M 48 63 L 52 67 L 60 59 L 62 61 L 52 71 L 46 65 Z" />
+</vector>
