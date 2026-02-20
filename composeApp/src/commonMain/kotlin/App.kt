@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -60,6 +61,7 @@ import com.medicalquiz.app.shared.ui.dialogs.SystemFilterDialog
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 import com.medicalquiz.app.shared.viewmodel.UiEvent
 import com.medicalquiz.app.shared.utils.MediaTypeUtils
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -173,6 +175,14 @@ fun App() {
             // User data manager for highlights and other personal data
             val userDataManager = remember { UserDataManager() }
             val textHighlightsRepository = remember { TextHighlightsRepository(userDataManager, scope) }
+
+            DisposableEffect(userDataManager) {
+                onDispose {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        userDataManager.close()
+                    }
+                }
+            }
 
             // Quiz session repository for persisting quiz state across process death
             val sessionRepository = remember { QuizSessionRepository() }
