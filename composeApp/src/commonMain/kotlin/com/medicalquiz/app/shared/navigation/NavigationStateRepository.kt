@@ -3,6 +3,8 @@ package com.medicalquiz.app.shared.navigation
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.platform.StorageProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
@@ -50,6 +52,13 @@ class NavigationStateRepository {
         }
     }
 
+    suspend fun saveNavigationStateAsync(
+        backStack: List<MedicalQuizRoutes>,
+        selectedDatabase: String? = null,
+    ) = withContext(Dispatchers.IO) {
+        saveNavigationState(backStack, selectedDatabase)
+    }
+
     /**
      * Restores the navigation back stack from persistent storage.
      *
@@ -71,6 +80,11 @@ class NavigationStateRepository {
         }
     }
 
+    suspend fun restoreNavigationStateAsync(): Pair<List<MedicalQuizRoutes>, String?>? =
+        withContext(Dispatchers.IO) {
+            restoreNavigationState()
+        }
+
     /**
      * Clears the saved navigation state.
      *
@@ -80,6 +94,10 @@ class NavigationStateRepository {
         return runCatching { FileSystemHelper.delete(navigationStateFile) }
             .onFailure { Logger.e("NavigationState", "Error clearing navigation state", it) }
             .getOrDefault(false)
+    }
+
+    suspend fun clearNavigationStateAsync(): Boolean = withContext(Dispatchers.IO) {
+        clearNavigationState()
     }
 
     private fun handleRestoreError(throwable: Throwable) {

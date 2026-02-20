@@ -9,6 +9,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -34,8 +35,14 @@ import androidx.navigation3.ui.NavDisplay
 import coil3.compose.setSingletonImageLoaderFactory
 import com.medicalquiz.app.shared.data.CacheManager
 import com.medicalquiz.app.shared.data.DatabaseManager
+import com.medicalquiz.app.shared.data.LocalContentRepository
 import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.data.MediaDescriptionRepository
+import com.medicalquiz.app.shared.domain.ApplyFiltersUseCase
+import com.medicalquiz.app.shared.domain.LoadQuestionUseCase
+import com.medicalquiz.app.shared.domain.QuizSessionBoundaryUseCase
+import com.medicalquiz.app.shared.domain.RestoreSessionUseCase
+import com.medicalquiz.app.shared.domain.UiEventDispatcher
 import com.medicalquiz.app.shared.navigation.NavigationStateRepository
 import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.data.SettingsRepository
@@ -44,8 +51,6 @@ import com.medicalquiz.app.shared.data.UserDataManager
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.navigation.MedicalQuizRoutes
 import com.medicalquiz.app.shared.navigation.QuizLaunchSource
-import com.medicalquiz.app.shared.platform.FileSystemHelper
-import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.theme.AppTheme
 import com.medicalquiz.app.shared.ui.screens.DatabaseSelectionScreen
 import com.medicalquiz.app.shared.ui.screens.FilterScreen
@@ -59,6 +64,7 @@ import com.medicalquiz.app.shared.ui.dialogs.PerformanceFilterDialog
 import com.medicalquiz.app.shared.ui.dialogs.SubjectFilterDialog
 import com.medicalquiz.app.shared.ui.dialogs.SystemFilterDialog
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
+import com.medicalquiz.app.shared.viewmodel.QuizViewModelDependencies
 import com.medicalquiz.app.shared.viewmodel.UiEvent
 import com.medicalquiz.app.shared.utils.MediaTypeUtils
 import kotlinx.coroutines.CoroutineScope
@@ -75,21 +81,21 @@ private suspend fun navigateToMediaViewer(
     files: List<String>,
     startIndex: Int,
     backStack: MutableList<MedicalQuizRoutes>,
-    mediaDescriptionsFlow: MutableStateFlow<Map<String, MediaDescription>>
+    mediaDescriptionsFlow: MutableStateFlow<Map<String, MediaDescription>>,
+    localContentRepository: LocalContentRepository,
 ) {
-    // Filter unsupported and unavailable files on IO dispatcher to avoid blocking main thread
-    val availableFiles = withContext(Dispatchers.IO) {
-        files.filter { fileName ->
-            val isPlayableType = when (MediaTypeUtils.fromFileName(fileName)) {
-                MediaType.IMAGE,
-                MediaType.VIDEO,
-                MediaType.AUDIO -> true
-                else -> false
-            }
-            if (!isPlayableType) return@filter false
+    val availableFiles = mutableListOf<String>()
+    for (fileName in files) {
+        val isPlayableType = when (MediaTypeUtils.fromFileName(fileName)) {
+            MediaType.IMAGE,
+            MediaType.VIDEO,
+            MediaType.AUDIO -> true
+            else -> false
+        }
+        if (!isPlayableType) continue
 
-            val path = "${StorageProvider.getAppStorageDirectory()}/media/$fileName"
-            FileSystemHelper.exists(path)
+        if (localContentRepository.mediaFileExists(fileName)) {
+            availableFiles.add(fileName)
         }
     }
     
@@ -123,36 +129,6 @@ private fun MutableList<MedicalQuizRoutes>.popToDatabaseSelection() {
     }
 }
 
-private inline fun handleSessionRestoreResult(
-    result: QuizViewModel.SessionRestoreResult,
-    onRestored: () -> Unit,
-    onUnavailable: () -> Unit = {},
-) {
-    when (result) {
-        QuizViewModel.SessionRestoreResult.Restored -> onRestored()
-        QuizViewModel.SessionRestoreResult.DatabaseMismatch,
-        QuizViewModel.SessionRestoreResult.NoSession -> onUnavailable()
-    }
-}
-
-private suspend fun ensureDatabaseInitialized(
-    dbName: String,
-    initializedDatabase: String?,
-    viewModel: QuizViewModel,
-    onDatabaseInitialized: (String) -> Unit,
-) {
-    val hasDatabaseManager = viewModel.getDatabaseManager() != null
-    if (initializedDatabase == dbName && hasDatabaseManager) return
-
-    val dbPath = FileSystemHelper.getDatabasePath(dbName)
-    val databaseManager = DatabaseManager(dbPath)
-    databaseManager.init()
-
-    viewModel.setDatabaseManager(databaseManager)
-    viewModel.setDatabaseName(dbName.removeSuffix(".db"))
-    onDatabaseInitialized(dbName)
-}
-
 @Composable
 fun App() {
     // Install Coil's singleton ImageLoader once.
@@ -167,6 +143,11 @@ fun App() {
     }
 
     val settingsRepository = remember { SettingsRepository() }
+    val localContentRepository = remember { LocalContentRepository() }
+    val restoreSessionUseCase = remember { RestoreSessionUseCase() }
+    val applyFiltersUseCase = remember { ApplyFiltersUseCase() }
+    val loadQuestionUseCase = remember { LoadQuestionUseCase() }
+    val uiEventDispatcher = remember { UiEventDispatcher() }
 
     AppTheme {
             val cacheManager = remember { CacheManager() }
@@ -186,13 +167,31 @@ fun App() {
 
             // Quiz session repository for persisting quiz state across process death
             val sessionRepository = remember { QuizSessionRepository() }
-            var sessionHistory by remember { mutableStateOf(sessionRepository.listHistory()) }
+            val quizSessionBoundaryUseCase = remember(sessionRepository) {
+                QuizSessionBoundaryUseCase(sessionRepository)
+            }
+            val quizViewModelDependencies = remember(
+                quizSessionBoundaryUseCase,
+                applyFiltersUseCase,
+                loadQuestionUseCase,
+                uiEventDispatcher,
+            ) {
+                QuizViewModelDependencies(
+                    quizSessionBoundaryUseCase = quizSessionBoundaryUseCase,
+                    applyFiltersUseCase = applyFiltersUseCase,
+                    loadQuestionUseCase = loadQuestionUseCase,
+                    uiEventDispatcher = uiEventDispatcher,
+                )
+            }
+            val sessionHistory by sessionRepository.historyEntries.collectAsStateWithLifecycle(emptyList())
+            var availableDatabases by remember { mutableStateOf<List<String>>(emptyList()) }
+            var isDatabaseListLoading by remember { mutableStateOf(true) }
 
             val quizViewModelFactory = remember(
                 settingsRepository,
                 textHighlightsRepository,
                 cacheManager,
-                sessionRepository,
+                quizViewModelDependencies,
             ) {
                 viewModelFactory {
                     initializer {
@@ -200,8 +199,8 @@ fun App() {
                             settingsRepository = settingsRepository,
                             textHighlightsRepository = textHighlightsRepository,
                             cacheManager = cacheManager,
-                            sessionRepository = sessionRepository,
                             savedStateHandle = createSavedStateHandle(),
+                            dependencies = quizViewModelDependencies,
                         )
                     }
                 }
@@ -218,8 +217,21 @@ fun App() {
 
             // Navigation state management
             val navStateRepo = remember { NavigationStateRepository() }
-            val savedState = remember { navStateRepo.restoreNavigationState() }
-            val (savedBackStack, savedDbName) = savedState ?: (null to null)
+            val navRestoreBootstrap by produceState(
+                initialValue = NavigationRestoreBootstrap(loaded = false, state = null),
+                key1 = navStateRepo,
+            ) {
+                value = NavigationRestoreBootstrap(
+                    loaded = true,
+                    state = navStateRepo.restoreNavigationStateAsync(),
+                )
+            }
+
+            if (!navRestoreBootstrap.loaded) {
+                return@AppTheme
+            }
+
+            val (savedBackStack, savedDbName) = navRestoreBootstrap.state ?: (null to null)
 
             // Always use remember (not rememberSaveable) for backStack to avoid
             // stale state from Bundle when app data is cleared. We only persist
@@ -237,51 +249,39 @@ fun App() {
                 mutableStateOf(savedBackStack?.lastOrNull() is MedicalQuizRoutes.Quiz)
             }
 
+            val refreshDatabases: () -> Unit = {
+                scope.launch {
+                    isDatabaseListLoading = true
+                    availableDatabases = localContentRepository.listDatabases()
+                    isDatabaseListLoading = false
+                }
+            }
+
             LaunchedEffect(Unit) {
                 userDataManager.init()
+                isDatabaseListLoading = true
+                availableDatabases = localContentRepository.listDatabases()
+                isDatabaseListLoading = false
+                sessionRepository.refreshHistoryAsync()
             }
 
             // Handle database initialization when selected
             LaunchedEffect(selectedDatabase, pendingLaunchSource, shouldAttemptSessionRestore) {
                 selectedDatabase?.let { dbName ->
-                    ensureDatabaseInitialized(
+                    val decision = restoreSessionUseCase(
                         dbName = dbName,
                         initializedDatabase = initializedDatabase,
+                        pendingLaunchSource = pendingLaunchSource,
+                        shouldAttemptSessionRestore = shouldAttemptSessionRestore,
                         viewModel = viewModel,
-                        onDatabaseInitialized = { initializedDatabase = it },
                     )
 
-                    val restoreFromHistory = pendingLaunchSource == QuizLaunchSource.History
-                    if (restoreFromHistory) {
-                        handleSessionRestoreResult(
-                            result = viewModel.restoreSession(),
-                            onRestored = { viewModel.loadFilteredQuestionIds() },
-                            onUnavailable = {
-                                viewModel.setLoadingState(false)
-                                backStack.popToDatabaseSelection()
-                            },
-                        )
-                        pendingLaunchSource = null
-                        return@LaunchedEffect
-                    }
+                    initializedDatabase = decision.initializedDatabase
+                    pendingLaunchSource = decision.pendingLaunchSource
+                    shouldAttemptSessionRestore = decision.shouldAttemptSessionRestore
 
-                    // If we're on the Quiz screen but questionIds is empty (app restart),
-                    // restore quiz session from saved state
-                    val currentState = viewModel.state.value
-                    if (shouldAttemptSessionRestore && currentState.questionIds.isEmpty() && !currentState.isLoading) {
-                        handleSessionRestoreResult(
-                            result = viewModel.restoreSession(),
-                            onRestored = {
-                                // Session was restored, load the filtered questions and current question
-                                viewModel.loadFilteredQuestionIds()
-                            },
-                            onUnavailable = {
-                                // No saved session or session was for different database,
-                                // go back to filter screen
-                                backStack.popToDatabaseSelection()
-                            },
-                        )
-                        shouldAttemptSessionRestore = false
+                    if (decision.shouldPopToDatabaseSelection) {
+                        backStack.popToDatabaseSelection()
                     }
                 }
             }
@@ -290,9 +290,9 @@ fun App() {
             LaunchedEffect(Unit) {
                 snapshotFlow { backStack.toList() }
                     .collect { currentStack ->
-                        navStateRepo.saveNavigationState(currentStack, selectedDatabase)
+                        navStateRepo.saveNavigationStateAsync(currentStack, selectedDatabase)
                         if (currentStack.lastOrNull() is MedicalQuizRoutes.DatabaseSelection) {
-                            sessionHistory = sessionRepository.listHistory()
+                            sessionRepository.refreshHistoryAsync()
                         }
                     }
             }
@@ -302,7 +302,13 @@ fun App() {
                 MediaHandler(
                     onOpenMedia = { files, index ->
                         scope.launch {
-                            navigateToMediaViewer(files, index, backStack, mediaDescriptionsFlow)
+                            navigateToMediaViewer(
+                                files = files,
+                                startIndex = index,
+                                backStack = backStack,
+                                mediaDescriptionsFlow = mediaDescriptionsFlow,
+                                localContentRepository = localContentRepository,
+                            )
                         }
                     },
                     onOpenHtml = { fileName ->
@@ -323,7 +329,8 @@ fun App() {
                                 files = event.urls,
                                 startIndex = event.startIndex,
                                 backStack = backStack,
-                                mediaDescriptionsFlow = mediaDescriptionsFlow
+                                mediaDescriptionsFlow = mediaDescriptionsFlow,
+                                localContentRepository = localContentRepository,
                             )
                         }
                         is UiEvent.NavigateToDatabaseSelection -> {
@@ -333,7 +340,7 @@ fun App() {
                             initializedDatabase = null
                             viewModel.closeDatabase()
                             // Clear the quiz session since we're switching databases
-                            sessionRepository.clearSession()
+                            sessionRepository.clearSessionAsync()
                         }
                         is UiEvent.ShowToast -> {
                             snackbarHostState.showSnackbar(event.message)
@@ -344,11 +351,21 @@ fun App() {
             }
 
             // Navigation entry provider
-            val entryProvider = remember(viewModel, mediaHandler, mediaDescriptionsFlow) {
+            val entryProvider = remember(
+                viewModel,
+                mediaHandler,
+                mediaDescriptionsFlow,
+                localContentRepository,
+                availableDatabases,
+                isDatabaseListLoading,
+            ) {
                 entryProvider<MedicalQuizRoutes> {
                     // Database Selection Screen - app entry point
                     entry<MedicalQuizRoutes.DatabaseSelection> {
                         DatabaseSelectionScreen(
+                            databases = availableDatabases,
+                            isLoading = isDatabaseListLoading,
+                            onRefreshDatabases = refreshDatabases,
                             historyEntries = sessionHistory,
                             onDatabaseSelected = { dbName ->
                                 selectedDatabase = dbName
@@ -356,28 +373,32 @@ fun App() {
                                 backStack.add(MedicalQuizRoutes.Filter)
                             },
                             onHistorySelected = { entry ->
-                                val matchingDatabase = FileSystemHelper.listDatabases().firstOrNull {
-                                    it.removeSuffix(".db") == entry.databaseName
-                                } ?: return@DatabaseSelectionScreen
+                                scope.launch {
+                                    val matchingDatabase = availableDatabases.firstOrNull {
+                                        it.removeSuffix(".db") == entry.databaseName
+                                    } ?: return@launch
 
-                                if (sessionRepository.restoreHistoryEntry(entry.id) == null) {
-                                    return@DatabaseSelectionScreen
+                                    if (sessionRepository.restoreHistoryEntryAsync(entry.id) == null) {
+                                        return@launch
+                                    }
+
+                                    viewModel.setLoadingState(true)
+                                    pendingLaunchSource = QuizLaunchSource.History
+                                    selectedDatabase = matchingDatabase
+                                    backStack.clear()
+                                    backStack.add(MedicalQuizRoutes.DatabaseSelection)
+                                    backStack.add(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
                                 }
-
-                                viewModel.setLoadingState(true)
-                                pendingLaunchSource = QuizLaunchSource.History
-                                selectedDatabase = matchingDatabase
-                                backStack.clear()
-                                backStack.add(MedicalQuizRoutes.DatabaseSelection)
-                                backStack.add(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
                             },
                             onDeleteHistoryEntries = { entryIds ->
-                                sessionRepository.deleteHistoryEntries(entryIds)
-                                sessionHistory = sessionRepository.listHistory()
+                                scope.launch {
+                                    sessionRepository.deleteHistoryEntriesAsync(entryIds)
+                                }
                             },
                             onRenameHistoryEntry = { entryId, newName ->
-                                sessionRepository.renameHistoryEntry(entryId, newName)
-                                sessionHistory = sessionRepository.listHistory()
+                                scope.launch {
+                                    sessionRepository.renameHistoryEntryAsync(entryId, newName)
+                                }
                             }
                         )
                     }
@@ -518,6 +539,13 @@ fun App() {
                             startIndex = key.startIndex,
                             mediaDescriptions = mediaDescriptions,
                             richTextScale = fontScalePreference ?: 1f,
+                            resolveMediaFilePath = localContentRepository::mediaFilePath,
+                            mediaFileExists = { fileName ->
+                                localContentRepository.mediaFileExists(fileName)
+                            },
+                            resolveOverlayPaths = { files ->
+                                localContentRepository.resolveOverlayPaths(files)
+                            },
                             onLinkClick = { url ->
                                 if (!mediaHandler.handleMediaLink(url)) {
                                     // Handle external URLs if not media
@@ -536,8 +564,18 @@ fun App() {
 
                     // HTML Viewer Screen - HTML content display
                     entry<MedicalQuizRoutes.HtmlViewer> { key ->
+                        val htmlDocument by produceState<LocalContentRepository.HtmlDocumentResult?>(
+                            initialValue = null,
+                            key1 = key.fileName,
+                        ) {
+                            value = localContentRepository.loadHtmlDocument(key.fileName)
+                        }
+
                         HtmlViewerScreen(
                             fileName = key.fileName,
+                            htmlContent = htmlDocument?.sanitizedHtml,
+                            fileExists = htmlDocument?.fileExists ?: true,
+                            isLoading = htmlDocument == null,
                             onBack = dropUnlessResumed {
                                 backStack.removeLastOrNull()
                             },
@@ -598,3 +636,8 @@ private fun formatPerformanceLabel(filter: PerformanceFilter): String = remember
         PerformanceFilter.EVER_INCORRECT -> "Ever Incorrect"
     }
 }
+
+private data class NavigationRestoreBootstrap(
+    val loaded: Boolean,
+    val state: Pair<List<MedicalQuizRoutes>, String?>?,
+)

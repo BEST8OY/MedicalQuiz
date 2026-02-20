@@ -92,14 +92,10 @@ import androidx.compose.runtime.produceState
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.medicalquiz.app.shared.data.MediaDescription
-import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.ui.media.MediaType
-import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
 import com.medicalquiz.app.shared.ui.richtext.RichTextScaleProvider
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlin.math.absoluteValue
 
 // Animation and interaction constants
@@ -128,6 +124,9 @@ fun MediaViewerScreen(
     startIndex: Int = 0,
     mediaDescriptions: Map<String, MediaDescription> = emptyMap(),
     richTextScale: Float = 1f,
+    resolveMediaFilePath: (String) -> String,
+    mediaFileExists: suspend (String) -> Boolean,
+    resolveOverlayPaths: suspend (List<String>) -> Map<String, String?>,
     onLinkClick: ((String) -> Unit)? = null,
     onBack: () -> Unit,
     sharedTransitionKey: String? = null,
@@ -138,6 +137,9 @@ fun MediaViewerScreen(
             startIndex = startIndex,
             mediaDescriptions = mediaDescriptions,
             richTextScale = richTextScale,
+            resolveMediaFilePath = resolveMediaFilePath,
+            mediaFileExists = mediaFileExists,
+            resolveOverlayPaths = resolveOverlayPaths,
             onLinkClick = onLinkClick,
             onBack = onBack,
             sharedTransitionKey = sharedTransitionKey,
@@ -152,6 +154,9 @@ private fun SharedTransitionScope.MediaViewerContent(
     startIndex: Int,
     mediaDescriptions: Map<String, MediaDescription>,
     richTextScale: Float,
+    resolveMediaFilePath: (String) -> String,
+    mediaFileExists: suspend (String) -> Boolean,
+    resolveOverlayPaths: suspend (List<String>) -> Map<String, String?>,
     onLinkClick: ((String) -> Unit)?,
     onBack: () -> Unit,
     sharedTransitionKey: String?,
@@ -192,16 +197,8 @@ private fun SharedTransitionScope.MediaViewerContent(
 
     val onToggleUI: () -> Unit = { showUI = !showUI }
 
-    val storageDir = remember { StorageProvider.getAppStorageDirectory() }
-    val overlayPathsByFile by produceState<Map<String, String?>>(initialValue = emptyMap(), mediaFiles, storageDir) {
-        value = withContext(Dispatchers.IO) {
-            mediaFiles.associateWith { fileName ->
-                if (!fileName.startsWith("big_", ignoreCase = true)) return@associateWith null
-                val overlayFile = fileName.substringBeforeLast('.') + ".svg"
-                val path = "$storageDir/media/$overlayFile"
-                if (FileSystemHelper.exists(path)) path else null
-            }
-        }
+    val overlayPathsByFile by produceState<Map<String, String?>>(initialValue = emptyMap(), mediaFiles) {
+        value = resolveOverlayPaths(mediaFiles)
     }
     val currentOverlayPath = overlayPathsByFile[currentFileName]
 
@@ -238,6 +235,8 @@ private fun SharedTransitionScope.MediaViewerContent(
                 MediaContent(
                     fileName = mediaFiles[page],
                     isActivePage = pagerState.currentPage == page,
+                    resolveMediaFilePath = resolveMediaFilePath,
+                    mediaFileExists = mediaFileExists,
                     onZoomChanged = {
                         isZoomed = it
                         if (it) showUI = false
@@ -501,14 +500,15 @@ private fun ExplanationBottomSheet(
 private fun MediaContent(
     fileName: String,
     isActivePage: Boolean,
+    resolveMediaFilePath: (String) -> String,
+    mediaFileExists: suspend (String) -> Boolean,
     onZoomChanged: (Boolean) -> Unit,
     onSingleTap: () -> Unit,
     overlayPath: String? = null,
     showOverlay: Boolean = true,
 ) {
     val mediaType = remember(fileName) { getMediaType(fileName) }
-    val storageDir = remember { StorageProvider.getAppStorageDirectory() }
-    val filePath = remember(fileName) { "$storageDir/media/$fileName" }
+    val filePath = remember(fileName, resolveMediaFilePath) { resolveMediaFilePath(fileName) }
 
     val defaultEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     val fastEffectsSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
@@ -529,6 +529,8 @@ private fun MediaContent(
         when (type) {
             MediaType.IMAGE -> ImageContent(
                 fileName = fileName,
+                mediaFilePath = filePath,
+                mediaFileExists = mediaFileExists,
                 onZoomChanged = onZoomChanged,
                 onSingleTap = onSingleTap,
                 overlayPath = overlayPath,
@@ -537,11 +539,13 @@ private fun MediaContent(
             MediaType.VIDEO -> VideoContent(
                 filePath = filePath,
                 fileName = fileName,
+                mediaFileExists = mediaFileExists,
                 isActivePage = isActivePage
             )
             MediaType.AUDIO -> AudioContent(
                 filePath = filePath,
                 fileName = fileName,
+                mediaFileExists = mediaFileExists,
                 isActivePage = isActivePage
             )
             else -> UnsupportedContent(fileName = fileName)
@@ -550,9 +554,14 @@ private fun MediaContent(
 }
 
 @Composable
-private fun VideoContent(filePath: String, fileName: String, isActivePage: Boolean) {
+private fun VideoContent(
+    filePath: String,
+    fileName: String,
+    mediaFileExists: suspend (String) -> Boolean,
+    isActivePage: Boolean,
+) {
     val fileExists by produceState(initialValue = true, filePath) {
-        value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
+        value = mediaFileExists(fileName)
     }
 
     if (!fileExists) {
@@ -568,9 +577,14 @@ private fun VideoContent(filePath: String, fileName: String, isActivePage: Boole
 }
 
 @Composable
-private fun AudioContent(filePath: String, fileName: String, isActivePage: Boolean) {
+private fun AudioContent(
+    filePath: String,
+    fileName: String,
+    mediaFileExists: suspend (String) -> Boolean,
+    isActivePage: Boolean,
+) {
     val fileExists by produceState(initialValue = true, filePath) {
-        value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
+        value = mediaFileExists(fileName)
     }
 
     if (!fileExists) {
@@ -589,16 +603,17 @@ private fun AudioContent(filePath: String, fileName: String, isActivePage: Boole
 @Composable
 private fun ImageContent(
     fileName: String,
+    mediaFilePath: String,
+    mediaFileExists: suspend (String) -> Boolean,
     onZoomChanged: (Boolean) -> Unit,
     onSingleTap: () -> Unit,
     overlayPath: String? = null,
     showOverlay: Boolean = true,
 ) {
-    val storageDir = remember { StorageProvider.getAppStorageDirectory() }
-    val filePath = remember(fileName) { "$storageDir/media/$fileName" }
+    val filePath = remember(mediaFilePath) { mediaFilePath }
 
     val fileExists by produceState(initialValue = true, filePath) {
-        value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
+        value = mediaFileExists(fileName)
     }
 
     if (!fileExists) {
