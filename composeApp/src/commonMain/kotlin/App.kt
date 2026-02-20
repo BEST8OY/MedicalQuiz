@@ -345,7 +345,6 @@ fun App() {
                         is UiEvent.ShowToast -> {
                             snackbarHostState.showSnackbar(event.message)
                         }
-                        else -> Unit
                     }
                 }
             }

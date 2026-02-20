@@ -15,7 +15,7 @@ class LoadQuestionUseCase {
         val question = db?.getQuestionById(questionId)
         val answers = db?.getAnswersForQuestion(questionId) ?: emptyList()
         val performance = if (isLoggingEnabled && question != null) {
-            db?.getQuestionPerformance(question.id)
+            db.getQuestionPerformance(question.id)
         } else {
             null
         }

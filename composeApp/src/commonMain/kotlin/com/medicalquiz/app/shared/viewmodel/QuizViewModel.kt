@@ -296,7 +296,7 @@ class QuizViewModel(
                 emitToast("Failed to load question: ${e.message}")
             } finally {
                 _state.update { it.copy(isLoading = false) }
-                cacheManager?.trimCachesIfNeeded(index)
+                cacheManager.trimCachesIfNeeded(index)
                 saveSession(appendToHistory = appendToHistory)
             }
         }
