@@ -1,5 +1,6 @@
 package com.medicalquiz.app.shared.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medicalquiz.app.shared.data.CacheManager
@@ -12,8 +13,10 @@ import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.data.database.QuestionPerformance
 import com.medicalquiz.app.shared.ui.state.QuizUiState
 import com.medicalquiz.app.shared.utils.Resource
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,8 +33,22 @@ import kotlin.random.Random
 
 private const val MAX_SCROLL_CACHE_SIZE = 100
 
-class QuizViewModel : ViewModel() {
+class QuizViewModel(
+    internal val settingsRepository: SettingsRepository,
+    textHighlightsRepository: TextHighlightsRepository,
+    private val cacheManager: CacheManager,
+    private val sessionRepository: QuizSessionRepository,
+    private val savedStateHandle: SavedStateHandle,
+) : ViewModel() {
 
+
+    private companion object {
+        const val KEY_DATABASE_NAME = "database_name"
+        const val KEY_SELECTED_SUBJECT_IDS = "selected_subject_ids"
+        const val KEY_SELECTED_SYSTEM_IDS = "selected_system_ids"
+        const val KEY_PERFORMANCE_FILTER = "performance_filter"
+        const val KEY_CURRENT_QUESTION_INDEX = "current_question_index"
+    }
     enum class SessionRestoreResult {
         Restored,
         NoSession,
@@ -39,12 +56,8 @@ class QuizViewModel : ViewModel() {
     }
 
     private var databaseManager: DatabaseProvider? = null
-    internal var settingsRepository: SettingsRepository? = null
-        private set
-    private var textHighlightsRepository: TextHighlightsRepository? = null
-    private var cacheManager: CacheManager? = null
-    private var sessionRepository: QuizSessionRepository? = null
     private var settingsObservationJob: Job? = null
+    private var textHighlightsRepository: TextHighlightsRepository = textHighlightsRepository
 
     private var testId = Random.nextLong().toString()
 
@@ -70,6 +83,41 @@ class QuizViewModel : ViewModel() {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Int>?): Boolean {
             return size > MAX_SCROLL_CACHE_SIZE
         }
+    }
+
+    init {
+        restoreFromSavedState()
+        settingsObservationJob = observeSettings(settingsRepository)
+    }
+
+    private fun restoreFromSavedState() {
+        val savedDatabaseName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
+        val savedSubjectIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SUBJECT_IDS).orEmpty()
+        val savedSystemIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SYSTEM_IDS).orEmpty()
+        val savedPerformanceName = savedStateHandle.get<String>(KEY_PERFORMANCE_FILTER)
+        val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: 0
+
+        val savedFilter = savedPerformanceName
+            ?.let { runCatching { PerformanceFilter.valueOf(it) }.getOrNull() }
+            ?: PerformanceFilter.ALL
+
+        _state.update {
+            it.copy(
+                databaseName = savedDatabaseName,
+                selectedSubjectIds = savedSubjectIds.toSet(),
+                selectedSystemIds = savedSystemIds.toSet(),
+                performanceFilter = savedFilter,
+                currentQuestionIndex = savedQuestionIndex.coerceAtLeast(0),
+            )
+        }
+    }
+
+    private fun persistStateSnapshot(snapshot: QuizUiState = state.value) {
+        savedStateHandle[KEY_DATABASE_NAME] = snapshot.databaseName
+        savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = snapshot.selectedSubjectIds.toList()
+        savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = snapshot.selectedSystemIds.toList()
+        savedStateHandle[KEY_PERFORMANCE_FILTER] = snapshot.performanceFilter.name
+        savedStateHandle[KEY_CURRENT_QUESTION_INDEX] = snapshot.currentQuestionIndex
     }
 
     suspend fun setDatabaseManager(db: DatabaseProvider) {
@@ -102,43 +150,10 @@ class QuizViewModel : ViewModel() {
             )
         }
         scrollPositionCache.clear()
+        persistStateSnapshot()
     }
 
-    fun setSettingsRepository(repo: SettingsRepository) {
-        if (settingsRepository === repo) return
-        settingsObservationJob?.cancel()
-        settingsRepository = repo
-        settingsObservationJob = observeSettings(repo)
-    }
-
-    fun setTextHighlightsRepository(repo: TextHighlightsRepository) {
-        if (textHighlightsRepository === repo) return
-        textHighlightsRepository = repo
-
-        // Re-initialize the repository after rotation (new instance)
-        // with current database name and reload highlights for current question
-        val currentState = state.value
-        val dbName = currentState.databaseName
-        val currentQuestion = currentState.currentQuestion
-
-        if (dbName.isNotEmpty()) {
-            repo.setCurrentDatabase(dbName)
-        }
-
-        if (currentQuestion != null) {
-            repo.loadHighlightsForQuestion(currentQuestion.id)
-        }
-    }
-
-    fun getTextHighlightsRepository(): TextHighlightsRepository? = textHighlightsRepository
-
-    fun setCacheManager(cache: CacheManager) {
-        cacheManager = cache
-    }
-
-    fun setSessionRepository(repo: QuizSessionRepository) {
-        sessionRepository = repo
-    }
+    fun getTextHighlightsRepository(): TextHighlightsRepository = textHighlightsRepository
 
     /**
      * Restores quiz session state from the repository.
@@ -147,7 +162,7 @@ class QuizViewModel : ViewModel() {
      * @return restore outcome for session availability and database compatibility
      */
     fun restoreSession(): SessionRestoreResult {
-        val session = sessionRepository?.restoreSession() ?: return SessionRestoreResult.NoSession
+        val session = sessionRepository.restoreSession() ?: return SessionRestoreResult.NoSession
         val currentState = state.value
 
         // Only restore if the database matches
@@ -163,12 +178,13 @@ class QuizViewModel : ViewModel() {
                 currentQuestionIndex = session.currentQuestionIndex
             )
         }
+        persistStateSnapshot()
         return SessionRestoreResult.Restored
     }
 
     private fun saveSession(appendToHistory: Boolean = true) {
         val currentState = state.value
-        sessionRepository?.saveSession(
+        sessionRepository.saveSession(
             databaseName = currentState.databaseName,
             selectedSubjectIds = currentState.selectedSubjectIds,
             selectedSystemIds = currentState.selectedSystemIds,
@@ -183,7 +199,7 @@ class QuizViewModel : ViewModel() {
      * Call this when the user intentionally exits the quiz (e.g., navigates back to filter).
      */
     fun clearSession() {
-        sessionRepository?.clearSession()
+        sessionRepository.clearSession()
     }
 
     fun closeDatabase() {
@@ -195,7 +211,7 @@ class QuizViewModel : ViewModel() {
             }
         }
         // Clear the session when database is explicitly closed (e.g., switching databases)
-        sessionRepository?.clearSession()
+        sessionRepository.clearSession()
     }
 
     private suspend fun initializeAfterDatabaseSwitch() {
@@ -234,6 +250,18 @@ class QuizViewModel : ViewModel() {
 
     fun getTestId(): String = testId
 
+    fun rebindTextHighlightsRepository(repository: TextHighlightsRepository) {
+        if (textHighlightsRepository === repository) return
+        textHighlightsRepository = repository
+        val currentState = state.value
+        if (currentState.databaseName.isNotEmpty()) {
+            textHighlightsRepository.setCurrentDatabase(currentState.databaseName)
+        }
+        currentState.currentQuestion?.id?.let { questionId ->
+            textHighlightsRepository.loadHighlightsForQuestion(questionId)
+        }
+    }
+
     fun loadQuestion(
         index: Int,
         resetAnswerState: Boolean = true,
@@ -255,10 +283,11 @@ class QuizViewModel : ViewModel() {
                           resetAnswerState = resetAnswerState
                       )
                 }
+                persistStateSnapshot()
                 if (question != null) {
                     loadPerformanceForQuestion(question.id)
                     // Load text highlights for the new question
-                    textHighlightsRepository?.loadHighlightsForQuestion(question.id)
+                    textHighlightsRepository.loadHighlightsForQuestion(question.id)
                 }
             } catch (e: Exception) {
                 Logger.e("QuizViewModel", "Error loading question $questionId", e)
@@ -323,7 +352,7 @@ class QuizViewModel : ViewModel() {
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val isLoggingEnabled = settingsRepository?.isLoggingEnabled?.value ?: true
+                val isLoggingEnabled = settingsRepository.isLoggingEnabled.value
                 
                 if (isLoggingEnabled) {
                     val correctAnswer = currentState.currentAnswers.getOrNull(question.corrAns - 1)
@@ -419,7 +448,9 @@ class QuizViewModel : ViewModel() {
                             isLoading = false,
                         )
                     }
-                    saveSession(appendToHistory = appendToHistory)
+                    // No quiz was started (no matching questions), so keep active session
+                    // state in sync without polluting history.
+                    saveSession(appendToHistory = false)
                     return@launch
                 }
 
@@ -464,6 +495,7 @@ class QuizViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             val previouslySelectedSystems = state.value.selectedSystemIds
             _state.update { it.copy(selectedSubjectIds = newSubjectIds) }
+            persistStateSnapshot()
 
             val validSystems = if (newSubjectIds.isEmpty()) {
                 emptySet()
@@ -475,6 +507,7 @@ class QuizViewModel : ViewModel() {
 
             val prunedSelectedSystems = previouslySelectedSystems.intersect(validSystems)
             _state.update { it.copy(selectedSystemIds = prunedSelectedSystems) }
+            persistStateSnapshot()
 
             val subjectsForSystems = newSubjectIds
                 .takeIf { it.isNotEmpty() }
@@ -521,6 +554,7 @@ class QuizViewModel : ViewModel() {
             }
 
             _state.update { it.copy(selectedSystemIds = normalizedSelection) }
+            persistStateSnapshot()
             updatePreviewQuestionCountInternal()
             if (loadQuestions) {
                 loadFilteredQuestionIds(appendToHistory = false)
@@ -566,6 +600,7 @@ class QuizViewModel : ViewModel() {
 
     fun setPerformanceFilter(filter: PerformanceFilter, loadQuestions: Boolean = true) {
         _state.update { it.copy(performanceFilter = filter) }
+        persistStateSnapshot()
         viewModelScope.launch(Dispatchers.IO) {
             if (loadQuestions) {
                 // loadFilteredQuestionIds will update previewQuestionCount
@@ -585,8 +620,15 @@ class QuizViewModel : ViewModel() {
 
     fun setDatabaseName(name: String) {
         _state.update { it.copy(databaseName = name) }
+        persistStateSnapshot()
         // Notify text highlights repository of database switch
-        textHighlightsRepository?.setCurrentDatabase(name)
+        textHighlightsRepository.setCurrentDatabase(name)
+
+        // If a question was already loaded before database name propagation finished,
+        // reload highlights now that repository context is guaranteed.
+        state.value.currentQuestion?.id?.let { questionId ->
+            textHighlightsRepository.loadHighlightsForQuestion(questionId)
+        }
     }
 
     private suspend fun updatePreviewQuestionCountInternal() {
@@ -599,7 +641,7 @@ class QuizViewModel : ViewModel() {
     }
 
     fun loadPerformanceForQuestion(questionId: Long) {
-        val isLoggingEnabled = settingsRepository?.isLoggingEnabled?.value ?: true
+        val isLoggingEnabled = settingsRepository.isLoggingEnabled.value
         
         if (!isLoggingEnabled) {
             _state.update { it.copy(currentPerformance = null) }
@@ -687,11 +729,10 @@ class QuizViewModel : ViewModel() {
     }
 
     override fun onCleared() {
-        super.onCleared()
         settingsObservationJob?.cancel()
-        // Use runBlocking as onCleared is synchronous and database needs to be closed
-        kotlinx.coroutines.runBlocking {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             runCatching { databaseManager?.closeDatabase() }
         }
+        super.onCleared()
     }
 }
