@@ -6,7 +6,8 @@
 - ✅ R4 implemented: blocking `runBlocking` removed from `onCleared()`.
 - ✅ R3 implemented: UI event handling now has a single collector boundary in `App.kt` for navigation/media events, removing overlapping collection in `QuizRoot`.
 - 🟡 R5 partially implemented: database initialization + session restoration now run through one ordered `LaunchedEffect` path in `App.kt`; remaining work is to move this orchestration into a dedicated coordinator/use-case for easier testing.
-- ⏳ R6, R7 remain pending.
+- 🟡 R6 partially implemented: added Android instrumentation smoke coverage for activity recreation (`MainActivityLifecycleSmokeTest`); full scenario matrix (quiz index/filter/process-death/media pause-resume) remains pending device-level implementation.
+- ✅ R7 implemented: added state ownership policy and lifecycle/ViewModel PR checklist under `docs/architecture/`.
 
 ## Sprint 1 (High-priority correctness/resilience)
 
