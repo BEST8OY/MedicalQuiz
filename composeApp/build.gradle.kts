@@ -85,6 +85,13 @@ kotlin {
                 implementation(libs.vlcj)
             }
         }
+
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${libs.versions.coroutines.get()}")
+            }
+        }
     }
 }
 

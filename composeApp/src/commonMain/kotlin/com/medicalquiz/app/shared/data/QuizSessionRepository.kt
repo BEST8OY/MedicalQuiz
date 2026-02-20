@@ -4,6 +4,11 @@ import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.platform.StorageProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
@@ -15,6 +20,9 @@ import kotlin.time.Clock
  * Manages quiz session persistence for process death recovery and session history.
  */
 class QuizSessionRepository {
+    private val _historyEntries = MutableStateFlow<List<QuizSession>>(emptyList())
+    val historyEntries: StateFlow<List<QuizSession>> = _historyEntries.asStateFlow()
+
     private val sessionFile: String
         get() = "${StorageProvider.getAppStorageDirectory()}/quiz_session.json"
 
@@ -66,14 +74,49 @@ class QuizSessionRepository {
         }
     }
 
+    suspend fun saveSessionAsync(
+        databaseName: String,
+        selectedSubjectIds: Set<Long>,
+        selectedSystemIds: Set<Long>,
+        performanceFilter: PerformanceFilter,
+        currentQuestionIndex: Int,
+        appendToHistory: Boolean = true,
+    ) = withContext(Dispatchers.IO) {
+        saveSession(
+            databaseName = databaseName,
+            selectedSubjectIds = selectedSubjectIds,
+            selectedSystemIds = selectedSystemIds,
+            performanceFilter = performanceFilter,
+            currentQuestionIndex = currentQuestionIndex,
+            appendToHistory = appendToHistory,
+        )
+        if (appendToHistory) {
+            _historyEntries.value = listHistory()
+        }
+    }
+
     fun restoreSession(): QuizSession? =
         readFromFile<QuizSession>(sessionFile, ReadContext.Session)?.normalized()
+
+    suspend fun restoreSessionAsync(): QuizSession? = withContext(Dispatchers.IO) {
+        restoreSession()
+    }
 
     fun listHistory(): List<QuizSession> =
         readFromFile<List<QuizSession>>(historyFile, ReadContext.History)
             ?.map { it.normalized() }
             ?.sortedByDescending { it.updatedAtEpochMillis }
             ?: emptyList()
+
+    suspend fun listHistoryAsync(): List<QuizSession> = withContext(Dispatchers.IO) {
+        listHistory()
+    }
+
+    suspend fun refreshHistoryAsync(): List<QuizSession> = withContext(Dispatchers.IO) {
+        val history = listHistory()
+        _historyEntries.value = history
+        history
+    }
 
     fun restoreHistoryEntry(entryId: String): QuizSession? {
         val entry = listHistory().firstOrNull { it.id == entryId } ?: return null
@@ -83,6 +126,12 @@ class QuizSessionRepository {
         }.getOrElse {
             Logger.e("QuizSession", "Error restoring history entry", it)
             null
+        }
+    }
+
+    suspend fun restoreHistoryEntryAsync(entryId: String): QuizSession? = withContext(Dispatchers.IO) {
+        restoreHistoryEntry(entryId).also {
+            _historyEntries.value = listHistory()
         }
     }
 
@@ -101,6 +150,11 @@ class QuizSessionRepository {
         }.onFailure {
             Logger.e("QuizSession", "Error deleting history entries", it)
         }
+    }
+
+    suspend fun deleteHistoryEntriesAsync(entryIds: Set<String>) = withContext(Dispatchers.IO) {
+        deleteHistoryEntries(entryIds)
+        _historyEntries.value = listHistory()
     }
 
     fun renameHistoryEntry(entryId: String, newName: String) {
@@ -122,9 +176,18 @@ class QuizSessionRepository {
         }
     }
 
+    suspend fun renameHistoryEntryAsync(entryId: String, newName: String) = withContext(Dispatchers.IO) {
+        renameHistoryEntry(entryId, newName)
+        _historyEntries.value = listHistory()
+    }
+
     fun clearSession() {
         runCatching { FileSystemHelper.delete(sessionFile) }
             .onFailure { Logger.e("QuizSession", "Error clearing quiz session", it) }
+    }
+
+    suspend fun clearSessionAsync() = withContext(Dispatchers.IO) {
+        clearSession()
     }
 
     private inline fun <reified T> readFromFile(path: String, context: ReadContext): T? {

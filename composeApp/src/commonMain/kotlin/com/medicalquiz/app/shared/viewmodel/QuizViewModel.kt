@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medicalquiz.app.shared.data.CacheManager
-import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.data.SettingsRepository
 import com.medicalquiz.app.shared.data.TextHighlightsRepository
 import com.medicalquiz.app.shared.data.database.DatabaseProvider
@@ -17,11 +16,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -37,9 +34,14 @@ class QuizViewModel(
     internal val settingsRepository: SettingsRepository,
     textHighlightsRepository: TextHighlightsRepository,
     private val cacheManager: CacheManager,
-    private val sessionRepository: QuizSessionRepository,
     private val savedStateHandle: SavedStateHandle,
+    dependencies: QuizViewModelDependencies,
 ) : ViewModel() {
+
+    private val quizSessionBoundaryUseCase = dependencies.quizSessionBoundaryUseCase
+    private val applyFiltersUseCase = dependencies.applyFiltersUseCase
+    private val loadQuestionUseCase = dependencies.loadQuestionUseCase
+    private val uiEventDispatcher = dependencies.uiEventDispatcher
 
 
     private companion object {
@@ -69,12 +71,11 @@ class QuizViewModel(
         .distinctUntilChanged()
         .stateIn(
             viewModelScope,
-            SharingStarted.Eagerly,
+            SharingStarted.WhileSubscribed(5_000),
             ""
         )
 
-    private val _uiEvents = MutableSharedFlow<UiEvent>(extraBufferCapacity = 4)
-    val uiEvents = _uiEvents.asSharedFlow()
+    val uiEvents = uiEventDispatcher.events
 
     private var lastFetchedSubjectIds: List<Long>? = null
     
@@ -161,36 +162,29 @@ class QuizViewModel(
      *
      * @return restore outcome for session availability and database compatibility
      */
-    fun restoreSession(): SessionRestoreResult {
-        val session = sessionRepository.restoreSession() ?: return SessionRestoreResult.NoSession
-        val currentState = state.value
-
-        // Only restore if the database matches
-        if (session.databaseName != currentState.databaseName) {
-            return SessionRestoreResult.DatabaseMismatch
+    suspend fun restoreSession(): SessionRestoreResult {
+        return when (val result = quizSessionBoundaryUseCase.restoreSessionForDatabase(state.value.databaseName)) {
+            QuizSessionBoundaryUseCase.RestoreResult.NoSession -> SessionRestoreResult.NoSession
+            QuizSessionBoundaryUseCase.RestoreResult.DatabaseMismatch -> SessionRestoreResult.DatabaseMismatch
+            is QuizSessionBoundaryUseCase.RestoreResult.Restored -> {
+                _state.update {
+                    it.copy(
+                        selectedSubjectIds = result.selectedSubjectIds,
+                        selectedSystemIds = result.selectedSystemIds,
+                        performanceFilter = result.performanceFilter,
+                        currentQuestionIndex = result.currentQuestionIndex,
+                    )
+                }
+                persistStateSnapshot()
+                SessionRestoreResult.Restored
+            }
         }
-
-        _state.update {
-            it.copy(
-                selectedSubjectIds = session.selectedSubjectIds.toSet(),
-                selectedSystemIds = session.selectedSystemIds.toSet(),
-                performanceFilter = session.performanceFilter,
-                currentQuestionIndex = session.currentQuestionIndex
-            )
-        }
-        persistStateSnapshot()
-        return SessionRestoreResult.Restored
     }
 
-    private fun saveSession(appendToHistory: Boolean = true) {
-        val currentState = state.value
-        sessionRepository.saveSession(
-            databaseName = currentState.databaseName,
-            selectedSubjectIds = currentState.selectedSubjectIds,
-            selectedSystemIds = currentState.selectedSystemIds,
-            performanceFilter = currentState.performanceFilter,
-            currentQuestionIndex = currentState.currentQuestionIndex,
-            appendToHistory = appendToHistory
+    private suspend fun saveSession(appendToHistory: Boolean = true) {
+        quizSessionBoundaryUseCase.saveSession(
+            state = state.value,
+            appendToHistory = appendToHistory,
         )
     }
 
@@ -199,7 +193,9 @@ class QuizViewModel(
      * Call this when the user intentionally exits the quiz (e.g., navigates back to filter).
      */
     fun clearSession() {
-        sessionRepository.clearSession()
+        viewModelScope.launch(Dispatchers.IO) {
+            quizSessionBoundaryUseCase.clearSession()
+        }
     }
 
     fun closeDatabase() {
@@ -211,7 +207,9 @@ class QuizViewModel(
             }
         }
         // Clear the session when database is explicitly closed (e.g., switching databases)
-        sessionRepository.clearSession()
+        viewModelScope.launch(Dispatchers.IO) {
+            quizSessionBoundaryUseCase.clearSession()
+        }
     }
 
     private suspend fun initializeAfterDatabaseSwitch() {
@@ -273,21 +271,24 @@ class QuizViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true, currentPerformance = null) }
             try {
-                val question = databaseManager?.getQuestionById(questionId)
-                val answers = databaseManager?.getAnswersForQuestion(questionId) ?: emptyList()
+                val result = loadQuestionUseCase(
+                    db = databaseManager,
+                    questionId = questionId,
+                    isLoggingEnabled = settingsRepository.isLoggingEnabled.value,
+                )
                 _state.update { 
                     it.copy(currentQuestionIndex = index)
                       .copyWithQuestion(
-                          question = question,
-                          answers = answers,
+                          question = result.question,
+                          answers = result.answers,
                           resetAnswerState = resetAnswerState
                       )
+                      .copy(currentPerformance = result.performance)
                 }
                 persistStateSnapshot()
-                if (question != null) {
-                    loadPerformanceForQuestion(question.id)
+                if (result.question != null) {
                     // Load text highlights for the new question
-                    textHighlightsRepository.loadHighlightsForQuestion(question.id)
+                    textHighlightsRepository.loadHighlightsForQuestion(result.question.id)
                 }
             } catch (e: Exception) {
                 Logger.e("QuizViewModel", "Error loading question $questionId", e)
@@ -497,21 +498,15 @@ class QuizViewModel(
             _state.update { it.copy(selectedSubjectIds = newSubjectIds) }
             persistStateSnapshot()
 
-            val validSystems = if (newSubjectIds.isEmpty()) {
-                emptySet()
-            } else {
-                databaseManager?.getSystems(newSubjectIds.toList())
-                    ?.map { it.id }
-                    ?.toSet() ?: emptySet()
-            }
-
-            val prunedSelectedSystems = previouslySelectedSystems.intersect(validSystems)
+            val prunedSelectedSystems = applyFiltersUseCase.pruneSystemsForSubjects(
+                db = databaseManager,
+                newSubjectIds = newSubjectIds,
+                previouslySelectedSystems = previouslySelectedSystems,
+            )
             _state.update { it.copy(selectedSystemIds = prunedSelectedSystems) }
             persistStateSnapshot()
 
-            val subjectsForSystems = newSubjectIds
-                .takeIf { it.isNotEmpty() }
-                ?.toList()
+            val subjectsForSystems = applyFiltersUseCase.subjectsForSystemsFetch(newSubjectIds)
             fetchSystemsForSubjects(subjectsForSystems)
 
             if (loadQuestions) {
@@ -538,20 +533,13 @@ class QuizViewModel(
         }
     }
 
-    private suspend fun pruneInvalidSubjects(): List<Long> {
-        val db = databaseManager ?: return emptyList()
-        val available = db.getSubjects().map { it.id }
-        return state.value.selectedSubjectIds.filter { it in available }
-    }
-
     fun applySelectedSystems(newSystemIds: Set<Long>, loadQuestions: Boolean = true) {
         viewModelScope.launch(Dispatchers.IO) {
-            val validSystems = pruneInvalidSystems()
-            val normalizedSelection = if (validSystems.isEmpty()) {
-                emptySet()
-            } else {
-                newSystemIds.intersect(validSystems)
-            }
+            val normalizedSelection = applyFiltersUseCase.normalizeSelectedSystems(
+                db = databaseManager,
+                selectedSubjectIds = state.value.selectedSubjectIds,
+                newSystemIds = newSystemIds,
+            )
 
             _state.update { it.copy(selectedSystemIds = normalizedSelection) }
             persistStateSnapshot()
@@ -587,17 +575,6 @@ class QuizViewModel(
         return lastFetched.toSet() == normalizedRequested
     }
 
-    private suspend fun pruneInvalidSystems(): Set<Long> {
-        val db = databaseManager ?: return emptySet()
-        val subjects = state.value.selectedSubjectIds.toList()
-        val availableSystems = if (subjects.isEmpty()) {
-            db.getSystems(null)
-        } else {
-            db.getSystems(subjects)
-        }
-        return availableSystems.map { it.id }.toSet()
-    }
-
     fun setPerformanceFilter(filter: PerformanceFilter, loadQuestions: Boolean = true) {
         _state.update { it.copy(performanceFilter = filter) }
         persistStateSnapshot()
@@ -614,7 +591,7 @@ class QuizViewModel(
 
     fun navigateToDatabaseSelection() {
         viewModelScope.launch {
-            _uiEvents.emit(UiEvent.NavigateToDatabaseSelection)
+            uiEventDispatcher.emitNavigateToDatabaseSelection()
         }
     }
 
@@ -632,12 +609,16 @@ class QuizViewModel(
     }
 
     private suspend fun updatePreviewQuestionCountInternal() {
-        try {
-            val count = fetchFilteredQuestionIds().size
-            _state.update { it.copy(previewQuestionCount = count) }
-        } catch (e: Exception) {
-            _state.update { it.copy(previewQuestionCount = 0) }
-        }
+        val currentState = state.value
+        val count = runCatching {
+            applyFiltersUseCase.previewQuestionCount(
+                db = databaseManager,
+                selectedSubjectIds = currentState.selectedSubjectIds,
+                selectedSystemIds = currentState.selectedSystemIds,
+                performanceFilter = currentState.performanceFilter,
+            )
+        }.getOrDefault(0)
+        _state.update { it.copy(previewQuestionCount = count) }
     }
 
     fun loadPerformanceForQuestion(questionId: Long) {
@@ -685,13 +666,13 @@ class QuizViewModel(
 
     fun openMedia(urls: List<String>, startIndex: Int) {
         viewModelScope.launch {
-            _uiEvents.emit(UiEvent.OpenMedia(urls, startIndex))
+            uiEventDispatcher.emitOpenMedia(urls, startIndex)
         }
     }
     
     fun openHtmlFile(fileName: String) {
         viewModelScope.launch {
-            _uiEvents.emit(UiEvent.OpenHtmlFile(fileName))
+            uiEventDispatcher.emitOpenHtml(fileName)
         }
     }
 
@@ -712,7 +693,7 @@ class QuizViewModel(
 
     private fun emitToast(message: String) {
         viewModelScope.launch {
-            _uiEvents.emit(UiEvent.ShowToast(message))
+            uiEventDispatcher.emitToast(message)
         }
     }
 

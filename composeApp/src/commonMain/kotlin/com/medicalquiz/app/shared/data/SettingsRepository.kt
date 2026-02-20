@@ -3,9 +3,14 @@ package com.medicalquiz.app.shared.data
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.platform.StorageProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -15,6 +20,8 @@ import kotlinx.serialization.json.Json
  * Simple settings repository that exposes flows for settings that affect ViewModel behavior.
  */
 class SettingsRepository {
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private val _isLoggingEnabled = MutableStateFlow(true)
     val isLoggingEnabled: StateFlow<Boolean> = _isLoggingEnabled.asStateFlow()
 
@@ -30,25 +37,38 @@ class SettingsRepository {
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
     init {
-        loadSettings()
+        ioScope.launch { refreshSettingsAsync() }
     }
 
     fun setLoggingEnabled(enabled: Boolean) {
         _isLoggingEnabled.value = enabled
-        saveSettings()
+        ioScope.launch { saveSettingsAsync() }
     }
 
     fun setShowMetadata(enabled: Boolean) {
         _showMetadata.value = enabled
-        saveSettings()
+        ioScope.launch { saveSettingsAsync() }
     }
 
     fun setFontScalePreference(scale: Float?) {
         _fontScalePreference.value = scale
-        saveSettings()
+        ioScope.launch { saveSettingsAsync() }
     }
 
-    private fun loadSettings() {
+    suspend fun refreshSettingsAsync(): SettingsSnapshot = withContext(Dispatchers.IO) {
+        loadSettingsInternal()
+        SettingsSnapshot(
+            isLoggingEnabled = _isLoggingEnabled.value,
+            showMetadata = _showMetadata.value,
+            fontScalePreference = _fontScalePreference.value,
+        )
+    }
+
+    suspend fun saveSettingsAsync() = withContext(Dispatchers.IO) {
+        saveSettingsInternal()
+    }
+
+    private fun loadSettingsInternal() {
         try {
             val content = FileSystemHelper.readText(settingsFile)
             if (content != null) {
@@ -63,7 +83,7 @@ class SettingsRepository {
         }
     }
 
-    private fun saveSettings() {
+    private fun saveSettingsInternal() {
         try {
             val payload = SettingsPayload(
                 isLoggingEnabled = _isLoggingEnabled.value,
@@ -92,4 +112,10 @@ class SettingsRepository {
     private companion object {
         const val LEGACY_BASE_FONT_SIZE = 16f
     }
+
+    data class SettingsSnapshot(
+        val isLoggingEnabled: Boolean,
+        val showMetadata: Boolean,
+        val fontScalePreference: Float?,
+    )
 }

@@ -47,7 +47,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,7 +60,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.data.QuizSessionRepository
-import com.medicalquiz.app.shared.platform.FileSystemHelper
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -75,29 +73,20 @@ private enum class SelectionPane {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DatabaseSelectionScreen(
+    databases: List<String>,
+    isLoading: Boolean,
+    onRefreshDatabases: () -> Unit,
     historyEntries: List<QuizSessionRepository.QuizSession>,
     onDatabaseSelected: (String) -> Unit,
     onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
     onDeleteHistoryEntries: (Set<String>) -> Unit,
     onRenameHistoryEntry: (String, String) -> Unit,
 ) {
-    var databases by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
-    var isLoading by rememberSaveable { mutableStateOf(true) }
     var selectedPane by rememberSaveable { mutableStateOf(SelectionPane.Database) }
     var selectedHistoryEntryIds by rememberSaveable { mutableStateOf(setOf<String>()) }
     var deleteTargetEntryIds by rememberSaveable { mutableStateOf(emptySet<String>()) }
     var renameTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var renameText by rememberSaveable { mutableStateOf("") }
-
-    fun loadDatabases() {
-        isLoading = true
-        databases = FileSystemHelper.listDatabases()
-        isLoading = false
-    }
-
-    LaunchedEffect(Unit) {
-        loadDatabases()
-    }
 
     Scaffold(
         topBar = {
@@ -127,7 +116,7 @@ fun DatabaseSelectionScreen(
                 actions = {
                     when (selectedPane) {
                         SelectionPane.Database -> {
-                            IconButton(onClick = { loadDatabases() }) {
+                            IconButton(onClick = onRefreshDatabases) {
                                 Icon(Icons.Filled.Refresh, contentDescription = "Refresh databases")
                             }
                         }

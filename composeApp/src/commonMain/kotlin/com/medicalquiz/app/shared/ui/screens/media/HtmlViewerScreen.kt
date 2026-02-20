@@ -27,43 +27,23 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.medicalquiz.app.shared.platform.FileSystemHelper
-import com.medicalquiz.app.shared.platform.StorageProvider
 import com.medicalquiz.app.shared.ui.richtext.RichText
-import com.medicalquiz.app.shared.utils.HtmlUtils
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HtmlViewerScreen(
     fileName: String,
+    htmlContent: String?,
+    fileExists: Boolean,
+    isLoading: Boolean,
     onBack: () -> Unit,
     onLinkClick: ((String) -> Unit)? = null,
 ) {
     // PlatformBackHandler removed - let NavDisplay handle predictive back gesture
-
-    val filePath = remember(fileName) {
-        "${StorageProvider.getAppStorageDirectory()}/media/$fileName"
-    }
-
-    val htmlContent by produceState<String?>(initialValue = null, filePath) {
-        value = withContext(Dispatchers.IO) {
-            val raw = FileSystemHelper.readText(filePath)
-            raw?.let(HtmlUtils::sanitizeForRichText)
-        }
-    }
-
-    val fileExists by produceState(initialValue = true, filePath) {
-        value = withContext(Dispatchers.IO) { FileSystemHelper.exists(filePath) }
-    }
 
     Surface(
         modifier = Modifier
@@ -102,7 +82,7 @@ fun HtmlViewerScreen(
                     )
                 }
 
-                htmlContent == null -> {
+                isLoading -> {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
