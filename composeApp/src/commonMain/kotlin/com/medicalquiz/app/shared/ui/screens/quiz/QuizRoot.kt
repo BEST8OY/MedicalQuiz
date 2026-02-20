@@ -26,7 +26,6 @@ import com.medicalquiz.app.shared.ui.media.MediaHandler
 import com.medicalquiz.app.shared.ui.dialogs.ErrorDialog
 import com.medicalquiz.app.shared.ui.dialogs.JumpToDialog
 import com.medicalquiz.app.shared.ui.dialogs.ResetConfirmationDialog
-import com.medicalquiz.app.shared.ui.dialogs.SettingsDialogWithViewModel
 import com.medicalquiz.app.shared.ui.screens.media.PlatformBackHandler
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 import com.medicalquiz.app.shared.viewmodel.UiEvent
@@ -37,6 +36,7 @@ fun QuizRoot(
     viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
     onNavigateBack: () -> Unit,
+    onOpenSettingsScreen: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
@@ -58,13 +58,11 @@ fun QuizRoot(
     }
 
     // Dialog states - these are overlays within the quiz screen
-    var showSettingsDialog by rememberSaveable { mutableStateOf(false) }
     var showJumpToDialog by rememberSaveable { mutableStateOf(false) }
     var showResetLogsConfirmation by rememberSaveable { mutableStateOf(false) }
     var errorDialog by rememberSaveable { mutableStateOf<Pair<String, String>?>(null) }
 
-    val isOverlayVisible = showSettingsDialog ||
-        showJumpToDialog ||
+    val isOverlayVisible = showJumpToDialog ||
         showResetLogsConfirmation ||
         errorDialog != null
 
@@ -99,7 +97,7 @@ fun QuizRoot(
                 TopBar(
                     title = title,
                     onResetLogClick = { viewModel.clearCurrentQuestionLog() },
-                    onSettingsClick = { showSettingsDialog = true }
+                    onSettingsClick = onOpenSettingsScreen
                 )
             },
             contentWindowInsets = WindowInsets.statusBars
@@ -110,7 +108,7 @@ fun QuizRoot(
                 onPrevious = { viewModel.loadPrevious() },
                 onNext = { viewModel.loadNext() },
                 onJumpTo = { showJumpToDialog = true },
-                onOpenSettings = { showSettingsDialog = true },
+                onOpenSettings = onOpenSettingsScreen,
                 contentPadding = padding,
                 bottomClearance = bottomPadding + 80.dp
             )
@@ -134,15 +132,6 @@ fun QuizRoot(
     }
 
     // Dialogs - rendered as overlays
-    if (showSettingsDialog) {
-        SettingsDialogWithViewModel(
-            isVisible = true,
-            viewModel = viewModel,
-            onDismiss = { showSettingsDialog = false },
-            onResetLogsRequested = { showResetLogsConfirmation = true }
-        )
-    }
-
     if (showJumpToDialog) {
         JumpToDialog(
             isVisible = true,

@@ -389,8 +389,8 @@ class QuizViewModel : ViewModel() {
         _state.update { it.copy(selectedAnswerId = null, answerSubmitted = false) }
     }
 
-    fun setQuestionIds(ids: List<Long>) {
-        _state.update { it.copy(questionIds = ids) }
+    fun setLoadingState(isLoading: Boolean) {
+        _state.update { it.copy(isLoading = isLoading) }
     }
 
     fun loadFilteredQuestionIds(
@@ -398,6 +398,7 @@ class QuizViewModel : ViewModel() {
         appendToHistory: Boolean = true,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
+            _state.update { it.copy(isLoading = true) }
             try {
                 val currentState = state.value
                 val ids = fetchQuestionIdsWithFilters(
@@ -415,6 +416,7 @@ class QuizViewModel : ViewModel() {
                             selectedAnswerId = null,
                             answerSubmitted = false,
                             previewQuestionCount = if (updatePreviewCount) 0 else it.previewQuestionCount,
+                            isLoading = false,
                         )
                     }
                     saveSession(appendToHistory = appendToHistory)
@@ -431,6 +433,7 @@ class QuizViewModel : ViewModel() {
                 }
                 loadQuestion(newIndex, appendToHistory = appendToHistory)
             } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false) }
                 Logger.e("QuizViewModel", "Error loading filtered questions", e)
             }
         }

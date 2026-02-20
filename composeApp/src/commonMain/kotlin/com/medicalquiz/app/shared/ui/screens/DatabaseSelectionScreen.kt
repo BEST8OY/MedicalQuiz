@@ -109,7 +109,11 @@ fun DatabaseSelectionScreen(
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = if (selectedPane == SelectionPane.Database) "Select database" else "Recent sessions",
+                            text = when {
+                                selectedPane == SelectionPane.Database -> "Select database"
+                                selectedHistoryEntryIds.isNotEmpty() -> "${selectedHistoryEntryIds.size} selected"
+                                else -> "Recent sessions"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -367,9 +371,16 @@ private fun HistoryItemCard(
     onSwipeRename: () -> Unit,
     onSelectChanged: () -> Unit,
 ) {
-    var isResetInProgress by remember(entry.id) { mutableStateOf(false) }
+    val dismissState = rememberSwipeToDismissBoxState(
+        positionalThreshold = { totalDistance -> totalDistance * 0.35f },
+    )
     val scope = rememberCoroutineScope()
-    val dismissState = rememberSwipeToDismissBoxState()
+
+    LaunchedEffect(swipingEnabled) {
+        if (!swipingEnabled && dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
+            dismissState.reset()
+        }
+    }
 
     val cardShape = MaterialTheme.shapes.large
 
@@ -380,18 +391,14 @@ private fun HistoryItemCard(
             .clip(cardShape),
         enableDismissFromStartToEnd = swipingEnabled,
         enableDismissFromEndToStart = swipingEnabled,
-        gesturesEnabled = swipingEnabled && !isResetInProgress,
+        gesturesEnabled = swipingEnabled,
         onDismiss = { dismissValue ->
-            scope.launch {
-                isResetInProgress = true
-                dismissState.reset()
-                when (dismissValue) {
-                    SwipeToDismissBoxValue.EndToStart -> onSwipeDelete()
-                    SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
-                    SwipeToDismissBoxValue.Settled -> Unit
-                }
-                isResetInProgress = false
+            when (dismissValue) {
+                SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
+                SwipeToDismissBoxValue.EndToStart -> onSwipeDelete()
+                SwipeToDismissBoxValue.Settled -> Unit
             }
+            scope.launch { dismissState.reset() }
         },
         backgroundContent = {
             val isDeleteDirection = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
@@ -410,11 +417,15 @@ private fun HistoryItemCard(
                 horizontalArrangement = if (isDeleteDirection) Arrangement.End else Arrangement.Start,
             ) {
                 if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
+                    val actionTint = if (isDeleteDirection) {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    } else {
+                        MaterialTheme.colorScheme.onTertiaryContainer
+                    }
                     Icon(
                         imageVector = if (isDeleteDirection) Icons.Filled.Delete else Icons.Filled.Edit,
                         contentDescription = null,
-                        tint = if (isDeleteDirection) MaterialTheme.colorScheme.onErrorContainer
-                        else MaterialTheme.colorScheme.onTertiaryContainer,
+                        tint = actionTint,
                     )
                 }
             }

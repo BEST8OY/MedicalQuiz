@@ -1,30 +1,33 @@
-package com.medicalquiz.app.shared.ui.dialogs
+package com.medicalquiz.app.shared.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,138 +38,148 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.shared.data.FontScalePresets
-import com.medicalquiz.app.shared.ui.dialogs.components.DialogHeader
-import com.medicalquiz.app.shared.ui.dialogs.components.DialogShell
+import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 
-/**
- * Settings dialog with logging, metadata, and font size options.
- */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsDialog(
-    isVisible: Boolean,
-    initialLoggingEnabled: Boolean,
-    initialShowMetadata: Boolean,
-    initialFontScalePreference: Float?,
-    onLoggingChanged: (Boolean) -> Unit,
-    onShowMetadataChanged: (Boolean) -> Unit,
-    onFontScalePreferenceChanged: (Float?) -> Unit,
+fun SettingsScreen(
+    viewModel: QuizViewModel,
+    onBack: () -> Unit,
     onResetLogs: () -> Unit,
-    onDismiss: () -> Unit
 ) {
-    if (!isVisible) return
+    val loggingEnabled = viewModel.settingsRepository?.isLoggingEnabled
+        ?.collectAsStateWithLifecycle(false)?.value ?: false
+    val showMetadata = viewModel.settingsRepository?.showMetadata
+        ?.collectAsStateWithLifecycle(true)?.value ?: true
+    val fontScalePreference = viewModel.settingsRepository?.fontScalePreference
+        ?.collectAsStateWithLifecycle(null)?.value
 
-    var loggingEnabled by rememberSaveable(initialLoggingEnabled) {
-        mutableStateOf(initialLoggingEnabled)
+    var selectedFontOption by rememberSaveable(fontScalePreference) {
+        mutableStateOf(FontScaleOption.fromScale(fontScalePreference))
     }
-    var showMetadata by rememberSaveable(initialShowMetadata) {
-        mutableStateOf(initialShowMetadata)
-    }
-    var selectedFontOption by rememberSaveable(initialFontScalePreference) {
-        mutableStateOf(FontScaleOption.fromScale(initialFontScalePreference))
-    }
+    var showResetLogsConfirmation by rememberSaveable { mutableStateOf(false) }
 
-    DialogShell(onDismiss = onDismiss) {
-        Column {
-            DialogHeader(
-                title = "Settings",
-                onClose = onDismiss
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Settings") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                )
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            SettingsToggleRow(
+                title = "Answer logging",
+                description = "Track your progress and review history",
+                checked = loggingEnabled,
+                onCheckedChange = { viewModel.settingsRepository?.setLoggingEnabled(it) }
             )
 
-            Column(
-                modifier = Modifier.padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Answer Logging Toggle
-                SettingsToggleRow(
-                    title = "Answer logging",
-                    description = "Track your progress and review history",
-                    checked = loggingEnabled,
-                    onCheckedChange = { enabled ->
-                        loggingEnabled = enabled
-                        onLoggingChanged(enabled)
-                    }
-                )
+            SettingsToggleRow(
+                title = "Show metadata",
+                description = "Display subject and system info after answering",
+                checked = showMetadata,
+                onCheckedChange = { viewModel.settingsRepository?.setShowMetadata(it) }
+            )
 
-                // Show Metadata Toggle
-                SettingsToggleRow(
-                    title = "Show metadata",
-                    description = "Display subject and system info after answering",
-                    checked = showMetadata,
-                    onCheckedChange = { visible ->
-                        showMetadata = visible
-                        onShowMetadataChanged(visible)
-                    }
-                )
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 6.dp),
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
+            FontScaleControl(
+                selected = selectedFontOption,
+                onSelected = { option ->
+                    selectedFontOption = option
+                    viewModel.settingsRepository?.setFontScalePreference(option.scale)
+                }
+            )
 
-                FontScaleControl(
-                    selected = selectedFontOption,
-                    onSelected = { option ->
-                        selectedFontOption = option
-                        onFontScalePreferenceChanged(option.scale)
-                    }
-                )
-
-                // Reset Logs (only visible when logging is enabled)
-                AnimatedVisibility(
-                    visible = loggingEnabled,
-                    enter = fadeIn() + scaleIn(initialScale = 0.95f),
-                    exit = fadeOut() + scaleOut(targetScale = 0.95f)
+            if (loggingEnabled) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .clip(MaterialTheme.shapes.medium)
+                        .clickable(onClick = { showResetLogsConfirmation = true }),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
                 ) {
-                    Surface(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 16.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .clickable(onClick = onResetLogs),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Delete,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Clear log history",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Clear log history",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Remove all saved answer logs",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            Text(
+                                text = "Remove all saved answer logs",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
             }
 
-            // Done button
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 20.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                Button(onClick = onDismiss) {
+                Button(onClick = onBack) {
                     Text("Done")
                 }
             }
+        }
+
+        if (showResetLogsConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showResetLogsConfirmation = false },
+                title = { Text("Clear log history?") },
+                text = { Text("This removes all saved answer logs in the current database.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            onResetLogs()
+                            showResetLogsConfirmation = false
+                        }
+                    ) {
+                        Text("Clear")
+                    }
+                },
+                dismissButton = {
+                    Button(onClick = { showResetLogsConfirmation = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }
@@ -216,7 +229,6 @@ private fun SettingsToggleRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun FontScaleControl(
     selected: FontScaleOption,
@@ -228,7 +240,7 @@ private fun FontScaleControl(
     ) {
         Text(
             text = "Reading text size",
-            style = MaterialTheme.typography.titleSmallEmphasized,
+            style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurface,
         )
 
