@@ -7,6 +7,7 @@ import com.medicalquiz.app.shared.data.CacheManager
 import com.medicalquiz.app.shared.data.SettingsRepository
 import com.medicalquiz.app.shared.data.TextHighlightsRepository
 import com.medicalquiz.app.shared.data.database.DatabaseProvider
+import com.medicalquiz.app.shared.domain.QuizSessionBoundaryUseCase
 import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.data.database.QuestionPerformance
@@ -164,9 +165,9 @@ class QuizViewModel(
      */
     suspend fun restoreSession(): SessionRestoreResult {
         return when (val result = quizSessionBoundaryUseCase.restoreSessionForDatabase(state.value.databaseName)) {
-            com.medicalquiz.app.shared.domain.QuizSessionBoundaryUseCase.RestoreResult.NoSession -> SessionRestoreResult.NoSession
-            com.medicalquiz.app.shared.domain.QuizSessionBoundaryUseCase.RestoreResult.DatabaseMismatch -> SessionRestoreResult.DatabaseMismatch
-            is com.medicalquiz.app.shared.domain.QuizSessionBoundaryUseCase.RestoreResult.Restored -> {
+            QuizSessionBoundaryUseCase.RestoreResult.NoSession -> SessionRestoreResult.NoSession
+            QuizSessionBoundaryUseCase.RestoreResult.DatabaseMismatch -> SessionRestoreResult.DatabaseMismatch
+            is QuizSessionBoundaryUseCase.RestoreResult.Restored -> {
                 _state.update {
                     it.copy(
                         selectedSubjectIds = result.selectedSubjectIds,

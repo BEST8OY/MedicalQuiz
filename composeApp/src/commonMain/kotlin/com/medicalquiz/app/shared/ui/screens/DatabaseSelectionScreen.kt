@@ -47,6 +47,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -365,7 +366,7 @@ private fun HistoryItemCard(
     )
     val scope = rememberCoroutineScope()
 
-    androidx.compose.runtime.LaunchedEffect(swipingEnabled) {
+    LaunchedEffect(swipingEnabled) {
         if (!swipingEnabled && dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
             dismissState.reset()
         }
