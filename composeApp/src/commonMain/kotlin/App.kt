@@ -43,6 +43,7 @@ import com.medicalquiz.app.shared.ui.theme.AppTheme
 import com.medicalquiz.app.shared.ui.screens.DatabaseSelectionScreen
 import com.medicalquiz.app.shared.ui.screens.FilterScreen
 import com.medicalquiz.app.shared.ui.screens.media.HtmlViewerScreen
+import com.medicalquiz.app.shared.ui.screens.SettingsScreen
 import com.medicalquiz.app.shared.ui.screens.media.MediaViewerScreen
 import com.medicalquiz.app.shared.ui.screens.quiz.QuizRoot
 import com.medicalquiz.app.shared.ui.media.MediaHandler
@@ -204,6 +205,10 @@ fun App() {
                         handleSessionRestoreResult(
                             result = viewModel.restoreSession(),
                             onRestored = { viewModel.loadFilteredQuestionIds() },
+                            onUnavailable = {
+                                viewModel.setLoadingState(false)
+                                backStack.popToDatabaseSelection()
+                            },
                         )
                         handledHistoryRestoreToken = pendingHistoryRestoreToken
                         return@LaunchedEffect
@@ -301,18 +306,17 @@ fun App() {
                             onHistorySelected = { entry ->
                                 val matchingDatabase = FileSystemHelper.listDatabases().firstOrNull {
                                     it.removeSuffix(".db") == entry.databaseName
-                                }
+                                } ?: return@DatabaseSelectionScreen
 
-                                if (matchingDatabase != null) {
-                                    val restoredEntry = sessionRepository.restoreHistoryEntry(entry.id)
-                                    if (restoredEntry != null) {
-                                        pendingHistoryRestoreToken += 1
-                                        selectedDatabase = matchingDatabase
-                                        backStack.clear()
-                                        backStack.add(MedicalQuizRoutes.DatabaseSelection)
-                                        backStack.add(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
-                                    }
-                                }
+                                val restoredEntry = sessionRepository.restoreHistoryEntry(entry.id)
+                                    ?: return@DatabaseSelectionScreen
+
+                                viewModel.setLoadingState(true)
+                                pendingHistoryRestoreToken += 1
+                                selectedDatabase = matchingDatabase
+                                backStack.clear()
+                                backStack.add(MedicalQuizRoutes.DatabaseSelection)
+                                backStack.add(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
                             },
                             onDeleteHistoryEntries = { entryIds ->
                                 sessionRepository.deleteHistoryEntries(entryIds)
@@ -435,7 +439,19 @@ fun App() {
                                     // Standard quiz flow: return to Filter.
                                     backStack.removeLastOrNull()
                                 }
+                            },
+                            onOpenSettingsScreen = dropUnlessResumed {
+                                backStack.add(MedicalQuizRoutes.Settings)
                             }
+                        )
+                    }
+
+
+                    entry<MedicalQuizRoutes.Settings> {
+                        SettingsScreen(
+                            viewModel = viewModel,
+                            onBack = dropUnlessResumed { backStack.removeLastOrNull() },
+                            onResetLogs = { viewModel.clearLogsFromDb() },
                         )
                     }
 
