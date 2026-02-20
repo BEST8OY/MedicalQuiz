@@ -306,19 +306,17 @@ fun App() {
                             onHistorySelected = { entry ->
                                 val matchingDatabase = FileSystemHelper.listDatabases().firstOrNull {
                                     it.removeSuffix(".db") == entry.databaseName
-                                }
+                                } ?: return@DatabaseSelectionScreen
 
-                                if (matchingDatabase != null) {
-                                    val restoredEntry = sessionRepository.restoreHistoryEntry(entry.id)
-                                    if (restoredEntry != null) {
-                                        viewModel.setLoadingState(true)
-                                        pendingHistoryRestoreToken += 1
-                                        selectedDatabase = matchingDatabase
-                                        backStack.clear()
-                                        backStack.add(MedicalQuizRoutes.DatabaseSelection)
-                                        backStack.add(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
-                                    }
-                                }
+                                val restoredEntry = sessionRepository.restoreHistoryEntry(entry.id)
+                                    ?: return@DatabaseSelectionScreen
+
+                                viewModel.setLoadingState(true)
+                                pendingHistoryRestoreToken += 1
+                                selectedDatabase = matchingDatabase
+                                backStack.clear()
+                                backStack.add(MedicalQuizRoutes.DatabaseSelection)
+                                backStack.add(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
                             },
                             onDeleteHistoryEntries = { entryIds ->
                                 sessionRepository.deleteHistoryEntries(entryIds)

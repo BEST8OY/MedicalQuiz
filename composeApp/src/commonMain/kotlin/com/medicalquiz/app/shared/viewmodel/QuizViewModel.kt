@@ -389,10 +389,6 @@ class QuizViewModel : ViewModel() {
         _state.update { it.copy(selectedAnswerId = null, answerSubmitted = false) }
     }
 
-    fun setQuestionIds(ids: List<Long>) {
-        _state.update { it.copy(questionIds = ids) }
-    }
-
     fun setLoadingState(isLoading: Boolean) {
         _state.update { it.copy(isLoading = isLoading) }
     }
