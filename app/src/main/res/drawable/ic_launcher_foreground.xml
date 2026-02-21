@@ -4,45 +4,29 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    
-    <!-- Back-Left Qbank Card -->
-    <group
-        android:pivotX="54"
-        android:pivotY="54"
-        android:rotation="-15">
-        <path
-            android:fillColor="#A8C7FA"
-            android:pathData="M 42 30 L 66 30 A 6 6 0 0 1 72 36 L 72 72 A 6 6 0 0 1 66 78 L 42 78 A 6 6 0 0 1 36 72 L 36 36 A 6 6 0 0 1 42 30 Z" />
-    </group>
 
-    <!-- Back-Right Qbank Card -->
-    <group
-        android:pivotX="54"
-        android:pivotY="54"
-        android:rotation="15">
-        <path
-            android:fillColor="#C4EED0"
-            android:pathData="M 42 30 L 66 30 A 6 6 0 0 1 72 36 L 72 72 A 6 6 0 0 1 66 78 L 42 78 A 6 6 0 0 1 36 72 L 36 36 A 6 6 0 0 1 42 30 Z" />
-    </group>
+    <!-- Source 1 (Tertiary - Purple) -60° -->
+    <path
+        android:fillColor="#6A5589"
+        android:pathData="M 29.81,53.89 C 24.07,50.58 22.11,43.24 25.42,37.50 C 28.73,31.76 36.07,29.79 41.81,33.11 L 78.19,54.11 C 83.93,57.42 85.89,64.76 82.58,70.50 C 79.27,76.24 71.93,78.21 66.19,74.89 Z" />
 
-    <!-- Main Front Qbank Card -->
-    <group
-        android:pivotX="54"
-        android:pivotY="54"
-        android:rotation="0">
-        <!-- Solid Base -->
-        <path
-            android:fillColor="#0B57D0"
-            android:pathData="M 42 30 L 66 30 A 6 6 0 0 1 72 36 L 72 72 A 6 6 0 0 1 66 78 L 42 78 A 6 6 0 0 1 36 72 L 36 36 A 6 6 0 0 1 42 30 Z" />
-        
-        <!-- Medical Cross (USMLE) -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M 51 35 h 6 v 6 h 6 v 6 h -6 v 6 h -6 v -6 h -6 v -6 h 6 v -6 Z" />
-            
-        <!-- Checkmark (Quiz/Success) -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M 48 63 L 52 67 L 60 59 L 62 61 L 52 71 L 46 65 Z" />
-    </group>
+    <!-- Source 2 (Secondary - Teal) 60° -->
+    <path
+        android:fillColor="#006A61"
+        android:pathData="M 66.19,33.11 C 71.93,29.79 79.27,31.76 82.58,37.50 C 85.89,43.24 83.93,50.58 78.19,53.89 L 41.81,74.89 C 36.07,78.21 28.73,76.24 25.42,70.50 C 22.11,64.76 24.07,57.42 29.81,54.11 Z" />
+
+    <!-- Source 3 (Primary - Blue) 0° -->
+    <path
+        android:fillColor="#0061A4"
+        android:pathData="M 42.00,33.00 C 42.00,26.37 47.37,21.00 54.00,21.00 C 60.63,21.00 66.00,26.37 66.00,33.00 L 66.00,75.00 C 66.00,81.63 60.63,87.00 54.00,87.00 C 47.37,87.00 42.00,81.63 42.00,75.00 Z" />
+
+    <!-- Checkmark drawn matching the background color to act as a sleek cutout -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#DCEBFE"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 42,54 L 50,62 L 67,45" />
+
 </vector>
