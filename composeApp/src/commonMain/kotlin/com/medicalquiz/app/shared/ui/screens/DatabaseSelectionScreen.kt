@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -82,6 +83,7 @@ fun DatabaseSelectionScreen(
     onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
     onDeleteHistoryEntries: (Set<String>) -> Unit,
     onRenameHistoryEntry: (String, String) -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     var selectedPane by rememberSaveable { mutableStateOf(SelectionPane.Database) }
     var selectedHistoryEntryIds by rememberSaveable { mutableStateOf(setOf<String>()) }
@@ -117,6 +119,9 @@ fun DatabaseSelectionScreen(
                 actions = {
                     when (selectedPane) {
                         SelectionPane.Database -> {
+                            IconButton(onClick = onOpenSettings) {
+                                Icon(Icons.Filled.Settings, contentDescription = "Open settings")
+                            }
                             IconButton(onClick = onRefreshDatabases) {
                                 Icon(Icons.Filled.Refresh, contentDescription = "Refresh databases")
                             }
@@ -277,6 +282,7 @@ fun DatabaseSelectionScreen(
                 },
             )
         }
+
     }
 }
 
