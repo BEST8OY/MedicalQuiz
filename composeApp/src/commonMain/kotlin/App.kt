@@ -122,11 +122,30 @@ private suspend fun navigateToMediaViewer(
     }
 }
 
+private val START_DESTINATION: MedicalQuizRoutes = MedicalQuizRoutes.DatabaseSelection
+
+private fun MutableList<MedicalQuizRoutes>.navigateTo(route: MedicalQuizRoutes) {
+    if (lastOrNull() != route) {
+        add(route)
+    }
+}
+
+private fun MutableList<MedicalQuizRoutes>.navigateBack(): Boolean {
+    if (size <= 1) return false
+    removeLastOrNull()
+    return true
+}
+
 
 private fun MutableList<MedicalQuizRoutes>.popToDatabaseSelection() {
     while (size > 1) {
         removeLastOrNull()
     }
+}
+
+private fun MutableList<MedicalQuizRoutes>.resetToStartDestination() {
+    clear()
+    add(START_DESTINATION)
 }
 
 @Composable
@@ -238,7 +257,7 @@ fun App() {
             // to file, not to Compose saveable state.
             val backStack: SnapshotStateList<MedicalQuizRoutes> = remember {
                 savedBackStack?.toMutableStateList()
-                    ?: mutableStateListOf(MedicalQuizRoutes.DatabaseSelection)
+                    ?: mutableStateListOf(START_DESTINATION)
             }
 
             // Database state - restore from saved state or use null for fresh start
@@ -384,8 +403,7 @@ fun App() {
                                     viewModel.setLoadingState(true)
                                     pendingLaunchSource = QuizLaunchSource.History
                                     selectedDatabase = matchingDatabase
-                                    backStack.clear()
-                                    backStack.add(MedicalQuizRoutes.DatabaseSelection)
+                                    backStack.resetToStartDestination()
                                     backStack.add(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
                                 }
                             },
@@ -398,7 +416,10 @@ fun App() {
                                 scope.launch {
                                     sessionRepository.renameHistoryEntryAsync(entryId, newName)
                                 }
-                            }
+                            },
+                            onOpenSettings = {
+                                backStack.navigateTo(MedicalQuizRoutes.Settings)
+                            },
                         )
                     }
 
@@ -509,11 +530,11 @@ fun App() {
                                     backStack.popToDatabaseSelection()
                                 } else {
                                     // Standard quiz flow: return to Filter.
-                                    backStack.removeLastOrNull()
+                                    backStack.navigateBack()
                                 }
                             },
                             onOpenSettingsScreen = dropUnlessResumed {
-                                backStack.add(MedicalQuizRoutes.Settings)
+                                backStack.navigateTo(MedicalQuizRoutes.Settings)
                             }
                         )
                     }
@@ -522,7 +543,7 @@ fun App() {
                     entry<MedicalQuizRoutes.Settings> {
                         SettingsScreen(
                             viewModel = viewModel,
-                            onBack = dropUnlessResumed { backStack.removeLastOrNull() },
+                            onBack = dropUnlessResumed { backStack.navigateBack() },
                             onResetLogs = { viewModel.clearLogsFromDb() },
                         )
                     }
@@ -552,7 +573,7 @@ fun App() {
                             },
                             onBack = dropUnlessResumed {
                                 // Pop from back stack
-                                backStack.removeLastOrNull()
+                                backStack.navigateBack()
                                 // Clear media descriptions to free memory
                                 scope.launch {
                                     mediaDescriptionsFlow.value = emptyMap()
@@ -576,7 +597,7 @@ fun App() {
                             fileExists = htmlDocument?.fileExists ?: true,
                             isLoading = htmlDocument == null,
                             onBack = dropUnlessResumed {
-                                backStack.removeLastOrNull()
+                                backStack.navigateBack()
                             },
                             onLinkClick = { url ->
                                 if (!mediaHandler.handleMediaLink(url)) {
@@ -592,7 +613,7 @@ fun App() {
                 // NavDisplay with slide animations and predictive back support
                 NavDisplay(
                     backStack = backStack,
-                    onBack = { backStack.removeLastOrNull() },
+                    onBack = { backStack.navigateBack() },
                     entryProvider = entryProvider,
                     entryDecorators = listOf(
                         rememberSaveableStateHolderNavEntryDecorator(),
