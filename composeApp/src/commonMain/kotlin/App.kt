@@ -44,6 +44,8 @@ import com.medicalquiz.app.shared.domain.QuizSessionBoundaryUseCase
 import com.medicalquiz.app.shared.domain.RestoreSessionUseCase
 import com.medicalquiz.app.shared.domain.UiEventDispatcher
 import com.medicalquiz.app.shared.navigation.NavigationStateRepository
+import com.medicalquiz.app.shared.orchestration.AppNavigationPersistenceCoordinator
+import com.medicalquiz.app.shared.orchestration.AppStartupCoordinator
 import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.data.SettingsRepository
 import com.medicalquiz.app.shared.data.TextHighlightsRepository
@@ -73,10 +75,31 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * Helper function to process media files and navigate to media viewer.
- * Filters unavailable files on background thread and calculates the correct start index.
- */
+private val START_DESTINATION: MedicalQuizRoutes = MedicalQuizRoutes.DatabaseSelection
+
+private fun MutableList<MedicalQuizRoutes>.navigateTo(route: MedicalQuizRoutes) {
+    if (lastOrNull() != route) {
+        add(route)
+    }
+}
+
+private fun MutableList<MedicalQuizRoutes>.navigateBack(): Boolean {
+    if (size <= 1) return false
+    removeLastOrNull()
+    return true
+}
+
+private fun MutableList<MedicalQuizRoutes>.popToDatabaseSelection() {
+    while (size > 1) {
+        removeLastOrNull()
+    }
+}
+
+private fun MutableList<MedicalQuizRoutes>.resetToStartDestination() {
+    clear()
+    add(START_DESTINATION)
+}
+
 private suspend fun navigateToMediaViewer(
     files: List<String>,
     startIndex: Int,
@@ -98,7 +121,7 @@ private suspend fun navigateToMediaViewer(
             availableFiles.add(fileName)
         }
     }
-    
+
     if (availableFiles.isNotEmpty()) {
         val originalFile = files.getOrNull(startIndex)
         val newIndex = if (originalFile != null) {
@@ -106,46 +129,18 @@ private suspend fun navigateToMediaViewer(
         } else 0
         val safeIndex = newIndex.coerceIn(0, availableFiles.lastIndex)
 
-        // Load media descriptions in parallel
         val mediaDescriptions = withContext(Dispatchers.IO) {
             MediaDescriptionRepository.load()
         }
         mediaDescriptionsFlow.value = mediaDescriptions
 
-        // Navigate to media viewer
         backStack.add(
             MedicalQuizRoutes.MediaViewer(
                 files = availableFiles,
-                startIndex = safeIndex
+                startIndex = safeIndex,
             )
         )
     }
-}
-
-private val START_DESTINATION: MedicalQuizRoutes = MedicalQuizRoutes.DatabaseSelection
-
-private fun MutableList<MedicalQuizRoutes>.navigateTo(route: MedicalQuizRoutes) {
-    if (lastOrNull() != route) {
-        add(route)
-    }
-}
-
-private fun MutableList<MedicalQuizRoutes>.navigateBack(): Boolean {
-    if (size <= 1) return false
-    removeLastOrNull()
-    return true
-}
-
-
-private fun MutableList<MedicalQuizRoutes>.popToDatabaseSelection() {
-    while (size > 1) {
-        removeLastOrNull()
-    }
-}
-
-private fun MutableList<MedicalQuizRoutes>.resetToStartDestination() {
-    clear()
-    add(START_DESTINATION)
 }
 
 @Composable
@@ -236,6 +231,20 @@ fun App() {
 
             // Navigation state management
             val navStateRepo = remember { NavigationStateRepository() }
+            val navPersistenceCoordinator = remember(navStateRepo, sessionRepository) {
+                AppNavigationPersistenceCoordinator(navStateRepo, sessionRepository)
+            }
+            val startupCoordinator = remember(
+                localContentRepository,
+                sessionRepository,
+                restoreSessionUseCase,
+            ) {
+                AppStartupCoordinator(
+                    localContentRepository = localContentRepository,
+                    sessionRepository = sessionRepository,
+                    restoreSessionUseCase = restoreSessionUseCase,
+                )
+            }
             val navRestoreBootstrap by produceState(
                 initialValue = NavigationRestoreBootstrap(loaded = false, state = null),
                 key1 = navStateRepo,
@@ -271,30 +280,28 @@ fun App() {
             val refreshDatabases: () -> Unit = {
                 scope.launch {
                     isDatabaseListLoading = true
-                    availableDatabases = localContentRepository.listDatabases()
+                    availableDatabases = startupCoordinator.refreshDatabases()
                     isDatabaseListLoading = false
                 }
             }
 
             LaunchedEffect(Unit) {
-                userDataManager.init()
                 isDatabaseListLoading = true
-                availableDatabases = localContentRepository.listDatabases()
+                availableDatabases = startupCoordinator.initializeApp(userDataManager)
                 isDatabaseListLoading = false
-                sessionRepository.refreshHistoryAsync()
             }
 
             // Handle database initialization when selected
             LaunchedEffect(selectedDatabase, pendingLaunchSource, shouldAttemptSessionRestore) {
-                selectedDatabase?.let { dbName ->
-                    val decision = restoreSessionUseCase(
-                        dbName = dbName,
-                        initializedDatabase = initializedDatabase,
-                        pendingLaunchSource = pendingLaunchSource,
-                        shouldAttemptSessionRestore = shouldAttemptSessionRestore,
-                        viewModel = viewModel,
-                    )
+                val decision = startupCoordinator.handleDatabaseSelection(
+                    selectedDatabase = selectedDatabase,
+                    initializedDatabase = initializedDatabase,
+                    pendingLaunchSource = pendingLaunchSource,
+                    shouldAttemptSessionRestore = shouldAttemptSessionRestore,
+                    viewModel = viewModel,
+                )
 
+                if (decision != null) {
                     initializedDatabase = decision.initializedDatabase
                     pendingLaunchSource = decision.pendingLaunchSource
                     shouldAttemptSessionRestore = decision.shouldAttemptSessionRestore
@@ -309,10 +316,10 @@ fun App() {
             LaunchedEffect(Unit) {
                 snapshotFlow { backStack.toList() }
                     .collect { currentStack ->
-                        navStateRepo.saveNavigationStateAsync(currentStack, selectedDatabase)
-                        if (currentStack.lastOrNull() is MedicalQuizRoutes.DatabaseSelection) {
-                            sessionRepository.refreshHistoryAsync()
-                        }
+                        navPersistenceCoordinator.onBackStackChanged(
+                            backStack = currentStack,
+                            selectedDatabase = selectedDatabase,
+                        )
                     }
             }
 
@@ -353,12 +360,10 @@ fun App() {
                             )
                         }
                         is UiEvent.NavigateToDatabaseSelection -> {
-                            // Pop back to DatabaseSelection for smooth back navigation animation
                             backStack.popToDatabaseSelection()
                             selectedDatabase = null
                             initializedDatabase = null
                             viewModel.closeDatabase()
-                            // Clear the quiz session since we're switching databases
                             sessionRepository.clearSessionAsync()
                         }
                         is UiEvent.ShowToast -> {

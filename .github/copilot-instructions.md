@@ -8,7 +8,7 @@
 ## Architecture
 - Two-module split: `:composeApp` contains shared features + desktop target; `:app` is Android host shell (`settings.gradle.kts`).
 - Entry flow: Android permission gate in `app/src/main/java/com/medicalquiz/app/MainActivity.kt` before rendering `App()`; desktop launches directly from `composeApp/src/desktopMain/kotlin/main.kt`.
-- `App.kt` is the orchestration boundary (wires repositories/use-cases, restores nav/session state, handles `UiEvent` navigation), while `QuizViewModel` is the central state owner.
+- `App.kt` is a thinner composition boundary; keep startup + persistence orchestration delegated to `shared/orchestration/*Coordinator.kt`, while `QuizViewModel` remains the central state owner.
 - Navigation uses typed `MedicalQuizRoutes`; overlays `MediaViewer`/`HtmlViewer` are transient and excluded from restore (`sanitizeRestoredBackStack` in `NavigationRoutes.kt`).
 
 ## Build and Test
@@ -23,6 +23,7 @@
 
 ## Project Conventions
 - Persisted app/session/nav state is file-backed under storage root (`quiz_session.json`, `quiz_session_history.json`, `navigation_state.json`, `settings.json`) via repositories in `composeApp/src/commonMain/kotlin/com/medicalquiz/app/shared/data`.
+- Keep app-level orchestration out of composables when possible: add/extend coordinators under `composeApp/src/commonMain/kotlin/com/medicalquiz/app/shared/orchestration` (`AppStartupCoordinator`, `AppNavigationPersistenceCoordinator`) for startup and persistence-heavy flows.
 - Route media-like links through `MediaHandler` and open rich content through existing parser/rendering pipeline (`ui/media/MediaHandler.kt`, `ui/richtext/parser/RichTextParser.kt`).
 - Keep route changes paired with persistence updates: modify `NavigationRoutes.kt` and `NavigationStateRepository.kt` together.
 - Never hardcode absolute paths; always resolve with `StorageProvider`/`FileSystemHelper`.
