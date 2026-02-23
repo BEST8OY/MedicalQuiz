@@ -66,6 +66,7 @@ kotlin {
             dependencies {
                 implementation(libs.compose.preview)
                 implementation(libs.androidx.activity.compose)
+                implementation(libs.androidx.navigationevent.compose)
                 implementation(libs.coil.android)
                 implementation(libs.ktor.client.okhttp)
                 
