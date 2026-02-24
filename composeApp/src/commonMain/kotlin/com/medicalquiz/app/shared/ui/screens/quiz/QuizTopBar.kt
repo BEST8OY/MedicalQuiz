@@ -2,7 +2,6 @@ package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -13,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontWeight
+import com.medicalquiz.app.shared.ui.components.SettingsActionButton
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -42,12 +42,10 @@ internal fun TopBar(
                     contentDescription = "Reset current question log"
                 )
             }
-            IconButton(onClick = onSettingsClick) {
-                Icon(
-                    imageVector = Icons.Rounded.Settings,
-                    contentDescription = "Settings"
-                )
-            }
+            SettingsActionButton(
+                onClick = onSettingsClick,
+                contentDescription = "Settings",
+            )
         }
     )
 }

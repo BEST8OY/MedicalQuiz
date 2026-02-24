@@ -34,7 +34,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ToggleButton
@@ -62,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.data.QuizSessionRepository
+import com.medicalquiz.app.shared.ui.components.SettingsActionButton
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -119,14 +119,16 @@ fun DatabaseSelectionScreen(
                 actions = {
                     when (selectedPane) {
                         SelectionPane.Database -> {
-                            IconButton(onClick = onOpenSettings) {
-                                Icon(Icons.Filled.Settings, contentDescription = "Open settings")
-                            }
+                            SettingsActionButton(
+                                onClick = onOpenSettings,
+                                icon = Icons.Filled.Settings,
+                            )
                         }
                         SelectionPane.History -> {
-                            IconButton(onClick = onOpenSettings) {
-                                Icon(Icons.Filled.Settings, contentDescription = "Open settings")
-                            }
+                            SettingsActionButton(
+                                onClick = onOpenSettings,
+                                icon = Icons.Filled.Settings,
+                            )
                             if (selectedHistoryEntryIds.isNotEmpty()) {
                                 IconButton(onClick = { selectedHistoryEntryIds = emptySet() }) {
                                     Icon(Icons.Filled.Close, contentDescription = "Cancel selection")
