@@ -124,6 +124,9 @@ fun DatabaseSelectionScreen(
                             }
                         }
                         SelectionPane.History -> {
+                            IconButton(onClick = onOpenSettings) {
+                                Icon(Icons.Filled.Settings, contentDescription = "Open settings")
+                            }
                             if (selectedHistoryEntryIds.isNotEmpty()) {
                                 IconButton(onClick = { selectedHistoryEntryIds = emptySet() }) {
                                     Icon(Icons.Filled.Close, contentDescription = "Cancel selection")
