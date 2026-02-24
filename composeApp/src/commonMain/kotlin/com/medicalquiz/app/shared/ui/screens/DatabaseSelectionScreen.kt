@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AlertDialog
@@ -46,6 +45,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -102,7 +102,7 @@ fun DatabaseSelectionScreen(
                         )
                         Text(
                             text = when {
-                                selectedPane == SelectionPane.Database -> "Select database"
+                                selectedPane == SelectionPane.Database -> "Select QBank"
                                 selectedHistoryEntryIds.isNotEmpty() -> "${selectedHistoryEntryIds.size} selected"
                                 else -> "Recent sessions"
                             },
@@ -121,9 +121,6 @@ fun DatabaseSelectionScreen(
                         SelectionPane.Database -> {
                             IconButton(onClick = onOpenSettings) {
                                 Icon(Icons.Filled.Settings, contentDescription = "Open settings")
-                            }
-                            IconButton(onClick = onRefreshDatabases) {
-                                Icon(Icons.Filled.Refresh, contentDescription = "Refresh databases")
                             }
                         }
                         SelectionPane.History -> {
@@ -146,28 +143,40 @@ fun DatabaseSelectionScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 112.dp),
-            ) {
-                if (selectedPane == SelectionPane.Database) {
-                    if (databases.isEmpty() && !isLoading) {
-                        item {
-                            EmptyState(
-                                title = "No databases found",
-                                subtitle = "Add .db files to the app directory and refresh.",
-                            )
-                        }
-                    } else {
-                        items(databases) { dbName ->
-                            DatabaseItemCard(
-                                name = dbName,
-                                onClick = { onDatabaseSelected(dbName) },
-                            )
+            if (selectedPane == SelectionPane.Database) {
+                PullToRefreshBox(
+                    isRefreshing = isLoading,
+                    onRefresh = onRefreshDatabases,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 112.dp),
+                    ) {
+                        if (databases.isEmpty() && !isLoading) {
+                            item {
+                                EmptyState(
+                                    title = "No QBanks found",
+                                    subtitle = "Add .db files to the app directory under /QBanks and pull to refresh.",
+                                )
+                            }
+                        } else {
+                            items(databases) { dbName ->
+                                DatabaseItemCard(
+                                    name = dbName,
+                                    onClick = { onDatabaseSelected(dbName) },
+                                )
+                            }
                         }
                     }
-                } else {
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 112.dp),
+                ) {
                     if (historyEntries.isEmpty()) {
                         item {
                             EmptyState(
@@ -323,7 +332,7 @@ private fun FloatingToolbar(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
             }
-            Text("Databases")
+            Text("QBanks")
         }
 
         // History tab - ToggleButton: icon + text when checked, text only when unchecked
@@ -468,7 +477,7 @@ private fun HistoryItemCard(
                     Spacer(modifier = Modifier.height(2.dp))
                     if (entryDisplayName != entry.databaseName) {
                         Text(
-                            text = "Database: ${entry.databaseName}",
+                            text = "QBank: ${entry.databaseName}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

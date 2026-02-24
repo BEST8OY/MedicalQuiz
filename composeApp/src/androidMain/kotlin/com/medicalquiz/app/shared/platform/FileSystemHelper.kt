@@ -35,13 +35,13 @@ actual object FileSystemHelper {
 
     actual fun getDatabasePath(dbName: String): String {
         val storageRoot = StorageProvider.getAppStorageDirectory()
-        val dbFile = File(File(storageRoot, "databases"), dbName)
+        val dbFile = File(File(storageRoot, "QBanks"), dbName)
         return dbFile.absolutePath
     }
 
     actual fun listDatabases(): List<String> {
         val storageRoot = StorageProvider.getAppStorageDirectory()
-        val databasesDir = File(storageRoot, "databases")
+        val databasesDir = File(storageRoot, "QBanks")
         if (!databasesDir.exists()) return emptyList()
         return databasesDir.listFiles { file -> file.extension == "db" }
             ?.map { it.name }
