@@ -2,9 +2,12 @@ package com.medicalquiz.app.shared.ui.screens
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.History
@@ -32,10 +35,16 @@ internal fun FilterPaneScaffold(
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
-        if (selectedPane == FilterPane.Filters) {
-            filterContent()
-        } else {
-            historyContent()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.statusBars),
+        ) {
+            if (selectedPane == FilterPane.Filters) {
+                filterContent()
+            } else {
+                historyContent()
+            }
         }
 
         FilterPaneFloatingToolbar(
