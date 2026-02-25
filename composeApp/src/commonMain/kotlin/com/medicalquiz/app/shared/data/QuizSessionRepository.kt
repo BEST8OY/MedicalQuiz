@@ -40,6 +40,7 @@ class QuizSessionRepository {
         selectedSystemIds: Set<Long>,
         performanceFilter: PerformanceFilter,
         currentQuestionIndex: Int,
+        isStudyModeEnabled: Boolean,
         appendToHistory: Boolean = true,
     ) {
         if (databaseName.isBlank() || currentQuestionIndex < 0) {
@@ -53,6 +54,7 @@ class QuizSessionRepository {
             selectedSubjectIds = selectedSubjectIds,
             selectedSystemIds = selectedSystemIds,
             performanceFilter = performanceFilter,
+            isStudyModeEnabled = isStudyModeEnabled,
             now = now,
         )
         val session = QuizSession(
@@ -62,6 +64,7 @@ class QuizSessionRepository {
             selectedSystemIds = selectedSystemIds.toSortedSet().toList(),
             performanceFilter = performanceFilter,
             currentQuestionIndex = currentQuestionIndex,
+            isStudyModeEnabled = isStudyModeEnabled,
             updatedAtEpochMillis = now,
         )
 
@@ -80,6 +83,7 @@ class QuizSessionRepository {
         selectedSystemIds: Set<Long>,
         performanceFilter: PerformanceFilter,
         currentQuestionIndex: Int,
+        isStudyModeEnabled: Boolean,
         appendToHistory: Boolean = true,
     ) = withContext(Dispatchers.IO) {
         saveSession(
@@ -88,6 +92,7 @@ class QuizSessionRepository {
             selectedSystemIds = selectedSystemIds,
             performanceFilter = performanceFilter,
             currentQuestionIndex = currentQuestionIndex,
+            isStudyModeEnabled = isStudyModeEnabled,
             appendToHistory = appendToHistory,
         )
         if (appendToHistory) {
@@ -205,13 +210,15 @@ class QuizSessionRepository {
         selectedSubjectIds: Set<Long>,
         selectedSystemIds: Set<Long>,
         performanceFilter: PerformanceFilter,
+        isStudyModeEnabled: Boolean,
         now: Long,
     ): String {
         val existingSession = restoreSession() ?: return buildSessionId(databaseName, now)
         val matchesContext = existingSession.databaseName == databaseName &&
             existingSession.selectedSubjectIds.toSet() == selectedSubjectIds &&
             existingSession.selectedSystemIds.toSet() == selectedSystemIds &&
-            existingSession.performanceFilter == performanceFilter
+            existingSession.performanceFilter == performanceFilter &&
+            existingSession.isStudyModeEnabled == isStudyModeEnabled
         return if (matchesContext && existingSession.id.isNotBlank()) {
             existingSession.id
         } else {
@@ -276,6 +283,7 @@ class QuizSessionRepository {
         val selectedSystemIds: List<Long>,
         val performanceFilter: PerformanceFilter,
         val currentQuestionIndex: Int,
+        val isStudyModeEnabled: Boolean = false,
         val updatedAtEpochMillis: Long = 0,
     )
 

@@ -33,6 +33,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,14 +50,16 @@ internal fun FilterScreen(
     systemCount: Int,
     performanceLabel: String,
     previewCount: Int,
+    isStudyModeEnabled: Boolean,
     onSelectSubjects: () -> Unit,
     onSelectSystems: () -> Unit,
     onSelectPerformance: () -> Unit,
     onStart: () -> Unit,
+    onToggleStudyMode: (Boolean) -> Unit,
     onClearFilters: () -> Unit
 ) {
     val hasPreview = previewCount > 0
-    val hasFilters = subjectCount > 0 || systemCount > 0 || performanceLabel != "All Questions"
+    val hasFilters = subjectCount > 0 || systemCount > 0 || performanceLabel != "All Questions" || isStudyModeEnabled
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -96,6 +99,12 @@ internal fun FilterScreen(
                     icon = Icons.AutoMirrored.Filled.TrendingUp,
                     isActive = performanceLabel != "All Questions",
                     onClick = onSelectPerformance
+                )
+
+
+                StudyModeCard(
+                    isEnabled = isStudyModeEnabled,
+                    onToggle = onToggleStudyMode
                 )
             }
 
@@ -297,6 +306,51 @@ private fun FilterSelectionCard(
                     color = contentColor
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun StudyModeCard(
+    isEnabled: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    val motionScheme = MaterialTheme.motionScheme
+
+    val containerColor by animateColorAsState(
+        targetValue = if (isEnabled) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+        animationSpec = motionScheme.defaultEffectsSpec()
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = containerColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Study mode",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Pre-answer every question to review explanations quickly",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Switch(
+                checked = isEnabled,
+                onCheckedChange = onToggle
+            )
         }
     }
 }

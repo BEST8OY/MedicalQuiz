@@ -16,6 +16,7 @@ class QuizSessionBoundaryUseCase(
             selectedSystemIds = session.selectedSystemIds.toSet(),
             performanceFilter = session.performanceFilter,
             currentQuestionIndex = session.currentQuestionIndex,
+            isStudyModeEnabled = session.isStudyModeEnabled,
         )
     }
 
@@ -31,6 +32,7 @@ class QuizSessionBoundaryUseCase(
             selectedSystemIds = state.selectedSystemIds,
             performanceFilter = state.performanceFilter,
             currentQuestionIndex = state.currentQuestionIndex,
+            isStudyModeEnabled = state.isStudyModeEnabled,
             appendToHistory = appendToHistory,
         )
     }
@@ -47,6 +49,7 @@ class QuizSessionBoundaryUseCase(
             val selectedSystemIds: Set<Long>,
             val performanceFilter: PerformanceFilter,
             val currentQuestionIndex: Int,
+            val isStudyModeEnabled: Boolean,
         ) : RestoreResult
     }
 }

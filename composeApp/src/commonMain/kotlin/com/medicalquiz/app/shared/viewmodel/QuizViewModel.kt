@@ -50,6 +50,7 @@ class QuizViewModel(
         const val KEY_SELECTED_SUBJECT_IDS = "selected_subject_ids"
         const val KEY_SELECTED_SYSTEM_IDS = "selected_system_ids"
         const val KEY_PERFORMANCE_FILTER = "performance_filter"
+        const val KEY_STUDY_MODE = "study_mode"
         const val KEY_CURRENT_QUESTION_INDEX = "current_question_index"
     }
     enum class SessionRestoreResult {
@@ -97,6 +98,7 @@ class QuizViewModel(
         val savedSubjectIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SUBJECT_IDS).orEmpty()
         val savedSystemIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SYSTEM_IDS).orEmpty()
         val savedPerformanceName = savedStateHandle.get<String>(KEY_PERFORMANCE_FILTER)
+        val savedStudyMode = savedStateHandle.get<Boolean>(KEY_STUDY_MODE) ?: false
         val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: 0
 
         val savedFilter = savedPerformanceName
@@ -109,6 +111,7 @@ class QuizViewModel(
                 selectedSubjectIds = savedSubjectIds.toSet(),
                 selectedSystemIds = savedSystemIds.toSet(),
                 performanceFilter = savedFilter,
+                isStudyModeEnabled = savedStudyMode,
                 currentQuestionIndex = savedQuestionIndex.coerceAtLeast(0),
             )
         }
@@ -119,6 +122,7 @@ class QuizViewModel(
         savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = snapshot.selectedSubjectIds.toList()
         savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = snapshot.selectedSystemIds.toList()
         savedStateHandle[KEY_PERFORMANCE_FILTER] = snapshot.performanceFilter.name
+        savedStateHandle[KEY_STUDY_MODE] = snapshot.isStudyModeEnabled
         savedStateHandle[KEY_CURRENT_QUESTION_INDEX] = snapshot.currentQuestionIndex
     }
 
@@ -174,6 +178,7 @@ class QuizViewModel(
                         selectedSystemIds = result.selectedSystemIds,
                         performanceFilter = result.performanceFilter,
                         currentQuestionIndex = result.currentQuestionIndex,
+                        isStudyModeEnabled = result.isStudyModeEnabled,
                     )
                 }
                 persistStateSnapshot()
@@ -224,6 +229,7 @@ class QuizViewModel(
                     selectedSystemIds = emptySet(),
                     questionIds = emptyList(),
                     performanceFilter = PerformanceFilter.ALL,
+                    isStudyModeEnabled = false,
                     previewQuestionCount = 0
                 )
             }
@@ -278,13 +284,26 @@ class QuizViewModel(
                     isLoggingEnabled = settingsRepository.isLoggingEnabled.value,
                 )
                 _state.update { 
-                    it.copy(currentQuestionIndex = index)
+                    val updatedState = it.copy(currentQuestionIndex = index)
                       .copyWithQuestion(
                           question = result.question,
                           answers = result.answers,
                           resetAnswerState = resetAnswerState
                       )
                       .copy(currentPerformance = result.performance)
+
+                    if (updatedState.isStudyModeEnabled) {
+                        val correctAnswerId = result.answers
+                            .getOrNull((result.question?.corrAns ?: 0) - 1)
+                            ?.answerId
+                            ?.toInt()
+                        updatedState.copy(
+                            selectedAnswerId = correctAnswerId,
+                            answerSubmitted = true,
+                        )
+                    } else {
+                        updatedState
+                    }
                 }
                 persistStateSnapshot()
                 if (result.question != null) {
@@ -586,6 +605,14 @@ class QuizViewModel(
             } else {
                 updatePreviewQuestionCountInternal()
             }
+            saveSession(appendToHistory = false)
+        }
+    }
+
+    fun setStudyMode(enabled: Boolean) {
+        _state.update { it.copy(isStudyModeEnabled = enabled) }
+        persistStateSnapshot()
+        viewModelScope.launch(Dispatchers.IO) {
             saveSession(appendToHistory = false)
         }
     }

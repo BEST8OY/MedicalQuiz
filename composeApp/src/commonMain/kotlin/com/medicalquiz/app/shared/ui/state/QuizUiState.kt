@@ -20,6 +20,7 @@ data class QuizUiState(
     val selectedSubjectIds: Set<Long> = emptySet(),
     val selectedSystemIds: Set<Long> = emptySet(),
     val performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
+    val isStudyModeEnabled: Boolean = false,
     val subjectsResource: Resource<List<Subject>> = Resource.Success(emptyList()),
     val systemsResource: Resource<List<System>> = Resource.Success(emptyList()),
     val previewQuestionCount: Int = 0,

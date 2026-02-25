@@ -455,17 +455,23 @@ fun App() {
                             systemCount = state.selectedSystemIds.size,
                             performanceLabel = performanceLabel,
                             previewCount = state.previewQuestionCount,
+                            isStudyModeEnabled = state.isStudyModeEnabled,
                             onSelectSubjects = { showSubjectDialog = true },
                             onSelectSystems = { showSystemDialog = true },
                             onSelectPerformance = { showPerformanceDialog = true },
                             onStart = dropUnlessResumed {
+                                viewModel.resetAnswerState()
                                 viewModel.loadFilteredQuestionIds()
                                 backStack.add(MedicalQuizRoutes.Quiz())
+                            },
+                            onToggleStudyMode = { enabled ->
+                                viewModel.setStudyMode(enabled)
                             },
                             onClearFilters = {
                                 viewModel.applySelectedSubjects(emptySet(), loadQuestions = false)
                                 viewModel.applySelectedSystems(emptySet(), loadQuestions = false)
                                 viewModel.setPerformanceFilter(com.medicalquiz.app.shared.data.database.PerformanceFilter.ALL, loadQuestions = false)
+                                viewModel.setStudyMode(false)
                             }
                         )
 
