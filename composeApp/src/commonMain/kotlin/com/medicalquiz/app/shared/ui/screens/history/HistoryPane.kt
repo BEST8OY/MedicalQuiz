@@ -11,17 +11,24 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -29,8 +36,10 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +59,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun HistoryPane(
     historyEntries: List<QuizSessionRepository.QuizSession>,
@@ -58,9 +68,19 @@ internal fun HistoryPane(
     onRenameHistoryEntry: (String, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var selectedHistoryEntryIds by rememberSaveable { mutableStateOf(setOf<String>()) }
+    var isFabMenuExpanded by rememberSaveable { mutableStateOf(false) }
     var deleteTargetEntryIds by rememberSaveable { mutableStateOf(emptySet<String>()) }
     var renameTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var renameText by rememberSaveable { mutableStateOf("") }
+    val allHistoryEntryIds = remember(historyEntries) { historyEntries.map { it.id }.toSet() }
+
+    LaunchedEffect(allHistoryEntryIds) {
+        selectedHistoryEntryIds = selectedHistoryEntryIds.intersect(allHistoryEntryIds)
+        if (selectedHistoryEntryIds.isEmpty()) {
+            isFabMenuExpanded = false
+        }
+    }
 
     Box(modifier = modifier) {
         LazyColumn(
@@ -79,7 +99,18 @@ internal fun HistoryPane(
                 items(historyEntries, key = { it.id }) { entry ->
                     HistoryItemCard(
                         entry = entry,
-                        onClick = { onHistorySelected(entry) },
+                        isSelected = entry.id in selectedHistoryEntryIds,
+                        selectionModeEnabled = selectedHistoryEntryIds.isNotEmpty(),
+                        onClick = {
+                            if (selectedHistoryEntryIds.isNotEmpty()) {
+                                selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
+                            } else {
+                                onHistorySelected(entry)
+                            }
+                        },
+                        onLongPress = {
+                            selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
+                        },
                         onSwipeDelete = {
                             deleteTargetEntryIds = setOf(entry.id)
                         },
@@ -87,8 +118,50 @@ internal fun HistoryPane(
                             renameTargetId = entry.id
                             renameText = entry.displayName()
                         },
+                        onSelectChanged = {
+                            selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
+                        },
                     )
                 }
+            }
+        }
+
+        if (selectedHistoryEntryIds.isNotEmpty()) {
+            FloatingActionButtonMenu(
+                expanded = isFabMenuExpanded,
+                button = {
+                    ToggleFloatingActionButton(
+                        checked = isFabMenuExpanded,
+                        onCheckedChange = { isFabMenuExpanded = it },
+                    ) {
+                        Icon(
+                            imageVector = if (isFabMenuExpanded) Icons.Filled.Close else Icons.Filled.MoreVert,
+                            contentDescription = null,
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 96.dp)
+                    .navigationBarsPadding(),
+            ) {
+                FloatingActionButtonMenuItem(
+                    onClick = {
+                        selectedHistoryEntryIds = allHistoryEntryIds
+                        isFabMenuExpanded = false
+                    },
+                    text = { Text("Select all") },
+                    icon = { Icon(Icons.Filled.History, contentDescription = null) },
+                )
+
+                FloatingActionButtonMenuItem(
+                    onClick = {
+                        deleteTargetEntryIds = selectedHistoryEntryIds
+                        isFabMenuExpanded = false
+                    },
+                    text = { Text("Delete (${selectedHistoryEntryIds.size})") },
+                    icon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                )
             }
         }
 
@@ -101,6 +174,10 @@ internal fun HistoryPane(
                     TextButton(
                         onClick = {
                             onDeleteHistoryEntries(deleteTargetEntryIds)
+                            selectedHistoryEntryIds = selectedHistoryEntryIds - deleteTargetEntryIds
+                            if (selectedHistoryEntryIds.isEmpty()) {
+                                isFabMenuExpanded = false
+                            }
                             deleteTargetEntryIds = emptySet()
                         },
                     ) {
@@ -161,14 +238,24 @@ internal fun HistoryPane(
 @Composable
 private fun HistoryItemCard(
     entry: QuizSessionRepository.QuizSession,
+    isSelected: Boolean,
+    selectionModeEnabled: Boolean,
     onClick: () -> Unit,
+    onLongPress: () -> Unit,
     onSwipeDelete: () -> Unit,
     onSwipeRename: () -> Unit,
+    onSelectChanged: () -> Unit,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         positionalThreshold = { totalDistance -> totalDistance * 0.35f },
     )
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(selectionModeEnabled) {
+        if (selectionModeEnabled && dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
+            dismissState.reset()
+        }
+    }
 
     val cardShape = MaterialTheme.shapes.large
 
@@ -177,9 +264,9 @@ private fun HistoryItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(cardShape),
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = true,
-        gesturesEnabled = true,
+        enableDismissFromStartToEnd = !selectionModeEnabled,
+        enableDismissFromEndToStart = !selectionModeEnabled,
+        gesturesEnabled = !selectionModeEnabled,
         onDismiss = { dismissValue ->
             when (dismissValue) {
                 SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
@@ -222,10 +309,14 @@ private fun HistoryItemCard(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .combinedClickable(onClick = onClick, onLongClick = onClick),
+                .combinedClickable(onClick = onClick, onLongClick = onLongPress),
             shape = cardShape,
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                containerColor = if (isSelected) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainer
+                },
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         ) {
@@ -236,6 +327,12 @@ private fun HistoryItemCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                if (selectionModeEnabled) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onSelectChanged() },
+                    )
+                }
                 Icon(
                     imageVector = Icons.Filled.History,
                     contentDescription = null,
@@ -276,6 +373,9 @@ private fun HistoryItemCard(
 
 private fun QuizSessionRepository.QuizSession.displayName(): String =
     entryName.ifBlank { databaseName }
+
+private fun Set<String>.toggle(id: String): Set<String> =
+    if (id in this) this - id else this + id
 
 private fun formatTimestamp(epochMillis: Long): String {
     if (epochMillis <= 0L) return "Unknown time"
