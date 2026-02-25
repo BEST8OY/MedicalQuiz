@@ -477,31 +477,6 @@ private fun DatabaseItemCard(
     }
 }
 
-@Composable
-private fun EmptyStateMessage(
-    title: String,
-    subtitle: String,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 72.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
 private fun QuizSessionRepository.QuizSession.displayName(): String =
     entryName.ifBlank { databaseName }
 
