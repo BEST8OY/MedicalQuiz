@@ -62,7 +62,7 @@ class QuizViewModel(
     private var settingsObservationJob: Job? = null
     private var textHighlightsRepository: TextHighlightsRepository = textHighlightsRepository
 
-    private var testId = Random.nextLong().toString()
+    private var sessionId = Random.nextLong().toString()
 
     private val _state = MutableStateFlow(QuizUiState.EMPTY)
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
@@ -169,7 +169,7 @@ class QuizViewModel(
             QuizSessionBoundaryUseCase.RestoreResult.DatabaseMismatch -> SessionRestoreResult.DatabaseMismatch
             is QuizSessionBoundaryUseCase.RestoreResult.Restored -> {
                 if (result.sessionId.isNotBlank()) {
-                    setTestId(result.sessionId)
+                    setSessionId(result.sessionId)
                 }
                 _state.update {
                     it.copy(
@@ -191,7 +191,7 @@ class QuizViewModel(
             appendToHistory = appendToHistory,
         )
         if (sessionId.isNotBlank()) {
-            setTestId(sessionId)
+            setSessionId(sessionId)
         }
     }
 
@@ -249,11 +249,11 @@ class QuizViewModel(
 
     fun getDatabaseManager(): DatabaseProvider? = databaseManager
 
-    fun setTestId(id: String) {
-        testId = id
+    fun setSessionId(id: String) {
+        sessionId = id
     }
 
-    fun getTestId(): String = testId
+    fun getSessionId(): String = sessionId
 
     fun rebindTextHighlightsRepository(repository: TextHighlightsRepository) {
         if (textHighlightsRepository === repository) return
@@ -386,7 +386,7 @@ class QuizViewModel(
             selectedAnswer = selectedAnswerId,
             corrAnswer = correctAnswerIndex,
             time = timeTaken,
-            testId = testId
+            sessionId = sessionId
         )
     }
 

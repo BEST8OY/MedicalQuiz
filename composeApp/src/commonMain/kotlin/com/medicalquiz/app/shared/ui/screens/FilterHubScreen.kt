@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
@@ -44,6 +45,7 @@ internal fun FilterHubScreen(
                 systemCount = state.selectedSystemIds.size,
                 performanceLabel = performanceLabel,
                 previewCount = state.previewQuestionCount,
+                bottomContentPadding = 112.dp,
                 onSelectSubjects = {
                     showSubjectDialog = true
                     viewModel.fetchSubjects()

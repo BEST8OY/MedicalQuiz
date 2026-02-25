@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -49,6 +50,7 @@ internal fun FilterScreen(
     systemCount: Int,
     performanceLabel: String,
     previewCount: Int,
+    bottomContentPadding: Dp = 0.dp,
     onSelectSubjects: () -> Unit,
     onSelectSystems: () -> Unit,
     onSelectPerformance: () -> Unit,
@@ -65,7 +67,12 @@ internal fun FilterScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 40.dp),
+                .padding(
+                    start = 24.dp,
+                    top = 40.dp,
+                    end = 24.dp,
+                    bottom = 40.dp + bottomContentPadding,
+                ),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // Database header

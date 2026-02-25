@@ -69,13 +69,6 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         }
     }
 
-    override suspend fun ensureSessionExists(sessionId: String) = withContext(Dispatchers.IO) {
-        if (sessionId.isBlank()) return@withContext
-        mutex.withLock {
-            ensureSessionExistsLocked(sessionId)
-        }
-    }
-
     override suspend fun getQuestionIds(
         subjectIds: List<Long>?,
         systemIds: List<Long>?,
@@ -301,7 +294,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         selectedAnswer: Int,
         corrAnswer: Int,
         time: Long,
-        testId: String
+        sessionId: String
     ) = withContext(Dispatchers.IO) {
         mutex.withLock {
             val now = Clock.System.now()
@@ -310,29 +303,23 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
             val monthNum = dateTime.month.ordinal + 1
             val dateString = "${dateTime.year}-${monthNum.toString().padStart(2, '0')}-${dateTime.day.toString().padStart(2, '0')} ${dateTime.hour.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')}:${dateTime.second.toString().padStart(2, '0')}"
             
-            val sql = "INSERT INTO logs (qid, selectedAnswer, corrAnswer, time, answerDate, testId) VALUES (?, ?, ?, ?, ?, ?)"
+            val sql = "INSERT INTO logs (qid, selectedAnswer, corrAnswer, time, answerDate) VALUES (?, ?, ?, ?, ?)"
             getConnection().prepare(sql).use { stmt ->
                 stmt.bindLong(1, qid)
                 stmt.bindLong(2, selectedAnswer.toLong())
                 stmt.bindLong(3, corrAnswer.toLong())
                 stmt.bindLong(4, time)
                 stmt.bindText(5, dateString)
-                val testIdLong = testId.toLongOrNull()
-                if (testIdLong != null) {
-                    stmt.bindLong(6, testIdLong)
-                } else {
-                    stmt.bindNull(6)
-                }
                 stmt.step()
             }
             val insertedLogRowId = getLastInsertRowId()
 
-            if (testId.isNotBlank()) {
-                ensureSessionExistsLocked(testId)
+            if (sessionId.isNotBlank()) {
+                ensureSessionExistsLocked(sessionId)
                 getConnection().prepare(
                     "INSERT OR IGNORE INTO session_log_links (session_id, log_rowid) VALUES (?, ?)"
                 ).use { stmt ->
-                    stmt.bindText(1, testId)
+                    stmt.bindText(1, sessionId)
                     stmt.bindLong(2, insertedLogRowId)
                     stmt.step()
                 }

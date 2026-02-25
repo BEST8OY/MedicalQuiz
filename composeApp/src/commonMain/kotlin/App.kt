@@ -292,7 +292,7 @@ fun App() {
             }
 
             // Handle database initialization when selected
-            LaunchedEffect(selectedDatabase, pendingLaunchSource, shouldAttemptSessionRestore) {
+            LaunchedEffect(selectedDatabase, initializedDatabase, pendingLaunchSource, shouldAttemptSessionRestore) {
                 val decision = startupCoordinator.handleDatabaseSelection(
                     selectedDatabase = selectedDatabase,
                     initializedDatabase = initializedDatabase,

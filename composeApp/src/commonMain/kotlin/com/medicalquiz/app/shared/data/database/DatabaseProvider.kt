@@ -7,7 +7,6 @@ import com.medicalquiz.app.shared.data.models.System
 
 interface DatabaseProvider {
     suspend fun closeDatabase()
-    suspend fun ensureSessionExists(sessionId: String)
     
     suspend fun getQuestionIds(
         subjectIds: List<Long>? = null,
@@ -26,7 +25,7 @@ interface DatabaseProvider {
         selectedAnswer: Int,
         corrAnswer: Int,
         time: Long,
-        testId: String
+        sessionId: String
     )
     
     suspend fun clearLogs()
