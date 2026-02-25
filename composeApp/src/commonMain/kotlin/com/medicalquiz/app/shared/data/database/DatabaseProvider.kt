@@ -7,6 +7,7 @@ import com.medicalquiz.app.shared.data.models.System
 
 interface DatabaseProvider {
     suspend fun closeDatabase()
+    suspend fun ensureSessionExists(sessionId: String)
     
     suspend fun getQuestionIds(
         subjectIds: List<Long>? = null,
@@ -30,5 +31,6 @@ interface DatabaseProvider {
     
     suspend fun clearLogs()
     suspend fun clearLogForQuestion(qid: Long)
+    suspend fun clearLogsForSessions(sessionIds: Set<String>)
     suspend fun getQuestionPerformance(qid: Long): QuestionPerformance?
 }

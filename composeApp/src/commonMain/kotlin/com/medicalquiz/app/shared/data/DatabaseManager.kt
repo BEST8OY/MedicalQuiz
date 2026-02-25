@@ -30,7 +30,11 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         mutex.withLock {
             try {
                 connection = driver.open(dbPath)
+                getConnection().prepare("PRAGMA foreign_keys = ON").use { stmt ->
+                    stmt.step()
+                }
                 checkSchema()
+                ensureSessionLoggingSchema()
             } catch (e: Exception) {
                 Logger.e("DatabaseManager", "Error initializing database", e)
                 throw e
@@ -62,6 +66,13 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         mutex.withLock {
             connection?.close()
             connection = null
+        }
+    }
+
+    override suspend fun ensureSessionExists(sessionId: String) = withContext(Dispatchers.IO) {
+        if (sessionId.isBlank()) return@withContext
+        mutex.withLock {
+            ensureSessionExistsLocked(sessionId)
         }
     }
 
@@ -314,6 +325,18 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
                 }
                 stmt.step()
             }
+            val insertedLogRowId = getLastInsertRowId()
+
+            if (testId.isNotBlank()) {
+                ensureSessionExistsLocked(testId)
+                getConnection().prepare(
+                    "INSERT OR IGNORE INTO session_log_links (session_id, log_rowid) VALUES (?, ?)"
+                ).use { stmt ->
+                    stmt.bindText(1, testId)
+                    stmt.bindLong(2, insertedLogRowId)
+                    stmt.step()
+                }
+            }
             Unit
         }
     }
@@ -321,6 +344,9 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
     override suspend fun clearLogs() = withContext(Dispatchers.IO) {
         mutex.withLock {
             getConnection().prepare("DELETE FROM logs").use { stmt ->
+                stmt.step()
+            }
+            getConnection().prepare("DELETE FROM quiz_sessions").use { stmt ->
                 stmt.step()
             }
             Unit
@@ -334,6 +360,33 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
                 stmt.step()
             }
             Unit
+        }
+    }
+
+    override suspend fun clearLogsForSessions(sessionIds: Set<String>) = withContext(Dispatchers.IO) {
+        val validIds = sessionIds
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+        if (validIds.isEmpty()) return@withContext
+
+        mutex.withLock {
+            val placeholders = validIds.joinToString(",") { "?" }
+            val deleteLinksSql = "DELETE FROM session_log_links WHERE session_id IN ($placeholders)"
+            getConnection().prepare(deleteLinksSql).use { stmt ->
+                validIds.forEachIndexed { index, sessionId ->
+                    stmt.bindText(index + 1, sessionId)
+                }
+                stmt.step()
+            }
+
+            val deleteSessionsSql = "DELETE FROM quiz_sessions WHERE session_id IN ($placeholders)"
+            getConnection().prepare(deleteSessionsSql).use { stmt ->
+                validIds.forEachIndexed { index, sessionId ->
+                    stmt.bindText(index + 1, sessionId)
+                }
+                stmt.step()
+            }
         }
     }
 
@@ -443,5 +496,87 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
                 else -> stmt.bindText(bindIndex, arg.toString())
             }
         }
+    }
+
+    private fun ensureSessionLoggingSchema() {
+        val conn = getConnection()
+        conn.prepare(
+            """
+            CREATE TABLE IF NOT EXISTS quiz_sessions (
+                session_id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """.trimIndent()
+        ).use { stmt -> stmt.step() }
+
+        conn.prepare(
+            """
+            CREATE TABLE IF NOT EXISTS session_log_links (
+                session_id TEXT NOT NULL,
+                log_rowid INTEGER NOT NULL,
+                PRIMARY KEY (session_id, log_rowid),
+                FOREIGN KEY (session_id) REFERENCES quiz_sessions(session_id) ON DELETE CASCADE
+            )
+            """.trimIndent()
+        ).use { stmt -> stmt.step() }
+
+        conn.prepare(
+            """
+            CREATE INDEX IF NOT EXISTS idx_session_log_links_session_id
+            ON session_log_links(session_id)
+            """.trimIndent()
+        ).use { stmt -> stmt.step() }
+
+        conn.prepare(
+            """
+            CREATE INDEX IF NOT EXISTS idx_session_log_links_log_rowid
+            ON session_log_links(log_rowid)
+            """.trimIndent()
+        ).use { stmt -> stmt.step() }
+
+        conn.prepare(
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_logs_after_delete_cleanup_links
+            AFTER DELETE ON logs
+            BEGIN
+                DELETE FROM session_log_links
+                WHERE log_rowid = OLD.rowid;
+            END
+            """.trimIndent()
+        ).use { stmt -> stmt.step() }
+
+        conn.prepare(
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_session_log_links_after_delete_logs
+            AFTER DELETE ON session_log_links
+            BEGIN
+                DELETE FROM logs
+                WHERE rowid = OLD.log_rowid
+                  AND NOT EXISTS (
+                      SELECT 1 FROM session_log_links
+                      WHERE log_rowid = OLD.log_rowid
+                  );
+            END
+            """.trimIndent()
+        ).use { stmt -> stmt.step() }
+    }
+
+    private fun ensureSessionExistsLocked(sessionId: String) {
+        getConnection().prepare(
+            "INSERT OR IGNORE INTO quiz_sessions (session_id) VALUES (?)"
+        ).use { stmt ->
+            stmt.bindText(1, sessionId)
+            stmt.step()
+        }
+    }
+
+    private fun getLastInsertRowId(): Long {
+        var rowId = -1L
+        getConnection().prepare("SELECT last_insert_rowid()").use { stmt ->
+            if (stmt.step()) {
+                rowId = stmt.getLong(0)
+            }
+        }
+        return rowId
     }
 }

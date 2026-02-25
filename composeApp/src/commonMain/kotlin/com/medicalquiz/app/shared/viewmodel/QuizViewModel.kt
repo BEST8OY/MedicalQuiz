@@ -168,6 +168,9 @@ class QuizViewModel(
             QuizSessionBoundaryUseCase.RestoreResult.NoSession -> SessionRestoreResult.NoSession
             QuizSessionBoundaryUseCase.RestoreResult.DatabaseMismatch -> SessionRestoreResult.DatabaseMismatch
             is QuizSessionBoundaryUseCase.RestoreResult.Restored -> {
+                if (result.sessionId.isNotBlank()) {
+                    setTestId(result.sessionId)
+                }
                 _state.update {
                     it.copy(
                         selectedSubjectIds = result.selectedSubjectIds,
@@ -183,10 +186,13 @@ class QuizViewModel(
     }
 
     private suspend fun saveSession(appendToHistory: Boolean = true) {
-        quizSessionBoundaryUseCase.saveSession(
+        val sessionId = quizSessionBoundaryUseCase.saveSession(
             state = state.value,
             appendToHistory = appendToHistory,
         )
+        if (sessionId.isNotBlank()) {
+            setTestId(sessionId)
+        }
     }
 
     /**

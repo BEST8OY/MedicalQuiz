@@ -34,7 +34,6 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.ui.NavDisplay
 import coil3.compose.setSingletonImageLoaderFactory
 import com.medicalquiz.app.shared.data.CacheManager
-import com.medicalquiz.app.shared.data.DatabaseManager
 import com.medicalquiz.app.shared.data.LocalContentRepository
 import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.data.MediaDescriptionRepository
@@ -44,27 +43,25 @@ import com.medicalquiz.app.shared.domain.QuizSessionBoundaryUseCase
 import com.medicalquiz.app.shared.domain.RestoreSessionUseCase
 import com.medicalquiz.app.shared.domain.UiEventDispatcher
 import com.medicalquiz.app.shared.navigation.NavigationStateRepository
+import com.medicalquiz.app.shared.orchestration.AppHistoryCoordinator
 import com.medicalquiz.app.shared.orchestration.AppNavigationPersistenceCoordinator
 import com.medicalquiz.app.shared.orchestration.AppStartupCoordinator
 import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.data.SettingsRepository
 import com.medicalquiz.app.shared.data.TextHighlightsRepository
 import com.medicalquiz.app.shared.data.UserDataManager
-import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.navigation.MedicalQuizRoutes
 import com.medicalquiz.app.shared.navigation.QuizLaunchSource
 import com.medicalquiz.app.shared.ui.theme.AppTheme
 import com.medicalquiz.app.shared.ui.screens.DatabaseSelectionScreen
-import com.medicalquiz.app.shared.ui.screens.FilterScreen
+import com.medicalquiz.app.shared.ui.screens.FilterHubScreen
+import com.medicalquiz.app.shared.ui.screens.FilterPane
 import com.medicalquiz.app.shared.ui.screens.media.HtmlViewerScreen
 import com.medicalquiz.app.shared.ui.screens.SettingsScreen
 import com.medicalquiz.app.shared.ui.screens.media.MediaViewerScreen
 import com.medicalquiz.app.shared.ui.screens.quiz.QuizRoot
 import com.medicalquiz.app.shared.ui.media.MediaHandler
 import com.medicalquiz.app.shared.ui.media.MediaType
-import com.medicalquiz.app.shared.ui.dialogs.PerformanceFilterDialog
-import com.medicalquiz.app.shared.ui.dialogs.SubjectFilterDialog
-import com.medicalquiz.app.shared.ui.dialogs.SystemFilterDialog
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 import com.medicalquiz.app.shared.viewmodel.QuizViewModelDependencies
 import com.medicalquiz.app.shared.viewmodel.UiEvent
@@ -234,6 +231,9 @@ fun App() {
             val navPersistenceCoordinator = remember(navStateRepo, sessionRepository) {
                 AppNavigationPersistenceCoordinator(navStateRepo, sessionRepository)
             }
+            val historyCoordinator = remember(sessionRepository) {
+                AppHistoryCoordinator(sessionRepository)
+            }
             val startupCoordinator = remember(
                 localContentRepository,
                 sessionRepository,
@@ -389,38 +389,16 @@ fun App() {
                             databases = availableDatabases,
                             isLoading = isDatabaseListLoading,
                             onRefreshDatabases = refreshDatabases,
-                            historyEntries = sessionHistory,
                             onDatabaseSelected = { dbName ->
+                                initializedDatabase = null
+                                pendingLaunchSource = null
+                                shouldAttemptSessionRestore = false
                                 selectedDatabase = dbName
+                                scope.launch {
+                                    sessionRepository.clearSessionAsync()
+                                }
                                 // Navigate to filter screen after database selection
                                 backStack.add(MedicalQuizRoutes.Filter)
-                            },
-                            onHistorySelected = { entry ->
-                                scope.launch {
-                                    val matchingDatabase = availableDatabases.firstOrNull {
-                                        it.removeSuffix(".db") == entry.databaseName
-                                    } ?: return@launch
-
-                                    if (sessionRepository.restoreHistoryEntryAsync(entry.id) == null) {
-                                        return@launch
-                                    }
-
-                                    viewModel.setLoadingState(true)
-                                    pendingLaunchSource = QuizLaunchSource.History
-                                    selectedDatabase = matchingDatabase
-                                    backStack.resetToStartDestination()
-                                    backStack.add(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
-                                }
-                            },
-                            onDeleteHistoryEntries = { entryIds ->
-                                scope.launch {
-                                    sessionRepository.deleteHistoryEntriesAsync(entryIds)
-                                }
-                            },
-                            onRenameHistoryEntry = { entryId, newName ->
-                                scope.launch {
-                                    sessionRepository.renameHistoryEntryAsync(entryId, newName)
-                                }
                             },
                             onOpenSettings = {
                                 backStack.navigateTo(MedicalQuizRoutes.Settings)
@@ -430,95 +408,42 @@ fun App() {
 
                     // Filter Screen - pre-quiz configuration
                     entry<MedicalQuizRoutes.Filter> {
-                        val state by viewModel.state.collectAsStateWithLifecycle()
-                        val performanceLabel = formatPerformanceLabel(state.performanceFilter)
-
-                        // Dialog states - overlays within filter screen
-                        var showSubjectDialog by rememberSaveable { mutableStateOf(false) }
-                        var showSystemDialog by rememberSaveable { mutableStateOf(false) }
-                        var showPerformanceDialog by rememberSaveable { mutableStateOf(false) }
-
-                        // Load data when dialogs open
-                        LaunchedEffect(showSubjectDialog) {
-                            if (showSubjectDialog) viewModel.fetchSubjects()
+                        var selectedPane by rememberSaveable { mutableStateOf(FilterPane.Filters) }
+                        val databaseName = viewModel.state.collectAsStateWithLifecycle().value.databaseName
+                        val scopedHistoryEntries = remember(sessionHistory, databaseName) {
+                            sessionHistory.filter { it.databaseName == databaseName }
                         }
-                        LaunchedEffect(showSystemDialog, state.selectedSubjectIds) {
-                            if (showSystemDialog) {
-                                val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-                                viewModel.fetchSystemsForSubjects(subjects)
-                            }
-                        }
-
-                        FilterScreen(
-                            databaseName = state.databaseName,
-                            subjectCount = state.selectedSubjectIds.size,
-                            systemCount = state.selectedSystemIds.size,
-                            performanceLabel = performanceLabel,
-                            previewCount = state.previewQuestionCount,
-                            onSelectSubjects = { showSubjectDialog = true },
-                            onSelectSystems = { showSystemDialog = true },
-                            onSelectPerformance = { showPerformanceDialog = true },
-                            onStart = dropUnlessResumed {
+                        val routeHandlers = buildFilterRouteHandlers(
+                            historyCoordinator = historyCoordinator,
+                            availableDatabases = availableDatabases,
+                            allHistoryEntries = sessionHistory,
+                            viewModel = viewModel,
+                            scope = scope,
+                            snackbarHostState = snackbarHostState,
+                            onOpenSettings = { backStack.navigateTo(MedicalQuizRoutes.Settings) },
+                            onHistoryLaunchPrepared = { matchingDatabase ->
+                                pendingLaunchSource = QuizLaunchSource.History
+                                selectedDatabase = matchingDatabase
+                                backStack.resetToStartDestination()
+                                backStack.add(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
+                            },
+                            onStartQuiz = dropUnlessResumed {
                                 viewModel.loadFilteredQuestionIds()
                                 backStack.add(MedicalQuizRoutes.Quiz())
                             },
-                            onClearFilters = {
-                                viewModel.applySelectedSubjects(emptySet(), loadQuestions = false)
-                                viewModel.applySelectedSystems(emptySet(), loadQuestions = false)
-                                viewModel.setPerformanceFilter(com.medicalquiz.app.shared.data.database.PerformanceFilter.ALL, loadQuestions = false)
-                            }
                         )
 
-                        // Dialogs - rendered as overlays
-                        if (showSubjectDialog) {
-                            SubjectFilterDialog(
-                                isVisible = true,
-                                resource = state.subjectsResource,
-                                selectedIds = state.selectedSubjectIds,
-                                onRetry = { viewModel.fetchSubjects() },
-                                onApply = { selected ->
-                                    viewModel.applySelectedSubjects(selected, loadQuestions = false)
-                                    showSubjectDialog = false
-                                },
-                                onClear = {
-                                    viewModel.applySelectedSubjects(emptySet(), loadQuestions = false)
-                                    showSubjectDialog = false
-                                },
-                                onDismiss = { showSubjectDialog = false }
-                            )
-                        }
-
-                        if (showSystemDialog) {
-                            SystemFilterDialog(
-                                isVisible = true,
-                                resource = state.systemsResource,
-                                selectedIds = state.selectedSystemIds,
-                                onRetry = {
-                                    val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-                                    viewModel.fetchSystemsForSubjects(subjects)
-                                },
-                                onApply = { selected ->
-                                    viewModel.applySelectedSystems(selected, loadQuestions = false)
-                                    showSystemDialog = false
-                                },
-                                onClear = {
-                                    viewModel.applySelectedSystems(emptySet(), loadQuestions = false)
-                                    showSystemDialog = false
-                                },
-                                onDismiss = { showSystemDialog = false }
-                            )
-                        }
-
-                        if (showPerformanceDialog) {
-                            PerformanceFilterDialog(
-                                current = state.performanceFilter,
-                                onSelect = { filter ->
-                                    viewModel.setPerformanceFilter(filter, loadQuestions = false)
-                                    showPerformanceDialog = false
-                                },
-                                onDismiss = { showPerformanceDialog = false }
-                            )
-                        }
+                        FilterHubScreen(
+                            viewModel = viewModel,
+                            selectedPane = selectedPane,
+                            onPaneSelected = { selectedPane = it },
+                            onOpenSettings = routeHandlers.onOpenSettings,
+                            historyEntries = scopedHistoryEntries,
+                            onHistorySelected = routeHandlers.onHistorySelected,
+                            onDeleteHistoryEntries = routeHandlers.onDeleteHistoryEntries,
+                            onRenameHistoryEntry = routeHandlers.onRenameHistoryEntry,
+                            onStartQuiz = routeHandlers.onStartQuiz,
+                        )
                     }
 
                     // Quiz Screen - main question display with navigation drawer
@@ -527,16 +452,12 @@ fun App() {
                             viewModel = viewModel,
                             mediaHandler = mediaHandler,
                             onNavigateBack = dropUnlessResumed {
-                                // User is intentionally exiting the quiz - clear the session
-                                // so it won't be restored on next app launch
-                                viewModel.clearSession()
-                                // For history-launched quizzes, return to main history screen.
-                                if (key.launchedFromHistory) {
-                                    backStack.popToDatabaseSelection()
-                                } else {
-                                    // Standard quiz flow: return to Filter.
-                                    backStack.navigateBack()
-                                }
+                                backStack.popToDatabaseSelection()
+                                selectedDatabase = null
+                                initializedDatabase = null
+                                pendingLaunchSource = null
+                                shouldAttemptSessionRestore = false
+                                viewModel.closeDatabase()
                             },
                             onOpenSettingsScreen = dropUnlessResumed {
                                 backStack.navigateTo(MedicalQuizRoutes.Settings)
@@ -647,22 +568,76 @@ fun App() {
         }
     }
 
-/**
- * Formats the performance filter to a user-friendly label.
- */
-@Composable
-private fun formatPerformanceLabel(filter: PerformanceFilter): String = remember(filter) {
-    when (filter) {
-        PerformanceFilter.ALL -> "All Questions"
-        PerformanceFilter.UNANSWERED -> "Not Attempted"
-        PerformanceFilter.LAST_CORRECT -> "Last Attempt Correct"
-        PerformanceFilter.LAST_INCORRECT -> "Last Attempt Incorrect"
-        PerformanceFilter.EVER_CORRECT -> "Ever Correct"
-        PerformanceFilter.EVER_INCORRECT -> "Ever Incorrect"
-    }
-}
-
 private data class NavigationRestoreBootstrap(
     val loaded: Boolean,
     val state: Pair<List<MedicalQuizRoutes>, String?>?,
 )
+
+private data class FilterRouteHandlers(
+    val onOpenSettings: () -> Unit,
+    val onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
+    val onDeleteHistoryEntries: (Set<String>) -> Unit,
+    val onRenameHistoryEntry: (String, String) -> Unit,
+    val onStartQuiz: () -> Unit,
+)
+
+private fun buildFilterRouteHandlers(
+    historyCoordinator: AppHistoryCoordinator,
+    availableDatabases: List<String>,
+    allHistoryEntries: List<QuizSessionRepository.QuizSession>,
+    viewModel: QuizViewModel,
+    scope: CoroutineScope,
+    snackbarHostState: SnackbarHostState,
+    onOpenSettings: () -> Unit,
+    onHistoryLaunchPrepared: (String) -> Unit,
+    onStartQuiz: () -> Unit,
+): FilterRouteHandlers {
+    val onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit = { entry ->
+        scope.launch {
+            val matchingDatabase = historyCoordinator.restoreHistoryEntry(
+                entry = entry,
+                availableDatabases = availableDatabases,
+            ) ?: return@launch
+
+            viewModel.setLoadingState(true)
+            onHistoryLaunchPrepared(matchingDatabase)
+        }
+    }
+
+    val onDeleteHistoryEntries: (Set<String>) -> Unit = { entryIds ->
+        scope.launch {
+            if (entryIds.isEmpty()) {
+                return@launch
+            }
+
+            runCatching {
+                historyCoordinator.deleteHistoryEntriesWithLogs(
+                    entryIds = entryIds,
+                    allHistoryEntries = allHistoryEntries,
+                    availableDatabases = availableDatabases,
+                )
+            }.onFailure {
+                snackbarHostState.showSnackbar(
+                    message = "Failed to delete history logs: ${it.message ?: "unknown error"}"
+                )
+            }
+        }
+    }
+
+    val onRenameHistoryEntry: (String, String) -> Unit = { entryId, newName ->
+        scope.launch {
+            historyCoordinator.renameHistoryEntry(
+                entryId = entryId,
+                newName = newName,
+            )
+        }
+    }
+
+    return FilterRouteHandlers(
+        onOpenSettings = onOpenSettings,
+        onHistorySelected = onHistorySelected,
+        onDeleteHistoryEntries = onDeleteHistoryEntries,
+        onRenameHistoryEntry = onRenameHistoryEntry,
+        onStartQuiz = onStartQuiz,
+    )
+}
