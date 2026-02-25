@@ -363,12 +363,12 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         }
     }
 
-    override suspend fun clearLogsForSessions(sessionIds: Set<String>) = withContext(Dispatchers.IO) {
+    override suspend fun clearLogsForSessions(sessionIds: Set<String>): Unit = withContext(Dispatchers.IO) {
         val validIds = sessionIds
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinct()
-        if (validIds.isEmpty()) return@withContext
+        if (validIds.isEmpty()) return@withContext Unit
 
         mutex.withLock {
             val placeholders = validIds.joinToString(",") { "?" }
@@ -388,6 +388,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
                 stmt.step()
             }
         }
+        Unit
     }
 
     override suspend fun getQuestionPerformance(qid: Long): QuestionPerformance? = withContext(Dispatchers.IO) {
