@@ -2,25 +2,42 @@ package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import com.medicalquiz.app.shared.ui.components.MedicalQuizTopBar
+import androidx.compose.ui.text.style.TextOverflow
 import com.medicalquiz.app.shared.ui.components.SettingsActionButton
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun TopBar(
     title: String,
     onResetLogClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
 ) {
-    MedicalQuizTopBar(
-        headline = title.ifBlank { "Medical Quiz" },
+    TopAppBar(
+        title = {
+            Text(
+                text = title.ifBlank { "Medical Quiz" },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
         actions = {
             IconButton(onClick = onResetLogClick) {
                 Icon(
                     imageVector = Icons.Rounded.Refresh,
-                    contentDescription = "Reset current question log"
+                    contentDescription = "Reset current question log",
                 )
             }
             SettingsActionButton(
