@@ -420,7 +420,6 @@ fun App() {
                             viewModel = viewModel,
                             scope = scope,
                             snackbarHostState = snackbarHostState,
-                            onOpenSettings = { backStack.navigateTo(MedicalQuizRoutes.Settings) },
                             onHistoryLaunchPrepared = { matchingDatabase ->
                                 pendingLaunchSource = QuizLaunchSource.History
                                 selectedDatabase = matchingDatabase
@@ -437,7 +436,6 @@ fun App() {
                             viewModel = viewModel,
                             selectedPane = selectedPane,
                             onPaneSelected = { selectedPane = it },
-                            onOpenSettings = routeHandlers.onOpenSettings,
                             historyEntries = scopedHistoryEntries,
                             onHistorySelected = routeHandlers.onHistorySelected,
                             onDeleteHistoryEntries = routeHandlers.onDeleteHistoryEntries,
@@ -574,7 +572,6 @@ private data class NavigationRestoreBootstrap(
 )
 
 private data class FilterRouteHandlers(
-    val onOpenSettings: () -> Unit,
     val onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
     val onDeleteHistoryEntries: (Set<String>) -> Unit,
     val onRenameHistoryEntry: (String, String) -> Unit,
@@ -588,7 +585,6 @@ private fun buildFilterRouteHandlers(
     viewModel: QuizViewModel,
     scope: CoroutineScope,
     snackbarHostState: SnackbarHostState,
-    onOpenSettings: () -> Unit,
     onHistoryLaunchPrepared: (String) -> Unit,
     onStartQuiz: () -> Unit,
 ): FilterRouteHandlers {
@@ -634,7 +630,6 @@ private fun buildFilterRouteHandlers(
     }
 
     return FilterRouteHandlers(
-        onOpenSettings = onOpenSettings,
         onHistorySelected = onHistorySelected,
         onDeleteHistoryEntries = onDeleteHistoryEntries,
         onRenameHistoryEntry = onRenameHistoryEntry,

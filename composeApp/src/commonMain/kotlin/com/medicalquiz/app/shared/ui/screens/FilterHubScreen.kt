@@ -21,7 +21,6 @@ internal fun FilterHubScreen(
     selectedPane: FilterPane,
     onPaneSelected: (FilterPane) -> Unit,
     historyEntries: List<QuizSessionRepository.QuizSession>,
-    onOpenSettings: () -> Unit,
     onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
     onDeleteHistoryEntries: (Set<String>) -> Unit,
     onRenameHistoryEntry: (String, String) -> Unit,
@@ -37,7 +36,6 @@ internal fun FilterHubScreen(
     FilterPaneScaffold(
         selectedPane = selectedPane,
         onPaneSelected = onPaneSelected,
-        onOpenSettings = onOpenSettings,
         filterContent = {
             FilterScreen(
                 databaseName = state.databaseName,

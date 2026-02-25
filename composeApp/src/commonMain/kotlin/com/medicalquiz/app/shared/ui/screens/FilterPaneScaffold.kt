@@ -8,18 +8,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.medicalquiz.app.shared.ui.components.MedicalQuizTopBar
 import com.medicalquiz.app.shared.ui.components.PaneToggleButton
-import com.medicalquiz.app.shared.ui.components.SettingsActionButton
 
 internal enum class FilterPane {
     Filters,
@@ -30,43 +26,26 @@ internal enum class FilterPane {
 internal fun FilterPaneScaffold(
     selectedPane: FilterPane,
     onPaneSelected: (FilterPane) -> Unit,
-    onOpenSettings: () -> Unit,
     filterContent: @Composable () -> Unit,
     historyContent: @Composable () -> Unit,
 ) {
-    Scaffold(
-        topBar = {
-            MedicalQuizTopBar(
-                supportingText = if (selectedPane == FilterPane.Filters) "Configure quiz" else "Recent sessions",
-                actions = {
-                    SettingsActionButton(
-                        onClick = onOpenSettings,
-                        icon = Icons.Filled.Settings,
-                    )
-                },
-            )
+    Box(
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        if (selectedPane == FilterPane.Filters) {
+            filterContent()
+        } else {
+            historyContent()
         }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
-            if (selectedPane == FilterPane.Filters) {
-                filterContent()
-            } else {
-                historyContent()
-            }
 
-            FilterPaneFloatingToolbar(
-                selectedPane = selectedPane,
-                onPaneSelected = onPaneSelected,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp)
-                    .navigationBarsPadding(),
-            )
-        }
+        FilterPaneFloatingToolbar(
+            selectedPane = selectedPane,
+            onPaneSelected = onPaneSelected,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+                .navigationBarsPadding(),
+        )
     }
 }
 
