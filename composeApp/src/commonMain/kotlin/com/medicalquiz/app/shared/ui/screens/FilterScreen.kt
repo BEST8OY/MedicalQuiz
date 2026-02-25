@@ -148,7 +148,7 @@ private fun DatabaseHeaderCard(databaseName: String) {
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Database",
+                    text = "QBank",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )

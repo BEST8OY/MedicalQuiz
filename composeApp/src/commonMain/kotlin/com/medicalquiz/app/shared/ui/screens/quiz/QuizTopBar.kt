@@ -2,52 +2,48 @@ package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import com.medicalquiz.app.shared.ui.components.SettingsActionButton
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun TopBar(
     title: String,
     onResetLogClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
 ) {
-    CenterAlignedTopAppBar(
+    TopAppBar(
+        title = {
+            Text(
+                text = title.ifBlank { "Medical Quiz" },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
-        title = {
-            Text(
-                text = title.ifBlank { "Medical Quiz" },
-                style = MaterialTheme.typography.titleLargeEmphasized,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1
-            )
-        },
         actions = {
             IconButton(onClick = onResetLogClick) {
                 Icon(
                     imageVector = Icons.Rounded.Refresh,
-                    contentDescription = "Reset current question log"
+                    contentDescription = "Reset current question log",
                 )
             }
-            IconButton(onClick = onSettingsClick) {
-                Icon(
-                    imageVector = Icons.Rounded.Settings,
-                    contentDescription = "Settings"
-                )
-            }
-        }
+            SettingsActionButton(
+                onClick = onSettingsClick,
+                contentDescription = "Settings",
+            )
+        },
     )
 }
