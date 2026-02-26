@@ -29,6 +29,7 @@ internal enum class FilterPane {
 internal fun FilterPaneScaffold(
     selectedPane: FilterPane,
     onPaneSelected: (FilterPane) -> Unit,
+    showPaneToolbar: Boolean,
     filterContent: @Composable () -> Unit,
     historyContent: @Composable () -> Unit,
 ) {
@@ -47,14 +48,16 @@ internal fun FilterPaneScaffold(
             }
         }
 
-        FilterPaneFloatingToolbar(
-            selectedPane = selectedPane,
-            onPaneSelected = onPaneSelected,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(16.dp)
-                .navigationBarsPadding(),
-        )
+        if (showPaneToolbar) {
+            FilterPaneFloatingToolbar(
+                selectedPane = selectedPane,
+                onPaneSelected = onPaneSelected,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
+                    .navigationBarsPadding(),
+            )
+        }
     }
 }
 

@@ -273,6 +273,7 @@ fun App() {
             var selectedDatabase by rememberSaveable { mutableStateOf<String?>(savedDbName) }
             var initializedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
             var pendingLaunchSource by rememberSaveable { mutableStateOf<QuizLaunchSource?>(null) }
+            var requestedFilterPane by rememberSaveable { mutableStateOf<FilterPane?>(null) }
             var shouldAttemptSessionRestore by rememberSaveable {
                 mutableStateOf(savedBackStack?.lastOrNull() is MedicalQuizRoutes.Quiz)
             }
@@ -374,6 +375,26 @@ fun App() {
             }
 
             // Navigation entry provider
+            val returnQuizToFilter: (Boolean) -> Unit = { launchedFromHistory ->
+                // Clear active session so pressing Start from Filter creates a new history entry,
+                // while still preserving selected filters in UI state.
+                viewModel.clearSession()
+                pendingLaunchSource = null
+                shouldAttemptSessionRestore = false
+                requestedFilterPane = if (launchedFromHistory) {
+                    FilterPane.History
+                } else {
+                    FilterPane.Filters
+                }
+                if (backStack.lastOrNull() is MedicalQuizRoutes.Quiz) {
+                    backStack.navigateBack()
+                }
+                if (backStack.lastOrNull() !is MedicalQuizRoutes.Filter) {
+                    backStack.popToDatabaseSelection()
+                    backStack.add(MedicalQuizRoutes.Filter)
+                }
+            }
+
             val entryProvider = remember(
                 viewModel,
                 mediaHandler,
@@ -409,6 +430,12 @@ fun App() {
                     // Filter Screen - pre-quiz configuration
                     entry<MedicalQuizRoutes.Filter> {
                         var selectedPane by rememberSaveable { mutableStateOf(FilterPane.Filters) }
+                        LaunchedEffect(requestedFilterPane) {
+                            requestedFilterPane?.let { pane ->
+                                selectedPane = pane
+                                requestedFilterPane = null
+                            }
+                        }
                         val databaseName = viewModel.state.collectAsStateWithLifecycle().value.databaseName
                         val scopedHistoryEntries = remember(sessionHistory, databaseName) {
                             sessionHistory.filter { it.databaseName == databaseName }
@@ -450,12 +477,7 @@ fun App() {
                             viewModel = viewModel,
                             mediaHandler = mediaHandler,
                             onNavigateBack = dropUnlessResumed {
-                                backStack.popToDatabaseSelection()
-                                selectedDatabase = null
-                                initializedDatabase = null
-                                pendingLaunchSource = null
-                                shouldAttemptSessionRestore = false
-                                viewModel.closeDatabase()
+                                returnQuizToFilter(key.launchedFromHistory)
                             },
                             onOpenSettingsScreen = dropUnlessResumed {
                                 backStack.navigateTo(MedicalQuizRoutes.Settings)
@@ -537,7 +559,14 @@ fun App() {
                 // NavDisplay with slide animations and predictive back support
                 NavDisplay(
                     backStack = backStack,
-                    onBack = { backStack.navigateBack() },
+                    onBack = {
+                        val quizRoute = backStack.lastOrNull() as? MedicalQuizRoutes.Quiz
+                        if (quizRoute != null) {
+                            returnQuizToFilter(quizRoute.launchedFromHistory)
+                        } else {
+                            backStack.navigateBack()
+                        }
+                    },
                     entryProvider = entryProvider,
                     entryDecorators = listOf(
                         rememberSaveableStateHolderNavEntryDecorator(),

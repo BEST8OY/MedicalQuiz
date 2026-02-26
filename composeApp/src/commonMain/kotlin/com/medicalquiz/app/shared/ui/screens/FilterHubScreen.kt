@@ -32,10 +32,12 @@ internal fun FilterHubScreen(
     var showSubjectDialog by rememberSaveable { mutableStateOf(false) }
     var showSystemDialog by rememberSaveable { mutableStateOf(false) }
     var showPerformanceDialog by rememberSaveable { mutableStateOf(false) }
+    var historySelectionMode by rememberSaveable { mutableStateOf(false) }
 
     FilterPaneScaffold(
         selectedPane = selectedPane,
         onPaneSelected = onPaneSelected,
+        showPaneToolbar = !(selectedPane == FilterPane.History && historySelectionMode),
         filterContent = {
             FilterScreen(
                 databaseName = state.databaseName,
@@ -68,6 +70,7 @@ internal fun FilterHubScreen(
                 onHistorySelected = onHistorySelected,
                 onDeleteHistoryEntries = onDeleteHistoryEntries,
                 onRenameHistoryEntry = onRenameHistoryEntry,
+                onSelectionModeChanged = { historySelectionMode = it },
             )
         },
     )

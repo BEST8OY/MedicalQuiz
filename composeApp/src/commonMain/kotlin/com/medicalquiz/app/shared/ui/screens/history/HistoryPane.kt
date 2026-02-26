@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -39,6 +40,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.ui.components.EmptyStateMessage
+import com.medicalquiz.app.shared.ui.screens.media.PlatformBackHandler
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -66,6 +69,7 @@ internal fun HistoryPane(
     onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
     onDeleteHistoryEntries: (Set<String>) -> Unit,
     onRenameHistoryEntry: (String, String) -> Unit,
+    onSelectionModeChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selectedHistoryEntryIds by rememberSaveable { mutableStateOf(setOf<String>()) }
@@ -75,11 +79,30 @@ internal fun HistoryPane(
     var renameText by rememberSaveable { mutableStateOf("") }
     val allHistoryEntryIds = remember(historyEntries) { historyEntries.map { it.id }.toSet() }
 
+    PlatformBackHandler(
+        enabled = selectedHistoryEntryIds.isNotEmpty() || isFabMenuExpanded,
+        onBack = {
+            if (isFabMenuExpanded) {
+                isFabMenuExpanded = false
+            } else {
+                selectedHistoryEntryIds = emptySet()
+            }
+        },
+    )
+
     LaunchedEffect(allHistoryEntryIds) {
         selectedHistoryEntryIds = selectedHistoryEntryIds.intersect(allHistoryEntryIds)
         if (selectedHistoryEntryIds.isEmpty()) {
             isFabMenuExpanded = false
         }
+    }
+
+    LaunchedEffect(selectedHistoryEntryIds) {
+        onSelectionModeChanged(selectedHistoryEntryIds.isNotEmpty())
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { onSelectionModeChanged(false) }
     }
 
     Box(modifier = modifier) {
@@ -127,41 +150,46 @@ internal fun HistoryPane(
         }
 
         if (selectedHistoryEntryIds.isNotEmpty()) {
-            FloatingActionButtonMenu(
-                expanded = isFabMenuExpanded,
-                button = {
-                    ToggleFloatingActionButton(
-                        checked = isFabMenuExpanded,
-                        onCheckedChange = { isFabMenuExpanded = it },
-                    ) {
-                        Icon(
-                            imageVector = if (isFabMenuExpanded) Icons.Filled.Close else Icons.Filled.MoreVert,
-                            contentDescription = null,
-                        )
-                    }
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 96.dp)
-                    .navigationBarsPadding(),
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxSize(),
             ) {
-                FloatingActionButtonMenuItem(
-                    onClick = {
-                        selectedHistoryEntryIds = allHistoryEntryIds
-                        isFabMenuExpanded = false
+                val horizontalMargin = if (maxWidth >= 840.dp) 24.dp else 16.dp
+                FloatingActionButtonMenu(
+                    expanded = isFabMenuExpanded,
+                    button = {
+                        ToggleFloatingActionButton(
+                            checked = isFabMenuExpanded,
+                            onCheckedChange = { isFabMenuExpanded = it },
+                        ) {
+                            Icon(
+                                imageVector = if (isFabMenuExpanded) Icons.Filled.Close else Icons.Filled.MoreVert,
+                                contentDescription = if (isFabMenuExpanded) "Close actions" else "More actions",
+                            )
+                        }
                     },
-                    text = { Text("Select all") },
-                    icon = { Icon(Icons.Filled.History, contentDescription = null) },
-                )
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = horizontalMargin, bottom = 96.dp)
+                        .navigationBarsPadding(),
+                ) {
+                    FloatingActionButtonMenuItem(
+                        onClick = {
+                            selectedHistoryEntryIds = allHistoryEntryIds
+                            isFabMenuExpanded = false
+                        },
+                        text = { Text("Select all") },
+                        icon = { Icon(Icons.Filled.History, contentDescription = null) },
+                    )
 
-                FloatingActionButtonMenuItem(
-                    onClick = {
-                        deleteTargetEntryIds = selectedHistoryEntryIds
-                        isFabMenuExpanded = false
-                    },
-                    text = { Text("Delete (${selectedHistoryEntryIds.size})") },
-                    icon = { Icon(Icons.Filled.Delete, contentDescription = null) },
-                )
+                    FloatingActionButtonMenuItem(
+                        onClick = {
+                            deleteTargetEntryIds = selectedHistoryEntryIds
+                            isFabMenuExpanded = false
+                        },
+                        text = { Text("Delete (${selectedHistoryEntryIds.size})") },
+                        icon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                    )
+                }
             }
         }
 
