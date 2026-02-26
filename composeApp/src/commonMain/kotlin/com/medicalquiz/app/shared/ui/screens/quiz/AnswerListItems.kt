@@ -180,7 +180,7 @@ private fun AnswerListItem(
                         progress = 1f,
                         backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
                         size = 36.dp,
-                        modifier = Modifier.padding(start = 36.dp)
+                        modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Text(
                             text = "$pct%",
@@ -191,7 +191,7 @@ private fun AnswerListItem(
                     }
                 }
 
-                else -> Box(modifier = Modifier.padding(start = 8.dp))
+                else -> Box(modifier = Modifier.padding(start = 36.dp))
             }
         }
     }
