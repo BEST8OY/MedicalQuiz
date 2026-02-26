@@ -92,11 +92,6 @@ private fun MutableList<MedicalQuizRoutes>.popToDatabaseSelection() {
     }
 }
 
-private fun MutableList<MedicalQuizRoutes>.resetToStartDestination() {
-    clear()
-    add(START_DESTINATION)
-}
-
 private suspend fun navigateToMediaViewer(
     files: List<String>,
     startIndex: Int,
@@ -450,11 +445,11 @@ fun App() {
                             onHistoryLaunchPrepared = { matchingDatabase ->
                                 pendingLaunchSource = QuizLaunchSource.History
                                 selectedDatabase = matchingDatabase
-                                backStack.resetToStartDestination()
-                                backStack.add(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
+                                // Keep Filter under Quiz so predictive back returns directly to Filter.
+                                backStack.navigateTo(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
                             },
                             onStartQuiz = dropUnlessResumed {
-                                viewModel.loadFilteredQuestionIds()
+                                viewModel.loadFilteredQuestionIds(startFromBeginning = true)
                                 backStack.add(MedicalQuizRoutes.Quiz())
                             },
                         )

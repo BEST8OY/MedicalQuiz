@@ -433,6 +433,7 @@ class QuizViewModel(
     fun loadFilteredQuestionIds(
         updatePreviewCount: Boolean = true,
         appendToHistory: Boolean = true,
+        startFromBeginning: Boolean = false,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true) }
@@ -462,7 +463,11 @@ class QuizViewModel(
                     return@launch
                 }
 
-                val newIndex = currentState.currentQuestionIndex.coerceIn(0, ids.lastIndex)
+                val newIndex = if (startFromBeginning) {
+                    0
+                } else {
+                    currentState.currentQuestionIndex.coerceIn(0, ids.lastIndex)
+                }
                 _state.update {
                     it.copy(
                         questionIds = ids,
