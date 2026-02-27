@@ -555,9 +555,10 @@ class QuizViewModel(
 
             _state.update { it.copy(selectedSystemIds = normalizedSelection) }
             persistStateSnapshot()
-            updatePreviewQuestionCountInternal()
             if (loadQuestions) {
                 loadFilteredQuestionIds(appendToHistory = false)
+            } else {
+                updatePreviewQuestionCountInternal()
             }
             saveSession(appendToHistory = false)
         }
@@ -597,6 +598,21 @@ class QuizViewModel(
             } else {
                 updatePreviewQuestionCountInternal()
             }
+            saveSession(appendToHistory = false)
+        }
+    }
+
+    fun clearAllFilters() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.update {
+                it.copy(
+                    selectedSubjectIds = emptySet(),
+                    selectedSystemIds = emptySet(),
+                    performanceFilter = PerformanceFilter.ALL
+                )
+            }
+            persistStateSnapshot()
+            loadFilteredQuestionIds(updatePreviewCount = true, appendToHistory = false)
             saveSession(appendToHistory = false)
         }
     }

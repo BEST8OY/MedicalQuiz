@@ -58,9 +58,7 @@ internal fun FilterHubScreen(
                 onSelectPerformance = { showPerformanceDialog = true },
                 onStart = onStartQuiz,
                 onClearFilters = {
-                    viewModel.applySelectedSubjects(emptySet(), loadQuestions = false)
-                    viewModel.applySelectedSystems(emptySet(), loadQuestions = false)
-                    viewModel.setPerformanceFilter(PerformanceFilter.ALL, loadQuestions = false)
+                    viewModel.clearAllFilters()
                 }
             )
         },
