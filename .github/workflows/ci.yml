@@ -101,7 +101,7 @@ jobs:
 
       - name: Upload Test Results
         if: ${{ !inputs.skip_tests && always() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-android
           path: |
@@ -112,7 +112,7 @@ jobs:
 
       - name: Upload Release APK
         if: startsWith(github.ref, 'refs/tags/v') || inputs.build_release
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: android-release-${{ steps.version.outputs.version }}
           path: app/build/outputs/apk/release/*.apk
@@ -146,7 +146,7 @@ jobs:
 
       - name: Upload Lint Reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: lint-reports
           path: |
@@ -191,7 +191,7 @@ jobs:
 
       - name: Upload Test Results
         if: ${{ !inputs.skip_tests && always() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-desktop-linux
           path: |
@@ -206,7 +206,7 @@ jobs:
 
       - name: Upload Desktop Distribution
         if: startsWith(github.ref, 'refs/tags/v') || inputs.build_release
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: desktop-linux
           path: composeApp/build/compose/binaries/main-release/deb/
