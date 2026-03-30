@@ -80,7 +80,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ needs.validate-commit.outputs.commit_sha }}
 
-      - uses: gradle/actions/wrapper-validation@v5
+      - uses: gradle/actions/wrapper-validation@v6
 
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v5
@@ -89,7 +89,7 @@ jobs:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
           add-job-summary: on-failure
@@ -110,7 +110,7 @@ jobs:
         run: ./gradlew assembleRelease --stacktrace
 
       - name: Upload Android APK
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: android-release-${{ steps.version.outputs.version }}
           path: app/build/outputs/apk/release/*.apk
@@ -130,7 +130,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ needs.validate-commit.outputs.commit_sha }}
 
-      - uses: gradle/actions/wrapper-validation@v5
+      - uses: gradle/actions/wrapper-validation@v6
 
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v5
@@ -139,7 +139,7 @@ jobs:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
           add-job-summary: on-failure
@@ -165,7 +165,7 @@ jobs:
         run: xvfb-run -a ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
 
       - name: Upload Desktop Release
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: desktop-linux-${{ steps.version.outputs.version }}
           path: composeApp/build/compose/binaries/main-release/deb/
