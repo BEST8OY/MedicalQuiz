@@ -9,9 +9,13 @@ actual object FileSystemHelper {
 
     actual fun getMediaFile(fileName: String): String? {
         val storageRoot = StorageProvider.getAppStorageDirectory()
-        val mediaFile = File(File(storageRoot, "media"), fileName)
+        val mediaDirectory = File(storageRoot, "media")
+        val mediaFile = File(mediaDirectory, fileName)
         if (mediaFile.exists()) return mediaFile.absolutePath
-        return null
+
+        return mediaDirectory.listFiles()
+            ?.firstOrNull { it.name.equals(fileName, ignoreCase = true) }
+            ?.absolutePath
     }
 
     actual fun readText(path: String): String? {

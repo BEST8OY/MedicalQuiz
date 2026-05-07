@@ -30,10 +30,11 @@ class LocalContentRepository {
     }
 
     fun mediaFilePath(fileName: String): String =
-        "${StorageProvider.getAppStorageDirectory()}/media/$fileName"
+        FileSystemHelper.getMediaFile(fileName)
+            ?: "${StorageProvider.getAppStorageDirectory()}/media/$fileName"
 
     suspend fun mediaFileExists(fileName: String): Boolean = withContext(Dispatchers.IO) {
-        FileSystemHelper.exists(mediaFilePath(fileName))
+        FileSystemHelper.getMediaFile(fileName) != null
     }
 
     suspend fun resolveOverlayPaths(mediaFiles: List<String>): Map<String, String?> = withContext(Dispatchers.IO) {
