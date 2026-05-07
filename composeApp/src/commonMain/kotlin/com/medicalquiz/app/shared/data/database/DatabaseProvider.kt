@@ -25,10 +25,11 @@ interface DatabaseProvider {
         selectedAnswer: Int,
         corrAnswer: Int,
         time: Long,
-        testId: String
+        sessionId: String
     )
     
     suspend fun clearLogs()
     suspend fun clearLogForQuestion(qid: Long)
+    suspend fun clearLogsForSessions(sessionIds: Set<String>)
     suspend fun getQuestionPerformance(qid: Long): QuestionPerformance?
 }

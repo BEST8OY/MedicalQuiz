@@ -13,7 +13,10 @@ class AppNavigationPersistenceCoordinator(
         selectedDatabase: String?,
     ) {
         navigationStateRepository.saveNavigationStateAsync(backStack, selectedDatabase)
-        if (backStack.lastOrNull() is MedicalQuizRoutes.DatabaseSelection) {
+        if (
+            backStack.lastOrNull() is MedicalQuizRoutes.DatabaseSelection ||
+            backStack.lastOrNull() is MedicalQuizRoutes.Filter
+        ) {
             sessionRepository.refreshHistoryAsync()
         }
     }

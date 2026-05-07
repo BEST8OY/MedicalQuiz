@@ -41,10 +41,10 @@ class QuizSessionRepository {
         performanceFilter: PerformanceFilter,
         currentQuestionIndex: Int,
         appendToHistory: Boolean = true,
-    ) {
+    ): String {
         if (databaseName.isBlank() || currentQuestionIndex < 0) {
             clearSession()
-            return
+            return ""
         }
 
         val now = Clock.System.now().toEpochMilliseconds()
@@ -72,6 +72,8 @@ class QuizSessionRepository {
             runCatching { appendHistoryEntry(session) }
                 .onFailure { Logger.e("QuizSession", "Error appending session history", it) }
         }
+
+        return sessionId
     }
 
     suspend fun saveSessionAsync(
@@ -81,8 +83,8 @@ class QuizSessionRepository {
         performanceFilter: PerformanceFilter,
         currentQuestionIndex: Int,
         appendToHistory: Boolean = true,
-    ) = withContext(Dispatchers.IO) {
-        saveSession(
+    ): String = withContext(Dispatchers.IO) {
+        val sessionId = saveSession(
             databaseName = databaseName,
             selectedSubjectIds = selectedSubjectIds,
             selectedSystemIds = selectedSystemIds,
@@ -93,6 +95,7 @@ class QuizSessionRepository {
         if (appendToHistory) {
             _historyEntries.value = listHistory()
         }
+        sessionId
     }
 
     fun restoreSession(): QuizSession? =
@@ -142,11 +145,7 @@ class QuizSessionRepository {
     fun deleteHistoryEntries(entryIds: Set<String>) {
         if (entryIds.isEmpty()) return
         runCatching {
-            val updated = listHistory().filterNot { it.id in entryIds }
-            saveHistoryList(updated)
-            if (restoreSession()?.id in entryIds) {
-                clearSession()
-            }
+            deleteHistoryEntriesStrict(entryIds)
         }.onFailure {
             Logger.e("QuizSession", "Error deleting history entries", it)
         }
@@ -154,6 +153,12 @@ class QuizSessionRepository {
 
     suspend fun deleteHistoryEntriesAsync(entryIds: Set<String>) = withContext(Dispatchers.IO) {
         deleteHistoryEntries(entryIds)
+        _historyEntries.value = listHistory()
+    }
+
+    suspend fun deleteHistoryEntriesStrictAsync(entryIds: Set<String>) = withContext(Dispatchers.IO) {
+        if (entryIds.isEmpty()) return@withContext
+        deleteHistoryEntriesStrict(entryIds)
         _historyEntries.value = listHistory()
     }
 
@@ -237,6 +242,14 @@ class QuizSessionRepository {
             .sortedByDescending { it.updatedAtEpochMillis }
             .take(MAX_HISTORY_ENTRIES)
         FileSystemHelper.writeText(historyFile, json.encodeToString(bounded))
+    }
+
+    private fun deleteHistoryEntriesStrict(entryIds: Set<String>) {
+        val updated = listHistory().filterNot { it.id in entryIds }
+        saveHistoryList(updated)
+        if (restoreSession()?.id in entryIds) {
+            clearSession()
+        }
     }
 
     private fun writeSession(session: QuizSession) {

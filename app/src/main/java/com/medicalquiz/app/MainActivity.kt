@@ -8,9 +8,9 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,7 +33,7 @@ import com.medicalquiz.app.shared.generateImageLoader
 import com.medicalquiz.app.shared.platform.AppContext
 import com.medicalquiz.app.shared.ui.theme.AppTheme
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
     private var isPermissionGranted by mutableStateOf(false)
     private var shouldRetryPermissionCheck = false
 
@@ -142,4 +142,3 @@ fun PermissionScreen(onGrantPermission: () -> Unit) {
         }
     }
 }
-
