@@ -235,6 +235,8 @@ internal fun expandToWordBoundaries(text: String, offset: Int): Pair<Int, Int> {
 
     val safeOffset = offset.coerceIn(0, text.lastIndex)
 
+    expandToSpecialCharacterCluster(text, safeOffset)?.let { return it }
+
     val pivot = findNearestWordPivot(text, safeOffset)
         ?: return safeOffset to (safeOffset + 1).coerceAtMost(text.length)
 
@@ -248,18 +250,10 @@ internal fun expandToWordBoundaries(text: String, offset: Int): Pair<Int, Int> {
         end++
     }
 
-    while (end < text.length && text.isTrailingWordBoundaryCharAt(end, previousIndex = end - 1)) {
-        end++
-    }
-
-    while (start < end && !text[start].isLetterOrDigit()) {
+    while (start < end && text[start].isLeadingTrimChar()) {
         start++
     }
-    while (end > start) {
-        val endIndex = end - 1
-        val endChar = text[endIndex]
-        if (endChar.isLetterOrDigit()) break
-        if (text.isTrailingWordBoundaryCharAt(endIndex, previousIndex = endIndex - 1)) break
+    while (end > start && text[end - 1].isTrailingTrimChar()) {
         end--
     }
 
@@ -318,51 +312,162 @@ internal fun snapOffsetToWordBoundary(
     return chosen.coerceIn(0, text.length)
 }
 
-private fun String.isTrailingWordBoundaryCharAt(index: Int, previousIndex: Int): Boolean {
-    if (index !in indices || previousIndex !in indices) return false
-    if (!this[previousIndex].isLetterOrDigit()) return false
+private fun expandToSpecialCharacterCluster(text: String, offset: Int): Pair<Int, Int>? {
+    // Selecting punctuation directly should keep intentional marks, such as ellipses,
+    // instead of jumping to a nearby word that the user did not press.
+    if (!text.isSelectableSpecialCharacterAt(offset)) return null
 
-    return this[index] == ')' || this[index] == ']' || this[index] == '}'
+    var start = offset
+    while (start > 0 && text.isMatchingSpecialClusterChar(start - 1, offset)) {
+        start--
+    }
+
+    var end = offset + 1
+    while (end < text.length && text.isMatchingSpecialClusterChar(end, offset)) {
+        end++
+    }
+
+    return start to end
+}
+
+private fun String.isMatchingSpecialClusterChar(index: Int, pivotIndex: Int): Boolean {
+    if (index !in indices || pivotIndex !in indices) return false
+
+    val pivot = this[pivotIndex]
+    val candidate = this[index]
+    return when {
+        pivot == '.' || pivot == '…' -> candidate == '.' || candidate == '…'
+        pivot.isDashCharacter() -> candidate.isDashCharacter()
+        pivot.isQuoteCharacter() -> candidate.isQuoteCharacter()
+        pivot.isBracketCharacter() -> candidate == pivot
+        else -> candidate == pivot
+    }
+}
+
+private fun String.isSelectableSpecialCharacterAt(index: Int): Boolean {
+    if (index !in indices) return false
+    val character = this[index]
+
+    if (character.isLetterOrDigit() || character.isWhitespace()) return false
+    if (isWordSelectionCharAt(index)) return false
+
+    if (character == '.') {
+        val previousIsDigit = (index - 1) in indices && this[index - 1].isDigit()
+        val nextIsDigit = (index + 1) in indices && this[index + 1].isDigit()
+        if (previousIsDigit && nextIsDigit) return false
+    }
+
+    return character.isEllipsisCharacter() ||
+        character.isDashCharacter() ||
+        character.isQuoteCharacter() ||
+        character.isBracketCharacter() ||
+        character.isGeneralPunctuation()
 }
 
 private fun findNearestWordPivot(text: String, offset: Int): Int? {
     if (text.isWordSelectionCharAt(offset)) return offset
 
-    var right = offset + 1
-    while (right < text.length) {
-        if (text.isWordSelectionCharAt(right)) break
-        right++
-    }
+    val left = offset - 1
+    if (left >= 0 && text.isWordSelectionCharAt(left)) return left
 
-    var left = offset - 1
-    while (left >= 0) {
-        if (text.isWordSelectionCharAt(left)) break
-        left--
-    }
+    val right = offset + 1
+    if (right < text.length && text.isWordSelectionCharAt(right)) return right
 
-    return when {
-        right < text.length && left >= 0 -> {
-            if ((right - offset) <= (offset - left)) right else left
-        }
-        right < text.length -> right
-        left >= 0 -> left
-        else -> null
-    }
+    return null
 }
 
 private fun String.isWordSelectionCharAt(index: Int): Boolean {
     if (index !in indices) return false
     val character = this[index]
     if (character.isLetterOrDigit()) return true
+    if (character.isCombiningMark()) return true
 
-    if (character == '\'' || character == '’' || character == '-') {
+    if (character.isInfixWordConnector()) {
         val previous = index - 1
         val next = index + 1
         return previous in indices && next in indices &&
-            this[previous].isLetterOrDigit() && this[next].isLetterOrDigit()
+            this[previous].isWordCoreChar() && this[next].isWordCoreChar()
+    }
+
+    if (character == ',' || character == ':') {
+        val previous = index - 1
+        val next = index + 1
+        return previous in indices && next in indices &&
+            this[previous].isDigit() && this[next].isDigit()
+    }
+
+    if (character == '+' || character == '#') {
+        return hasWordCoreBefore(index)
     }
 
     return false
+}
+
+private fun String.hasWordCoreBefore(index: Int): Boolean {
+    var cursor = index - 1
+    while (cursor in indices && this[cursor] == '+') {
+        cursor--
+    }
+    return cursor in indices && this[cursor].isLetter()
+}
+
+private fun Char.isWordCoreChar(): Boolean = isLetterOrDigit() || isCombiningMark()
+
+private fun Char.isCombiningMark(): Boolean {
+    val type = java.lang.Character.getType(this)
+    return type == java.lang.Character.NON_SPACING_MARK.toInt() ||
+        type == java.lang.Character.COMBINING_SPACING_MARK.toInt() ||
+        type == java.lang.Character.ENCLOSING_MARK.toInt()
+}
+
+private fun Char.isInfixWordConnector(): Boolean {
+    return this == '\'' ||
+        this == '’' ||
+        this == '-' ||
+        this == '‐' ||
+        this == '‑' ||
+        this == '–' ||
+        this == '/' ||
+        this == '.'
+}
+
+private fun Char.isLeadingTrimChar(): Boolean = isQuoteCharacter() || isOpeningBracket()
+
+private fun Char.isTrailingTrimChar(): Boolean {
+    return isQuoteCharacter() || isClosingBracket() || isSentencePunctuation()
+}
+
+private fun Char.isSentencePunctuation(): Boolean {
+    return this == '.' || this == ',' || this == ';' || this == ':' || this == '!' || this == '?'
+}
+
+private fun Char.isEllipsisCharacter(): Boolean = this == '.' || this == '…'
+
+private fun Char.isDashCharacter(): Boolean {
+    return this == '-' || this == '‐' || this == '‑' || this == '–' || this == '—'
+}
+
+private fun Char.isQuoteCharacter(): Boolean {
+    return this == '\'' || this == '"' || this == '‘' || this == '’' || this == '“' || this == '”'
+}
+
+private fun Char.isBracketCharacter(): Boolean = isOpeningBracket() || isClosingBracket()
+
+private fun Char.isOpeningBracket(): Boolean = this == '(' || this == '[' || this == '{' || this == '<'
+
+private fun Char.isClosingBracket(): Boolean = this == ')' || this == ']' || this == '}' || this == '>'
+
+private fun Char.isGeneralPunctuation(): Boolean {
+    val type = java.lang.Character.getType(this)
+    return type == java.lang.Character.DASH_PUNCTUATION.toInt() ||
+        type == java.lang.Character.START_PUNCTUATION.toInt() ||
+        type == java.lang.Character.END_PUNCTUATION.toInt() ||
+        type == java.lang.Character.CONNECTOR_PUNCTUATION.toInt() ||
+        type == java.lang.Character.OTHER_PUNCTUATION.toInt() ||
+        type == java.lang.Character.MATH_SYMBOL.toInt() ||
+        type == java.lang.Character.CURRENCY_SYMBOL.toInt() ||
+        type == java.lang.Character.MODIFIER_SYMBOL.toInt() ||
+        type == java.lang.Character.OTHER_SYMBOL.toInt()
 }
 
 internal fun finishSelectionDrag(state: TextSelectionState): TextSelectionState {
