@@ -2,7 +2,7 @@ package com.medicalquiz.app.shared.ui.screens.media
 
 import android.net.Uri
 import androidx.annotation.OptIn
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,28 +10,30 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -42,9 +44,11 @@ actual fun AudioPlayer(
 ) {
     val context = LocalContext.current
     var playWhenReady by remember { mutableStateOf(false) }
+    var isPlaying by remember { mutableStateOf(false) }
     var currentPosition by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
-    var progress by remember { mutableFloatStateOf(0f) }
+    var isSeeking by remember { mutableStateOf(false) }
+    var seekPosition by remember { mutableLongStateOf(0L) }
 
     val exoPlayer = remember(filePath) {
         ExoPlayer.Builder(context).build().apply {
@@ -57,8 +61,15 @@ actual fun AudioPlayer(
             addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
-                        duration = this@apply.duration
+                        duration = this@apply.duration.coerceAtLeast(0L)
+                    } else if (playbackState == Player.STATE_ENDED) {
+                        currentPosition = this@apply.duration.coerceAtLeast(0L)
+                        isPlaying = false
                     }
+                }
+
+                override fun onIsPlayingChanged(playing: Boolean) {
+                    isPlaying = playing
                 }
             })
         }
@@ -71,63 +82,85 @@ actual fun AudioPlayer(
         onPlayWhenReadyChange = { playWhenReady = it },
     )
 
-    // Update progress periodically
-    LaunchedEffect(exoPlayer.isPlaying) {
-        while (exoPlayer.isPlaying) {
-            currentPosition = exoPlayer.currentPosition
-            if (duration > 0) {
-                progress = (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+    // Poll playback position for Compose-driven controls.
+    LaunchedEffect(exoPlayer, isSeeking) {
+        while (true) {
+            if (!isSeeking) {
+                currentPosition = exoPlayer.currentPosition.coerceAtLeast(0L)
+                duration = exoPlayer.duration.coerceAtLeast(0L)
             }
-            delay(100)
+            delay(200)
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { _ ->
-                PlayerView(context).apply {
-                    player = exoPlayer
-                    useController = true
-                    controllerShowTimeoutMs = 0 // Always show controller for audio
-                    controllerHideOnTouch = false
-                    setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
-                }
+    val displayedPosition = if (isSeeking) seekPosition else currentPosition
+    val sliderProgress = if (duration > 0L) {
+        (displayedPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Slider(
+            value = sliderProgress,
+            onValueChange = { value ->
+                if (duration <= 0L) return@Slider
+                isSeeking = true
+                seekPosition = (duration * value).toLong().coerceIn(0L, duration)
             },
-            update = { playerView ->
-                playerView.player = exoPlayer
+            onValueChangeFinished = {
+                if (!isSeeking) return@Slider
+                exoPlayer.seekTo(seekPosition)
+                currentPosition = seekPosition
+                isSeeking = false
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxWidth(),
         )
 
-        // Progress overlay at bottom
-        if (duration > 0) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = formatTime(currentPosition),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = formatTime(duration),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = formatTime(displayedPosition),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = formatTime(duration),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                if (isPlaying) {
+                    exoPlayer.pause()
+                    playWhenReady = false
+                } else {
+                    if (exoPlayer.playbackState == Player.STATE_ENDED) {
+                        exoPlayer.seekTo(0)
+                    }
+                    exoPlayer.play()
+                    playWhenReady = true
                 }
-            }
+            },
+            modifier = Modifier.align(androidx.compose.ui.Alignment.CenterHorizontally),
+        ) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                contentDescription = null,
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(if (isPlaying) "Pause" else "Play")
         }
     }
 }

@@ -62,7 +62,7 @@ class QuizViewModel(
     private var settingsObservationJob: Job? = null
     private var textHighlightsRepository: TextHighlightsRepository = textHighlightsRepository
 
-    private var testId = Random.nextLong().toString()
+    private var sessionId = Random.nextLong().toString()
 
     private val _state = MutableStateFlow(QuizUiState.EMPTY)
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
@@ -168,6 +168,9 @@ class QuizViewModel(
             QuizSessionBoundaryUseCase.RestoreResult.NoSession -> SessionRestoreResult.NoSession
             QuizSessionBoundaryUseCase.RestoreResult.DatabaseMismatch -> SessionRestoreResult.DatabaseMismatch
             is QuizSessionBoundaryUseCase.RestoreResult.Restored -> {
+                if (result.sessionId.isNotBlank()) {
+                    setSessionId(result.sessionId)
+                }
                 _state.update {
                     it.copy(
                         selectedSubjectIds = result.selectedSubjectIds,
@@ -183,10 +186,13 @@ class QuizViewModel(
     }
 
     private suspend fun saveSession(appendToHistory: Boolean = true) {
-        quizSessionBoundaryUseCase.saveSession(
+        val sessionId = quizSessionBoundaryUseCase.saveSession(
             state = state.value,
             appendToHistory = appendToHistory,
         )
+        if (sessionId.isNotBlank()) {
+            setSessionId(sessionId)
+        }
     }
 
     /**
@@ -243,11 +249,11 @@ class QuizViewModel(
 
     fun getDatabaseManager(): DatabaseProvider? = databaseManager
 
-    fun setTestId(id: String) {
-        testId = id
+    fun setSessionId(id: String) {
+        sessionId = id
     }
 
-    fun getTestId(): String = testId
+    fun getSessionId(): String = sessionId
 
     fun rebindTextHighlightsRepository(repository: TextHighlightsRepository) {
         if (textHighlightsRepository === repository) return
@@ -380,7 +386,7 @@ class QuizViewModel(
             selectedAnswer = selectedAnswerId,
             corrAnswer = correctAnswerIndex,
             time = timeTaken,
-            testId = testId
+            sessionId = sessionId
         )
     }
 
@@ -427,6 +433,7 @@ class QuizViewModel(
     fun loadFilteredQuestionIds(
         updatePreviewCount: Boolean = true,
         appendToHistory: Boolean = true,
+        startFromBeginning: Boolean = false,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true) }
@@ -456,7 +463,11 @@ class QuizViewModel(
                     return@launch
                 }
 
-                val newIndex = currentState.currentQuestionIndex.coerceIn(0, ids.lastIndex)
+                val newIndex = if (startFromBeginning) {
+                    0
+                } else {
+                    currentState.currentQuestionIndex.coerceIn(0, ids.lastIndex)
+                }
                 _state.update {
                     it.copy(
                         questionIds = ids,
@@ -544,9 +555,10 @@ class QuizViewModel(
 
             _state.update { it.copy(selectedSystemIds = normalizedSelection) }
             persistStateSnapshot()
-            updatePreviewQuestionCountInternal()
             if (loadQuestions) {
                 loadFilteredQuestionIds(appendToHistory = false)
+            } else {
+                updatePreviewQuestionCountInternal()
             }
             saveSession(appendToHistory = false)
         }
@@ -586,6 +598,21 @@ class QuizViewModel(
             } else {
                 updatePreviewQuestionCountInternal()
             }
+            saveSession(appendToHistory = false)
+        }
+    }
+
+    fun clearAllFilters() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.update {
+                it.copy(
+                    selectedSubjectIds = emptySet(),
+                    selectedSystemIds = emptySet(),
+                    performanceFilter = PerformanceFilter.ALL
+                )
+            }
+            persistStateSnapshot()
+            loadFilteredQuestionIds(updatePreviewCount = true, appendToHistory = false)
             saveSession(appendToHistory = false)
         }
     }
