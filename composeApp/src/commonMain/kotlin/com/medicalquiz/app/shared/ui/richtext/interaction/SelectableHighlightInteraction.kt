@@ -26,6 +26,25 @@ internal data class TextSelectionState(
     val selectionRange: IntRange get() = minOf(startOffset, endOffset) until maxOf(startOffset, endOffset)
 }
 
+internal data class InitialSelectionAnchor(
+    val pressOffset: Int,
+    val startOffset: Int,
+    val endOffset: Int
+)
+
+internal data class SelectionDragUpdate(
+    val movingStartHandle: Boolean,
+    val fixedOffset: Int,
+    val previousHandleOffset: Int
+)
+
+internal data class SelectionOffsetUpdate(
+    val startOffset: Int,
+    val endOffset: Int,
+    val actualStart: Int,
+    val actualEnd: Int
+)
+
 internal fun Modifier.selectableHighlightGestures(
     text: AnnotatedString,
     highlights: List<TextHighlight>,
@@ -44,13 +63,17 @@ internal fun Modifier.selectableHighlightGestures(
             val longPress = awaitLongPressOrCancellation(down.id)
 
             if (longPress != null) {
-                var initialPressOffset: Int? = null
+                var initialSelectionAnchor: InitialSelectionAnchor? = null
 
                 currentLayoutResult()?.let { layout ->
                     val offset = layout.getOffsetForPosition(longPress.position)
-                    initialPressOffset = offset
 
                     val (start, end) = expandToWordBoundaries(text.text, offset)
+                    initialSelectionAnchor = InitialSelectionAnchor(
+                        pressOffset = offset,
+                        startOffset = start,
+                        endOffset = end
+                    )
                     setSelectionState(
                         TextSelectionState(
                             isSelecting = true,
@@ -83,30 +106,27 @@ internal fun Modifier.selectableHighlightGestures(
                     currentLayoutResult()?.let { layout ->
                         val selectionState = currentSelectionState()
                         val offset = layout.getOffsetForPosition(position)
-                        val movingStartHandle = initialPressOffset?.let { offset < it }
-                            ?: (offset < selectionState.startOffset)
-                        val fixedOffset = if (movingStartHandle) {
-                            selectionState.endOffset
-                        } else {
-                            selectionState.startOffset
-                        }
+                        val dragUpdate = resolveSelectionDragUpdate(
+                            currentState = selectionState,
+                            movedOffset = offset,
+                            initialSelectionAnchor = initialSelectionAnchor
+                        )
+                        val movingStartHandle = dragUpdate.movingStartHandle
+                        val fixedOffset = dragUpdate.fixedOffset
                         val newHandleOffset = snapOffsetToWordBoundary(
                             text = text.text,
                             movedOffset = offset.coerceIn(0, text.length),
                             fixedOffset = fixedOffset,
                             layoutResult = layout,
-                            previousOffset = if (movingStartHandle) {
-                                selectionState.startOffset
-                            } else {
-                                selectionState.endOffset
-                            }
+                            previousOffset = dragUpdate.previousHandleOffset
                         )
-                        val previousHandleOffset = if (movingStartHandle) {
-                            selectionState.startOffset
-                        } else {
+                        val previousHandleOffset = dragUpdate.previousHandleOffset
+                        val previousFixedOffset = if (movingStartHandle) {
                             selectionState.endOffset
+                        } else {
+                            selectionState.startOffset
                         }
-                        if (newHandleOffset == previousHandleOffset) {
+                        if (newHandleOffset == previousHandleOffset && fixedOffset == previousFixedOffset) {
                             event.changes.forEach { it.consume() }
                             return@let
                         }
@@ -115,6 +135,7 @@ internal fun Modifier.selectableHighlightGestures(
                                 currentState = selectionState,
                                 movingStartHandle = movingStartHandle,
                                 newHandleOffset = newHandleOffset,
+                                fixedOffset = fixedOffset,
                                 textContent = text.text,
                                 layoutResult = layout,
                                 textLength = text.length,
@@ -352,54 +373,104 @@ internal fun finishSelectionDrag(state: TextSelectionState): TextSelectionState 
     }
 }
 
+internal fun resolveSelectionDragUpdate(
+    currentState: TextSelectionState,
+    movedOffset: Int,
+    initialSelectionAnchor: InitialSelectionAnchor?
+): SelectionDragUpdate {
+    if (initialSelectionAnchor != null) {
+        val movingStartHandle = movedOffset < initialSelectionAnchor.pressOffset
+        return if (movingStartHandle) {
+            SelectionDragUpdate(
+                movingStartHandle = true,
+                fixedOffset = initialSelectionAnchor.endOffset,
+                previousHandleOffset = currentState.startOffset
+            )
+        } else {
+            SelectionDragUpdate(
+                movingStartHandle = false,
+                fixedOffset = initialSelectionAnchor.startOffset,
+                previousHandleOffset = currentState.endOffset
+            )
+        }
+    }
+
+    val movingStartHandle = movedOffset < currentState.startOffset
+    return SelectionDragUpdate(
+        movingStartHandle = movingStartHandle,
+        fixedOffset = if (movingStartHandle) currentState.endOffset else currentState.startOffset,
+        previousHandleOffset = if (movingStartHandle) currentState.startOffset else currentState.endOffset
+    )
+}
+
+internal fun calculateSelectionOffsetsFromHandleOffset(
+    currentState: TextSelectionState,
+    movingStartHandle: Boolean,
+    newHandleOffset: Int,
+    fixedOffset: Int? = null
+): SelectionOffsetUpdate? {
+    val resolvedFixedOffset = fixedOffset ?: if (movingStartHandle) {
+        currentState.endOffset
+    } else {
+        currentState.startOffset
+    }
+
+    val actualStart = minOf(newHandleOffset, resolvedFixedOffset)
+    val actualEnd = maxOf(newHandleOffset, resolvedFixedOffset)
+    if (actualEnd <= actualStart) return null
+
+    return SelectionOffsetUpdate(
+        startOffset = if (movingStartHandle) newHandleOffset else resolvedFixedOffset,
+        endOffset = if (movingStartHandle) resolvedFixedOffset else newHandleOffset,
+        actualStart = actualStart,
+        actualEnd = actualEnd
+    )
+}
+
 internal fun updateSelectionFromHandleOffset(
     currentState: TextSelectionState,
     movingStartHandle: Boolean,
     newHandleOffset: Int,
+    fixedOffset: Int? = null,
     textContent: String,
     layoutResult: TextLayoutResult,
     textLength: Int,
     fallbackAnchor: Offset
 ): TextSelectionState {
+    val resolvedFixedOffset = fixedOffset ?: if (movingStartHandle) {
+        currentState.endOffset
+    } else {
+        currentState.startOffset
+    }
     val previousOffset = if (movingStartHandle) {
         currentState.startOffset
     } else {
         currentState.endOffset
     }
-    if (newHandleOffset == previousOffset) return currentState
-
-    val fixedOffset = if (movingStartHandle) {
+    val previousFixedOffset = if (movingStartHandle) {
         currentState.endOffset
     } else {
         currentState.startOffset
     }
-    val actualStart = minOf(newHandleOffset, fixedOffset)
-    val actualEnd = maxOf(newHandleOffset, fixedOffset)
-    if (actualEnd <= actualStart) return currentState
+    if (newHandleOffset == previousOffset && resolvedFixedOffset == previousFixedOffset) return currentState
 
-    return if (movingStartHandle) {
-        currentState.copy(
-            startOffset = newHandleOffset,
-            selectedText = textContent.substring(actualStart, actualEnd),
-            anchorPosition = calculateRangeAnchor(
-                layoutResult = layoutResult,
-                textLength = textLength,
-                startOffset = actualStart,
-                endOffset = actualEnd,
-                fallbackAnchor = fallbackAnchor
-            )
+    val offsetUpdate = calculateSelectionOffsetsFromHandleOffset(
+        currentState = currentState,
+        movingStartHandle = movingStartHandle,
+        newHandleOffset = newHandleOffset,
+        fixedOffset = resolvedFixedOffset
+    ) ?: return currentState
+
+    return currentState.copy(
+        startOffset = offsetUpdate.startOffset,
+        endOffset = offsetUpdate.endOffset,
+        selectedText = textContent.substring(offsetUpdate.actualStart, offsetUpdate.actualEnd),
+        anchorPosition = calculateRangeAnchor(
+            layoutResult = layoutResult,
+            textLength = textLength,
+            startOffset = offsetUpdate.actualStart,
+            endOffset = offsetUpdate.actualEnd,
+            fallbackAnchor = fallbackAnchor
         )
-    } else {
-        currentState.copy(
-            endOffset = newHandleOffset,
-            selectedText = textContent.substring(actualStart, actualEnd),
-            anchorPosition = calculateRangeAnchor(
-                layoutResult = layoutResult,
-                textLength = textLength,
-                startOffset = actualStart,
-                endOffset = actualEnd,
-                fallbackAnchor = fallbackAnchor
-            )
-        )
-    }
+    )
 }
