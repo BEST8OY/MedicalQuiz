@@ -8,8 +8,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -169,13 +167,8 @@ private fun AnswerListItem(
         AnimatedContent(
             targetState = showResult to percentage,
             transitionSpec = {
-                scaleIn(
-                    animationSpec = motionScheme.defaultEffectsSpec(),
-                    initialScale = 0.7f
-                ) togetherWith scaleOut(
-                    animationSpec = motionScheme.defaultEffectsSpec(),
-                    targetScale = 0.7f
-                )
+                fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                    fadeOut(animationSpec = motionScheme.fastEffectsSpec())
             },
             label = "trailingContent"
         ) { (show, pct) ->
@@ -186,7 +179,7 @@ private fun AnswerListItem(
                         to = MaterialShapes.Arch,
                         progress = 1f,
                         backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
-                        size = 42.dp,
+                        size = 36.dp,
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Text(
@@ -198,7 +191,7 @@ private fun AnswerListItem(
                     }
                 }
 
-                else -> Box(modifier = Modifier.padding(start = 8.dp))
+                else -> Box(modifier = Modifier.padding(start = 36.dp))
             }
         }
     }
