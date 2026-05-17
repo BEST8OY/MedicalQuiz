@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,8 +66,6 @@ import com.medicalquiz.app.shared.utils.HtmlUtils
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 import kotlin.math.roundToInt
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 @Composable
 fun QuizScreen(
@@ -219,34 +218,11 @@ private fun QuizQuestionCard(
     val answers = state.currentAnswers
     val metadataSections = buildMetadataSections(question)
     val uriHandler = LocalUriHandler.current
-    val linkHandler: (String) -> Unit = remember(question?.id, mediaHandler) {
-        { url ->
-            val normalizedUrl = url.trim()
-            if (normalizedUrl.isEmpty()) return@remember
-            if (!mediaHandler.handleMediaLink(normalizedUrl)) {
-                try {
-                    uriHandler.openUri(normalizedUrl)
-                } catch (e: Exception) {
-                    // Ignore
-                }
-            }
-        }
-    }
-    val mediaClick: (String) -> Unit = remember(mediaHandler) { { ref -> mediaHandler.handleMediaLink(ref) } }
-
-    LaunchedEffect(question?.id) {
-        if (question != null) {
-            // Run regex-heavy media collection off the main thread
-            val mediaFiles = withContext(Dispatchers.IO) {
-                HtmlUtils.collectMediaFiles(question)
-            }
-            mediaHandler.updateMedia(mediaFiles)
-        } else {
-            mediaHandler.reset()
-        }
-    }
 
     if (question == null) {
+        SideEffect {
+            mediaHandler.reset()
+        }
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             if (state.isLoading) {
                 LoadingIndicator()
@@ -259,6 +235,36 @@ private fun QuizQuestionCard(
             }
         }
         return
+    }
+
+    val mediaFiles = remember(
+        question.id,
+        question.mediaName,
+        question.otherMedias,
+        question.question,
+        question.explanation
+    ) {
+        HtmlUtils.collectMediaFiles(question)
+    }
+    SideEffect {
+        mediaHandler.updateMedia(mediaFiles)
+    }
+
+    val linkHandler: (String) -> Unit = remember(question.id, mediaHandler, mediaFiles, uriHandler) {
+        { url ->
+            val normalizedUrl = url.trim()
+            if (normalizedUrl.isEmpty()) return@remember
+            if (!mediaHandler.handleMediaLink(normalizedUrl, mediaFiles)) {
+                try {
+                    uriHandler.openUri(normalizedUrl)
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
+        }
+    }
+    val mediaClick: (String) -> Unit = remember(mediaHandler, mediaFiles) {
+        { ref -> mediaHandler.handleMediaLink(ref, mediaFiles) }
     }
 
     val questionParts = remember(question.id, question.question) {

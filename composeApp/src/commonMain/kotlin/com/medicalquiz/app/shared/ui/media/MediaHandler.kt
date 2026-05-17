@@ -17,7 +17,7 @@ class MediaHandler(
         currentMediaFiles = mediaFiles
     }
 
-    fun handleMediaLink(url: String): Boolean {
+    fun handleMediaLink(url: String, mediaFiles: List<String> = currentMediaFiles): Boolean {
         val fileName = extractFileName(url) ?: return false
 
         return when {
@@ -25,25 +25,25 @@ class MediaHandler(
                 onOpenHtml(fileName)
                 true
             }
-            MediaTypeUtils.isMediaFile(fileName) -> openMedia(fileName)
+            MediaTypeUtils.isMediaFile(fileName) -> openMedia(mediaFiles, fileName = fileName)
             else -> false
         }
     }
 
-    fun showCurrentMediaGallery(startIndex: Int = 0): Boolean = openMedia(startIndex = startIndex)
+    fun showCurrentMediaGallery(startIndex: Int = 0): Boolean = openMedia(currentMediaFiles, startIndex = startIndex)
 
-    private fun openMedia(fileName: String? = null, startIndex: Int = 0): Boolean {
-        if (currentMediaFiles.isEmpty()) return false
+    private fun openMedia(mediaFiles: List<String>, fileName: String? = null, startIndex: Int = 0): Boolean {
+        if (mediaFiles.isEmpty()) return false
 
-        val resolvedIndex = fileName?.let(::findMediaIndex)
-            ?: startIndex.coerceIn(0, currentMediaFiles.lastIndex)
+        val resolvedIndex = fileName?.let { findMediaIndex(mediaFiles, it) }
+            ?: startIndex.coerceIn(0, mediaFiles.lastIndex)
         if (resolvedIndex < 0) return false
 
-        onOpenMedia(currentMediaFiles, resolvedIndex)
+        onOpenMedia(mediaFiles, resolvedIndex)
         return true
     }
 
-    private fun findMediaIndex(fileName: String): Int = currentMediaFiles.indexOfFirst { mediaFile ->
+    private fun findMediaIndex(mediaFiles: List<String>, fileName: String): Int = mediaFiles.indexOfFirst { mediaFile ->
         HtmlUtils.normalizeFileName(mediaFile).equals(fileName, ignoreCase = true)
     }
 
