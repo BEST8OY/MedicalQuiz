@@ -240,7 +240,7 @@ private fun QuizQuestionCard(
             val mediaFiles = withContext(Dispatchers.IO) {
                 HtmlUtils.collectMediaFiles(question)
             }
-            mediaHandler.updateMedia(question.id, mediaFiles)
+            mediaHandler.updateMedia(mediaFiles)
         } else {
             mediaHandler.reset()
         }

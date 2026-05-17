@@ -65,6 +65,7 @@ import com.medicalquiz.app.shared.ui.media.MediaType
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 import com.medicalquiz.app.shared.viewmodel.QuizViewModelDependencies
 import com.medicalquiz.app.shared.viewmodel.UiEvent
+import com.medicalquiz.app.shared.utils.HtmlUtils
 import com.medicalquiz.app.shared.utils.MediaTypeUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -90,6 +91,34 @@ private fun MutableList<MedicalQuizRoutes>.popToDatabaseSelection() {
     while (size > 1) {
         removeLastOrNull()
     }
+}
+
+private fun mediaFileNameFromLink(url: String): String? {
+    val trimmed = url.trim()
+    if (trimmed.isEmpty()) return null
+
+    val source = if (trimmed.startsWith("media://", ignoreCase = true)) {
+        trimmed.drop("media://".length)
+    } else {
+        trimmed
+    }
+    val fileName = HtmlUtils.normalizeFileName(source)
+    if (fileName.isBlank()) return null
+
+    val isPlayableType = when (MediaTypeUtils.fromFileName(fileName)) {
+        MediaType.IMAGE,
+        MediaType.VIDEO,
+        MediaType.AUDIO -> true
+        else -> false
+    }
+    return fileName.takeIf { isPlayableType }
+}
+
+private fun mediaLinkIndexInFiles(url: String, files: List<String>): Int? {
+    val targetFileName = mediaFileNameFromLink(url) ?: return null
+    return files.indexOfFirst { fileName ->
+        HtmlUtils.normalizeFileName(fileName).equals(targetFileName, ignoreCase = true)
+    }.takeIf { it >= 0 }
 }
 
 private suspend fun navigateToMediaViewer(
@@ -508,7 +537,18 @@ fun App() {
                                 localContentRepository.resolveOverlayPaths(files)
                             },
                             onLinkClick = { url ->
-                                if (!mediaHandler.handleMediaLink(url)) {
+                                val mediaIndex = mediaLinkIndexInFiles(url, key.files)
+                                if (mediaIndex != null) {
+                                    scope.launch {
+                                        navigateToMediaViewer(
+                                            files = key.files,
+                                            startIndex = mediaIndex,
+                                            backStack = backStack,
+                                            mediaDescriptionsFlow = mediaDescriptionsFlow,
+                                            localContentRepository = localContentRepository,
+                                        )
+                                    }
+                                } else if (!mediaHandler.handleMediaLink(url)) {
                                     // Handle external URLs if not media
                                 }
                             },
