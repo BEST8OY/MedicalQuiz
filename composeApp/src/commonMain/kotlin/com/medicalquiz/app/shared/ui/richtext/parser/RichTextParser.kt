@@ -257,7 +257,11 @@ private class RichTextDomParser(
     private fun buildAnnotatedBlock(element: KsoupElement): AnnotatedString? {
         val baseStyle = InlineStyle().applyClassStyles(element.classNames(), palette, showSelectedHighlight)
         val builder = buildAnnotatedString {
-            appendNodes(element.children, baseStyle, palette)
+            if (element.tagName.equals("a", ignoreCase = true)) {
+                appendNode(element, baseStyle, palette)
+            } else {
+                appendNodes(element.children, baseStyle, palette)
+            }
         }
         // Trim leading/trailing whitespace while preserving annotations
         val trimmed = builder.trim()
