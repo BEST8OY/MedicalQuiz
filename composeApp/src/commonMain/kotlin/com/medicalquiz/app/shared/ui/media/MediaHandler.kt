@@ -21,7 +21,7 @@ class MediaHandler(
         val fileName = extractFileName(url) ?: return false
 
         if (MediaTypeUtils.isHtml(fileName)) {
-            onOpenHtml(fileName)
+            openHtml(fileName)
             return true
         }
 
@@ -31,6 +31,10 @@ class MediaHandler(
         }
 
         return false
+    }
+
+    fun openHtml(fileName: String) {
+        onOpenHtml(fileName)
     }
 
     fun showCurrentMediaGallery(startIndex: Int = 0): Boolean = openMedia(currentMediaFiles, startIndex = startIndex)

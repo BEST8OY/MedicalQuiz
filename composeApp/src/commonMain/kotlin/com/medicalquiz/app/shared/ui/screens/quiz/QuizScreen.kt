@@ -63,6 +63,7 @@ import com.medicalquiz.app.shared.ui.richtext.RichTextScaleProvider
 import com.medicalquiz.app.shared.ui.screens.quiz.AnswerOptions
 import com.medicalquiz.app.shared.ui.state.QuizUiState
 import com.medicalquiz.app.shared.utils.HtmlUtils
+import com.medicalquiz.app.shared.utils.MediaTypeUtils
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 import kotlin.math.roundToInt
 
@@ -254,6 +255,13 @@ private fun QuizQuestionCard(
         { url ->
             val normalizedUrl = url.trim()
             if (normalizedUrl.isEmpty()) return@remember
+
+            val htmlFileName = HtmlUtils.normalizeFileName(normalizedUrl)
+            if (htmlFileName.isNotBlank() && MediaTypeUtils.isHtml(htmlFileName)) {
+                mediaHandler.openHtml(htmlFileName)
+                return@remember
+            }
+
             if (!mediaHandler.handleMediaLink(normalizedUrl, mediaFiles)) {
                 try {
                     uriHandler.openUri(normalizedUrl)
