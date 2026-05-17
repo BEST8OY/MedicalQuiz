@@ -93,6 +93,19 @@ private fun MutableList<MedicalQuizRoutes>.popToDatabaseSelection() {
     }
 }
 
+private fun htmlFileNameFromLink(url: String): String? {
+    val trimmed = url.trim()
+    if (trimmed.isEmpty()) return null
+
+    val source = if (trimmed.startsWith("media://", ignoreCase = true)) {
+        trimmed.drop("media://".length)
+    } else {
+        trimmed
+    }
+    val fileName = HtmlUtils.normalizeFileName(source)
+    return fileName.takeIf { it.isNotBlank() && MediaTypeUtils.isHtml(it) }
+}
+
 private fun mediaFileNameFromLink(url: String): String? {
     val trimmed = url.trim()
     if (trimmed.isEmpty()) return null
@@ -537,8 +550,11 @@ fun App() {
                                 localContentRepository.resolveOverlayPaths(files)
                             },
                             onLinkClick = { url ->
+                                val htmlFileName = htmlFileNameFromLink(url)
                                 val mediaIndex = mediaLinkIndexInFiles(url, key.files)
-                                if (mediaIndex != null) {
+                                if (htmlFileName != null) {
+                                    backStack.add(MedicalQuizRoutes.HtmlViewer(fileName = htmlFileName))
+                                } else if (mediaIndex != null) {
                                     scope.launch {
                                         navigateToMediaViewer(
                                             files = key.files,
@@ -581,7 +597,10 @@ fun App() {
                                 backStack.navigateBack()
                             },
                             onLinkClick = { url ->
-                                if (!mediaHandler.handleMediaLink(url)) {
+                                val htmlFileName = htmlFileNameFromLink(url)
+                                if (htmlFileName != null) {
+                                    backStack.add(MedicalQuizRoutes.HtmlViewer(fileName = htmlFileName))
+                                } else if (!mediaHandler.handleMediaLink(url)) {
                                     // Handle external URLs
                                 }
                             }

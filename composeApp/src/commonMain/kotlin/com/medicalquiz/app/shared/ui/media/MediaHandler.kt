@@ -20,14 +20,17 @@ class MediaHandler(
     fun handleMediaLink(url: String, mediaFiles: List<String> = currentMediaFiles): Boolean {
         val fileName = extractFileName(url) ?: return false
 
-        return when {
-            MediaTypeUtils.isHtml(fileName) -> {
-                onOpenHtml(fileName)
-                true
-            }
-            MediaTypeUtils.isMediaFile(fileName) -> openMedia(mediaFiles, fileName = fileName)
-            else -> false
+        if (MediaTypeUtils.isHtml(fileName)) {
+            onOpenHtml(fileName)
+            return true
         }
+
+        if (MediaTypeUtils.isMediaFile(fileName)) {
+            val mediaOpened = openMedia(mediaFiles, fileName = fileName)
+            if (mediaOpened) return true
+        }
+
+        return false
     }
 
     fun showCurrentMediaGallery(startIndex: Int = 0): Boolean = openMedia(currentMediaFiles, startIndex = startIndex)
