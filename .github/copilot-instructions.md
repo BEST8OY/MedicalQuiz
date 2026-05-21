@@ -11,16 +11,6 @@
 - `App.kt` is a thinner composition boundary; keep startup + persistence orchestration delegated to `shared/orchestration/*Coordinator.kt`, while `QuizViewModel` remains the central state owner.
 - Navigation uses typed `MedicalQuizRoutes`; overlays `MediaViewer`/`HtmlViewer` are transient and excluded from restore (`sanitizeRestoredBackStack` in `NavigationRoutes.kt`).
 
-## Build and Test
-- Toolchains/targets: JVM toolchain 21 in `composeApp/build.gradle.kts`; Android SDK levels are from `gradle/libs.versions.toml` (`compileSdk/targetSdk = 36`, `minSdk = 31`); Kotlin/Java bytecode target is 17.
-- Core commands from repo root:
-  - `./gradlew :composeApp:run`
-  - `./gradlew :app:assembleDebug`
-  - `./gradlew :app:installDebug`
-  - `./gradlew clean`
-- Current tests are narrow: shared tests in `composeApp/src/commonTest` and Android instrumentation smoke tests in `app/src/androidTest` (for example `MainActivityLifecycleSmokeTest.kt`).
-- If Gradle sync fails, check plugin/version catalog first (`agp = 9.0.1` in `gradle/libs.versions.toml`) before assuming code regressions.
-
 ## Project Conventions
 - Persisted app/session/nav state is file-backed under storage root (`quiz_session.json`, `quiz_session_history.json`, `navigation_state.json`, `settings.json`) via repositories in `composeApp/src/commonMain/kotlin/com/medicalquiz/app/shared/data`.
 - Keep app-level orchestration out of composables when possible: add/extend coordinators under `composeApp/src/commonMain/kotlin/com/medicalquiz/app/shared/orchestration` (`AppStartupCoordinator`, `AppNavigationPersistenceCoordinator`) for startup and persistence-heavy flows.
