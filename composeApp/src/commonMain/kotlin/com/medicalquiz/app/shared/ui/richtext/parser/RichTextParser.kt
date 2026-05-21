@@ -297,12 +297,7 @@ private class RichTextDomParser(
     ) {
         when (node) {
             is KsoupTextNode -> {
-                val text = node.text.replace('\u00A0', ' ')
-                when {
-                    text.isEmpty() -> Unit
-                    text.isBlank() -> appendTextWithStyle(" ", style, palette)
-                    else -> appendTextWithStyle(text, style, palette)
-                }
+                appendCollapsedText(node.text, style, palette)
             }
             is KsoupElement -> {
                 if (TooltipParser.isTooltipContentNode(node)) return
@@ -312,6 +307,16 @@ private class RichTextDomParser(
                 if (tag == "br") {
                     append("\n")
                     return
+                }
+
+                // Check if this is a block-level element
+                val isBlockTag = (tag == "p" || RichTextParserConfig.blockLevelChildTags.contains(tag)) && tag != "li"
+                if (isBlockTag) {
+                    val currentLength = this.toAnnotatedString().length
+                    val endsWithNewline = currentLength > 0 && this.toAnnotatedString()[currentLength - 1] == '\n'
+                    if (currentLength > 0 && !endsWithNewline) {
+                        append("\n")
+                    }
                 }
 
                 // Calculate new list depth when entering/exiting list elements
@@ -382,10 +387,49 @@ private class RichTextDomParser(
                 // Pass the updated list depth when processing children
                 appendNodes(node.children, nextStyle, palette, newListDepth)
 
-                if (tag == "p" || tag == "div") {
-                    append("\n")
+                if (isBlockTag) {
+                    val currentLength = this.toAnnotatedString().length
+                    val endsWithNewline = currentLength > 0 && this.toAnnotatedString()[currentLength - 1] == '\n'
+                    if (currentLength > 0 && !endsWithNewline) {
+                        append("\n")
+                    }
                 }
             }
+        }
+    }
+
+    private fun AnnotatedString.Builder.appendCollapsedText(
+        text: String,
+        style: InlineStyle,
+        palette: RichTextPalette
+    ) {
+        if (text.isEmpty()) return
+
+        if (style.preserveWhitespace) {
+            appendTextWithStyle(text, style, palette)
+            return
+        }
+
+        val currentString = this.toAnnotatedString()
+        var builderEndsWithWhitespace = currentString.isNotEmpty() && currentString[currentString.length - 1].isWhitespace()
+
+        val collapsed = StringBuilder()
+        for (i in text.indices) {
+            val char = text[i]
+            if (char.isWhitespace()) {
+                if (!builderEndsWithWhitespace) {
+                    collapsed.append(' ')
+                    builderEndsWithWhitespace = true
+                }
+            } else {
+                collapsed.append(char)
+                builderEndsWithWhitespace = false
+            }
+        }
+
+        val collapsedStr = collapsed.toString()
+        if (collapsedStr.isNotEmpty()) {
+            appendTextWithStyle(collapsedStr, style, palette)
         }
     }
 
