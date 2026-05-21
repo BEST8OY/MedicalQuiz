@@ -273,9 +273,9 @@ private class RichTextDomParser(
      */
     private fun AnnotatedString.trim(): AnnotatedString {
         val text = this.text
-        val start = text.indexOfFirst { !it.isWhitespace() }
+        val start = text.indexOfFirst { !it.isWhitespaceCollapsible() }
         if (start == -1) return AnnotatedString("")
-        val end = text.indexOfLast { !it.isWhitespace() } + 1
+        val end = text.indexOfLast { !it.isWhitespaceCollapsible() } + 1
         if (start == 0 && end == text.length) return this
         return this.subSequence(start, end)
     }
@@ -398,6 +398,10 @@ private class RichTextDomParser(
         }
     }
 
+    private fun Char.isWhitespaceCollapsible(): Boolean {
+        return this.isWhitespace() && this != '\u00A0'
+    }
+
     private fun AnnotatedString.Builder.appendCollapsedText(
         text: String,
         style: InlineStyle,
@@ -411,12 +415,12 @@ private class RichTextDomParser(
         }
 
         val currentString = this.toAnnotatedString()
-        var builderEndsWithWhitespace = currentString.isNotEmpty() && currentString[currentString.length - 1].isWhitespace()
+        var builderEndsWithWhitespace = currentString.isNotEmpty() && currentString[currentString.length - 1].isWhitespaceCollapsible()
 
         val collapsed = StringBuilder()
         for (i in text.indices) {
             val char = text[i]
-            if (char.isWhitespace()) {
+            if (char.isWhitespaceCollapsible()) {
                 if (!builderEndsWithWhitespace) {
                     collapsed.append(' ')
                     builderEndsWithWhitespace = true
