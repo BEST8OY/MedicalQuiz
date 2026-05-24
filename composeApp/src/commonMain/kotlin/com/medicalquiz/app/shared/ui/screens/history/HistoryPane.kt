@@ -73,11 +73,13 @@ internal fun HistoryPane(
     onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
     onDeleteHistoryEntries: (Set<String>) -> Unit,
     onRenameHistoryEntry: (String, String) -> Unit,
+    onCopyAllQids: suspend (List<QuizSessionRepository.QuizSession>) -> String,
     onSelectionModeChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val clipboard = LocalClipboard.current
     var selectedHistoryEntryIds by rememberSaveable { mutableStateOf(setOf<String>()) }
+    val coroutineScope = rememberCoroutineScope()
     var isFabMenuExpanded by rememberSaveable { mutableStateOf(false) }
     var deleteTargetEntryIds by rememberSaveable { mutableStateOf(emptySet<String>()) }
     var renameTargetId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -188,11 +190,14 @@ internal fun HistoryPane(
 
                     FloatingActionButtonMenuItem(
                         onClick = {
-                            historyEntries
-                                .filter { it.id in selectedHistoryEntryIds }
-                                .joinToString(separator = "\n") { (it.currentQuestionIndex + 1).toString() }
-                                .takeIf { it.isNotBlank() }
-                                ?.let { clipboard.setPlainText(AnnotatedString(it)) }
+                            coroutineScope.launch {
+                                val selectedEntries = historyEntries
+                                    .filter { it.id in selectedHistoryEntryIds }
+                                val qidsText = onCopyAllQids(selectedEntries)
+                                if (qidsText.isNotBlank()) {
+                                    clipboard.setPlainText(AnnotatedString(qidsText))
+                                }
+                            }
                             isFabMenuExpanded = false
                         },
                         text = { Text("Copy QIDs (${selectedHistoryEntryIds.size})") },
