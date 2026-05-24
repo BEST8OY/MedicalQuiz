@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
@@ -48,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,7 +58,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.ui.components.EmptyStateMessage
+import com.medicalquiz.app.shared.ui.richtext.setPlainText
 import com.medicalquiz.app.shared.ui.screens.media.PlatformBackHandler
+import androidx.compose.ui.platform.LocalClipboard
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -72,6 +76,7 @@ internal fun HistoryPane(
     onSelectionModeChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val clipboard = LocalClipboard.current
     var selectedHistoryEntryIds by rememberSaveable { mutableStateOf(setOf<String>()) }
     var isFabMenuExpanded by rememberSaveable { mutableStateOf(false) }
     var deleteTargetEntryIds by rememberSaveable { mutableStateOf(emptySet<String>()) }
@@ -179,6 +184,19 @@ internal fun HistoryPane(
                         },
                         text = { Text("Select all") },
                         icon = { Icon(Icons.Filled.History, contentDescription = null) },
+                    )
+
+                    FloatingActionButtonMenuItem(
+                        onClick = {
+                            historyEntries
+                                .filter { it.id in selectedHistoryEntryIds }
+                                .joinToString(separator = "\n") { (it.currentQuestionIndex + 1).toString() }
+                                .takeIf { it.isNotBlank() }
+                                ?.let { clipboard.setPlainText(AnnotatedString(it)) }
+                            isFabMenuExpanded = false
+                        },
+                        text = { Text("Copy QIDs (${selectedHistoryEntryIds.size})") },
+                        icon = { Icon(Icons.Filled.ContentCopy, contentDescription = null) },
                     )
 
                     FloatingActionButtonMenuItem(
