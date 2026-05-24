@@ -68,6 +68,9 @@ internal fun FilterHubScreen(
                 onHistorySelected = onHistorySelected,
                 onDeleteHistoryEntries = onDeleteHistoryEntries,
                 onRenameHistoryEntry = onRenameHistoryEntry,
+                onCopyAllQids = { selectedEntries ->
+                    viewModel.getQuestionIdsForHistoryEntries(selectedEntries)
+                },
                 onSelectionModeChanged = { historySelectionMode = it },
             )
         },

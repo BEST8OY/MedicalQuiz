@@ -737,6 +737,23 @@ class QuizViewModel(
         scrollPositionCache.remove(questionId)
     }
 
+    suspend fun getQuestionIdsForHistoryEntries(
+        entries: List<com.medicalquiz.app.shared.data.QuizSessionRepository.QuizSession>
+    ): String = withContext(Dispatchers.IO) {
+        buildString {
+            entries.forEach { entry ->
+                val questionIds = databaseManager?.getQuestionIds(
+                    subjectIds = entry.selectedSubjectIds,
+                    systemIds = entry.selectedSystemIds,
+                    performanceFilter = entry.performanceFilter
+                ) ?: emptyList()
+                questionIds.forEach { qid ->
+                    appendLine(qid)
+                }
+            }
+        }
+    }
+
     override fun onCleared() {
         settingsObservationJob?.cancel()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {

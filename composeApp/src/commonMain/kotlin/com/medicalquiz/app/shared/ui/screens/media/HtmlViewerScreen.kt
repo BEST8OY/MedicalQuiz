@@ -2,15 +2,12 @@ package com.medicalquiz.app.shared.ui.screens.media
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -32,7 +29,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.ui.richtext.RichText
@@ -122,55 +118,30 @@ fun HtmlViewerScreen(
                 }
 
                 else -> {
-                    BoxWithConstraints(
+                    Column(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                     ) {
-                        val isWideLayout = maxWidth >= 900.dp
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.extraLarge,
                             color = MaterialTheme.colorScheme.surface,
-                            tonalElevation = if (isWideLayout) 5.dp else 3.dp,
-                            shadowElevation = if (isWideLayout) 2.dp else 1.dp,
+                            tonalElevation = 3.dp,
+                            shadowElevation = 1.dp,
                         ) {
-                            val horizontalPadding = if (isWideLayout) 28.dp else 16.dp
-                            val verticalPadding = if (isWideLayout) 28.dp else 20.dp
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .verticalScroll(rememberScrollState())
-                                    .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+                                    .padding(horizontal = 16.dp, vertical = 20.dp),
                             ) {
                                 Text(
-                                    text = "Table Viewer",
-                                    style = MaterialTheme.typography.labelLargeEmphasized,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    text = "Interactive HTML document",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = fileName,
-                                        style = MaterialTheme.typography.titleLargeEmphasized,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "•",
-                                        color = MaterialTheme.colorScheme.outline,
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Interactive",
-                                        style = MaterialTheme.typography.labelMediumEmphasized,
-                                        color = MaterialTheme.colorScheme.secondary,
-                                        fontWeight = FontWeight.SemiBold,
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(10.dp))
                                 RichText(
                                     html = htmlContent.orEmpty(),
                                     modifier = Modifier.fillMaxWidth(),
