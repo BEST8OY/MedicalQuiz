@@ -13,7 +13,7 @@ import androidx.compose.runtime.Composable
 private val LightColorScheme = lightColorScheme(
     // Primary colors
     primary = PrimaryLight,
-    onPrimarystate  = OnPrimaryLight,
+    onPrimary  = OnPrimaryLight,
     primaryContainer = PrimaryContainerLight,
     onPrimaryContainer = OnPrimaryContainerLight,
     inversePrimary = InversePrimaryLight,
