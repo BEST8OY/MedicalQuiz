@@ -353,7 +353,6 @@ fun App() {
                     }
 
                     val routeHandlers = buildFilterRouteHandlers(
-                        availableDatabases = container.startupCoordinator.refreshDatabases(),
                         viewModel = filterVM,
                         onHistoryLaunchPrepared = { matchingDatabase ->
                             pendingLaunchSource = QuizLaunchSource.History
@@ -547,19 +546,18 @@ private data class FilterRouteHandlers(
 )
 
 private fun buildFilterRouteHandlers(
-    availableDatabases: List<String>,
     viewModel: FilterViewModel,
     onHistoryLaunchPrepared: (String) -> Unit,
     onStartQuiz: () -> Unit,
 ): FilterRouteHandlers {
     return FilterRouteHandlers(
         onHistorySelected = { entry ->
-            viewModel.restoreHistoryEntry(entry, availableDatabases) { matchingDatabase ->
+            viewModel.restoreHistoryEntry(entry) { matchingDatabase ->
                 onHistoryLaunchPrepared(matchingDatabase)
             }
         },
         onDeleteHistoryEntries = { entryIds ->
-            viewModel.deleteHistoryEntries(entryIds, availableDatabases)
+            viewModel.deleteHistoryEntries(entryIds)
         },
         onRenameHistoryEntry = { entryId, newName ->
             viewModel.renameHistoryEntry(entryId, newName)

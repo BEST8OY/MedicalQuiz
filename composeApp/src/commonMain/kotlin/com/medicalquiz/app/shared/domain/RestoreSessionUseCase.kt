@@ -86,3 +86,10 @@ class RestoreSessionUseCase(
         return dbName
     }
 }
+
+data class RestoreSessionDecision(
+    val initializedDatabase: String,
+    val pendingLaunchSource: QuizLaunchSource?,
+    val shouldAttemptSessionRestore: Boolean,
+    val shouldPopToDatabaseSelection: Boolean,
+)

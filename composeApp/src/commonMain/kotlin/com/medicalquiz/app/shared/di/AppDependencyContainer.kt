@@ -45,7 +45,7 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
     // Orchestrators & Coordinators
     val navStateRepo = NavigationStateRepository()
     val navPersistenceCoordinator = AppNavigationPersistenceCoordinator(navStateRepo, sessionRepository)
-    val historyCoordinator = AppHistoryCoordinator(sessionRepository)
+    val historyCoordinator = AppHistoryCoordinator(sessionRepository, localContentRepository)
     val startupCoordinator = AppStartupCoordinator(
         localContentRepository = localContentRepository,
         sessionRepository = sessionRepository,

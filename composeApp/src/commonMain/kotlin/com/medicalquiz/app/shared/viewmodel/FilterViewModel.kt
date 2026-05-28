@@ -226,13 +226,12 @@ class FilterViewModel(
         }
     }
 
-    fun deleteHistoryEntries(entryIds: Set<String>, availableDatabases: List<String>) {
+    fun deleteHistoryEntries(entryIds: Set<String>) {
         appScope.launch {
             runCatching {
                 historyCoordinator.deleteHistoryEntriesWithLogs(
                     entryIds = entryIds,
                     allHistoryEntries = historyEntries.value,
-                    availableDatabases = availableDatabases,
                 )
             }.onFailure {
                 uiEventDispatcher.emitToast(
@@ -251,11 +250,10 @@ class FilterViewModel(
         }
     }
 
-    fun restoreHistoryEntry(entry: QuizSessionRepository.QuizSession, availableDatabases: List<String>, onRestored: (String) -> Unit) {
+    fun restoreHistoryEntry(entry: QuizSessionRepository.QuizSession, onRestored: (String) -> Unit) {
         appScope.launch {
             val matchingDatabase = historyCoordinator.restoreHistoryEntry(
                 entry = entry,
-                availableDatabases = availableDatabases,
             )
             if (matchingDatabase != null) {
                 onRestored(matchingDatabase)
