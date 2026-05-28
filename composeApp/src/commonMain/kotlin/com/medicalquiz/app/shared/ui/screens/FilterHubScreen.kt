@@ -13,11 +13,11 @@ import com.medicalquiz.app.shared.ui.dialogs.PerformanceFilterDialog
 import com.medicalquiz.app.shared.ui.dialogs.SubjectFilterDialog
 import com.medicalquiz.app.shared.ui.dialogs.SystemFilterDialog
 import com.medicalquiz.app.shared.ui.screens.history.HistoryPane
-import com.medicalquiz.app.shared.viewmodel.QuizViewModel
+import com.medicalquiz.app.shared.viewmodel.FilterViewModel
 
 @Composable
 internal fun FilterHubScreen(
-    viewModel: QuizViewModel,
+    viewModel: FilterViewModel,
     selectedPane: FilterPane,
     onPaneSelected: (FilterPane) -> Unit,
     historyEntries: List<QuizSessionRepository.QuizSession>,

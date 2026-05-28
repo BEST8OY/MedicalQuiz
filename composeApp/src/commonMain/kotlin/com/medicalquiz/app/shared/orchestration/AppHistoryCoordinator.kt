@@ -1,17 +1,19 @@
 package com.medicalquiz.app.shared.orchestration
 
 import com.medicalquiz.app.shared.data.DatabaseManager
+import com.medicalquiz.app.shared.data.LocalContentRepository
 import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.Logger
 
 class AppHistoryCoordinator(
     private val sessionRepository: QuizSessionRepository,
+    private val localContentRepository: LocalContentRepository,
 ) {
     suspend fun restoreHistoryEntry(
         entry: QuizSessionRepository.QuizSession,
-        availableDatabases: List<String>,
     ): String? {
+        val availableDatabases = localContentRepository.listDatabases()
         val matchingDatabase = availableDatabases.firstOrNull {
             it.removeSuffix(".db") == entry.databaseName
         } ?: return null
@@ -26,7 +28,6 @@ class AppHistoryCoordinator(
     suspend fun deleteHistoryEntriesWithLogs(
         entryIds: Set<String>,
         allHistoryEntries: List<QuizSessionRepository.QuizSession>,
-        availableDatabases: List<String>,
     ) {
         if (entryIds.isEmpty()) return
 
@@ -35,6 +36,7 @@ class AppHistoryCoordinator(
             "Unable to resolve all selected history entries"
         }
 
+        val availableDatabases = localContentRepository.listDatabases()
         val databaseToSessionIds = selectedEntries
             .groupBy { it.databaseName }
             .mapValues { (_, entries) -> entries.map { it.id }.toSet() }

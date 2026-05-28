@@ -6,8 +6,10 @@ import com.medicalquiz.app.shared.data.UserDataManager
 import com.medicalquiz.app.shared.domain.RestoreSessionDecision
 import com.medicalquiz.app.shared.domain.RestoreSessionUseCase
 import com.medicalquiz.app.shared.navigation.QuizLaunchSource
-import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 
+/**
+ * Coordinates app startup routines: listings available DBs, handling DB selections.
+ */
 class AppStartupCoordinator(
     private val localContentRepository: LocalContentRepository,
     private val sessionRepository: QuizSessionRepository,
@@ -27,7 +29,6 @@ class AppStartupCoordinator(
         initializedDatabase: String?,
         pendingLaunchSource: QuizLaunchSource?,
         shouldAttemptSessionRestore: Boolean,
-        viewModel: QuizViewModel,
     ): RestoreSessionDecision? {
         val dbName = selectedDatabase ?: return null
         return restoreSessionUseCase(
@@ -35,7 +36,6 @@ class AppStartupCoordinator(
             initializedDatabase = initializedDatabase,
             pendingLaunchSource = pendingLaunchSource,
             shouldAttemptSessionRestore = shouldAttemptSessionRestore,
-            viewModel = viewModel,
         )
     }
 }

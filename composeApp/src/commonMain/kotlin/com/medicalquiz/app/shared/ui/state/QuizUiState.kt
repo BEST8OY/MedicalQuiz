@@ -4,10 +4,10 @@ import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.data.database.QuestionPerformance
 import com.medicalquiz.app.shared.data.models.Answer
 import com.medicalquiz.app.shared.data.models.Question
-import com.medicalquiz.app.shared.data.models.Subject
-import com.medicalquiz.app.shared.data.models.System
-import com.medicalquiz.app.shared.utils.Resource
 
+/**
+ * UI State for the active Quiz session.
+ */
 data class QuizUiState(
     val databaseName: String = "",
     val questionIds: List<Long> = emptyList(),
@@ -17,11 +17,12 @@ data class QuizUiState(
     val selectedAnswerId: Int? = null,
     val answerSubmitted: Boolean = false,
     val isLoading: Boolean = false,
+    
+    // Decoupled selection parameters preserved for state saving and DB matching
     val selectedSubjectIds: Set<Long> = emptySet(),
     val selectedSystemIds: Set<Long> = emptySet(),
     val performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
-    val subjectsResource: Resource<List<Subject>> = Resource.Success(emptyList()),
-    val systemsResource: Resource<List<System>> = Resource.Success(emptyList()),
+    
     val previewQuestionCount: Int = 0,
     val currentPerformance: QuestionPerformance? = null,
     val isLoggingEnabled: Boolean = true,
