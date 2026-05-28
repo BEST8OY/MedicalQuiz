@@ -40,12 +40,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.shared.data.FontScalePresets
-import com.medicalquiz.app.shared.viewmodel.QuizViewModel
+import com.medicalquiz.app.shared.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    viewModel: QuizViewModel,
+    viewModel: SettingsViewModel,
     onBack: () -> Unit,
     onResetLogs: () -> Unit,
 ) {

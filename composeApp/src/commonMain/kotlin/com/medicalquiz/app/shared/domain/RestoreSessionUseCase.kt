@@ -1,72 +1,65 @@
 package com.medicalquiz.app.shared.domain
 
+import com.medicalquiz.app.shared.data.ActiveDatabaseHolder
 import com.medicalquiz.app.shared.data.DatabaseManager
+import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.navigation.QuizLaunchSource
 import com.medicalquiz.app.shared.platform.FileSystemHelper
-import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 
-class RestoreSessionUseCase {
+/**
+ * UseCase to handle SQLite database connection setup and active session verification.
+ */
+class RestoreSessionUseCase(
+    private val activeDatabaseHolder: ActiveDatabaseHolder,
+    private val sessionRepository: QuizSessionRepository
+) {
 
     suspend operator fun invoke(
         dbName: String,
         initializedDatabase: String?,
         pendingLaunchSource: QuizLaunchSource?,
         shouldAttemptSessionRestore: Boolean,
-        viewModel: QuizViewModel,
     ): RestoreSessionDecision {
         val resolvedInitializedDatabase = ensureDatabaseInitialized(
             dbName = dbName,
-            initializedDatabase = initializedDatabase,
-            viewModel = viewModel,
+            initializedDatabase = initializedDatabase
         )
 
-        if (pendingLaunchSource == QuizLaunchSource.History) {
-            return when (viewModel.restoreSession()) {
-                QuizViewModel.SessionRestoreResult.Restored -> {
-                    viewModel.loadFilteredQuestionIds()
-                    RestoreSessionDecision(
-                        initializedDatabase = resolvedInitializedDatabase,
-                        pendingLaunchSource = null,
-                        shouldAttemptSessionRestore = shouldAttemptSessionRestore,
-                        shouldPopToDatabaseSelection = false,
-                    )
-                }
+        val activeSession = sessionRepository.restoreSessionAsync()
 
-                QuizViewModel.SessionRestoreResult.DatabaseMismatch,
-                QuizViewModel.SessionRestoreResult.NoSession -> {
-                    viewModel.setLoadingState(false)
-                    RestoreSessionDecision(
-                        initializedDatabase = resolvedInitializedDatabase,
-                        pendingLaunchSource = null,
-                        shouldAttemptSessionRestore = shouldAttemptSessionRestore,
-                        shouldPopToDatabaseSelection = true,
-                    )
-                }
+        if (pendingLaunchSource == QuizLaunchSource.History) {
+            return if (activeSession != null && activeSession.databaseName == dbName.removeSuffix(".db")) {
+                RestoreSessionDecision(
+                    initializedDatabase = resolvedInitializedDatabase,
+                    pendingLaunchSource = null,
+                    shouldAttemptSessionRestore = shouldAttemptSessionRestore,
+                    shouldPopToDatabaseSelection = false,
+                )
+            } else {
+                RestoreSessionDecision(
+                    initializedDatabase = resolvedInitializedDatabase,
+                    pendingLaunchSource = null,
+                    shouldAttemptSessionRestore = shouldAttemptSessionRestore,
+                    shouldPopToDatabaseSelection = true,
+                )
             }
         }
 
-        val currentState = viewModel.state.value
-        if (shouldAttemptSessionRestore && currentState.questionIds.isEmpty() && !currentState.isLoading) {
-            return when (viewModel.restoreSession()) {
-                QuizViewModel.SessionRestoreResult.Restored -> {
-                    viewModel.loadFilteredQuestionIds()
-                    RestoreSessionDecision(
-                        initializedDatabase = resolvedInitializedDatabase,
-                        pendingLaunchSource = pendingLaunchSource,
-                        shouldAttemptSessionRestore = false,
-                        shouldPopToDatabaseSelection = false,
-                    )
-                }
-
-                QuizViewModel.SessionRestoreResult.DatabaseMismatch,
-                QuizViewModel.SessionRestoreResult.NoSession -> {
-                    RestoreSessionDecision(
-                        initializedDatabase = resolvedInitializedDatabase,
-                        pendingLaunchSource = pendingLaunchSource,
-                        shouldAttemptSessionRestore = false,
-                        shouldPopToDatabaseSelection = true,
-                    )
-                }
+        if (shouldAttemptSessionRestore) {
+            return if (activeSession != null && activeSession.databaseName == dbName.removeSuffix(".db")) {
+                RestoreSessionDecision(
+                    initializedDatabase = resolvedInitializedDatabase,
+                    pendingLaunchSource = pendingLaunchSource,
+                    shouldAttemptSessionRestore = false,
+                    shouldPopToDatabaseSelection = false,
+                )
+            } else {
+                RestoreSessionDecision(
+                    initializedDatabase = resolvedInitializedDatabase,
+                    pendingLaunchSource = pendingLaunchSource,
+                    shouldAttemptSessionRestore = false,
+                    shouldPopToDatabaseSelection = true,
+                )
             }
         }
 
@@ -81,17 +74,15 @@ class RestoreSessionUseCase {
     private suspend fun ensureDatabaseInitialized(
         dbName: String,
         initializedDatabase: String?,
-        viewModel: QuizViewModel,
     ): String {
-        val hasDatabaseManager = viewModel.getDatabaseManager() != null
+        val hasDatabaseManager = activeDatabaseHolder.databaseProvider.value != null
         if (initializedDatabase == dbName && hasDatabaseManager) return dbName
 
         val dbPath = FileSystemHelper.getDatabasePath(dbName)
         val databaseManager = DatabaseManager(dbPath)
         databaseManager.init()
 
-        viewModel.setDatabaseManager(databaseManager)
-        viewModel.setDatabaseName(dbName.removeSuffix(".db"))
+        activeDatabaseHolder.setDatabase(dbName.removeSuffix(".db"), databaseManager)
         return dbName
     }
 }
