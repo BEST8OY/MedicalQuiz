@@ -391,13 +391,14 @@ fun App() {
 
                 // Quiz Screen - active quiz takings
                 entry<MedicalQuizRoutes.Quiz> { key ->
-                    val savedStateHandle = createSavedStateHandle().apply {
-                        set("is_logging_enabled", key.isLoggingEnabled)
-                    }
                     val quizVM = viewModel<QuizViewModel>(
                         factory = viewModelFactory {
                             initializer {
-                                container.createQuizViewModel(savedStateHandle)
+                                container.createQuizViewModel(
+                                    createSavedStateHandle().apply {
+                                        set("is_logging_enabled", key.isLoggingEnabled)
+                                    }
+                                )
                             }
                         }
                     )
