@@ -74,7 +74,6 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
             sessionRepository = sessionRepository,
             uiEventDispatcher = uiEventDispatcher,
             appScope = appScope,
-            settingsRepository = settingsRepository
         )
     }
 

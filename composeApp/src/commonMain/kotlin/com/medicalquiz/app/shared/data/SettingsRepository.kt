@@ -22,9 +22,6 @@ import kotlinx.serialization.json.Json
 class SettingsRepository {
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val _isLoggingEnabled = MutableStateFlow(true)
-    val isLoggingEnabled: StateFlow<Boolean> = _isLoggingEnabled.asStateFlow()
-
     private val _showMetadata = MutableStateFlow(true)
     val showMetadata: StateFlow<Boolean> = _showMetadata.asStateFlow()
 
@@ -40,11 +37,6 @@ class SettingsRepository {
         ioScope.launch { refreshSettingsAsync() }
     }
 
-    fun setLoggingEnabled(enabled: Boolean) {
-        _isLoggingEnabled.value = enabled
-        ioScope.launch { saveSettingsAsync() }
-    }
-
     fun setShowMetadata(enabled: Boolean) {
         _showMetadata.value = enabled
         ioScope.launch { saveSettingsAsync() }
@@ -58,7 +50,6 @@ class SettingsRepository {
     suspend fun refreshSettingsAsync(): SettingsSnapshot = withContext(Dispatchers.IO) {
         loadSettingsInternal()
         SettingsSnapshot(
-            isLoggingEnabled = _isLoggingEnabled.value,
             showMetadata = _showMetadata.value,
             fontScalePreference = _fontScalePreference.value,
         )
@@ -73,7 +64,6 @@ class SettingsRepository {
             val content = FileSystemHelper.readText(settingsFile)
             if (content != null) {
                 val payload = json.decodeFromString(SettingsPayload.serializer(), content)
-                _isLoggingEnabled.value = payload.isLoggingEnabled
                 _showMetadata.value = payload.showMetadata
                 _fontScalePreference.value = payload.fontScalePreference
                     ?: payload.fontSize?.toLegacyScalePreference()
@@ -86,7 +76,6 @@ class SettingsRepository {
     private fun saveSettingsInternal() {
         try {
             val payload = SettingsPayload(
-                isLoggingEnabled = _isLoggingEnabled.value,
                 showMetadata = _showMetadata.value,
                 fontScalePreference = _fontScalePreference.value,
             )
@@ -99,7 +88,6 @@ class SettingsRepository {
 
     @Serializable
     private data class SettingsPayload(
-        val isLoggingEnabled: Boolean = true,
         val showMetadata: Boolean = true,
         val fontScalePreference: Float? = null,
         // Legacy setting kept for migration when reading older settings files.
@@ -114,7 +102,6 @@ class SettingsRepository {
     }
 
     data class SettingsSnapshot(
-        val isLoggingEnabled: Boolean,
         val showMetadata: Boolean,
         val fontScalePreference: Float?,
     )

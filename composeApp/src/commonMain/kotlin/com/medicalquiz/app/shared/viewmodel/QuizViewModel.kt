@@ -51,6 +51,7 @@ class QuizViewModel(
         const val KEY_SELECTED_SYSTEM_IDS = "selected_system_ids"
         const val KEY_PERFORMANCE_FILTER = "performance_filter"
         const val KEY_CURRENT_QUESTION_INDEX = "current_question_index"
+        const val KEY_IS_LOGGING_ENABLED = "is_logging_enabled"
     }
 
     enum class SessionRestoreResult {
@@ -106,6 +107,7 @@ class QuizViewModel(
         val savedSystemIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SYSTEM_IDS).orEmpty()
         val savedPerformanceName = savedStateHandle.get<String>(KEY_PERFORMANCE_FILTER)
         val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: 0
+        val savedIsLoggingEnabled = savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED) ?: true
 
         val savedFilter = savedPerformanceName
             ?.let { runCatching { PerformanceFilter.valueOf(it) }.getOrNull() }
@@ -118,6 +120,7 @@ class QuizViewModel(
                 selectedSystemIds = savedSystemIds.toSet(),
                 performanceFilter = savedFilter,
                 currentQuestionIndex = savedQuestionIndex.coerceAtLeast(0),
+                isLoggingEnabled = savedIsLoggingEnabled,
             )
         }
     }
@@ -128,6 +131,7 @@ class QuizViewModel(
         savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = snapshot.selectedSystemIds.toList()
         savedStateHandle[KEY_PERFORMANCE_FILTER] = snapshot.performanceFilter.name
         savedStateHandle[KEY_CURRENT_QUESTION_INDEX] = snapshot.currentQuestionIndex
+        savedStateHandle[KEY_IS_LOGGING_ENABLED] = snapshot.isLoggingEnabled
     }
 
     fun getTextHighlightsRepository(): TextHighlightsRepository = textHighlightsRepository
@@ -156,6 +160,7 @@ class QuizViewModel(
                         selectedSystemIds = result.selectedSystemIds,
                         performanceFilter = result.performanceFilter,
                         currentQuestionIndex = result.currentQuestionIndex,
+                        isLoggingEnabled = result.isLoggingEnabled,
                     )
                 }
                 persistStateSnapshot()
@@ -201,7 +206,7 @@ class QuizViewModel(
                 val result = loadQuestionUseCase(
                     db = db,
                     questionId = questionId,
-                    isLoggingEnabled = settingsRepository.isLoggingEnabled.value,
+                    isLoggingEnabled = state.value.isLoggingEnabled,
                 )
                 _state.update { 
                     it.copy(currentQuestionIndex = index)
@@ -218,7 +223,7 @@ class QuizViewModel(
                 }
             } catch (e: Exception) {
                 Logger.e("QuizViewModel", "Error loading question $questionId", e)
-                emitToast("Failed to load question: ${e.message}")
+                emitSnackbar("Failed to load question: ${e.message}")
             } finally {
                 _state.update { it.copy(isLoading = false) }
                 cacheManager.trimCachesIfNeeded(index)
@@ -265,7 +270,7 @@ class QuizViewModel(
         val selectedAnswerId = currentState.selectedAnswerId
 
         if (selectedAnswerId == null) {
-            emitToast("Please select an answer")
+            emitSnackbar("Please select an answer")
             return
         }
 
@@ -275,8 +280,7 @@ class QuizViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val db = activeDatabaseHolder.databaseProvider.value
             try {
-                val isLoggingEnabled = settingsRepository.isLoggingEnabled.value
-                if (isLoggingEnabled && db != null) {
+                if (state.value.isLoggingEnabled && db != null) {
                     val correctAnswer = currentState.currentAnswers.getOrNull(question.corrAns - 1)
                     val correctAnswerId = correctAnswer?.answerId?.toInt() ?: -1
                     db.logAnswer(
@@ -290,7 +294,7 @@ class QuizViewModel(
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(answerSubmitted = false) }
-                emitToast("Error saving answer: ${e.message}")
+                emitSnackbar("Error saving answer: ${e.message}")
             }
         }
     }
@@ -394,9 +398,9 @@ class QuizViewModel(
             try {
                 db?.clearLogForQuestion(questionId)
                 _state.update { it.copy(currentPerformance = null) }
-                emitToast("Log cleared for current question")
+                emitSnackbar("Log cleared for current question")
             } catch (e: Exception) {
-                emitToast("Failed to clear log: ${e.message}")
+                emitSnackbar("Failed to clear log: ${e.message}")
             }
         }
     }
@@ -415,22 +419,15 @@ class QuizViewModel(
 
     private fun observeSettings(repo: SettingsRepository): Job {
         return viewModelScope.launch {
-            launch {
-                repo.isLoggingEnabled.collect { enabled ->
-                    _state.update { it.copy(isLoggingEnabled = enabled) }
-                }
-            }
-            launch {
-                repo.showMetadata.collect { visible ->
-                    _state.update { it.copy(showMetadata = visible) }
-                }
+            repo.showMetadata.collect { visible ->
+                _state.update { it.copy(showMetadata = visible) }
             }
         }
     }
 
-    private fun emitToast(message: String) {
+    private fun emitSnackbar(message: String) {
         viewModelScope.launch {
-            uiEventDispatcher.emitToast(message)
+            uiEventDispatcher.emitSnackbar(message)
         }
     }
 

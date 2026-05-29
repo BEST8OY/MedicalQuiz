@@ -41,6 +41,7 @@ class QuizSessionRepository {
         performanceFilter: PerformanceFilter,
         currentQuestionIndex: Int,
         appendToHistory: Boolean = true,
+        isLoggingEnabled: Boolean = true,
     ): String {
         if (databaseName.isBlank() || currentQuestionIndex < 0) {
             clearSession()
@@ -63,6 +64,7 @@ class QuizSessionRepository {
             performanceFilter = performanceFilter,
             currentQuestionIndex = currentQuestionIndex,
             updatedAtEpochMillis = now,
+            isLoggingEnabled = isLoggingEnabled,
         )
 
         runCatching { writeSession(session) }
@@ -83,6 +85,7 @@ class QuizSessionRepository {
         performanceFilter: PerformanceFilter,
         currentQuestionIndex: Int,
         appendToHistory: Boolean = true,
+        isLoggingEnabled: Boolean = true,
     ): String = withContext(Dispatchers.IO) {
         val sessionId = saveSession(
             databaseName = databaseName,
@@ -91,6 +94,7 @@ class QuizSessionRepository {
             performanceFilter = performanceFilter,
             currentQuestionIndex = currentQuestionIndex,
             appendToHistory = appendToHistory,
+            isLoggingEnabled = isLoggingEnabled,
         )
         if (appendToHistory) {
             _historyEntries.value = listHistory()
@@ -290,6 +294,7 @@ class QuizSessionRepository {
         val performanceFilter: PerformanceFilter,
         val currentQuestionIndex: Int,
         val updatedAtEpochMillis: Long = 0,
+        val isLoggingEnabled: Boolean = true,
     )
 
     companion object {

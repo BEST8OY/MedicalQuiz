@@ -4,8 +4,13 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -265,7 +270,7 @@ fun App() {
                         container.activeDatabaseHolder.closeDatabase()
                         sessionRepository.clearSessionAsync()
                     }
-                    is UiEvent.ShowToast -> {
+                    is UiEvent.ShowSnackbar -> {
                         snackbarHostState.showSnackbar(event.message)
                     }
                 }
@@ -354,13 +359,21 @@ fun App() {
 
                     val routeHandlers = buildFilterRouteHandlers(
                         viewModel = filterVM,
-                        onHistoryLaunchPrepared = { matchingDatabase ->
+                        onHistoryLaunchPrepared = { matchingDatabase, isLoggingEnabled ->
                             pendingLaunchSource = QuizLaunchSource.History
                             selectedDatabase = matchingDatabase
-                            backStack.navigateTo(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
+                            backStack.navigateTo(
+                                MedicalQuizRoutes.Quiz(
+                                    launchSource = QuizLaunchSource.History,
+                                    isLoggingEnabled = isLoggingEnabled,
+                                )
+                            )
                         },
                         onStartQuiz = dropUnlessResumed {
-                            backStack.add(MedicalQuizRoutes.Quiz())
+                            val isLoggingEnabled = filterVM.state.value.isLoggingEnabled
+                            backStack.add(
+                                MedicalQuizRoutes.Quiz(isLoggingEnabled = isLoggingEnabled)
+                            )
                         },
                     )
 
@@ -378,10 +391,13 @@ fun App() {
 
                 // Quiz Screen - active quiz takings
                 entry<MedicalQuizRoutes.Quiz> { key ->
+                    val savedStateHandle = createSavedStateHandle().apply {
+                        set("is_logging_enabled", key.isLoggingEnabled)
+                    }
                     val quizVM = viewModel<QuizViewModel>(
                         factory = viewModelFactory {
                             initializer {
-                                container.createQuizViewModel(createSavedStateHandle())
+                                container.createQuizViewModel(savedStateHandle)
                             }
                         }
                     )
@@ -430,9 +446,9 @@ fun App() {
                             scope.launch {
                                 try {
                                     db?.clearLogs()
-                                    container.uiEventDispatcher.emitToast("Logs cleared")
+                                    container.uiEventDispatcher.emitSnackbar("Logs cleared")
                                 } catch (e: Exception) {
-                                    container.uiEventDispatcher.emitToast("Failed to clear logs: ${e.message}")
+                                    container.uiEventDispatcher.emitSnackbar("Failed to clear logs: ${e.message}")
                                 }
                             }
                         },
@@ -528,7 +544,18 @@ fun App() {
                 }
             )
 
-            SnackbarHost(hostState = snackbarHostState)
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                snackbar = { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = MaterialTheme.colorScheme.inverseSurface,
+                        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                        shape = MaterialTheme.shapes.medium,
+                    )
+                }
+            )
         }
     }
 }
@@ -547,13 +574,13 @@ private data class FilterRouteHandlers(
 
 private fun buildFilterRouteHandlers(
     viewModel: FilterViewModel,
-    onHistoryLaunchPrepared: (String) -> Unit,
+    onHistoryLaunchPrepared: (String, Boolean) -> Unit,
     onStartQuiz: () -> Unit,
 ): FilterRouteHandlers {
     return FilterRouteHandlers(
         onHistorySelected = { entry ->
             viewModel.restoreHistoryEntry(entry) { matchingDatabase ->
-                onHistoryLaunchPrepared(matchingDatabase)
+                onHistoryLaunchPrepared(matchingDatabase, entry.isLoggingEnabled)
             }
         },
         onDeleteHistoryEntries = { entryIds ->
