@@ -38,7 +38,6 @@ class QuizViewModel(
     private val savedStateHandle: SavedStateHandle,
     dependencies: QuizViewModelDependencies,
     private val activeDatabaseHolder: ActiveDatabaseHolder,
-    private val initialIsLoggingEnabled: Boolean = true,
 ) : ViewModel() {
 
     private val quizSessionBoundaryUseCase = dependencies.quizSessionBoundaryUseCase
@@ -108,8 +107,7 @@ class QuizViewModel(
         val savedSystemIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SYSTEM_IDS).orEmpty()
         val savedPerformanceName = savedStateHandle.get<String>(KEY_PERFORMANCE_FILTER)
         val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: 0
-        val savedIsLoggingEnabled = savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED)
-            ?: initialIsLoggingEnabled
+        val savedIsLoggingEnabled = savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED) ?: true
 
         val savedFilter = savedPerformanceName
             ?.let { runCatching { PerformanceFilter.valueOf(it) }.getOrNull() }

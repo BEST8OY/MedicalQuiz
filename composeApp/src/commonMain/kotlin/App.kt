@@ -395,8 +395,9 @@ fun App() {
                         factory = viewModelFactory {
                             initializer {
                                 container.createQuizViewModel(
-                                    savedStateHandle = createSavedStateHandle(),
-                                    isLoggingEnabled = key.isLoggingEnabled,
+                                    createSavedStateHandle().apply {
+                                        set("is_logging_enabled", key.isLoggingEnabled)
+                                    }
                                 )
                             }
                         }
