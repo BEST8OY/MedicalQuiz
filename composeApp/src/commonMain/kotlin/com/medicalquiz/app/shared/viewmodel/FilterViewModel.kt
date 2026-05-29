@@ -230,16 +230,7 @@ class FilterViewModel(
 
     fun deleteHistoryEntries(entryIds: Set<String>) {
         appScope.launch {
-            runCatching {
-                historyCoordinator.deleteHistoryEntriesWithLogs(
-                    entryIds = entryIds,
-                    allHistoryEntries = historyEntries.value,
-                )
-            }.onFailure {
-                uiEventDispatcher.emitSnackbar(
-                    message = "Failed to delete history logs: ${it.message ?: "unknown error"}"
-                )
-            }
+            historyCoordinator.deleteHistoryEntries(entryIds)
         }
     }
 

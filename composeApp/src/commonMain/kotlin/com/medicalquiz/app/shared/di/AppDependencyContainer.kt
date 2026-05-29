@@ -77,14 +77,18 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
         )
     }
 
-    fun createQuizViewModel(savedStateHandle: SavedStateHandle): QuizViewModel {
+    fun createQuizViewModel(
+        savedStateHandle: SavedStateHandle,
+        isLoggingEnabled: Boolean = true,
+    ): QuizViewModel {
         return QuizViewModel(
             settingsRepository = settingsRepository,
             textHighlightsRepository = textHighlightsRepository,
             cacheManager = cacheManager,
             savedStateHandle = savedStateHandle,
             dependencies = quizViewModelDependencies,
-            activeDatabaseHolder = activeDatabaseHolder
+            activeDatabaseHolder = activeDatabaseHolder,
+            initialIsLoggingEnabled = isLoggingEnabled,
         )
     }
 }
