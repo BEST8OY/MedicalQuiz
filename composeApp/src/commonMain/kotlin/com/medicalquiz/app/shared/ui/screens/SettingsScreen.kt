@@ -53,7 +53,6 @@ import com.medicalquiz.app.shared.viewmodel.SettingsViewModel
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
-    onResetLogs: () -> Unit,
 ) {
     val showMetadata = viewModel.settingsRepository.showMetadata
         .collectAsStateWithLifecycle(true).value

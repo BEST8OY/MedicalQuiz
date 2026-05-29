@@ -442,17 +442,6 @@ fun App() {
                     SettingsScreen(
                         viewModel = settingsVM,
                         onBack = dropUnlessResumed { backStack.navigateBack() },
-                        onResetLogs = {
-                            val db = container.activeDatabaseHolder.databaseProvider.value
-                            scope.launch {
-                                try {
-                                    db?.clearLogs()
-                                    container.uiEventDispatcher.emitSnackbar("Logs cleared")
-                                } catch (e: Exception) {
-                                    container.uiEventDispatcher.emitSnackbar("Failed to clear logs: ${e.message}")
-                                }
-                            }
-                        },
                     )
                 }
 

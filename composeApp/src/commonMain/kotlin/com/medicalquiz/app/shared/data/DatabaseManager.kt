@@ -328,18 +328,6 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         }
     }
 
-    override suspend fun clearLogs() = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            getConnection().prepare("DELETE FROM logs").use { stmt ->
-                stmt.step()
-            }
-            getConnection().prepare("DELETE FROM quiz_sessions").use { stmt ->
-                stmt.step()
-            }
-            Unit
-        }
-    }
-
     override suspend fun clearLogForQuestion(qid: Long) = withContext(Dispatchers.IO) {
         mutex.withLock {
             getConnection().prepare("DELETE FROM logs WHERE qid = ?").use { stmt ->
@@ -348,34 +336,6 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
             }
             Unit
         }
-    }
-
-    override suspend fun clearLogsForSessions(sessionIds: Set<String>): Unit = withContext(Dispatchers.IO) {
-        val validIds = sessionIds
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .distinct()
-        if (validIds.isEmpty()) return@withContext Unit
-
-        mutex.withLock {
-            val placeholders = validIds.joinToString(",") { "?" }
-            val deleteLinksSql = "DELETE FROM session_log_links WHERE session_id IN ($placeholders)"
-            getConnection().prepare(deleteLinksSql).use { stmt ->
-                validIds.forEachIndexed { index, sessionId ->
-                    stmt.bindText(index + 1, sessionId)
-                }
-                stmt.step()
-            }
-
-            val deleteSessionsSql = "DELETE FROM quiz_sessions WHERE session_id IN ($placeholders)"
-            getConnection().prepare(deleteSessionsSql).use { stmt ->
-                validIds.forEachIndexed { index, sessionId ->
-                    stmt.bindText(index + 1, sessionId)
-                }
-                stmt.step()
-            }
-        }
-        Unit
     }
 
     override suspend fun getQuestionPerformance(qid: Long): QuestionPerformance? = withContext(Dispatchers.IO) {
