@@ -54,9 +54,9 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
 ) {
-    val showMetadata = viewModel.settingsRepository.showMetadata
+    val showMetadata = viewModel.showMetadata
         .collectAsStateWithLifecycle(true).value
-    val fontScalePreference = viewModel.settingsRepository.fontScalePreference
+    val fontScalePreference = viewModel.fontScalePreference
         .collectAsStateWithLifecycle(null).value
 
     val useSystemSize = fontScalePreference == null
@@ -131,7 +131,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Switch(
                             checked = showMetadata,
-                            onCheckedChange = { viewModel.settingsRepository.setShowMetadata(it) }
+                            onCheckedChange = { viewModel.setShowMetadata(it) }
                         )
                     }
                 }
@@ -181,9 +181,9 @@ fun SettingsScreen(
                             checked = useSystemSize,
                             onCheckedChange = { checked ->
                                 if (checked) {
-                                    viewModel.settingsRepository.setFontScalePreference(null)
+                                    viewModel.setFontScalePreference(null)
                                 } else {
-                                    viewModel.settingsRepository.setFontScalePreference(FontScalePresets.DEFAULT)
+                                    viewModel.setFontScalePreference(FontScalePresets.DEFAULT)
                                 }
                             }
                         )
@@ -225,7 +225,7 @@ fun SettingsScreen(
                                     value = sliderIndex,
                                     onValueChange = { indexFloat ->
                                         val newScale = indexToScale(indexFloat.toInt())
-                                        viewModel.settingsRepository.setFontScalePreference(newScale)
+                                        viewModel.setFontScalePreference(newScale)
                                     },
                                     valueRange = 0f..3f,
                                     steps = 2,

@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
@@ -64,6 +65,7 @@ import com.medicalquiz.app.shared.utils.MediaTypeUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -404,10 +406,12 @@ fun App() {
                     )
 
                     LaunchedEffect(quizVM) {
+                        // Wait until the active database name is propagated to the view model
+                        quizVM.state.first { it.databaseName.isNotEmpty() }
                         if (quizVM.state.value.questionIds.isEmpty()) {
                             val restore = shouldAttemptSessionRestore || key.launchedFromHistory
+                            quizVM.restoreSession()
                             if (restore) {
-                                quizVM.restoreSession()
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = false)
                             } else {
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = true)
@@ -536,7 +540,9 @@ fun App() {
 
             SnackbarHost(
                 hostState = snackbarHostState,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 snackbar = { data ->
                     Snackbar(
                         snackbarData = data,
