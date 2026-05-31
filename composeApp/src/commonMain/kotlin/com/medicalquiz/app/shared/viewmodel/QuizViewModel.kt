@@ -92,10 +92,6 @@ class QuizViewModel(
             activeDatabaseHolder.databaseName.collect { dbName ->
                 if (dbName.isNotEmpty()) {
                     _state.update { it.copy(databaseName = dbName) }
-                    textHighlightsRepository.setCurrentDatabase(dbName)
-                    state.value.currentQuestion?.id?.let { qid ->
-                        textHighlightsRepository.loadHighlightsForQuestion(qid)
-                    }
                 }
             }
         }
@@ -135,16 +131,6 @@ class QuizViewModel(
     }
 
     fun getTextHighlightsRepository(): TextHighlightsRepository = textHighlightsRepository
-
-    fun rebindTextHighlightsRepository(repository: TextHighlightsRepository) {
-        val currentState = state.value
-        if (currentState.databaseName.isNotEmpty()) {
-            textHighlightsRepository.setCurrentDatabase(currentState.databaseName)
-        }
-        currentState.currentQuestion?.id?.let { questionId ->
-            textHighlightsRepository.loadHighlightsForQuestion(questionId)
-        }
-    }
 
     suspend fun restoreSession(): SessionRestoreResult {
         return when (val result = quizSessionBoundaryUseCase.restoreSessionForDatabase(state.value.databaseName)) {
@@ -219,7 +205,10 @@ class QuizViewModel(
                 }
                 persistStateSnapshot()
                 if (result.question != null) {
-                    textHighlightsRepository.loadHighlightsForQuestion(result.question.id)
+                    textHighlightsRepository.loadHighlightsForQuestion(
+                        dbName = state.value.databaseName,
+                        questionId = result.question.id
+                    )
                 }
             } catch (e: Exception) {
                 Logger.e("QuizViewModel", "Error loading question $questionId", e)
