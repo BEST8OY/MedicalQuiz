@@ -17,7 +17,7 @@ data class FilterUiState(
     val systemsResource: Resource<List<System>> = Resource.Success(emptyList()),
     val previewQuestionCount: Int = 0,
     val isLoading: Boolean = false,
-    val isLoggingEnabled: Boolean = true
+    val isLoggingEnabled: Boolean = false
 ) {
     companion object {
         val EMPTY = FilterUiState()
