@@ -23,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -44,8 +45,13 @@ import com.medicalquiz.app.shared.data.MediaDescription
 import com.medicalquiz.app.shared.data.MediaDescriptionRepository
 import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.di.AppDependencyContainer
+import com.medicalquiz.app.shared.domain.AppIntent
 import com.medicalquiz.app.shared.navigation.MedicalQuizRoutes
 import com.medicalquiz.app.shared.navigation.QuizLaunchSource
+import com.medicalquiz.app.shared.navigation.AppNavigator
+import com.medicalquiz.app.shared.navigation.NavigationSnapshot
+import com.medicalquiz.app.shared.orchestration.AppWorkflowState
+import com.medicalquiz.app.shared.orchestration.RequestedFilterPane
 import com.medicalquiz.app.shared.ui.theme.AppTheme
 import com.medicalquiz.app.shared.ui.screens.DatabaseSelectionScreen
 import com.medicalquiz.app.shared.ui.screens.FilterHubScreen
@@ -55,82 +61,40 @@ import com.medicalquiz.app.shared.ui.screens.SettingsScreen
 import com.medicalquiz.app.shared.ui.screens.media.MediaViewerScreen
 import com.medicalquiz.app.shared.ui.screens.quiz.QuizRoot
 import com.medicalquiz.app.shared.ui.media.MediaHandler
-import com.medicalquiz.app.shared.ui.media.MediaType
 import com.medicalquiz.app.shared.viewmodel.DatabaseSelectionViewModel
 import com.medicalquiz.app.shared.viewmodel.FilterViewModel
 import com.medicalquiz.app.shared.viewmodel.QuizViewModel
 import com.medicalquiz.app.shared.viewmodel.SettingsViewModel
-import com.medicalquiz.app.shared.viewmodel.UiEvent
-import com.medicalquiz.app.shared.utils.MediaTypeUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private val START_DESTINATION: MedicalQuizRoutes = MedicalQuizRoutes.DatabaseSelection
 
-private fun MutableList<MedicalQuizRoutes>.navigateTo(route: MedicalQuizRoutes) {
-    if (lastOrNull() != route) {
-        add(route)
-    }
-}
-
-private fun MutableList<MedicalQuizRoutes>.navigateBack(): Boolean {
-    if (size <= 1) return false
-    removeLastOrNull()
-    return true
-}
-
-private fun MutableList<MedicalQuizRoutes>.popToDatabaseSelection() {
-    while (size > 1) {
-        removeLastOrNull()
-    }
-}
-
-private suspend fun navigateToMediaViewer(
-    files: List<String>,
-    startIndex: Int,
-    backStack: MutableList<MedicalQuizRoutes>,
-    mediaDescriptionsFlow: MutableStateFlow<Map<String, MediaDescription>>,
-    localContentRepository: LocalContentRepository,
-) {
-    val availableFiles = mutableListOf<String>()
-    for (fileName in files) {
-        val isPlayableType = when (MediaTypeUtils.fromFileName(fileName)) {
-            MediaType.IMAGE,
-            MediaType.VIDEO,
-            MediaType.AUDIO -> true
-            else -> false
-        }
-        if (!isPlayableType) continue
-
-        if (localContentRepository.mediaFileExists(fileName)) {
-            availableFiles.add(fileName)
-        }
-    }
-
-    if (availableFiles.isNotEmpty()) {
-        val originalFile = files.getOrNull(startIndex)
-        val newIndex = if (originalFile != null) {
-            availableFiles.indexOf(originalFile).coerceAtLeast(0)
-        } else 0
-        val safeIndex = newIndex.coerceIn(0, availableFiles.lastIndex)
-
-        val mediaDescriptions = withContext(Dispatchers.IO) {
-            MediaDescriptionRepository.load()
-        }
-        mediaDescriptionsFlow.value = mediaDescriptions
-
-        backStack.add(
-            MedicalQuizRoutes.MediaViewer(
-                files = availableFiles,
-                startIndex = safeIndex,
-            )
+private val AppWorkflowStateSaver = Saver<AppWorkflowState, List<Any?>>(
+    save = { state ->
+        listOf(
+            state.selectedDatabase,
+            state.initializedDatabase,
+            state.pendingLaunchSource?.name,
+            state.activeQuizLaunchSource.name,
+            state.requestedFilterPane?.name,
+            state.shouldAttemptSessionRestore
+        )
+    },
+    restore = { list ->
+        AppWorkflowState(
+            selectedDatabase = list[0] as String?,
+            initializedDatabase = list[1] as String?,
+            pendingLaunchSource = (list[2] as String?)?.let { QuizLaunchSource.valueOf(it) },
+            activeQuizLaunchSource = QuizLaunchSource.valueOf(list[3] as String),
+            requestedFilterPane = (list[4] as String?)?.let { RequestedFilterPane.valueOf(it) },
+            shouldAttemptSessionRestore = list[5] as Boolean
         )
     }
-}
+)
 
 @Composable
 fun App() {
@@ -161,17 +125,18 @@ fun App() {
 
         val navStateRepo = container.navStateRepo
         val navPersistenceCoordinator = container.navPersistenceCoordinator
-        val startupCoordinator = container.startupCoordinator
+        val workflowCoordinator = container.workflowCoordinator
+        val mediaNavCoordinator = container.mediaNavigationCoordinator
         val localContentRepository = container.localContentRepository
         val sessionRepository = container.sessionRepository
 
         val navRestoreBootstrap by produceState(
-            initialValue = NavigationRestoreBootstrap(loaded = false, state = null),
+            initialValue = NavigationRestoreBootstrap(loaded = false, snapshot = null),
             key1 = navStateRepo,
         ) {
             value = NavigationRestoreBootstrap(
                 loaded = true,
-                state = navStateRepo.restoreNavigationStateAsync(),
+                snapshot = navStateRepo.restoreNavigationStateAsync(),
             )
         }
 
@@ -179,48 +144,50 @@ fun App() {
             return@AppTheme
         }
 
-        val (savedBackStack, savedDbName) = navRestoreBootstrap.state ?: (null to null)
+        val snapshot = navRestoreBootstrap.snapshot
+        val savedBackStack = snapshot?.routes
+        val savedDbName = snapshot?.selectedDatabase
+        val savedQuizLaunchSource = snapshot?.quizLaunchSource
 
         val backStack: SnapshotStateList<MedicalQuizRoutes> = remember {
             savedBackStack?.toMutableStateList() ?: mutableStateListOf(START_DESTINATION)
         }
+        val navigator = remember(backStack) { AppNavigator(backStack) }
 
-        // Database state - restore from saved state or use null for fresh start
-        var selectedDatabase by rememberSaveable { mutableStateOf<String?>(savedDbName) }
-        var initializedDatabase by rememberSaveable { mutableStateOf<String?>(null) }
-        var pendingLaunchSource by rememberSaveable { mutableStateOf<QuizLaunchSource?>(null) }
-        var requestedFilterPane by rememberSaveable { mutableStateOf<FilterPane?>(null) }
-        var shouldAttemptSessionRestore by rememberSaveable {
-            mutableStateOf(savedBackStack?.lastOrNull() is MedicalQuizRoutes.Quiz)
+        var workflowState by rememberSaveable(stateSaver = AppWorkflowStateSaver) {
+            mutableStateOf(
+                workflowCoordinator.initialState(
+                    savedBackStack = savedBackStack,
+                    savedDatabaseName = savedDbName,
+                    savedQuizLaunchSource = savedQuizLaunchSource ?: QuizLaunchSource.Standard
+                )
+            )
         }
 
         // Handle database initialization when selected
-        LaunchedEffect(selectedDatabase, initializedDatabase, pendingLaunchSource, shouldAttemptSessionRestore) {
-            val decision = startupCoordinator.handleDatabaseSelection(
-                selectedDatabase = selectedDatabase,
-                initializedDatabase = initializedDatabase,
-                pendingLaunchSource = pendingLaunchSource,
-                shouldAttemptSessionRestore = shouldAttemptSessionRestore
-            )
-
+        LaunchedEffect(
+            workflowState.selectedDatabase,
+            workflowState.initializedDatabase,
+            workflowState.pendingLaunchSource,
+            workflowState.shouldAttemptSessionRestore
+        ) {
+            val decision = workflowCoordinator.handleDatabaseSelection(workflowState)
             if (decision != null) {
-                initializedDatabase = decision.initializedDatabase
-                pendingLaunchSource = decision.pendingLaunchSource
-                shouldAttemptSessionRestore = decision.shouldAttemptSessionRestore
-
+                workflowState = workflowCoordinator.applyDatabaseSelectionDecision(workflowState, decision)
                 if (decision.shouldPopToDatabaseSelection) {
-                    backStack.popToDatabaseSelection()
+                    navigator.popToDatabaseSelection()
                 }
             }
         }
 
         // Save navigation state to file whenever back stack changes
         LaunchedEffect(Unit) {
-            snapshotFlow { backStack.toList() }
-                .collect { currentStack ->
+            snapshotFlow { Pair(backStack.toList(), workflowState) }
+                .collect { (currentStack, wState) ->
                     navPersistenceCoordinator.onBackStackChanged(
                         backStack = currentStack,
-                        selectedDatabase = selectedDatabase,
+                        selectedDatabase = wState.selectedDatabase,
+                        quizLaunchSource = wState.activeQuizLaunchSource,
                     )
                 }
         }
@@ -229,71 +196,58 @@ fun App() {
         val mediaDescriptionsFlow = remember { MutableStateFlow<Map<String, MediaDescription>>(emptyMap()) }
         val snackbarHostState = remember { SnackbarHostState() }
 
+        val navigateToMediaViewer: (List<String>, Int) -> Unit = { files, index ->
+            scope.launch {
+                val request = mediaNavCoordinator.resolveMediaViewerRequest(files, index)
+                if (request != null) {
+                    mediaDescriptionsFlow.value = request.mediaDescriptions
+                    navigator.navigateTo(request.route)
+                }
+            }
+        }
+
         // Media handler with navigation callbacks
         val mediaHandler = remember {
             MediaHandler(
                 onOpenMedia = { files, index ->
-                    scope.launch {
-                        navigateToMediaViewer(
-                            files = files,
-                            startIndex = index,
-                            backStack = backStack,
-                            mediaDescriptionsFlow = mediaDescriptionsFlow,
-                            localContentRepository = localContentRepository,
-                        )
-                    }
+                    navigateToMediaViewer(files, index)
                 },
                 onOpenHtml = { fileName ->
-                    backStack.add(MedicalQuizRoutes.HtmlViewer(fileName = fileName))
+                    navigator.navigateTo(MedicalQuizRoutes.HtmlViewer(fileName = fileName))
                 }
             )
         }
 
-        // Handle navigation events from container's dispatcher
-        LaunchedEffect(container.uiEventDispatcher) {
-            container.uiEventDispatcher.events.collect { event ->
-                when (event) {
-                    is UiEvent.OpenHtmlFile -> {
-                        backStack.add(MedicalQuizRoutes.HtmlViewer(fileName = event.fileName))
+        // Handle navigation and snackbar events from coordinators/dispatchers
+        LaunchedEffect(container.appIntentDispatcher, container.snackbarDispatcher) {
+            launch {
+                container.appIntentDispatcher.intents.collect { intent ->
+                    when (intent) {
+                        is AppIntent.OpenHtmlFile -> {
+                            navigator.navigateTo(MedicalQuizRoutes.HtmlViewer(fileName = intent.fileName))
+                        }
+                        is AppIntent.OpenMedia -> {
+                            navigateToMediaViewer(intent.urls, intent.startIndex)
+                        }
+                        is AppIntent.NavigateToDatabaseSelection -> {
+                            navigator.popToDatabaseSelection()
+                            workflowState = workflowCoordinator.databaseSelectionRequested(workflowState)
+                            container.activeDatabaseHolder.closeDatabase()
+                            sessionRepository.clearSessionAsync()
+                        }
                     }
-                    is UiEvent.OpenMedia -> {
-                        navigateToMediaViewer(
-                            files = event.urls,
-                            startIndex = event.startIndex,
-                            backStack = backStack,
-                            mediaDescriptionsFlow = mediaDescriptionsFlow,
-                            localContentRepository = localContentRepository,
-                        )
-                    }
-                    is UiEvent.NavigateToDatabaseSelection -> {
-                        backStack.popToDatabaseSelection()
-                        selectedDatabase = null
-                        initializedDatabase = null
-                        container.activeDatabaseHolder.closeDatabase()
-                        sessionRepository.clearSessionAsync()
-                    }
-                    is UiEvent.ShowSnackbar -> {
-                        snackbarHostState.showSnackbar(event.message)
-                    }
+                }
+            }
+            launch {
+                container.snackbarDispatcher.messages.collect { message ->
+                    snackbarHostState.showSnackbar(message)
                 }
             }
         }
 
-        val returnQuizToFilter: (Boolean) -> Unit = { launchedFromHistory ->
-            pendingLaunchSource = null
-            shouldAttemptSessionRestore = false
-            requestedFilterPane = if (launchedFromHistory) {
-                FilterPane.History
-            } else {
-                FilterPane.Filters
-            }
-            if (backStack.lastOrNull() is MedicalQuizRoutes.Quiz) {
-                backStack.navigateBack()
-            }
-            if (backStack.lastOrNull() !is MedicalQuizRoutes.Filter) {
-                backStack.popToDatabaseSelection()
-                backStack.add(MedicalQuizRoutes.Filter)
-            }
+        val returnQuizToFilter: () -> Unit = {
+            workflowState = workflowCoordinator.quizReturnedToFilter(workflowState)
+            navigator.returnQuizToFilter()
         }
 
         val entryProvider = remember(
@@ -320,17 +274,14 @@ fun App() {
                         isLoading = isLoading,
                         onRefreshDatabases = { dbVM.refreshDatabases() },
                         onDatabaseSelected = { dbName ->
-                            initializedDatabase = null
-                            pendingLaunchSource = null
-                            shouldAttemptSessionRestore = false
-                            selectedDatabase = dbName
+                            workflowState = workflowCoordinator.databaseSelected(workflowState, dbName)
                             scope.launch {
                                 sessionRepository.clearSessionAsync()
                             }
-                            backStack.add(MedicalQuizRoutes.Filter)
+                            navigator.navigateTo(MedicalQuizRoutes.Filter)
                         },
                         onOpenSettings = {
-                            backStack.navigateTo(MedicalQuizRoutes.Settings)
+                            navigator.navigateTo(MedicalQuizRoutes.Settings)
                         },
                     )
                 }
@@ -345,10 +296,13 @@ fun App() {
                         }
                     )
                     var selectedPane by rememberSaveable { mutableStateOf(FilterPane.Filters) }
-                    LaunchedEffect(requestedFilterPane) {
-                        requestedFilterPane?.let { pane ->
-                            selectedPane = pane
-                            requestedFilterPane = null
+                    LaunchedEffect(workflowState.requestedFilterPane) {
+                        workflowState.requestedFilterPane?.let { pane ->
+                            selectedPane = when (pane) {
+                                RequestedFilterPane.Filters -> FilterPane.Filters
+                                RequestedFilterPane.History -> FilterPane.History
+                            }
+                            workflowState = workflowCoordinator.filterPaneRequestConsumed(workflowState)
                         }
                     }
 
@@ -361,21 +315,13 @@ fun App() {
 
                     val routeHandlers = buildFilterRouteHandlers(
                         viewModel = filterVM,
-                        onHistoryLaunchPrepared = { matchingDatabase, isLoggingEnabled ->
-                            pendingLaunchSource = QuizLaunchSource.History
-                            selectedDatabase = matchingDatabase
-                            backStack.navigateTo(
-                                MedicalQuizRoutes.Quiz(
-                                    launchSource = QuizLaunchSource.History,
-                                    isLoggingEnabled = isLoggingEnabled,
-                                )
-                            )
+                        onHistoryLaunchPrepared = { matchingDatabase ->
+                            workflowState = workflowCoordinator.historyLaunchPrepared(workflowState, matchingDatabase)
+                            navigator.navigateTo(MedicalQuizRoutes.Quiz)
                         },
                         onStartQuiz = dropUnlessResumed {
-                            val isLoggingEnabled = filterVM.state.value.isLoggingEnabled
-                            backStack.add(
-                                MedicalQuizRoutes.Quiz(isLoggingEnabled = isLoggingEnabled)
-                            )
+                            workflowState = workflowCoordinator.standardQuizLaunchPrepared(workflowState)
+                            navigator.navigateTo(MedicalQuizRoutes.Quiz)
                         },
                     )
 
@@ -392,14 +338,12 @@ fun App() {
                 }
 
                 // Quiz Screen - active quiz takings
-                entry<MedicalQuizRoutes.Quiz> { key ->
+                entry<MedicalQuizRoutes.Quiz> {
                     val quizVM = viewModel<QuizViewModel>(
                         factory = viewModelFactory {
                             initializer {
                                 container.createQuizViewModel(
-                                    createSavedStateHandle().apply {
-                                        set("is_logging_enabled", key.isLoggingEnabled)
-                                    }
+                                    createSavedStateHandle()
                                 )
                             }
                         }
@@ -409,14 +353,14 @@ fun App() {
                         // Wait until the active database name is propagated to the view model
                         quizVM.state.first { it.databaseName.isNotEmpty() }
                         if (quizVM.state.value.questionIds.isEmpty()) {
-                            val restore = shouldAttemptSessionRestore || key.launchedFromHistory
+                            val restore = workflowState.shouldAttemptSessionRestore || workflowState.activeQuizLaunchSource == QuizLaunchSource.History
                             quizVM.restoreSession()
                             if (restore) {
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = false)
                             } else {
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = true)
                             }
-                            shouldAttemptSessionRestore = false
+                            workflowState = workflowCoordinator.quizRestoreConsumed(workflowState)
                         }
                     }
 
@@ -425,10 +369,10 @@ fun App() {
                         mediaHandler = mediaHandler,
                         onNavigateBack = dropUnlessResumed {
                             quizVM.clearSession()
-                            returnQuizToFilter(key.launchedFromHistory)
+                            returnQuizToFilter()
                         },
                         onOpenSettingsScreen = dropUnlessResumed {
-                            backStack.navigateTo(MedicalQuizRoutes.Settings)
+                            navigator.navigateTo(MedicalQuizRoutes.Settings)
                         }
                     )
                 }
@@ -445,7 +389,7 @@ fun App() {
 
                     SettingsScreen(
                         viewModel = settingsVM,
-                        onBack = dropUnlessResumed { backStack.navigateBack() },
+                        onBack = dropUnlessResumed { navigator.navigateBack() },
                     )
                 }
 
@@ -473,7 +417,7 @@ fun App() {
                             }
                         },
                         onBack = dropUnlessResumed {
-                            backStack.navigateBack()
+                            navigator.navigateBack()
                             scope.launch {
                                 mediaDescriptionsFlow.value = emptyMap()
                             }
@@ -496,7 +440,7 @@ fun App() {
                         fileExists = htmlDocument?.fileExists ?: true,
                         isLoading = htmlDocument == null,
                         onBack = dropUnlessResumed {
-                            backStack.navigateBack()
+                            navigator.navigateBack()
                         },
                         onLinkClick = { url ->
                             if (!mediaHandler.handleMediaLink(url)) {
@@ -512,11 +456,10 @@ fun App() {
             NavDisplay(
                 backStack = backStack,
                 onBack = {
-                    val quizRoute = backStack.lastOrNull() as? MedicalQuizRoutes.Quiz
-                    if (quizRoute != null) {
-                        returnQuizToFilter(quizRoute.launchedFromHistory)
+                    if (navigator.currentRoute is MedicalQuizRoutes.Quiz) {
+                        returnQuizToFilter()
                     } else {
-                        backStack.navigateBack()
+                        navigator.navigateBack()
                     }
                 },
                 entryProvider = entryProvider,
@@ -558,7 +501,7 @@ fun App() {
 
 private data class NavigationRestoreBootstrap(
     val loaded: Boolean,
-    val state: Pair<List<MedicalQuizRoutes>, String?>?,
+    val snapshot: NavigationSnapshot?,
 )
 
 private data class FilterRouteHandlers(
@@ -570,13 +513,13 @@ private data class FilterRouteHandlers(
 
 private fun buildFilterRouteHandlers(
     viewModel: FilterViewModel,
-    onHistoryLaunchPrepared: (String, Boolean) -> Unit,
+    onHistoryLaunchPrepared: (String) -> Unit,
     onStartQuiz: () -> Unit,
 ): FilterRouteHandlers {
     return FilterRouteHandlers(
         onHistorySelected = { entry ->
             viewModel.restoreHistoryEntry(entry) { matchingDatabase ->
-                onHistoryLaunchPrepared(matchingDatabase, entry.isLoggingEnabled)
+                onHistoryLaunchPrepared(matchingDatabase)
             }
         },
         onDeleteHistoryEntries = { entryIds ->

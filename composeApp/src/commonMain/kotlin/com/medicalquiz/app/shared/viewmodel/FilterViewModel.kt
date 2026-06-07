@@ -7,7 +7,7 @@ import com.medicalquiz.app.shared.data.QuizSessionRepository
 
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.domain.ApplyFiltersUseCase
-import com.medicalquiz.app.shared.domain.UiEventDispatcher
+import com.medicalquiz.app.shared.domain.SnackbarSink
 import com.medicalquiz.app.shared.orchestration.AppHistoryCoordinator
 import com.medicalquiz.app.shared.ui.state.FilterUiState
 import com.medicalquiz.app.shared.utils.Resource
@@ -30,7 +30,7 @@ class FilterViewModel(
     private val historyCoordinator: AppHistoryCoordinator,
     private val applyFiltersUseCase: ApplyFiltersUseCase,
     private val sessionRepository: QuizSessionRepository,
-    private val uiEventDispatcher: UiEventDispatcher,
+    private val snackbarSink: SnackbarSink,
     private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -260,7 +260,7 @@ class FilterViewModel(
 
     private fun emitSnackbar(message: String) {
         viewModelScope.launch {
-            uiEventDispatcher.emitSnackbar(message)
+            snackbarSink.emitSnackbar(message)
         }
     }
 }
