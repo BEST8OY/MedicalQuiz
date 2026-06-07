@@ -9,8 +9,8 @@ class UiEventDispatcher {
     private val eventFlow = MutableSharedFlow<UiEvent>(extraBufferCapacity = 4)
     val events: SharedFlow<UiEvent> = eventFlow.asSharedFlow()
 
-    suspend fun emitToast(message: String) {
-        eventFlow.emit(UiEvent.ShowToast(message))
+    suspend fun emitSnackbar(message: String) {
+        eventFlow.emit(UiEvent.ShowSnackbar(message))
     }
 
     suspend fun emitOpenMedia(urls: List<String>, startIndex: Int) {

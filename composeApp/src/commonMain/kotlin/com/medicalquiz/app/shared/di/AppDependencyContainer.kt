@@ -73,7 +73,7 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
             applyFiltersUseCase = applyFiltersUseCase,
             sessionRepository = sessionRepository,
             uiEventDispatcher = uiEventDispatcher,
-            appScope = appScope
+            appScope = appScope,
         )
     }
 

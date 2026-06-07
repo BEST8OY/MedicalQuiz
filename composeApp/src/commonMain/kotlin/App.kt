@@ -4,8 +4,14 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -59,6 +65,7 @@ import com.medicalquiz.app.shared.utils.MediaTypeUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -265,7 +272,7 @@ fun App() {
                         container.activeDatabaseHolder.closeDatabase()
                         sessionRepository.clearSessionAsync()
                     }
-                    is UiEvent.ShowToast -> {
+                    is UiEvent.ShowSnackbar -> {
                         snackbarHostState.showSnackbar(event.message)
                     }
                 }
@@ -354,13 +361,21 @@ fun App() {
 
                     val routeHandlers = buildFilterRouteHandlers(
                         viewModel = filterVM,
-                        onHistoryLaunchPrepared = { matchingDatabase ->
+                        onHistoryLaunchPrepared = { matchingDatabase, isLoggingEnabled ->
                             pendingLaunchSource = QuizLaunchSource.History
                             selectedDatabase = matchingDatabase
-                            backStack.navigateTo(MedicalQuizRoutes.Quiz(launchSource = QuizLaunchSource.History))
+                            backStack.navigateTo(
+                                MedicalQuizRoutes.Quiz(
+                                    launchSource = QuizLaunchSource.History,
+                                    isLoggingEnabled = isLoggingEnabled,
+                                )
+                            )
                         },
                         onStartQuiz = dropUnlessResumed {
-                            backStack.add(MedicalQuizRoutes.Quiz())
+                            val isLoggingEnabled = filterVM.state.value.isLoggingEnabled
+                            backStack.add(
+                                MedicalQuizRoutes.Quiz(isLoggingEnabled = isLoggingEnabled)
+                            )
                         },
                     )
 
@@ -381,16 +396,22 @@ fun App() {
                     val quizVM = viewModel<QuizViewModel>(
                         factory = viewModelFactory {
                             initializer {
-                                container.createQuizViewModel(createSavedStateHandle())
+                                container.createQuizViewModel(
+                                    createSavedStateHandle().apply {
+                                        set("is_logging_enabled", key.isLoggingEnabled)
+                                    }
+                                )
                             }
                         }
                     )
 
                     LaunchedEffect(quizVM) {
+                        // Wait until the active database name is propagated to the view model
+                        quizVM.state.first { it.databaseName.isNotEmpty() }
                         if (quizVM.state.value.questionIds.isEmpty()) {
                             val restore = shouldAttemptSessionRestore || key.launchedFromHistory
+                            quizVM.restoreSession()
                             if (restore) {
-                                quizVM.restoreSession()
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = false)
                             } else {
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = true)
@@ -425,17 +446,6 @@ fun App() {
                     SettingsScreen(
                         viewModel = settingsVM,
                         onBack = dropUnlessResumed { backStack.navigateBack() },
-                        onResetLogs = {
-                            val db = container.activeDatabaseHolder.databaseProvider.value
-                            scope.launch {
-                                try {
-                                    db?.clearLogs()
-                                    container.uiEventDispatcher.emitToast("Logs cleared")
-                                } catch (e: Exception) {
-                                    container.uiEventDispatcher.emitToast("Failed to clear logs: ${e.message}")
-                                }
-                            }
-                        },
                     )
                 }
 
@@ -528,7 +538,20 @@ fun App() {
                 }
             )
 
-            SnackbarHost(hostState = snackbarHostState)
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                snackbar = { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = MaterialTheme.colorScheme.inverseSurface,
+                        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                        shape = MaterialTheme.shapes.medium,
+                    )
+                }
+            )
         }
     }
 }
@@ -547,13 +570,13 @@ private data class FilterRouteHandlers(
 
 private fun buildFilterRouteHandlers(
     viewModel: FilterViewModel,
-    onHistoryLaunchPrepared: (String) -> Unit,
+    onHistoryLaunchPrepared: (String, Boolean) -> Unit,
     onStartQuiz: () -> Unit,
 ): FilterRouteHandlers {
     return FilterRouteHandlers(
         onHistorySelected = { entry ->
             viewModel.restoreHistoryEntry(entry) { matchingDatabase ->
-                onHistoryLaunchPrepared(matchingDatabase)
+                onHistoryLaunchPrepared(matchingDatabase, entry.isLoggingEnabled)
             }
         },
         onDeleteHistoryEntries = { entryIds ->

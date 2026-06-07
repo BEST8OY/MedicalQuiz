@@ -22,6 +22,7 @@ sealed class MedicalQuizRoutes : NavKey {
     @Serializable
     data class Quiz(
         val launchSource: QuizLaunchSource = QuizLaunchSource.Standard,
+        val isLoggingEnabled: Boolean = true,
     ) : MedicalQuizRoutes() {
         val launchedFromHistory: Boolean
             get() = launchSource == QuizLaunchSource.History

@@ -27,8 +27,7 @@ class UserDataManager {
     suspend fun init() = withContext(Dispatchers.IO) {
         mutex.withLock {
             try {
-                connection = driver.open(dbPath)
-                createTables()
+                getConnection()
             } catch (e: Exception) {
                 Logger.e("UserDataManager", "Error initializing user data database", e)
                 throw e
@@ -36,9 +35,7 @@ class UserDataManager {
         }
     }
 
-    private fun createTables() {
-        val conn = getConnection()
-        
+    private fun createTables(conn: SQLiteConnection) {
         // Create text_highlights table (text range highlights within questions)
         conn.prepare("""
             CREATE TABLE IF NOT EXISTS text_highlights (
@@ -62,7 +59,17 @@ class UserDataManager {
     }
 
     private fun getConnection(): SQLiteConnection {
-        return connection ?: throw IllegalStateException("User data database not initialized")
+        connection?.let { return it }
+
+        val newConnection = driver.open(dbPath)
+        return try {
+            createTables(newConnection)
+            connection = newConnection
+            newConnection
+        } catch (e: Exception) {
+            runCatching { newConnection.close() }
+            throw e
+        }
     }
 
     suspend fun close() = withContext(Dispatchers.IO) {

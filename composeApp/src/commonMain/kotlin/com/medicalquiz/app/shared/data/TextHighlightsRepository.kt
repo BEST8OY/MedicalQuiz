@@ -44,25 +44,12 @@ class TextHighlightsRepository(
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     /**
-     * Set the current database name.
-     */
-    fun setCurrentDatabase(dbName: String) {
-        if (dbName == currentDbName) return
-        currentDbName = dbName
-        currentQuestionId = -1
-        clearCachedHighlights()
-        invalidatePendingLoads()
-        _isLoading.value = false
-    }
-
-    /**
      * Load highlights for a specific question.
      * Call this when navigating to a new question.
      */
-    fun loadHighlightsForQuestion(questionId: Long) {
-        if (currentDbName.isEmpty()) return
-        if (questionId == currentQuestionId) return
-
+    fun loadHighlightsForQuestion(dbName: String, questionId: Long) {
+        if (dbName.isEmpty()) return
+        currentDbName = dbName
         currentQuestionId = questionId
         val context = currentContextSnapshot() ?: return
         val requestId = ++activeLoadRequestId
