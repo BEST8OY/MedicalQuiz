@@ -45,6 +45,8 @@ internal fun FilterHubScreen(
                 systemCount = state.selectedSystemIds.size,
                 performanceLabel = performanceLabel,
                 previewCount = state.previewQuestionCount,
+                loggingEnabled = state.isLoggingEnabled,
+                onLoggingToggle = { viewModel.setLoggingEnabled(it) },
                 bottomContentPadding = 112.dp,
                 onSelectSubjects = {
                     showSubjectDialog = true

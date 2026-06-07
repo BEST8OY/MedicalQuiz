@@ -1,45 +1,51 @@
 package com.medicalquiz.app.shared.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.outlined.FormatSize
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medicalquiz.app.shared.data.FontScalePresets
+import com.medicalquiz.app.shared.ui.richtext.scaledBy
 import com.medicalquiz.app.shared.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,24 +53,25 @@ import com.medicalquiz.app.shared.viewmodel.SettingsViewModel
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
-    onResetLogs: () -> Unit,
 ) {
-    val loggingEnabled = viewModel.settingsRepository.isLoggingEnabled
-        .collectAsStateWithLifecycle(false).value
-    val showMetadata = viewModel.settingsRepository.showMetadata
+    val showMetadata = viewModel.showMetadata
         .collectAsStateWithLifecycle(true).value
-    val fontScalePreference = viewModel.settingsRepository.fontScalePreference
+    val fontScalePreference = viewModel.fontScalePreference
         .collectAsStateWithLifecycle(null).value
 
-    var selectedFontOption by rememberSaveable(fontScalePreference) {
-        mutableStateOf(FontScaleOption.fromScale(fontScalePreference))
-    }
-    var showResetLogsConfirmation by rememberSaveable { mutableStateOf(false) }
+    val useSystemSize = fontScalePreference == null
+    val currentScale = fontScalePreference ?: FontScalePresets.DEFAULT
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Settings") },
+                title = {
+                    Text(
+                        "Settings",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -72,6 +79,8 @@ fun SettingsScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
                 )
             )
         }
@@ -81,239 +90,330 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            SettingsToggleRow(
-                title = "Answer logging",
-                description = "Track your progress and review history",
-                checked = loggingEnabled,
-                onCheckedChange = { viewModel.settingsRepository.setLoggingEnabled(it) }
+            // Section 1: Quiz Experience
+            Text(
+                text = "Quiz Experience",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 4.dp)
             )
 
-            SettingsToggleRow(
-                title = "Show metadata",
-                description = "Display subject and system info after answering",
-                checked = showMetadata,
-                onCheckedChange = { viewModel.settingsRepository.setShowMetadata(it) }
-            )
-
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 6.dp),
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
-
-            FontScaleControl(
-                selected = selectedFontOption,
-                onSelected = { option ->
-                    selectedFontOption = option
-                    viewModel.settingsRepository.setFontScalePreference(option.scale)
-                }
-            )
-
-            if (loggingEnabled) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                        .clip(MaterialTheme.shapes.medium)
-                        .clickable(onClick = { showResetLogsConfirmation = true }),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh
-                ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Delete,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Clear log history",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Medium,
+                                text = "Show metadata",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Remove all saved answer logs",
+                                text = "Display subjects and systems after answering",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Switch(
+                            checked = showMetadata,
+                            onCheckedChange = { viewModel.setShowMetadata(it) }
+                        )
                     }
                 }
             }
 
-            Row(
+            // Section 2: Text & Accessibility
+            Text(
+                text = "Appearance & Accessibility",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
             ) {
-                Button(onClick = onBack) {
-                    Text("Done")
-                }
-            }
-        }
-
-        if (showResetLogsConfirmation) {
-            AlertDialog(
-                onDismissRequest = { showResetLogsConfirmation = false },
-                title = { Text("Clear log history?") },
-                text = { Text("This removes all saved answer logs in the current database.") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            onResetLogs()
-                            showResetLogsConfirmation = false
-                        }
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // System text toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Clear")
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Use system font size",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Match the font size to your device system settings",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Switch(
+                            checked = useSystemSize,
+                            onCheckedChange = { checked ->
+                                if (checked) {
+                                    viewModel.setFontScalePreference(null)
+                                } else {
+                                    viewModel.setFontScalePreference(FontScalePresets.DEFAULT)
+                                }
+                            }
+                        )
                     }
-                },
-                dismissButton = {
-                    Button(onClick = { showResetLogsConfirmation = false }) {
-                        Text("Cancel")
+
+                    // Discrete Slider configuration (shown only when useSystemSize is false)
+                    AnimatedVisibility(
+                        visible = !useSystemSize,
+                        enter = expandVertically(),
+                        exit = shrinkVertically()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "Custom Reading Text Size",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.FormatSize,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
+                                )
+
+                                val sliderIndex = scaleToIndex(currentScale)
+                                Slider(
+                                    value = sliderIndex,
+                                    onValueChange = { indexFloat ->
+                                        val newScale = indexToScale(indexFloat.toInt())
+                                        viewModel.setFontScalePreference(newScale)
+                                    },
+                                    valueRange = 0f..3f,
+                                    steps = 2,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                Icon(
+                                    imageVector = Icons.Outlined.FormatSize,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+
+                            // Dynamic typography status
+                            Text(
+                                text = scaleToLabel(currentScale),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            // Beautiful Live Preview box!
+                            LivePreviewCard(currentScale = currentScale)
+                        }
                     }
                 }
-            )
-        }
-    }
-}
-
-@Composable
-private fun SettingsToggleRow(
-    title: String,
-    description: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .clickable { onCheckedChange(!checked) },
-        color = if (checked)
-            MaterialTheme.colorScheme.secondaryContainer
-        else
-            MaterialTheme.colorScheme.surfaceContainerLow
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange
-            )
-        }
-    }
-}
 
-@Composable
-private fun FontScaleControl(
-    selected: FontScaleOption,
-    onSelected: (FontScaleOption) -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = "Reading text size",
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        FontScaleOption.entries.forEach { option ->
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .clickable { onSelected(option) },
-                color = if (selected == option) {
-                    MaterialTheme.colorScheme.secondaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerLow
-                },
+            // Info Notice
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
+                )
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.Top
                 ) {
-                    RadioButton(
-                        selected = selected == option,
-                        onClick = { onSelected(option) },
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = option.label,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        option.description?.let { description ->
+                    Text(
+                        text = "Custom typography sizes apply exclusively to medical questions, answers, and media rich text descriptions.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+
+            // Bottom "Done" action button
+            Button(
+                onClick = onBack,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .padding(top = 8.dp),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Text(
+                    text = "Done",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LivePreviewCard(currentScale: Float) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "LIVE PREVIEW",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.secondary,
+                letterSpacing = 1.sp
+            )
+
+            // Scaled question body text
+            Text(
+                text = "A 62-year-old female presents with progressive shortness of breath, bilateral ankle swelling, and orthopnea.",
+                style = MaterialTheme.typography.bodyMedium.scaledBy(currentScale),
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            // Scaled choices
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = MaterialTheme.shapes.extraSmall,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Text(
-                                text = description,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                "A",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }
                     }
+                    Text(
+                        text = "Congestive Heart Failure",
+                        style = MaterialTheme.typography.bodySmall.scaledBy(currentScale),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = MaterialTheme.shapes.extraSmall,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                "B",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Acute Pulmonary Embolism",
+                        style = MaterialTheme.typography.bodySmall.scaledBy(currentScale),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
-        }
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.small,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-        ) {
-            Text(
-                text = "Applies to question and media description rich text only.",
-                modifier = Modifier.padding(12.dp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
 
-private enum class FontScaleOption(
-    val label: String,
-    val scale: Float?,
-    val description: String? = null,
-) {
-    FollowSystem("Follow system", null),
-    Compact("Compact", FontScalePresets.COMPACT, "0.9×"),
-    Default("Default", FontScalePresets.DEFAULT, "1.0×"),
-    Large("Large", FontScalePresets.LARGE, "1.15×"),
-    ExtraLarge("Extra large", FontScalePresets.EXTRA_LARGE, "1.3×"),
-    ;
+private fun indexToScale(index: Int): Float = when (index) {
+    0 -> FontScalePresets.COMPACT
+    1 -> FontScalePresets.DEFAULT
+    2 -> FontScalePresets.LARGE
+    3 -> FontScalePresets.EXTRA_LARGE
+    else -> FontScalePresets.DEFAULT
+}
 
-    companion object {
-        fun fromScale(scale: Float?): FontScaleOption =
-            entries.firstOrNull { option -> FontScalePresets.matches(option.scale, scale) } ?: FollowSystem
-    }
+private fun scaleToIndex(scale: Float?): Float = when (scale) {
+    FontScalePresets.COMPACT -> 0f
+    FontScalePresets.DEFAULT -> 1f
+    FontScalePresets.LARGE -> 2f
+    FontScalePresets.EXTRA_LARGE -> 3f
+    else -> 1f
+}
+
+private fun scaleToLabel(scale: Float): String = when (scale) {
+    FontScalePresets.COMPACT -> "Compact Size (0.9×)"
+    FontScalePresets.DEFAULT -> "Normal Default Size (1.0×)"
+    FontScalePresets.LARGE -> "Large Size (1.15×)"
+    FontScalePresets.EXTRA_LARGE -> "Extra Large Size (1.3×)"
+    else -> "Normal Default Size (1.0×)"
 }

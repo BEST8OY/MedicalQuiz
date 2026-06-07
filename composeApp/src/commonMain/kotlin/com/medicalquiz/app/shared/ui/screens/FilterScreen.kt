@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.FilterAltOff
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.ButtonGroup
@@ -33,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,6 +52,8 @@ internal fun FilterScreen(
     systemCount: Int,
     performanceLabel: String,
     previewCount: Int,
+    loggingEnabled: Boolean,
+    onLoggingToggle: (Boolean) -> Unit,
     bottomContentPadding: Dp = 0.dp,
     onSelectSubjects: () -> Unit,
     onSelectSystems: () -> Unit,
@@ -104,6 +108,11 @@ internal fun FilterScreen(
                     isActive = performanceLabel != "All Questions",
                     onClick = onSelectPerformance
                 )
+
+                LoggingToggleCard(
+                    checked = loggingEnabled,
+                    onCheckedChange = onLoggingToggle
+                )
             }
 
             Spacer(modifier = Modifier.weight(1f))
@@ -113,6 +122,97 @@ internal fun FilterScreen(
                 hasFilters = hasFilters,
                 onStart = onStart,
                 onClearFilters = onClearFilters
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun LoggingToggleCard(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val motionScheme = MaterialTheme.motionScheme
+    val containerColor by animateColorAsState(
+        targetValue = if (checked)
+            MaterialTheme.colorScheme.secondaryContainer
+        else
+            MaterialTheme.colorScheme.surfaceContainerLow,
+        animationSpec = motionScheme.defaultEffectsSpec()
+    )
+
+    val contentColor by animateColorAsState(
+        targetValue = if (checked)
+            MaterialTheme.colorScheme.onSecondaryContainer
+        else
+            MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = motionScheme.defaultEffectsSpec()
+    )
+
+    val iconContainerColor by animateColorAsState(
+        targetValue = if (checked)
+            MaterialTheme.colorScheme.secondary
+        else
+            MaterialTheme.colorScheme.surfaceContainerHighest,
+        animationSpec = motionScheme.defaultEffectsSpec()
+    )
+
+    val iconColor by animateColorAsState(
+        targetValue = if (checked)
+            MaterialTheme.colorScheme.onSecondary
+        else
+            MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = motionScheme.defaultEffectsSpec()
+    )
+
+    Card(
+        onClick = { onCheckedChange(!checked) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = containerColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = iconContainerColor,
+                modifier = Modifier.size(44.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Filled.History,
+                        contentDescription = null,
+                        tint = iconColor
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = "Track Session Progress",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (checked) contentColor else MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Record answer logs for historical tracking",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor
+                )
+            }
+
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange
             )
         }
     }

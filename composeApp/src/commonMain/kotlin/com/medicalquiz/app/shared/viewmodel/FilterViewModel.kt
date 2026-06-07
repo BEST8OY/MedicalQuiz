@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medicalquiz.app.shared.data.ActiveDatabaseHolder
 import com.medicalquiz.app.shared.data.QuizSessionRepository
+
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.domain.ApplyFiltersUseCase
 import com.medicalquiz.app.shared.domain.UiEventDispatcher
@@ -30,7 +31,7 @@ class FilterViewModel(
     private val applyFiltersUseCase: ApplyFiltersUseCase,
     private val sessionRepository: QuizSessionRepository,
     private val uiEventDispatcher: UiEventDispatcher,
-    private val appScope: CoroutineScope
+    private val appScope: CoroutineScope,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FilterUiState.EMPTY)
@@ -92,7 +93,7 @@ class FilterViewModel(
             } catch (e: Exception) {
                 val errorMessage = e.message ?: "Unknown error"
                 _state.update { it.copy(subjectsResource = Resource.Error(errorMessage)) }
-                emitToast("Error fetching subjects: $errorMessage")
+                emitSnackbar("Error fetching subjects: $errorMessage")
             }
         }
     }
@@ -111,7 +112,7 @@ class FilterViewModel(
             } catch (e: Exception) {
                 val errorMessage = e.message ?: "Unknown error"
                 _state.update { it.copy(systemsResource = Resource.Error(errorMessage)) }
-                emitToast("Error fetching systems: $errorMessage")
+                emitSnackbar("Error fetching systems: $errorMessage")
             }
         }
     }
@@ -203,7 +204,8 @@ class FilterViewModel(
                 selectedSystemIds = currentState.selectedSystemIds,
                 performanceFilter = currentState.performanceFilter,
                 currentQuestionIndex = 0,
-                appendToHistory = false
+                appendToHistory = false,
+                isLoggingEnabled = currentState.isLoggingEnabled,
             )
         }
     }
@@ -228,16 +230,7 @@ class FilterViewModel(
 
     fun deleteHistoryEntries(entryIds: Set<String>) {
         appScope.launch {
-            runCatching {
-                historyCoordinator.deleteHistoryEntriesWithLogs(
-                    entryIds = entryIds,
-                    allHistoryEntries = historyEntries.value,
-                )
-            }.onFailure {
-                uiEventDispatcher.emitToast(
-                    message = "Failed to delete history logs: ${it.message ?: "unknown error"}"
-                )
-            }
+            historyCoordinator.deleteHistoryEntries(entryIds)
         }
     }
 
@@ -261,9 +254,13 @@ class FilterViewModel(
         }
     }
 
-    private fun emitToast(message: String) {
+    fun setLoggingEnabled(enabled: Boolean) {
+        _state.update { it.copy(isLoggingEnabled = enabled) }
+    }
+
+    private fun emitSnackbar(message: String) {
         viewModelScope.launch {
-            uiEventDispatcher.emitToast(message)
+            uiEventDispatcher.emitSnackbar(message)
         }
     }
 }
