@@ -43,7 +43,8 @@ class QuizViewModel(
     private val quizSessionBoundaryUseCase = dependencies.quizSessionBoundaryUseCase
     private val applyFiltersUseCase = dependencies.applyFiltersUseCase
     private val loadQuestionUseCase = dependencies.loadQuestionUseCase
-    private val uiEventDispatcher = dependencies.uiEventDispatcher
+    private val appIntentSink = dependencies.appIntentSink
+    private val snackbarSink = dependencies.snackbarSink
 
     private companion object {
         const val KEY_DATABASE_NAME = "database_name"
@@ -75,7 +76,7 @@ class QuizViewModel(
             ""
         )
 
-    val uiEvents = uiEventDispatcher.events
+
 
     private val scrollPositionCache = object : LinkedHashMap<Long, Int>(MAX_SCROLL_CACHE_SIZE, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Int>?): Boolean {
@@ -396,13 +397,13 @@ class QuizViewModel(
 
     fun openMedia(urls: List<String>, startIndex: Int) {
         viewModelScope.launch {
-            uiEventDispatcher.emitOpenMedia(urls, startIndex)
+            appIntentSink.send(com.medicalquiz.app.shared.domain.AppIntent.OpenMedia(urls, startIndex))
         }
     }
 
     fun openHtmlFile(fileName: String) {
         viewModelScope.launch {
-            uiEventDispatcher.emitOpenHtml(fileName)
+            appIntentSink.send(com.medicalquiz.app.shared.domain.AppIntent.OpenHtmlFile(fileName))
         }
     }
 
@@ -416,7 +417,7 @@ class QuizViewModel(
 
     private fun emitSnackbar(message: String) {
         viewModelScope.launch {
-            uiEventDispatcher.emitSnackbar(message)
+            snackbarSink.emitSnackbar(message)
         }
     }
 

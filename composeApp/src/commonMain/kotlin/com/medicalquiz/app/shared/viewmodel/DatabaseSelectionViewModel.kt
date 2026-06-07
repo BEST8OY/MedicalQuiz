@@ -2,7 +2,6 @@ package com.medicalquiz.app.shared.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.data.UserDataManager
 import com.medicalquiz.app.shared.orchestration.AppStartupCoordinator
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +16,6 @@ import kotlinx.coroutines.launch
 class DatabaseSelectionViewModel(
     private val startupCoordinator: AppStartupCoordinator,
     private val userDataManager: UserDataManager,
-    private val sessionRepository: QuizSessionRepository
 ) : ViewModel() {
 
     private val _availableDatabases = MutableStateFlow<List<String>>(emptyList())
