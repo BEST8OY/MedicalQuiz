@@ -31,8 +31,13 @@ class NavigationStateRepository {
      *
      * @param backStack The current list of routes in the back stack
      * @param selectedDatabase The name of the currently selected database (if any)
+     * @param quizLaunchSource The quiz launch source to persist
      */
-    fun saveNavigationState(backStack: List<MedicalQuizRoutes>, selectedDatabase: String? = null) {
+    fun saveNavigationState(
+        backStack: List<MedicalQuizRoutes>,
+        selectedDatabase: String? = null,
+        quizLaunchSource: QuizLaunchSource = QuizLaunchSource.Standard,
+    ) {
         runCatching {
             val persistentRoutes = backStack
                 .filter { it.isPersistent }
@@ -45,6 +50,7 @@ class NavigationStateRepository {
             val state = NavigationState(
                 routes = persistentRoutes,
                 selectedDatabase = selectedDatabase,
+                quizLaunchSource = quizLaunchSource,
             )
             FileSystemHelper.writeText(navigationStateFile, json.encodeToString(state))
         }.onFailure {
@@ -55,16 +61,17 @@ class NavigationStateRepository {
     suspend fun saveNavigationStateAsync(
         backStack: List<MedicalQuizRoutes>,
         selectedDatabase: String? = null,
+        quizLaunchSource: QuizLaunchSource = QuizLaunchSource.Standard,
     ) = withContext(Dispatchers.IO) {
-        saveNavigationState(backStack, selectedDatabase)
+        saveNavigationState(backStack, selectedDatabase, quizLaunchSource)
     }
 
     /**
      * Restores the navigation back stack from persistent storage.
      *
-     * @return Pair of (routes, selectedDatabase) or null if no valid state was saved
+     * @return [NavigationSnapshot] or null if no valid state was saved
      */
-    fun restoreNavigationState(): Pair<List<MedicalQuizRoutes>, String?>? {
+    fun restoreNavigationState(): NavigationSnapshot? {
         return runCatching {
             val content = FileSystemHelper.readText(navigationStateFile) ?: return null
             val state = json.decodeFromString<NavigationState>(content)
@@ -73,14 +80,18 @@ class NavigationStateRepository {
                 clearNavigationState()
                 return null
             }
-            sanitizedRoutes to state.selectedDatabase
+            NavigationSnapshot(
+                routes = sanitizedRoutes,
+                selectedDatabase = state.selectedDatabase,
+                quizLaunchSource = state.quizLaunchSource,
+            )
         }.getOrElse {
             handleRestoreError(it)
             null
         }
     }
 
-    suspend fun restoreNavigationStateAsync(): Pair<List<MedicalQuizRoutes>, String?>? =
+    suspend fun restoreNavigationStateAsync(): NavigationSnapshot? =
         withContext(Dispatchers.IO) {
             restoreNavigationState()
         }
@@ -114,5 +125,6 @@ class NavigationStateRepository {
     private data class NavigationState(
         val routes: List<MedicalQuizRoutes>,
         val selectedDatabase: String? = null,
+        val quizLaunchSource: QuizLaunchSource = QuizLaunchSource.Standard,
     )
 }

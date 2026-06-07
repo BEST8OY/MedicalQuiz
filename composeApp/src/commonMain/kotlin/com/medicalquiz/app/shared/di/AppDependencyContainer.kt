@@ -21,7 +21,9 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
     val cacheManager = CacheManager()
     val sessionRepository = QuizSessionRepository()
     val activeDatabaseHolder = ActiveDatabaseHolder()
-    val uiEventDispatcher = UiEventDispatcher()
+    
+    val appIntentDispatcher = AppIntentDispatcher()
+    val snackbarDispatcher = SnackbarDispatcher()
     
     val textHighlightsRepository = TextHighlightsRepository(
         userDataManager = userDataManager,
@@ -39,7 +41,8 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
         quizSessionBoundaryUseCase = quizSessionBoundaryUseCase,
         applyFiltersUseCase = applyFiltersUseCase,
         loadQuestionUseCase = loadQuestionUseCase,
-        uiEventDispatcher = uiEventDispatcher
+        appIntentSink = appIntentDispatcher,
+        snackbarSink = snackbarDispatcher
     )
     
     // Orchestrators & Coordinators
@@ -51,6 +54,8 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
         sessionRepository = sessionRepository,
         restoreSessionUseCase = restoreSessionUseCase
     )
+    val workflowCoordinator = AppWorkflowCoordinator(startupCoordinator)
+    val mediaNavigationCoordinator = MediaNavigationCoordinator(localContentRepository)
 
     // ViewModel Factory Methods
     
@@ -61,8 +66,7 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
     fun createDatabaseSelectionViewModel(): DatabaseSelectionViewModel {
         return DatabaseSelectionViewModel(
             startupCoordinator = startupCoordinator,
-            userDataManager = userDataManager,
-            sessionRepository = sessionRepository
+            userDataManager = userDataManager
         )
     }
 
@@ -72,8 +76,8 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
             historyCoordinator = historyCoordinator,
             applyFiltersUseCase = applyFiltersUseCase,
             sessionRepository = sessionRepository,
-            uiEventDispatcher = uiEventDispatcher,
-            appScope = appScope,
+            snackbarSink = snackbarDispatcher,
+            appScope = appScope
         )
     }
 
