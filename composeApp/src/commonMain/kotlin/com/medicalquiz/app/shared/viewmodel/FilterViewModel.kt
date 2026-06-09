@@ -73,7 +73,8 @@ class FilterViewModel(
                 it.copy(
                     selectedSubjectIds = savedSession.selectedSubjectIds.toSet(),
                     selectedSystemIds = savedSession.selectedSystemIds.toSet(),
-                    performanceFilter = savedSession.performanceFilter
+                    performanceFilter = savedSession.performanceFilter,
+                    isLoggingEnabled = savedSession.isLoggingEnabled,
                 )
             }
         }
@@ -256,6 +257,9 @@ class FilterViewModel(
 
     fun setLoggingEnabled(enabled: Boolean) {
         _state.update { it.copy(isLoggingEnabled = enabled) }
+        viewModelScope.launch(Dispatchers.IO) {
+            saveSession()
+        }
     }
 
     private fun emitSnackbar(message: String) {

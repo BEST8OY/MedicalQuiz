@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
@@ -41,7 +42,7 @@ class QuizSessionRepository {
         performanceFilter: PerformanceFilter,
         currentQuestionIndex: Int,
         appendToHistory: Boolean = true,
-        isLoggingEnabled: Boolean = true,
+        isLoggingEnabled: Boolean = false,
     ): String {
         if (databaseName.isBlank() || currentQuestionIndex < 0) {
             clearSession()
@@ -85,7 +86,7 @@ class QuizSessionRepository {
         performanceFilter: PerformanceFilter,
         currentQuestionIndex: Int,
         appendToHistory: Boolean = true,
-        isLoggingEnabled: Boolean = true,
+        isLoggingEnabled: Boolean = false,
     ): String = withContext(Dispatchers.IO) {
         val sessionId = saveSession(
             databaseName = databaseName,
@@ -294,7 +295,7 @@ class QuizSessionRepository {
         val performanceFilter: PerformanceFilter,
         val currentQuestionIndex: Int,
         val updatedAtEpochMillis: Long = 0,
-        val isLoggingEnabled: Boolean = true,
+        @EncodeDefault val isLoggingEnabled: Boolean = false,
     )
 
     companion object {

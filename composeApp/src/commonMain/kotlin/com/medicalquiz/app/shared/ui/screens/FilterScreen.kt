@@ -10,12 +10,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
@@ -52,7 +53,7 @@ internal fun FilterScreen(
     systemCount: Int,
     performanceLabel: String,
     previewCount: Int,
-    loggingEnabled: Boolean,
+    isLoggingEnabled: Boolean,
     onLoggingToggle: (Boolean) -> Unit,
     bottomContentPadding: Dp = 0.dp,
     onSelectSubjects: () -> Unit,
@@ -68,7 +69,7 @@ internal fun FilterScreen(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.surface,
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
@@ -76,53 +77,58 @@ internal fun FilterScreen(
                     top = 40.dp,
                     end = 24.dp,
                     bottom = 40.dp + bottomContentPadding,
-                ),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                )
         ) {
-            // Database header
-            DatabaseHeaderCard(databaseName = databaseName)
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    DatabaseHeaderCard(databaseName = databaseName)
 
-            FilterPreviewCard(previewCount = previewCount)
+                    FilterPreviewCard(previewCount = previewCount)
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                FilterSelectionCard(
-                    title = "Subjects",
-                    subtitle = if (subjectCount == 0) "All subjects" else "$subjectCount selected",
-                    icon = Icons.Filled.Category,
-                    isActive = subjectCount > 0,
-                    onClick = onSelectSubjects
-                )
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        FilterSelectionCard(
+                            title = "Subjects",
+                            subtitle = if (subjectCount == 0) "All subjects" else "$subjectCount selected",
+                            icon = Icons.Filled.Category,
+                            isActive = subjectCount > 0,
+                            onClick = onSelectSubjects
+                        )
 
-                FilterSelectionCard(
-                    title = "Systems",
-                    subtitle = if (systemCount == 0) "All systems" else "$systemCount selected",
-                    icon = Icons.Filled.FilterAlt,
-                    isActive = systemCount > 0,
-                    onClick = onSelectSystems
-                )
+                        FilterSelectionCard(
+                            title = "Systems",
+                            subtitle = if (systemCount == 0) "All systems" else "$systemCount selected",
+                            icon = Icons.Filled.FilterAlt,
+                            isActive = systemCount > 0,
+                            onClick = onSelectSystems
+                        )
 
-                FilterSelectionCard(
-                    title = "Performance",
-                    subtitle = performanceLabel,
-                    icon = Icons.AutoMirrored.Filled.TrendingUp,
-                    isActive = performanceLabel != "All Questions",
-                    onClick = onSelectPerformance
-                )
+                        FilterSelectionCard(
+                            title = "Performance",
+                            subtitle = performanceLabel,
+                            icon = Icons.AutoMirrored.Filled.TrendingUp,
+                            isActive = performanceLabel != "All Questions",
+                            onClick = onSelectPerformance
+                        )
 
-                LoggingToggleCard(
-                    checked = loggingEnabled,
-                    onCheckedChange = onLoggingToggle
+                        LoggingToggleCard(
+                            checked = isLoggingEnabled,
+                            onCheckedChange = onLoggingToggle
+                        )
+                    }
+                }
+
+                PrimaryActionButtonGroup(
+                    hasPreview = hasPreview,
+                    hasFilters = hasFilters,
+                    onStart = onStart,
+                    onClearFilters = onClearFilters
                 )
             }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            PrimaryActionButtonGroup(
-                hasPreview = hasPreview,
-                hasFilters = hasFilters,
-                onStart = onStart,
-                onClearFilters = onClearFilters
-            )
         }
     }
 }
