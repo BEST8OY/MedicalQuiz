@@ -136,7 +136,13 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 | Selected (before submit) | `primary` | `onPrimary` |
 | Default | `surfaceVariant` | `onSurfaceVariant` |
 
-**Percentage badge (trailing)** — background: `secondaryContainer`, text: `onSecondaryContainer`
+**Percentage badge (trailing)** — plain text, no container background.
+| State | Color |
+|-------|-------|
+| Correct | `onSecondaryContainer` |
+| Incorrect | `onErrorContainer` |
+
+Only renders after submission, so only these two states are reachable.
 
 ---
 

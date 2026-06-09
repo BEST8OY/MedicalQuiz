@@ -13,6 +13,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -163,6 +164,12 @@ private fun AnswerListItem(
         }
     }
 
+    val trailingTextColor = when {
+        showResult && isCorrect -> MaterialTheme.colorScheme.onSecondaryContainer
+        showResult -> MaterialTheme.colorScheme.onErrorContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
     val trailingContent: @Composable () -> Unit = {
         AnimatedContent(
             targetState = showResult to percentage,
@@ -174,24 +181,16 @@ private fun AnswerListItem(
         ) { (show, pct) ->
             when {
                 show && pct != null -> {
-                    MorphingMaterialShapeBadge(
-                        from = MaterialShapes.Pill,
-                        to = MaterialShapes.Arch,
-                        progress = 1f,
-                        backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
-                        size = 36.dp,
+                    Text(
+                        text = "$pct%",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = trailingTextColor,
                         modifier = Modifier.padding(start = 8.dp)
-                    ) {
-                        Text(
-                            text = "$pct%",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
+                    )
                 }
 
-                else -> Box(modifier = Modifier.padding(start = 36.dp))
+                else -> Spacer(modifier = Modifier.size(0.dp))
             }
         }
     }
