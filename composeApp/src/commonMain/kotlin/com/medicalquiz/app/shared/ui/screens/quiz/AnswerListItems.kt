@@ -132,7 +132,7 @@ private fun AnswerListItem(
 
         val targetShape = when {
             showResult && isCorrect -> MaterialShapes.Gem
-            isSelected -> MaterialShapes.Sunny
+            isSelected && !showResult -> MaterialShapes.Sunny
             else -> MaterialShapes.Pill
         }
 

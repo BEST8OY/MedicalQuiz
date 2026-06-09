@@ -55,6 +55,7 @@ import com.medicalquiz.app.shared.data.database.QuestionPerformance
 import com.medicalquiz.app.shared.data.models.Answer
 import com.medicalquiz.app.shared.data.models.HighlightSection
 import com.medicalquiz.app.shared.data.models.Question
+import com.medicalquiz.app.shared.data.models.SubmissionMode
 import com.medicalquiz.app.shared.ui.media.MediaHandler
 import com.medicalquiz.app.shared.ui.richtext.HighlightableRichText
 import com.medicalquiz.app.shared.ui.richtext.RichText
@@ -367,7 +368,9 @@ private fun QuizQuestionCard(
             onAnswerSelected = { answerId ->
                 if (!state.answerSubmitted) {
                     viewModel.onAnswerSelected(answerId)
-                    viewModel.submitAnswer(timeTaken = 0L)
+                    if (state.submissionMode == SubmissionMode.INSTANT) {
+                        viewModel.submitAnswer(timeTaken = 0L)
+                    }
                 }
             },
             onLinkClick = linkHandler,

@@ -2,6 +2,7 @@ package com.medicalquiz.app.shared.ui.state
 
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.data.models.Subject
+import com.medicalquiz.app.shared.data.models.SubmissionMode
 import com.medicalquiz.app.shared.data.models.System
 import com.medicalquiz.app.shared.utils.Resource
 
@@ -17,7 +18,8 @@ data class FilterUiState(
     val systemsResource: Resource<List<System>> = Resource.Success(emptyList()),
     val previewQuestionCount: Int = 0,
     val isLoading: Boolean = false,
-    val isLoggingEnabled: Boolean = false
+    val isLoggingEnabled: Boolean = false,
+    val submissionMode: SubmissionMode = SubmissionMode.INSTANT,
 ) {
     companion object {
         val EMPTY = FilterUiState()

@@ -2,6 +2,7 @@ package com.medicalquiz.app.shared.domain
 
 import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
+import com.medicalquiz.app.shared.data.models.SubmissionMode
 import com.medicalquiz.app.shared.ui.state.QuizUiState
 
 class QuizSessionBoundaryUseCase(
@@ -18,6 +19,7 @@ class QuizSessionBoundaryUseCase(
             performanceFilter = session.performanceFilter,
             currentQuestionIndex = session.currentQuestionIndex,
             isLoggingEnabled = session.isLoggingEnabled,
+            submissionMode = session.submissionMode,
         )
     }
 
@@ -35,6 +37,7 @@ class QuizSessionBoundaryUseCase(
             currentQuestionIndex = state.currentQuestionIndex,
             appendToHistory = appendToHistory,
             isLoggingEnabled = state.isLoggingEnabled,
+            submissionMode = state.submissionMode,
         )
     }
 
@@ -52,6 +55,7 @@ class QuizSessionBoundaryUseCase(
             val performanceFilter: PerformanceFilter,
             val currentQuestionIndex: Int,
             val isLoggingEnabled: Boolean,
+            val submissionMode: SubmissionMode,
         ) : RestoreResult
     }
 }

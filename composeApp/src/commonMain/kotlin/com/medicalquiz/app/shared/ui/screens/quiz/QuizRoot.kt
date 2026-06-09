@@ -100,10 +100,13 @@ fun QuizRoot(
                 totalQuestions = state.totalQuestions,
                 hasPreviousQuestion = state.hasPreviousQuestion,
                 hasNextQuestion = state.hasNextQuestion,
+                showSubmitButton = !state.answerSubmitted && state.submissionMode == com.medicalquiz.app.shared.data.models.SubmissionMode.MANUAL,
+                canSubmit = state.selectedAnswerId != null,
             ),
             onPrevious = { viewModel.loadPrevious() },
             onNext = { viewModel.loadNext() },
             onJumpTo = { showJumpToDialog = true },
+            onSubmit = { viewModel.submitAnswer(timeTaken = 0L) },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = bottomPadding + 16.dp)

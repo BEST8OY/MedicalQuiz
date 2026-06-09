@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
@@ -32,6 +33,8 @@ data class QuizBottomToolbarUiState(
     val totalQuestions: Int,
     val hasPreviousQuestion: Boolean,
     val hasNextQuestion: Boolean,
+    val showSubmitButton: Boolean = false,
+    val canSubmit: Boolean = false,
 )
 
 /**
@@ -49,6 +52,7 @@ fun QuizFloatingToolbar(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onJumpTo: () -> Unit,
+    onSubmit: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
@@ -92,10 +96,22 @@ fun QuizFloatingToolbar(
                 }
             },
             content = {
-                // Spacer to add spacing between leadingContent and content
                 Spacer(modifier = Modifier.width(8.dp))
-                
-                // Question counter - centered with pill container
+
+                if (uiState.showSubmitButton) {
+                    FilledTonalButton(
+                        onClick = onSubmit,
+                        enabled = uiState.canSubmit,
+                        modifier = Modifier.sizeIn(minHeight = 40.dp),
+                    ) {
+                        Text(
+                            text = "Submit",
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
                 Surface(
                     onClick = onJumpTo,
                     shape = MaterialTheme.shapes.extraLarge,
@@ -118,8 +134,7 @@ fun QuizFloatingToolbar(
                         )
                     }
                 }
-                
-                // Spacer to add spacing between content and trailingContent
+
                 Spacer(modifier = Modifier.width(8.dp))
             }
         )
@@ -133,6 +148,7 @@ fun QuizBottomBar(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onJumpTo: () -> Unit,
+    onSubmit: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     QuizFloatingToolbar(
@@ -140,6 +156,7 @@ fun QuizBottomBar(
         onPrevious = onPrevious,
         onNext = onNext,
         onJumpTo = onJumpTo,
+        onSubmit = onSubmit,
         modifier = modifier
     )
 }
