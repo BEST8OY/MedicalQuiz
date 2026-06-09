@@ -298,6 +298,7 @@ fun App() {
                     var selectedPane by rememberSaveable { mutableStateOf(FilterPane.Filters) }
                     LaunchedEffect(workflowState.requestedFilterPane) {
                         workflowState.requestedFilterPane?.let { pane ->
+                            filterVM.resetToDefault()
                             selectedPane = when (pane) {
                                 RequestedFilterPane.Filters -> FilterPane.Filters
                                 RequestedFilterPane.History -> FilterPane.History
@@ -368,7 +369,6 @@ fun App() {
                         viewModel = quizVM,
                         mediaHandler = mediaHandler,
                         onNavigateBack = dropUnlessResumed {
-                            quizVM.clearSession()
                             returnQuizToFilter()
                         },
                         onOpenSettingsScreen = dropUnlessResumed {

@@ -1,5 +1,6 @@
 package com.medicalquiz.app.shared.data
 
+import com.medicalquiz.app.shared.data.models.SubmissionMode
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.platform.StorageProvider
@@ -28,6 +29,12 @@ class SettingsRepository {
     private val _fontScalePreference = MutableStateFlow<Float?>(null)
     val fontScalePreference: StateFlow<Float?> = _fontScalePreference.asStateFlow()
 
+    private val _isLoggingEnabled = MutableStateFlow(false)
+    val isLoggingEnabled: StateFlow<Boolean> = _isLoggingEnabled.asStateFlow()
+
+    private val _submissionMode = MutableStateFlow(SubmissionMode.INSTANT)
+    val submissionMode: StateFlow<SubmissionMode> = _submissionMode.asStateFlow()
+
     private val settingsFile: String
         get() = "${StorageProvider.getAppStorageDirectory()}/settings.json"
 
@@ -47,11 +54,23 @@ class SettingsRepository {
         ioScope.launch { saveSettingsAsync() }
     }
 
+    fun setIsLoggingEnabled(enabled: Boolean) {
+        _isLoggingEnabled.value = enabled
+        ioScope.launch { saveSettingsAsync() }
+    }
+
+    fun setSubmissionMode(mode: SubmissionMode) {
+        _submissionMode.value = mode
+        ioScope.launch { saveSettingsAsync() }
+    }
+
     suspend fun refreshSettingsAsync(): SettingsSnapshot = withContext(Dispatchers.IO) {
         loadSettingsInternal()
         SettingsSnapshot(
             showMetadata = _showMetadata.value,
             fontScalePreference = _fontScalePreference.value,
+            isLoggingEnabled = _isLoggingEnabled.value,
+            submissionMode = _submissionMode.value,
         )
     }
 
@@ -67,6 +86,8 @@ class SettingsRepository {
                 _showMetadata.value = payload.showMetadata
                 _fontScalePreference.value = payload.fontScalePreference
                     ?: payload.fontSize?.toLegacyScalePreference()
+                _isLoggingEnabled.value = payload.isLoggingEnabled
+                _submissionMode.value = payload.submissionMode
             }
         } catch (e: Exception) {
             Logger.e("SettingsRepository", "Error loading settings", e)
@@ -78,6 +99,8 @@ class SettingsRepository {
             val payload = SettingsPayload(
                 showMetadata = _showMetadata.value,
                 fontScalePreference = _fontScalePreference.value,
+                isLoggingEnabled = _isLoggingEnabled.value,
+                submissionMode = _submissionMode.value,
             )
             val jsonString = json.encodeToString(payload)
             FileSystemHelper.writeText(settingsFile, jsonString)
@@ -90,6 +113,8 @@ class SettingsRepository {
     private data class SettingsPayload(
         val showMetadata: Boolean = true,
         val fontScalePreference: Float? = null,
+        val isLoggingEnabled: Boolean = false,
+        val submissionMode: SubmissionMode = SubmissionMode.INSTANT,
         // Legacy setting kept for migration when reading older settings files.
         val fontSize: Float? = null,
     )
@@ -104,5 +129,7 @@ class SettingsRepository {
     data class SettingsSnapshot(
         val showMetadata: Boolean,
         val fontScalePreference: Float?,
+        val isLoggingEnabled: Boolean = false,
+        val submissionMode: SubmissionMode = SubmissionMode.INSTANT,
     )
 }
