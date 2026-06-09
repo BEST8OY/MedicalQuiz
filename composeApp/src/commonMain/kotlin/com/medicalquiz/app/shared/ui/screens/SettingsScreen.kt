@@ -2,6 +2,8 @@ package com.medicalquiz.app.shared.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +28,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,12 +51,13 @@ import com.medicalquiz.app.shared.data.FontScalePresets
 import com.medicalquiz.app.shared.ui.richtext.scaledBy
 import com.medicalquiz.app.shared.viewmodel.SettingsViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
 ) {
+    val motionScheme = MaterialTheme.motionScheme
     val showMetadata = viewModel.showMetadata
         .collectAsStateWithLifecycle(true).value
     val fontScalePreference = viewModel.fontScalePreference
@@ -190,8 +194,10 @@ fun SettingsScreen(
                     // Discrete Slider configuration (shown only when useSystemSize is false)
                     AnimatedVisibility(
                         visible = !useSystemSize,
-                        enter = expandVertically(),
-                        exit = shrinkVertically()
+                        enter = expandVertically(animationSpec = motionScheme.defaultSpatialSpec()) +
+                                fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
+                        exit = shrinkVertically(animationSpec = motionScheme.fastSpatialSpec()) +
+                               fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                     ) {
                         Column(
                             modifier = Modifier

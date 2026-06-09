@@ -67,11 +67,6 @@ private fun AnswerListItem(
     // effectively skipped as showResult triggers simultaneously. It is preserved 
     // for potential "Select then Submit" modes and to drive other UI traits 
     // like elevation and badge shape morphing.
-    val colorSpec = motionScheme.defaultEffectsSpec<Color>()
-    val floatSpec = motionScheme.defaultEffectsSpec<Float>()
-    val spatialSpec = motionScheme.defaultSpatialSpec<Float>()
-    val dpSpatialSpec = motionScheme.defaultSpatialSpec<Dp>()
-
     val containerColor by animateColorAsState(
         targetValue = when {
             showResult && isCorrect -> MaterialTheme.colorScheme.secondaryContainer
@@ -79,7 +74,7 @@ private fun AnswerListItem(
             isSelected -> MaterialTheme.colorScheme.primaryContainer
             else -> MaterialTheme.colorScheme.surfaceContainerLow
         },
-        animationSpec = colorSpec,
+        animationSpec = motionScheme.defaultEffectsSpec(),
         label = "containerColor"
     )
 
@@ -90,13 +85,13 @@ private fun AnswerListItem(
             isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
             else -> MaterialTheme.colorScheme.onSurface
         },
-        animationSpec = colorSpec,
+        animationSpec = motionScheme.defaultEffectsSpec(),
         label = "contentColor"
     )
 
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = floatSpec,
+        animationSpec = motionScheme.defaultEffectsSpec(),
         label = "scale"
     )
 
@@ -106,7 +101,7 @@ private fun AnswerListItem(
             isSelected -> 2.dp
             else -> 0.dp
         },
-        animationSpec = dpSpatialSpec,
+        animationSpec = motionScheme.defaultSpatialSpec(),
         label = "elevation"
     )
 
@@ -118,7 +113,7 @@ private fun AnswerListItem(
                 isSelected -> MaterialTheme.colorScheme.primary
                 else -> MaterialTheme.colorScheme.surfaceVariant
             },
-            animationSpec = colorSpec
+            animationSpec = motionScheme.defaultEffectsSpec()
         )
         val labelContentColor by animateColorAsState(
             targetValue = when {
@@ -127,7 +122,7 @@ private fun AnswerListItem(
                 isSelected -> MaterialTheme.colorScheme.onPrimary
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             },
-            animationSpec = colorSpec
+            animationSpec = motionScheme.defaultEffectsSpec()
         )
 
         val targetShape = when {
@@ -136,10 +131,16 @@ private fun AnswerListItem(
             else -> MaterialShapes.Pill
         }
 
+        val morphProgress by animateFloatAsState(
+            targetValue = if (targetShape == MaterialShapes.Pill) 0f else 1f,
+            animationSpec = motionScheme.defaultEffectsSpec(),
+            label = "morphProgress"
+        )
+
         MorphingMaterialShapeBadge(
             from = MaterialShapes.Pill,
             to = targetShape,
-            progress = if (targetShape == MaterialShapes.Pill) 0f else 1f,
+            progress = morphProgress,
             backgroundColor = labelContainerColor,
             size = 40.dp,
             modifier = Modifier.padding(end = 8.dp)
