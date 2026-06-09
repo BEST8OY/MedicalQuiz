@@ -101,7 +101,7 @@ internal fun rememberRichTextPalette(): RichTextPalette {
             selectedBackground = colors.primaryContainer,
             selectedText = colors.onPrimaryContainer,
             linkText = colors.primary,
-            dictionaryText = colors.primary,
+            dictionaryText = colors.secondary,
             abstractText = colors.onSurfaceVariant
         )
     }

@@ -107,7 +107,6 @@ private fun QuestionContent(
             .fillMaxSize()
             .padding(contentPadding)
     ) {
-        // Question content stays primary, metadata/logs are now inside the scrollable area
         // Use surfaceContainerLowest as the "floor" for proper elevation hierarchy
         Surface(
             modifier = Modifier

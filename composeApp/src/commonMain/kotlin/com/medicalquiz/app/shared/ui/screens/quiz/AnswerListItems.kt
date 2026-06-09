@@ -2,10 +2,12 @@ package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -46,6 +48,8 @@ import com.medicalquiz.app.shared.data.models.Answer
 import kotlin.math.min
 import com.medicalquiz.app.shared.ui.richtext.RichText
 
+private val FeedbackColorSpec = tween<Color>(durationMillis = 350, easing = FastOutSlowInEasing)
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AnswerListItem(
@@ -60,13 +64,15 @@ private fun AnswerListItem(
     onLinkClick: (String) -> Unit,
     onMediaClick: (String) -> Unit
 ) {
+    // Medical feedback transitions use standard (non-bouncy) easing so that
+    // correct/incorrect answer reveals feel clinical rather than playful.
     val motionScheme = MaterialTheme.motionScheme
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Note: in "Instant Feedback" mode, the isSelected (primaryContainer) color is 
-    // effectively skipped as showResult triggers simultaneously. It is preserved 
-    // for potential "Select then Submit" modes and to drive other UI traits 
+    // Note: in "Instant Feedback" mode, the isSelected (primaryContainer) color is
+    // effectively skipped as showResult triggers simultaneously. It is preserved
+    // for potential "Select then Submit" modes and to drive other UI traits
     // like elevation and badge shape morphing.
     val containerColor by animateColorAsState(
         targetValue = when {
@@ -75,7 +81,7 @@ private fun AnswerListItem(
             isSelected -> MaterialTheme.colorScheme.primaryContainer
             else -> MaterialTheme.colorScheme.surfaceContainerLow
         },
-        animationSpec = motionScheme.defaultEffectsSpec(),
+        animationSpec = if (showResult) FeedbackColorSpec else motionScheme.defaultEffectsSpec(),
         label = "containerColor"
     )
 
@@ -86,7 +92,7 @@ private fun AnswerListItem(
             isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
             else -> MaterialTheme.colorScheme.onSurface
         },
-        animationSpec = motionScheme.defaultEffectsSpec(),
+        animationSpec = if (showResult) FeedbackColorSpec else motionScheme.defaultEffectsSpec(),
         label = "contentColor"
     )
 
@@ -118,7 +124,7 @@ private fun AnswerListItem(
             } else {
                 MaterialTheme.colorScheme.secondaryContainer
             },
-            animationSpec = motionScheme.defaultEffectsSpec()
+            animationSpec = if (showResult) FeedbackColorSpec else motionScheme.defaultEffectsSpec()
         )
         val labelContentColor by animateColorAsState(
             targetValue = if (showResult && isCorrect) {
@@ -128,7 +134,7 @@ private fun AnswerListItem(
             } else {
                 MaterialTheme.colorScheme.onSecondaryContainer
             },
-            animationSpec = motionScheme.defaultEffectsSpec()
+            animationSpec = if (showResult) FeedbackColorSpec else motionScheme.defaultEffectsSpec()
         )
 
         val targetShape = when {

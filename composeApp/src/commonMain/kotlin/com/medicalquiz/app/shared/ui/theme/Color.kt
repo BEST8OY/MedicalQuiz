@@ -2,10 +2,19 @@ package com.medicalquiz.app.shared.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// M3 Expressive - Medical/Health themed vibrant palette
-// Primary: Vibrant Purple/Indigo
-// Secondary: Muted Teal (medical feel)
-// Tertiary: Bright Coral (highlights/accents)
+// Documentation-only brand seed colors.
+// These define the MedicalQuiz brand identity and are the intended source
+// of truth for future HCT-based palette generation via the Material Theme Builder
+// (https://material-foundation.com/tools/material-theme-builder).
+// The explicit *Light/*Dark constants below are the current hand-crafted palette.
+//
+// Primary:   Vibrant Purple/Indigo (#6750A4)
+// Secondary: Muted Teal (medical feel, #00696F)
+// Tertiary:  Bright Coral (highlights/accents, #984062)
+
+internal val PrimarySeed = Color(0xFF6750A4)
+internal val SecondarySeed = Color(0xFF00696F)
+internal val TertiarySeed = Color(0xFF984062)
 
 // Light Theme Colors
 val PrimaryLight = Color(0xFF6750A4)
@@ -44,7 +53,6 @@ val OnErrorLight = Color(0xFFFFFFFF)
 val ErrorContainerLight = Color(0xFFFFDAD6)
 val OnErrorContainerLight = Color(0xFF410002)
 
-// Surface colors - M3 Expressive with multiple surface variants
 val SurfaceDimLight = Color(0xFFDED8E1)
 val SurfaceLight = Color(0xFFFEF7FF)
 val SurfaceBrightLight = Color(0xFFFEF7FF)
@@ -66,7 +74,6 @@ val InverseOnSurfaceLight = Color(0xFFF5EFF7)
 val ScrimLight = Color(0xFF000000)
 val ShadowLight = Color(0xFF000000)
 
-// Background colors
 val BackgroundLight = Color(0xFFFEF7FF)
 val OnBackgroundLight = Color(0xFF1D1B20)
 
@@ -107,7 +114,6 @@ val OnErrorDark = Color(0xFF690005)
 val ErrorContainerDark = Color(0xFF93000A)
 val OnErrorContainerDark = Color(0xFFFFDAD6)
 
-// Surface colors - Dark
 val SurfaceDimDark = Color(0xFF141218)
 val SurfaceDark = Color(0xFF141218)
 val SurfaceBrightDark = Color(0xFF3B383E)
@@ -129,6 +135,5 @@ val InverseOnSurfaceDark = Color(0xFF322F35)
 val ScrimDark = Color(0xFF000000)
 val ShadowDark = Color(0xFF000000)
 
-// Background colors - Dark
 val BackgroundDark = Color(0xFF141218)
 val OnBackgroundDark = Color(0xFFE6E0E9)

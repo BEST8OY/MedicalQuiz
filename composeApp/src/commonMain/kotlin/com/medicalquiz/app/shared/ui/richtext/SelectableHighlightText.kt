@@ -77,8 +77,14 @@ internal fun SelectableHighlightText(
         with(density) { longPressDragHysteresis.toPx() }
     }
 
-    val highlightedText = remember(text, highlights) {
-        applyHighlightsToText(text, highlights)
+    val highlightScheme = com.medicalquiz.app.shared.ui.theme.HighlightTheme.colors
+    val highlightBackgrounds = remember(highlights, highlightScheme) {
+        highlights.associate { highlight ->
+            highlight.id to resolveHighlightBackground(highlight, highlightScheme)
+        }
+    }
+    val highlightedText = remember(text, highlights, highlightBackgrounds) {
+        applyHighlightsToText(text, highlights, highlightBackgrounds)
     }
     val selectionColor = MaterialTheme.colorScheme.secondaryContainer
     val displayText = remember(highlightedText, selectionState, selectionColor) {

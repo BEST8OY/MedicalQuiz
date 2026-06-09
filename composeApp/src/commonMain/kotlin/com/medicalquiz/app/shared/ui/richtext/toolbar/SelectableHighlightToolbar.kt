@@ -2,13 +2,11 @@ package com.medicalquiz.app.shared.ui.richtext
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
@@ -21,16 +19,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medicalquiz.app.shared.data.models.HighlightColor
 import com.medicalquiz.app.shared.data.models.TextHighlight
+import com.medicalquiz.app.shared.ui.theme.HighlightTheme
+import com.medicalquiz.app.shared.ui.theme.toContainerColors
 
 @Composable
 internal fun SelectionToolbar(
@@ -45,7 +42,7 @@ internal fun SelectionToolbar(
         shadowElevation = 4.dp,
         color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
     ) {
-        androidx.compose.foundation.layout.Column(
+        Column(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -176,43 +173,33 @@ private fun HighlightColorChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val composeColor = color.toComposeColor()
+    val scheme = HighlightTheme.colors
+    val (containerColor, onContainerColor) = color.toContainerColors(scheme)
     val borderColor = if (isSelected) {
         MaterialTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.outlineVariant
+        containerColor
     }
-    val borderWidth = if (isSelected) 2.5.dp else 1.dp
 
-    Box(
+    Surface(
+        onClick = onClick,
+        color = containerColor,
+        contentColor = onContainerColor,
+        shape = MaterialTheme.shapes.small,
         modifier = Modifier
             .size(32.dp)
-            .graphicsLayer {
-                clip = true
-                shape = CircleShape
-            }
-            .drawBehind {
-                drawCircle(color = composeColor)
-            }
             .border(
-                width = borderWidth,
+                width = if (isSelected) 2.dp else 0.dp,
                 color = borderColor,
-                shape = CircleShape
+                shape = MaterialTheme.shapes.small
             )
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick
-            )
-    )
-}
-
-internal fun HighlightColor.toComposeColor(): Color {
-    val hex = this.hex.removePrefix("#")
-    val colorLong = hex.toLongOrNull(16) ?: return Color.Yellow
-    return Color(
-        red = ((colorLong shr 16) and 0xFF) / 255f,
-        green = ((colorLong shr 8) and 0xFF) / 255f,
-        blue = (colorLong and 0xFF) / 255f
-    )
+    ) {
+        Text(
+            text = color.displayName.take(1),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(4.dp),
+            color = onContainerColor
+        )
+    }
 }

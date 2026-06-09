@@ -6,6 +6,9 @@ import kotlinx.serialization.Serializable
  * Represents a text highlight within question content.
  * Highlights are stored per database and question, allowing multiple
  * highlighted ranges per question across question text and explanation.
+ *
+ * The [highlightedText] field stores the actual text at the time of creation
+ * for validation on re-parse (e.g., if the source HTML changes).
  */
 @Serializable
 data class TextHighlight(
@@ -15,7 +18,7 @@ data class TextHighlight(
     val section: HighlightSection,
     val startOffset: Int,
     val endOffset: Int,
-    val highlightedText: String, // Store the actual text for validation on re-parse
+    val highlightedText: String,
     val color: HighlightColor = HighlightColor.YELLOW,
     val createdAt: Long
 ) {
@@ -34,31 +37,28 @@ data class TextHighlight(
     }
 }
 
-/**
- * Sections of a question that can be highlighted.
- */
 @Serializable
 enum class HighlightSection {
-    QUESTION,    // Main question text
-    EXPLANATION  // Explanation/rationale text
+    /** Main question text */
+    QUESTION,
+    /** Explanation/rationale text */
+    EXPLANATION
 }
 
 /**
  * Predefined highlight colors for text highlighting.
+ * Persisted as enum names ("YELLOW", "GREEN", ...) in SQLite.
+ * Visual colors are resolved at the UI layer via HighlightTheme / toContainerColors.
  */
 @Serializable
-enum class HighlightColor(val hex: String, val displayName: String) {
-    YELLOW("#FFEB3B", "Yellow"),
-    GREEN("#4CAF50", "Green"),
-    BLUE("#2196F3", "Blue"),
-    PINK("#E91E63", "Pink"),
-    ORANGE("#FF9800", "Orange");
+enum class HighlightColor(val displayName: String) {
+    YELLOW("Yellow"),
+    GREEN("Green"),
+    BLUE("Blue"),
+    PINK("Pink"),
+    ORANGE("Orange");
 
     companion object {
-        fun fromHex(hex: String): HighlightColor {
-            return entries.find { it.hex.equals(hex, ignoreCase = true) } ?: YELLOW
-        }
-
         fun fromName(name: String): HighlightColor {
             return entries.find { it.name.equals(name, ignoreCase = true) } ?: YELLOW
         }
