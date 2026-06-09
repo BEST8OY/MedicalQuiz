@@ -112,29 +112,27 @@ private fun AnswerListItem(
 
     val leadingContent: @Composable () -> Unit = {
         val labelContainerColor by animateColorAsState(
-            targetValue = if (showResult && isCorrect) {
-                MaterialTheme.colorScheme.secondary
-            } else if (isSelected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
+            targetValue = when {
+                showResult && isCorrect -> MaterialTheme.colorScheme.secondary
+                showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.error
+                isSelected -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.surfaceVariant
             },
             animationSpec = colorSpec
         )
         val labelContentColor by animateColorAsState(
-            targetValue = if (showResult && isCorrect) {
-                MaterialTheme.colorScheme.onSecondary
-            } else if (isSelected) {
-                MaterialTheme.colorScheme.onPrimary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
+            targetValue = when {
+                showResult && isCorrect -> MaterialTheme.colorScheme.onSecondary
+                showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.onError
+                isSelected -> MaterialTheme.colorScheme.onPrimary
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
             },
             animationSpec = colorSpec
         )
 
         val targetShape = when {
             showResult && isCorrect -> MaterialShapes.Gem
-            isSelected -> MaterialShapes.Burst
+            isSelected -> MaterialShapes.Sunny
             else -> MaterialShapes.Pill
         }
 

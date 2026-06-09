@@ -130,11 +130,12 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 | Default | `surfaceContainerLow` | `onSurface` |
 
 **Answer label badge (leading indicator)**
-| State | Container | Text |
-|-------|-----------|------|
-| Correct (result shown) | `secondary` | `onSecondary` |
-| Selected (before submit) | `primary` | `onPrimary` |
-| Default | `surfaceVariant` | `onSurfaceVariant` |
+| State | Container | Text | Shape |
+|-------|-----------|------|-------|
+| Correct (result shown) | `secondary` | `onSecondary` | `Gem` |
+| Wrong selection (result shown) | `error` | `onError` | `Pill` |
+| Selected (before submit) | `primary` | `onPrimary` | `Sunny` |
+| Default | `surfaceVariant` | `onSurfaceVariant` | `Pill` |
 
 **Percentage badge (trailing)** — plain text, no container background.
 | State | Color |
