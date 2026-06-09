@@ -143,7 +143,7 @@ actual fun VideoPlayer(
             // Control overlay
             Surface(
                 color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f),
-                contentColor = MaterialTheme.colorScheme.onSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)

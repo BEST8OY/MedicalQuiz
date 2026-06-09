@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medicalquiz.app.shared.data.ActiveDatabaseHolder
 import com.medicalquiz.app.shared.data.QuizSessionRepository
-
+import com.medicalquiz.app.shared.data.models.SubmissionMode
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.domain.ApplyFiltersUseCase
 import com.medicalquiz.app.shared.domain.SnackbarSink
@@ -75,6 +75,7 @@ class FilterViewModel(
                     selectedSystemIds = savedSession.selectedSystemIds.toSet(),
                     performanceFilter = savedSession.performanceFilter,
                     isLoggingEnabled = savedSession.isLoggingEnabled,
+                    submissionMode = savedSession.submissionMode,
                 )
             }
         }
@@ -207,6 +208,7 @@ class FilterViewModel(
                 currentQuestionIndex = 0,
                 appendToHistory = false,
                 isLoggingEnabled = currentState.isLoggingEnabled,
+                submissionMode = currentState.submissionMode,
             )
         }
     }
@@ -257,6 +259,13 @@ class FilterViewModel(
 
     fun setLoggingEnabled(enabled: Boolean) {
         _state.update { it.copy(isLoggingEnabled = enabled) }
+        viewModelScope.launch(Dispatchers.IO) {
+            saveSession()
+        }
+    }
+
+    fun setSubmissionMode(mode: SubmissionMode) {
+        _state.update { it.copy(submissionMode = mode) }
         viewModelScope.launch(Dispatchers.IO) {
             saveSession()
         }

@@ -253,10 +253,14 @@ internal fun TableRowContent(
             } else {
                 val isHeaderCell = row.isHeaderRow || cell.cell.isHeader
                 val textStyle = tableCellTextStyle(isHeaderCell)
-                val textColor = tableCellTextColor(
-                    isHeaderCell = isHeaderCell,
-                    isAbstractClass = cell.cell.classNames.containsInsensitive("abstract")
-                )
+                val textColor = when {
+                    cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.onSecondaryContainer
+                    cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.onTertiaryContainer
+                    else -> tableCellTextColor(
+                        isHeaderCell = isHeaderCell,
+                        isAbstractClass = cell.cell.classNames.containsInsensitive("abstract")
+                    )
+                }
                 val cellBackground = when {
                     cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.secondaryContainer
                     cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer

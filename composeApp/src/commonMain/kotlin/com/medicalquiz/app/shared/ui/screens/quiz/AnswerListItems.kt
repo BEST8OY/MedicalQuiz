@@ -2,10 +2,9 @@ package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -15,6 +14,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -27,8 +27,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.toPath
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -70,7 +73,7 @@ private fun AnswerListItem(
     // like elevation and badge shape morphing.
     val containerColor by animateColorAsState(
         targetValue = when {
-            showResult && isCorrect -> MaterialTheme.colorScheme.tertiaryContainer
+            showResult && isCorrect -> MaterialTheme.colorScheme.secondaryContainer
             showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.errorContainer
             isSelected -> MaterialTheme.colorScheme.primaryContainer
             else -> MaterialTheme.colorScheme.surfaceContainerLow
@@ -81,7 +84,7 @@ private fun AnswerListItem(
 
     val contentColor by animateColorAsState(
         targetValue = when {
-            showResult && isCorrect -> MaterialTheme.colorScheme.onTertiaryContainer
+            showResult && isCorrect -> MaterialTheme.colorScheme.onSecondaryContainer
             showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.onErrorContainer
             isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
             else -> MaterialTheme.colorScheme.onSurface
@@ -92,10 +95,7 @@ private fun AnswerListItem(
 
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
+        animationSpec = motionScheme.defaultEffectsSpec(),
         label = "scale"
     )
 
@@ -111,36 +111,32 @@ private fun AnswerListItem(
 
     val leadingContent: @Composable () -> Unit = {
         val labelContainerColor by animateColorAsState(
-            targetValue = if (showResult && isCorrect) {
-                MaterialTheme.colorScheme.tertiary
-            } else if (isSelected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.secondaryContainer
+            targetValue = when {
+                showResult && isCorrect -> MaterialTheme.colorScheme.secondary
+                showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.error
+                isSelected -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.surfaceVariant
             },
             animationSpec = motionScheme.defaultEffectsSpec()
         )
         val labelContentColor by animateColorAsState(
-            targetValue = if (showResult && isCorrect) {
-                MaterialTheme.colorScheme.onTertiary
-            } else if (isSelected) {
-                MaterialTheme.colorScheme.onPrimary
-            } else {
-                MaterialTheme.colorScheme.onSecondaryContainer
+            targetValue = when {
+                showResult && isCorrect -> MaterialTheme.colorScheme.onSecondary
+                showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.onError
+                isSelected -> MaterialTheme.colorScheme.onPrimary
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
             },
             animationSpec = motionScheme.defaultEffectsSpec()
         )
 
         val targetShape = when {
             showResult && isCorrect -> MaterialShapes.Gem
-            isSelected -> MaterialShapes.Burst
+            isSelected && !showResult -> MaterialShapes.Sunny
             else -> MaterialShapes.Pill
         }
 
         MorphingMaterialShapeBadge(
-            from = MaterialShapes.Pill,
-            to = targetShape,
-            progress = if (targetShape == MaterialShapes.Pill) 0f else 1f,
+            targetShape = targetShape,
             backgroundColor = labelContainerColor,
             size = 40.dp,
             modifier = Modifier.padding(end = 8.dp)
@@ -163,6 +159,12 @@ private fun AnswerListItem(
         }
     }
 
+    val trailingTextColor = when {
+        showResult && isCorrect -> MaterialTheme.colorScheme.onSecondaryContainer
+        showResult -> MaterialTheme.colorScheme.onErrorContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
     val trailingContent: @Composable () -> Unit = {
         AnimatedContent(
             targetState = showResult to percentage,
@@ -174,24 +176,16 @@ private fun AnswerListItem(
         ) { (show, pct) ->
             when {
                 show && pct != null -> {
-                    MorphingMaterialShapeBadge(
-                        from = MaterialShapes.Pill,
-                        to = MaterialShapes.Arch,
-                        progress = 1f,
-                        backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
-                        size = 36.dp,
+                    Text(
+                        text = "$pct%",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = trailingTextColor,
                         modifier = Modifier.padding(start = 8.dp)
-                    ) {
-                        Text(
-                            text = "$pct%",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
+                    )
                 }
 
-                else -> Box(modifier = Modifier.padding(start = 36.dp))
+                else -> Spacer(modifier = Modifier.size(0.dp))
             }
         }
     }
@@ -235,21 +229,30 @@ private fun AnswerListItem(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun MorphingMaterialShapeBadge(
-    from: RoundedPolygon,
-    to: RoundedPolygon,
-    progress: Float,
+    targetShape: RoundedPolygon,
     backgroundColor: Color,
     size: Dp,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
     val motionScheme = MaterialTheme.motionScheme
-    val morph = remember(from, to) { Morph(from, to) }
-    val morphProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = motionScheme.defaultSpatialSpec(),
-        label = "morphProgress"
-    )
+    val morphSpatialSpec = motionScheme.defaultSpatialSpec<Float>()
+
+    var previousShape by remember { mutableStateOf(targetShape) }
+    var currentShape by remember { mutableStateOf(targetShape) }
+    val progress = remember { Animatable(1f) }
+    val cachedPath = remember { Path() }
+
+    LaunchedEffect(targetShape) {
+        if (targetShape != currentShape) {
+            previousShape = currentShape
+            currentShape = targetShape
+            progress.snapTo(0f)
+            progress.animateTo(1f, animationSpec = morphSpatialSpec)
+        }
+    }
+
+    val morph = remember(previousShape, currentShape) { Morph(previousShape, currentShape) }
 
     Box(
         contentAlignment = Alignment.Center,
@@ -257,9 +260,10 @@ private fun MorphingMaterialShapeBadge(
             .size(size)
             .drawWithCache {
                 val minDimension = min(this@drawWithCache.size.width, this@drawWithCache.size.height)
+                cachedPath.rewind()
                 val shapePath = morph.toPath(
-                    progress = morphProgress,
-                    path = Path(),
+                    progress = progress.value,
+                    path = cachedPath,
                     startAngle = 0
                 )
                 shapePath.transform(

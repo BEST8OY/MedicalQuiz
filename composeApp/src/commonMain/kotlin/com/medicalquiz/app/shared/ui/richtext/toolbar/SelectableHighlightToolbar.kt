@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -43,7 +44,7 @@ internal fun SelectionToolbar(
         shape = MaterialTheme.shapes.small,
         tonalElevation = 6.dp,
         shadowElevation = 4.dp,
-        color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
+        color = MaterialTheme.colorScheme.surfaceContainerHighest
     ) {
         androidx.compose.foundation.layout.Column(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
@@ -137,7 +138,7 @@ internal fun HighlightEditPopup(
         shape = MaterialTheme.shapes.small,
         tonalElevation = 6.dp,
         shadowElevation = 4.dp,
-        color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
+        color = MaterialTheme.colorScheme.surfaceContainerHighest
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
@@ -210,9 +211,10 @@ private fun HighlightColorChip(
 internal fun HighlightColor.toComposeColor(): Color {
     val hex = this.hex.removePrefix("#")
     val colorLong = hex.toLongOrNull(16) ?: return Color.Yellow
-    return Color(
+    val color = Color(
         red = ((colorLong shr 16) and 0xFF) / 255f,
         green = ((colorLong shr 8) and 0xFF) / 255f,
         blue = (colorLong and 0xFF) / 255f
     )
+    return color
 }

@@ -126,8 +126,7 @@ fun HtmlViewerScreen(
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.extraLarge,
-                            color = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 3.dp,
+                            color = MaterialTheme.colorScheme.surfaceContainer,
                             shadowElevation = 1.dp,
                         ) {
                             Column(

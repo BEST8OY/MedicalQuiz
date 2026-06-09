@@ -1,8 +1,13 @@
 package com.medicalquiz.app.shared.ui.screens.quiz
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
@@ -12,8 +17,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.FloatingToolbarScrollBehavior
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,7 +30,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 data class QuizBottomToolbarUiState(
@@ -32,16 +37,10 @@ data class QuizBottomToolbarUiState(
     val totalQuestions: Int,
     val hasPreviousQuestion: Boolean,
     val hasNextQuestion: Boolean,
+    val showSubmitButton: Boolean = false,
+    val canSubmit: Boolean = false,
 )
 
-/**
- * Quiz navigation toolbar using IconButtons for compact navigation.
- *
- * Per M3 guidelines:
- * - IconButtons are used for supplementary actions in toolbars
- * - Previous/Next are navigation actions (not primary content actions)
- * - Question counter is the primary focus, navigation is supplementary
- */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun QuizFloatingToolbar(
@@ -49,20 +48,23 @@ fun QuizFloatingToolbar(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onJumpTo: () -> Unit,
+    onSubmit: () -> Unit = {},
+    scrollBehavior: FloatingToolbarScrollBehavior? = null,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
+        val motionScheme = MaterialTheme.motionScheme
         val isExpanded = maxWidth >= 600.dp
         val currentQuestionNumber = uiState.currentQuestionIndex + 1
         val questionLabel = "$currentQuestionNumber / ${uiState.totalQuestions}"
 
         HorizontalFloatingToolbar(
             expanded = true,
+            scrollBehavior = scrollBehavior,
             modifier = Modifier.padding(horizontal = if (isExpanded) 24.dp else 16.dp),
             colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            contentPadding = FloatingToolbarDefaults.ContentPadding,
             leadingContent = {
-                // Previous - standard IconButton (supplementary navigation)
                 IconButton(
                     onClick = onPrevious,
                     enabled = uiState.hasPreviousQuestion,
@@ -77,8 +79,7 @@ fun QuizFloatingToolbar(
                 }
             },
             trailingContent = {
-                // Next - FilledTonalIconButton (slightly more emphasis as primary navigation)
-                FilledTonalIconButton(
+                IconButton(
                     onClick = onNext,
                     enabled = uiState.hasNextQuestion,
                     modifier = Modifier
@@ -92,10 +93,27 @@ fun QuizFloatingToolbar(
                 }
             },
             content = {
-                // Spacer to add spacing between leadingContent and content
                 Spacer(modifier = Modifier.width(8.dp))
-                
-                // Question counter - centered with pill container
+
+                AnimatedVisibility(
+                    visible = uiState.showSubmitButton,
+                    enter = expandHorizontally(animationSpec = motionScheme.defaultSpatialSpec()) +
+                            fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
+                    exit = shrinkHorizontally(animationSpec = motionScheme.fastSpatialSpec()) +
+                           fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        FilledTonalButton(
+                            onClick = onSubmit,
+                            enabled = uiState.canSubmit,
+                            modifier = Modifier.sizeIn(minHeight = 40.dp),
+                        ) {
+                            Text(text = "Submit")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                }
+
                 Surface(
                     onClick = onJumpTo,
                     shape = MaterialTheme.shapes.extraLarge,
@@ -113,13 +131,11 @@ fun QuizFloatingToolbar(
                         Text(
                             text = questionLabel,
                             style = MaterialTheme.typography.labelLargeEmphasized,
-                            fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                     }
                 }
-                
-                // Spacer to add spacing between content and trailingContent
+
                 Spacer(modifier = Modifier.width(8.dp))
             }
         )
@@ -127,12 +143,14 @@ fun QuizFloatingToolbar(
 }
 
 // Legacy composable for backward compatibility
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun QuizBottomBar(
     uiState: QuizBottomToolbarUiState,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onJumpTo: () -> Unit,
+    onSubmit: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     QuizFloatingToolbar(
@@ -140,6 +158,7 @@ fun QuizBottomBar(
         onPrevious = onPrevious,
         onNext = onNext,
         onJumpTo = onJumpTo,
+        onSubmit = onSubmit,
         modifier = modifier
     )
 }

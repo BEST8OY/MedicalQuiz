@@ -1,6 +1,7 @@
 package com.medicalquiz.app.shared.data
 
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
+import com.medicalquiz.app.shared.data.models.SubmissionMode
 import com.medicalquiz.app.shared.platform.FileSystemHelper
 import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.platform.StorageProvider
@@ -43,6 +44,7 @@ class QuizSessionRepository {
         currentQuestionIndex: Int,
         appendToHistory: Boolean = true,
         isLoggingEnabled: Boolean = false,
+        submissionMode: SubmissionMode = SubmissionMode.INSTANT,
     ): String {
         if (databaseName.isBlank() || currentQuestionIndex < 0) {
             clearSession()
@@ -66,6 +68,7 @@ class QuizSessionRepository {
             currentQuestionIndex = currentQuestionIndex,
             updatedAtEpochMillis = now,
             isLoggingEnabled = isLoggingEnabled,
+            submissionMode = submissionMode,
         )
 
         runCatching { writeSession(session) }
@@ -87,6 +90,7 @@ class QuizSessionRepository {
         currentQuestionIndex: Int,
         appendToHistory: Boolean = true,
         isLoggingEnabled: Boolean = false,
+        submissionMode: SubmissionMode = SubmissionMode.INSTANT,
     ): String = withContext(Dispatchers.IO) {
         val sessionId = saveSession(
             databaseName = databaseName,
@@ -96,6 +100,7 @@ class QuizSessionRepository {
             currentQuestionIndex = currentQuestionIndex,
             appendToHistory = appendToHistory,
             isLoggingEnabled = isLoggingEnabled,
+            submissionMode = submissionMode,
         )
         if (appendToHistory) {
             _historyEntries.value = listHistory()
@@ -296,6 +301,7 @@ class QuizSessionRepository {
         val currentQuestionIndex: Int,
         val updatedAtEpochMillis: Long = 0,
         @EncodeDefault val isLoggingEnabled: Boolean = false,
+        @EncodeDefault val submissionMode: SubmissionMode = SubmissionMode.INSTANT,
     )
 
     companion object {
