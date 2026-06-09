@@ -44,7 +44,7 @@ internal fun SelectionToolbar(
         shape = MaterialTheme.shapes.small,
         tonalElevation = 6.dp,
         shadowElevation = 4.dp,
-        color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
+        color = MaterialTheme.colorScheme.surfaceContainerHighest
     ) {
         androidx.compose.foundation.layout.Column(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
@@ -138,7 +138,7 @@ internal fun HighlightEditPopup(
         shape = MaterialTheme.shapes.small,
         tonalElevation = 6.dp,
         shadowElevation = 4.dp,
-        color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
+        color = MaterialTheme.colorScheme.surfaceContainerHighest
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),

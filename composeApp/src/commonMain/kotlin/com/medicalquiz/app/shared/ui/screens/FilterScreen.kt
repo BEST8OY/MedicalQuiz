@@ -299,7 +299,7 @@ private fun FilterPreviewCard(previewCount: Int) {
         targetValue = if (hasPreview) 
             MaterialTheme.colorScheme.primaryContainer 
         else 
-            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.surfaceContainerLow,
         animationSpec = motionScheme.defaultEffectsSpec()
     )
 

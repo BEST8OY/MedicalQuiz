@@ -2,19 +2,10 @@
 
 ## Color Architecture
 
-The app uses **Material 3 (M3)** dynamic colors throughout. No hardcoded UI colors exist except for text highlight colors, a seed color for palette generation, and custom `ExtendedColors` tokens.
+The app uses **Material 3 (M3)** dynamic colors throughout. No hardcoded UI colors exist except for text highlight colors and a seed color for palette generation.
 
 - **Android 12+**: Uses `dynamicLightColorScheme()` / `dynamicDarkColorScheme()` (Monet — adapts to wallpaper)
 - **Pre-API 31 Android & Desktop**: Uses `expressiveLightColorScheme()` / `darkColorScheme()` with seed `0xFF6750A4`
-
-### Extended Colors (`Color.kt`)
-
-Custom semantic tokens provided via `LocalExtendedColors` composition local:
-
-| Token              | Light      | Dark       |
-|--------------------|------------|------------|
-| `successContainer`  | `#CEEAD6`  | `#4A6B52`  |
-| `onSuccessContainer`| `#1B3A23`  | `#CEEAD6`  |
 
 ---
 
@@ -79,7 +70,7 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 | State | Container | Text |
 |-------|-----------|------|
 | Has preview | `primaryContainer` | `onPrimaryContainer` |
-| No preview | `surfaceVariant` | `onSurfaceVariant` |
+| No preview | `surfaceContainerLow` | `onSurfaceVariant` |
 
 **FilterSelectionCard (per filter row)**
 | State | Container | Icon container | Icon tint | Title | Subtitle |
@@ -133,7 +124,7 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 **AnswerListItem container & text**
 | State | Container | Text |
 |-------|-----------|------|
-| Correct (result shown) | `successContainer` (extended) | `onSuccessContainer` (extended) |
+| Correct (result shown) | `secondaryContainer` | `onSecondaryContainer` |
 | Wrong selection (result shown) | `errorContainer` | `onErrorContainer` |
 | Selected (before submit) | `primaryContainer` | `onPrimaryContainer` |
 | Default | `surfaceContainerLow` | `onSurface` |
@@ -141,9 +132,9 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 **Answer label badge (leading indicator)**
 | State | Container | Text |
 |-------|-----------|------|
-| Correct (result shown) | `successContainer` (extended) | `onSuccessContainer` (extended) |
+| Correct (result shown) | `secondary` | `onSecondary` |
 | Selected (before submit) | `primary` | `onPrimary` |
-| Default | `surfaceContainerHigh` | `onSurfaceVariant` |
+| Default | `surfaceVariant` | `onSurfaceVariant` |
 
 **Percentage badge (trailing)** — background: `secondaryContainer`, text: `onSecondaryContainer`
 
@@ -168,7 +159,7 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 | TopAppBar title/nav | `onSurface` |
 | Section header | `primary` |
 | Card containers | `surfaceContainerLow` |
-| Info notice card | `surfaceContainerLow` |
+| Info notice card | `surfaceContainer` |
 | Card title | `onSurface` |
 | Card subtitle | `onSurfaceVariant` |
 | FormatSize icons | `onSurfaceVariant` |
@@ -218,13 +209,13 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 | Loading text | `onSurfaceVariant` |
 | Error icon container | `errorContainer` |
 | Warning icon tint | `error` |
-| Error message | `onSurfaceVariant` |
-| Search field unfocused border | `outlineVariant` |
+| Error message | `error` |
+| Search field unfocused border | `outline` |
 | Search icon | `onSurfaceVariant` |
 | Divider | `outlineVariant` |
 | "No matches" text | `onSurfaceVariant` |
 | SelectionItem checked bg | `secondaryContainer` |
-| Checkbox checked | `secondary` |
+| Checkbox checked | `primary` |
 
 ---
 
@@ -252,7 +243,7 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 **HistoryItemCard**
 | State | Container | Icon | Name | DB name | Q# | Timestamp |
 |-------|-----------|------|------|---------|----|-----------|
-| Selected | `primaryContainer` | — | — | — | — | — |
+| Selected | `primaryContainer` | `onPrimaryContainer` | `onPrimaryContainer` | `onPrimaryContainer` | `onPrimaryContainer` | `onPrimaryContainer` |
 | Not selected | `surfaceContainer` | `onSurfaceVariant` | `onSurface` | `onSurfaceVariant` | `onSurface` | `onSurfaceVariant` |
 
 ---
@@ -268,8 +259,8 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 | Page counter container | `surfaceVariant` |
 | Page counter text | `onSurfaceVariant` |
 | Drag handle | `outlineVariant` |
-| BottomSheet container | `surface` |
-| BottomSheet scrim | `scrim` (alpha 0.52) |
+| BottomSheet container | `surfaceContainer` |
+| BottomSheet scrim | `scrim` (alpha 0.32) |
 | BottomSheet title | `onSurface` |
 | Divider | `outlineVariant` |
 | Unsupported icon circle | `surfaceVariant` |
@@ -287,7 +278,7 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 | TopAppBar container | `surfaceContainerLow` |
 | Loading/empty card | `surfaceContainerHigh` |
 | Loading text | `onSurface` |
-| Content Surface | `surfaceContainerHigh` |
+| Content Surface | `surfaceContainer` |
 | "Interactive HTML" text | `onSurfaceVariant` |
 
 ---
@@ -307,7 +298,7 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 | Element | Token |
 |---------|-------|
 | Control overlay | `scrim` (alpha 0.7) |
-| Control overlay content | `onSurface` |
+| Control overlay content | `inverseOnSurface` |
 
 ---
 
@@ -332,8 +323,8 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 | Header row | `secondaryContainer` | `onSecondaryContainer` |
 | Abstract class row | `surfaceVariant` | `onSurfaceVariant` |
 | Default row | `surface` | `onSurface` |
-| "selected" class | `secondaryContainer` | inherited |
-| "wichtig" class | `tertiaryContainer` | inherited |
+| "selected" class | `secondaryContainer` | `onSecondaryContainer` |
+| "wichtig" class | `tertiaryContainer` | `onTertiaryContainer` |
 
 **Other rich text elements**
 
@@ -344,7 +335,7 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 | Abstract card border | `outlineVariant` |
 | Table border | `outlineVariant` |
 | Table row dividers | `outlineVariant` |
-| Selection toolbar bg | `surfaceColorAtElevation(6.dp)` |
+| Selection toolbar bg | `surfaceContainerHighest` |
 
 **Toolbar action button**
 
@@ -378,5 +369,4 @@ All tokens below are `MaterialTheme.colorScheme.*` unless noted.
 | **Error** | `error`, `errorContainer`, `onError`, `onErrorContainer` |
 | **Outline** | `outline`, `outlineVariant` |
 | **Scrim** | `scrim` |
-| **Extended** | `successContainer`, `onSuccessContainer` (via `LocalExtendedColors`) |
-| **Other** | `surfaceColorAtElevation(6.dp)` |
+| **Scrim (inherited)** | `inverseOnSurface` |

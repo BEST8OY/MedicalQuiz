@@ -457,10 +457,9 @@ private fun ExplanationBottomSheet(
                 color = MaterialTheme.colorScheme.outlineVariant,
             )
         },
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = contentColorFor(MaterialTheme.colorScheme.surface),
-        tonalElevation = 6.dp,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.52f),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = contentColorFor(MaterialTheme.colorScheme.surfaceContainer),
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f),
     ) {
         Column(
             modifier = Modifier
