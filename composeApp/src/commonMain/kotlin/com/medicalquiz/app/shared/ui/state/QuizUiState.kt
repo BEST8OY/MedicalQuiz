@@ -4,6 +4,7 @@ import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.data.database.QuestionPerformance
 import com.medicalquiz.app.shared.data.models.Answer
 import com.medicalquiz.app.shared.data.models.Question
+import com.medicalquiz.app.shared.data.models.SubmissionMode
 
 /**
  * UI State for the active Quiz session.
@@ -26,6 +27,7 @@ data class QuizUiState(
     val previewQuestionCount: Int = 0,
     val currentPerformance: QuestionPerformance? = null,
     val isLoggingEnabled: Boolean = false,
+    val submissionMode: SubmissionMode = SubmissionMode.INSTANT,
     val showMetadata: Boolean = true,
     val autoLoadFirstQuestion: Boolean = false
 ) {

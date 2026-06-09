@@ -9,6 +9,7 @@ import com.medicalquiz.app.shared.data.SettingsRepository
 import com.medicalquiz.app.shared.data.TextHighlightsRepository
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.data.database.QuestionPerformance
+import com.medicalquiz.app.shared.data.models.SubmissionMode
 import com.medicalquiz.app.shared.domain.QuizSessionBoundaryUseCase
 import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.ui.state.QuizUiState
@@ -53,6 +54,7 @@ class QuizViewModel(
         const val KEY_PERFORMANCE_FILTER = "performance_filter"
         const val KEY_CURRENT_QUESTION_INDEX = "current_question_index"
         const val KEY_IS_LOGGING_ENABLED = "is_logging_enabled"
+        const val KEY_SUBMISSION_MODE = "submission_mode"
     }
 
     enum class SessionRestoreResult {
@@ -105,6 +107,10 @@ class QuizViewModel(
         val savedPerformanceName = savedStateHandle.get<String>(KEY_PERFORMANCE_FILTER)
         val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: 0
         val savedIsLoggingEnabled = savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED) ?: false
+        val savedSubmissionModeName = savedStateHandle.get<String>(KEY_SUBMISSION_MODE)
+        val savedSubmissionMode = savedSubmissionModeName
+            ?.let { runCatching { SubmissionMode.valueOf(it) }.getOrNull() }
+            ?: SubmissionMode.INSTANT
 
         val savedFilter = savedPerformanceName
             ?.let { runCatching { PerformanceFilter.valueOf(it) }.getOrNull() }
@@ -118,6 +124,7 @@ class QuizViewModel(
                 performanceFilter = savedFilter,
                 currentQuestionIndex = savedQuestionIndex.coerceAtLeast(0),
                 isLoggingEnabled = savedIsLoggingEnabled,
+                submissionMode = savedSubmissionMode,
             )
         }
     }
@@ -129,6 +136,7 @@ class QuizViewModel(
         savedStateHandle[KEY_PERFORMANCE_FILTER] = snapshot.performanceFilter.name
         savedStateHandle[KEY_CURRENT_QUESTION_INDEX] = snapshot.currentQuestionIndex
         savedStateHandle[KEY_IS_LOGGING_ENABLED] = snapshot.isLoggingEnabled
+        savedStateHandle[KEY_SUBMISSION_MODE] = snapshot.submissionMode.name
     }
 
     fun getTextHighlightsRepository(): TextHighlightsRepository = textHighlightsRepository
@@ -148,6 +156,7 @@ class QuizViewModel(
                         performanceFilter = result.performanceFilter,
                         currentQuestionIndex = result.currentQuestionIndex,
                         isLoggingEnabled = result.isLoggingEnabled,
+                        submissionMode = result.submissionMode,
                     )
                 }
                 persistStateSnapshot()

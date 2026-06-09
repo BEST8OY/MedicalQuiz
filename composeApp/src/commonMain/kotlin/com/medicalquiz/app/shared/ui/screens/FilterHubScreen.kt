@@ -47,6 +47,8 @@ internal fun FilterHubScreen(
                 previewCount = state.previewQuestionCount,
                 isLoggingEnabled = state.isLoggingEnabled,
                 onLoggingToggle = { viewModel.setLoggingEnabled(it) },
+                submissionMode = state.submissionMode,
+                onSubmissionModeToggle = { viewModel.setSubmissionMode(it) },
                 bottomContentPadding = 112.dp,
                 onSelectSubjects = {
                     showSubjectDialog = true

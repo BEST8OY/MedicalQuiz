@@ -255,7 +255,7 @@ private fun SelectionErrorContent(
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.error,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
 
@@ -366,7 +366,7 @@ private fun <T> SelectionListContent(
             singleLine = true,
             shape = MaterialTheme.shapes.medium,
             colors = OutlinedTextFieldDefaults.colors(
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
             )
         )
 

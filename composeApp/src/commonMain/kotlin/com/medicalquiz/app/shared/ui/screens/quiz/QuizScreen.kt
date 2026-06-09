@@ -1,7 +1,6 @@
 package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -55,6 +54,7 @@ import com.medicalquiz.app.shared.data.database.QuestionPerformance
 import com.medicalquiz.app.shared.data.models.Answer
 import com.medicalquiz.app.shared.data.models.HighlightSection
 import com.medicalquiz.app.shared.data.models.Question
+import com.medicalquiz.app.shared.data.models.SubmissionMode
 import com.medicalquiz.app.shared.ui.media.MediaHandler
 import com.medicalquiz.app.shared.ui.richtext.HighlightableRichText
 import com.medicalquiz.app.shared.ui.richtext.RichText
@@ -142,7 +142,7 @@ private fun HintSection(
     Surface(
         shape = MaterialTheme.shapes.small,
         color = if (isVisible) {
-            MaterialTheme.colorScheme.secondaryContainer
+            MaterialTheme.colorScheme.tertiaryContainer
         } else {
             MaterialTheme.colorScheme.surfaceContainer
         },
@@ -156,9 +156,9 @@ private fun HintSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val hintContentColor = if (isVisible) {
-                    MaterialTheme.colorScheme.onSecondaryContainer
+                    MaterialTheme.colorScheme.onTertiaryContainer
                 } else {
-                    MaterialTheme.colorScheme.onSecondaryContainer
+                    MaterialTheme.colorScheme.onSurfaceVariant
                 }
                 Icon(
                     imageVector = Icons.Rounded.Lightbulb,
@@ -367,7 +367,9 @@ private fun QuizQuestionCard(
             onAnswerSelected = { answerId ->
                 if (!state.answerSubmitted) {
                     viewModel.onAnswerSelected(answerId)
-                    viewModel.submitAnswer(timeTaken = 0L)
+                    if (state.submissionMode == SubmissionMode.INSTANT) {
+                        viewModel.submitAnswer(timeTaken = 0L)
+                    }
                 }
             },
             onLinkClick = linkHandler,
@@ -419,46 +421,39 @@ private fun QuizQuestionCard(
             }
         }
 
-        // Question metadata & logs container with smooth size animation
-        Column(
-            modifier = Modifier.animateContentSize(
+        // Question metadata - shown after answering (inside scrollable area)
+        AnimatedVisibility(
+            visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
+            enter = fadeIn(
+                animationSpec = defaultEffectsSpec,
+            ) + expandVertically(
                 animationSpec = defaultSpatialSpec,
+            ),
+            exit = fadeOut(
+                animationSpec = defaultEffectsSpec,
             )
         ) {
-            // Question metadata - shown after answering (inside scrollable area)
-            AnimatedVisibility(
-                visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
-                enter = fadeIn(
-                    animationSpec = defaultEffectsSpec,
-                ) + expandVertically(
-                    animationSpec = defaultSpatialSpec,
-                ),
-                exit = fadeOut(
-                    animationSpec = defaultEffectsSpec,
-                )
-            ) {
-                Column {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    QuestionMetadataCard(sections = metadataSections)
-                }
+            Column {
+                Spacer(modifier = Modifier.height(12.dp))
+                QuestionMetadataCard(sections = metadataSections)
             }
+        }
 
-            // Performance logs - shown after answering if logs enabled (inside scrollable area)
-            AnimatedVisibility(
-                visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
-                enter = fadeIn(
-                    animationSpec = defaultEffectsSpec,
-                ) + expandVertically(
-                    animationSpec = defaultSpatialSpec,
-                ),
-                exit = fadeOut(
-                    animationSpec = defaultEffectsSpec,
-                )
-            ) {
-                Column {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    PerformanceCard(performance = state.currentPerformance)
-                }
+        // Performance logs - shown after answering if logs enabled (inside scrollable area)
+        AnimatedVisibility(
+            visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
+            enter = fadeIn(
+                animationSpec = defaultEffectsSpec,
+            ) + expandVertically(
+                animationSpec = defaultSpatialSpec,
+            ),
+            exit = fadeOut(
+                animationSpec = defaultEffectsSpec,
+            )
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(12.dp))
+                PerformanceCard(performance = state.currentPerformance)
             }
         }
     }
