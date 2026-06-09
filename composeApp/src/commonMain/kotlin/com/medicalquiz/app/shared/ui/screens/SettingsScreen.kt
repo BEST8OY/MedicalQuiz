@@ -1,11 +1,10 @@
 package com.medicalquiz.app.shared.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -31,6 +29,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -38,11 +38,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,15 +60,19 @@ fun SettingsScreen(
     onBack: () -> Unit,
 ) {
     val motionScheme = MaterialTheme.motionScheme
-    val showMetadata = viewModel.showMetadata
-        .collectAsStateWithLifecycle(true).value
-    val fontScalePreference = viewModel.fontScalePreference
-        .collectAsStateWithLifecycle(null).value
+
+    val showMetadata by viewModel.showMetadata
+        .collectAsStateWithLifecycle(true)
+    val fontScalePreference by viewModel.fontScalePreference
+        .collectAsStateWithLifecycle(null)
 
     val useSystemSize = fontScalePreference == null
     val currentScale = fontScalePreference ?: FontScalePresets.DEFAULT
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -81,12 +87,36 @@ fun SettingsScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
                     navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
                 )
             )
+        },
+        bottomBar = {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .height(48.dp),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text(
+                        text = "Done",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     ) { padding ->
         Column(
@@ -112,32 +142,33 @@ fun SettingsScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Show metadata",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Display subjects and systems after answering",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
+                ListItem(
+                    headlineContent = {
+                        Text(
+                            text = "Show metadata",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            text = "Display subjects and systems after answering",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    },
+                    trailingContent = {
                         Switch(
                             checked = showMetadata,
                             onCheckedChange = { viewModel.setShowMetadata(it) }
                         )
-                    }
-                }
+                    },
+                    colors = ListItemDefaults.colors(
+                        containerColor = Color.Transparent,
+                        headlineColor = MaterialTheme.colorScheme.onSurface,
+                        supportingColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
             }
 
             // Section 2: Text & Accessibility
@@ -156,53 +187,53 @@ fun SettingsScreen(
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier
+                        .padding(bottom = 16.dp)
+                        .animateContentSize(animationSpec = motionScheme.defaultSpatialSpec())
                 ) {
-                    // System text toggle
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                    ListItem(
+                        headlineContent = {
                             Text(
                                 text = "Use system font size",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                fontWeight = FontWeight.SemiBold
                             )
+                        },
+                        supportingContent = {
                             Text(
                                 text = "Match the font size to your device system settings",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = MaterialTheme.typography.bodySmall
                             )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Switch(
-                            checked = useSystemSize,
-                            onCheckedChange = { checked ->
-                                if (checked) {
-                                    viewModel.setFontScalePreference(null)
-                                } else {
-                                    viewModel.setFontScalePreference(FontScalePresets.DEFAULT)
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = useSystemSize,
+                                onCheckedChange = { checked ->
+                                    if (checked) {
+                                        viewModel.setFontScalePreference(null)
+                                    } else {
+                                        viewModel.setFontScalePreference(FontScalePresets.DEFAULT)
+                                    }
                                 }
-                            }
-                        )
-                    }
+                            )
+                        },
+                        colors = ListItemDefaults.colors(
+                            containerColor = Color.Transparent,
+                            headlineColor = MaterialTheme.colorScheme.onSurface,
+                            supportingColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
 
-                    // Discrete Slider configuration (shown only when useSystemSize is false)
                     AnimatedVisibility(
                         visible = !useSystemSize,
-                        enter = expandVertically(animationSpec = motionScheme.defaultEffectsSpec()) +
-                                fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
-                        exit = shrinkVertically(animationSpec = motionScheme.fastEffectsSpec()) +
-                               fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                        enter = fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
+                        exit = fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp),
+                                .padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
@@ -244,7 +275,6 @@ fun SettingsScreen(
                                 )
                             }
 
-                            // Dynamic typography status
                             Text(
                                 text = scaleToLabel(currentScale),
                                 style = MaterialTheme.typography.bodyMedium,
@@ -255,7 +285,6 @@ fun SettingsScreen(
 
                             Spacer(modifier = Modifier.height(4.dp))
 
-                            // Beautiful Live Preview box!
                             LivePreviewCard(currentScale = currentScale)
                         }
                     }
@@ -289,22 +318,6 @@ fun SettingsScreen(
                     )
                 }
             }
-
-            // Bottom "Done" action button
-            Button(
-                onClick = onBack,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .padding(top = 8.dp),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Text(
-                    text = "Done",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
     }
 }
@@ -317,7 +330,7 @@ private fun LivePreviewCard(currentScale: Float) {
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
         ),
-        border = androidx.compose.foundation.BorderStroke(
+        border = BorderStroke(
             width = 1.dp,
             color = MaterialTheme.colorScheme.outlineVariant
         )
@@ -334,7 +347,6 @@ private fun LivePreviewCard(currentScale: Float) {
                 letterSpacing = 1.sp
             )
 
-            // Scaled question body text
             Text(
                 text = "A 62-year-old female presents with progressive shortness of breath, bilateral ankle swelling, and orthopnea.",
                 style = MaterialTheme.typography.bodyMedium.scaledBy(currentScale),
@@ -342,7 +354,6 @@ private fun LivePreviewCard(currentScale: Float) {
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            // Scaled choices
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
