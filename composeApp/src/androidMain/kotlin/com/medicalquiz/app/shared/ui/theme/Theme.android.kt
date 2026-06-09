@@ -10,9 +10,9 @@ import androidx.compose.ui.platform.LocalContext
 @Composable
 actual fun getPlatformColorScheme(darkTheme: Boolean): ColorScheme? {
     val context = LocalContext.current
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-    } else {
-        null
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        return if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
     }
+    return if (darkTheme) dynamicDarkColorScheme(seedColor = PurpleSeed)
+           else dynamicLightColorScheme(seedColor = PurpleSeed)
 }

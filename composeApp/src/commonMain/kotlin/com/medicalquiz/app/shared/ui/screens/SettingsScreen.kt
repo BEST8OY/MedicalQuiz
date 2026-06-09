@@ -96,8 +96,7 @@ fun SettingsScreen(
             // Section 1: Quiz Experience
             Text(
                 text = "Quiz Experience",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMediumEmphasized,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 4.dp)
             )
@@ -140,8 +139,7 @@ fun SettingsScreen(
             // Section 2: Text & Accessibility
             Text(
                 text = "Appearance & Accessibility",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMediumEmphasized,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 4.dp)
             )

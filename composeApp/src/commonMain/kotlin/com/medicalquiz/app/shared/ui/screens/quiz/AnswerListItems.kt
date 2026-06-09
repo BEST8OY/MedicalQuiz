@@ -2,10 +2,8 @@ package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -68,34 +66,36 @@ private fun AnswerListItem(
     // effectively skipped as showResult triggers simultaneously. It is preserved 
     // for potential "Select then Submit" modes and to drive other UI traits 
     // like elevation and badge shape morphing.
+    val colorSpec = motionScheme.defaultEffectsSpec<Color>()
+    val floatSpec = motionScheme.defaultEffectsSpec<Float>()
+    val spatialSpec = motionScheme.defaultSpatialSpec<Float>()
+    val dpSpatialSpec = motionScheme.defaultSpatialSpec<Dp>()
+
     val containerColor by animateColorAsState(
         targetValue = when {
-            showResult && isCorrect -> MaterialTheme.colorScheme.tertiaryContainer
+            showResult && isCorrect -> MaterialTheme.colorScheme.secondaryContainer
             showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.errorContainer
             isSelected -> MaterialTheme.colorScheme.primaryContainer
             else -> MaterialTheme.colorScheme.surfaceContainerLow
         },
-        animationSpec = motionScheme.defaultEffectsSpec(),
+        animationSpec = colorSpec,
         label = "containerColor"
     )
 
     val contentColor by animateColorAsState(
         targetValue = when {
-            showResult && isCorrect -> MaterialTheme.colorScheme.onTertiaryContainer
+            showResult && isCorrect -> MaterialTheme.colorScheme.onSecondaryContainer
             showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.onErrorContainer
             isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
             else -> MaterialTheme.colorScheme.onSurface
         },
-        animationSpec = motionScheme.defaultEffectsSpec(),
+        animationSpec = colorSpec,
         label = "contentColor"
     )
 
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
+        animationSpec = floatSpec,
         label = "scale"
     )
 
@@ -105,30 +105,30 @@ private fun AnswerListItem(
             isSelected -> 2.dp
             else -> 0.dp
         },
-        animationSpec = motionScheme.defaultSpatialSpec(),
+        animationSpec = dpSpatialSpec,
         label = "elevation"
     )
 
     val leadingContent: @Composable () -> Unit = {
         val labelContainerColor by animateColorAsState(
             targetValue = if (showResult && isCorrect) {
-                MaterialTheme.colorScheme.tertiary
+                MaterialTheme.colorScheme.secondary
             } else if (isSelected) {
                 MaterialTheme.colorScheme.primary
             } else {
                 MaterialTheme.colorScheme.secondaryContainer
             },
-            animationSpec = motionScheme.defaultEffectsSpec()
+            animationSpec = colorSpec
         )
         val labelContentColor by animateColorAsState(
             targetValue = if (showResult && isCorrect) {
-                MaterialTheme.colorScheme.onTertiary
+                MaterialTheme.colorScheme.onSecondary
             } else if (isSelected) {
                 MaterialTheme.colorScheme.onPrimary
             } else {
                 MaterialTheme.colorScheme.onSecondaryContainer
             },
-            animationSpec = motionScheme.defaultEffectsSpec()
+            animationSpec = colorSpec
         )
 
         val targetShape = when {
@@ -244,10 +244,11 @@ private fun MorphingMaterialShapeBadge(
     content: @Composable () -> Unit
 ) {
     val motionScheme = MaterialTheme.motionScheme
+    val morphSpatialSpec = motionScheme.defaultSpatialSpec<Float>()
     val morph = remember(from, to) { Morph(from, to) }
     val morphProgress by animateFloatAsState(
         targetValue = progress,
-        animationSpec = motionScheme.defaultSpatialSpec(),
+        animationSpec = morphSpatialSpec,
         label = "morphProgress"
     )
 

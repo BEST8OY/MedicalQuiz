@@ -142,7 +142,7 @@ private fun HintSection(
     Surface(
         shape = MaterialTheme.shapes.small,
         color = if (isVisible) {
-            MaterialTheme.colorScheme.secondaryContainer
+            MaterialTheme.colorScheme.tertiaryContainer
         } else {
             MaterialTheme.colorScheme.surfaceContainer
         },
@@ -156,9 +156,9 @@ private fun HintSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val hintContentColor = if (isVisible) {
-                    MaterialTheme.colorScheme.onSecondaryContainer
+                    MaterialTheme.colorScheme.onTertiaryContainer
                 } else {
-                    MaterialTheme.colorScheme.onSecondaryContainer
+                    MaterialTheme.colorScheme.onSurfaceVariant
                 }
                 Icon(
                     imageVector = Icons.Rounded.Lightbulb,
