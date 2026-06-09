@@ -2,6 +2,7 @@ package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -26,8 +27,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.toPath
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -131,16 +135,8 @@ private fun AnswerListItem(
             else -> MaterialShapes.Pill
         }
 
-        val morphProgress by animateFloatAsState(
-            targetValue = if (targetShape == MaterialShapes.Pill) 0f else 1f,
-            animationSpec = motionScheme.defaultEffectsSpec(),
-            label = "morphProgress"
-        )
-
         MorphingMaterialShapeBadge(
-            from = MaterialShapes.Pill,
-            to = targetShape,
-            progress = morphProgress,
+            targetShape = targetShape,
             backgroundColor = labelContainerColor,
             size = 40.dp,
             modifier = Modifier.padding(end = 8.dp)
@@ -233,9 +229,7 @@ private fun AnswerListItem(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun MorphingMaterialShapeBadge(
-    from: RoundedPolygon,
-    to: RoundedPolygon,
-    progress: Float,
+    targetShape: RoundedPolygon,
     backgroundColor: Color,
     size: Dp,
     modifier: Modifier = Modifier,
@@ -243,12 +237,22 @@ private fun MorphingMaterialShapeBadge(
 ) {
     val motionScheme = MaterialTheme.motionScheme
     val morphSpatialSpec = motionScheme.defaultSpatialSpec<Float>()
-    val morph = remember(from, to) { Morph(from, to) }
-    val morphProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = morphSpatialSpec,
-        label = "morphProgress"
-    )
+
+    var previousShape by remember { mutableStateOf(targetShape) }
+    var currentShape by remember { mutableStateOf(targetShape) }
+    val progress = remember { Animatable(1f) }
+    val cachedPath = remember { Path() }
+
+    LaunchedEffect(targetShape) {
+        if (targetShape != currentShape) {
+            previousShape = currentShape
+            currentShape = targetShape
+            progress.snapTo(0f)
+            progress.animateTo(1f, animationSpec = morphSpatialSpec)
+        }
+    }
+
+    val morph = remember(previousShape, currentShape) { Morph(previousShape, currentShape) }
 
     Box(
         contentAlignment = Alignment.Center,
@@ -256,9 +260,10 @@ private fun MorphingMaterialShapeBadge(
             .size(size)
             .drawWithCache {
                 val minDimension = min(this@drawWithCache.size.width, this@drawWithCache.size.height)
+                cachedPath.rewind()
                 val shapePath = morph.toPath(
-                    progress = morphProgress,
-                    path = Path(),
+                    progress = progress.value,
+                    path = cachedPath,
                     startAngle = 0
                 )
                 shapePath.transform(
