@@ -194,9 +194,9 @@ fun SettingsScreen(
                     // Discrete Slider configuration (shown only when useSystemSize is false)
                     AnimatedVisibility(
                         visible = !useSystemSize,
-                        enter = expandVertically(animationSpec = motionScheme.defaultSpatialSpec()) +
+                        enter = expandVertically(animationSpec = motionScheme.defaultEffectsSpec()) +
                                 fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
-                        exit = shrinkVertically(animationSpec = motionScheme.fastSpatialSpec()) +
+                        exit = shrinkVertically(animationSpec = motionScheme.fastEffectsSpec()) +
                                fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                     ) {
                         Column(
