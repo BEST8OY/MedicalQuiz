@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
@@ -62,9 +61,7 @@ fun QuizFloatingToolbar(
         HorizontalFloatingToolbar(
             expanded = true,
             scrollBehavior = scrollBehavior,
-            modifier = Modifier
-                .offset(y = -FloatingToolbarDefaults.ScreenOffset)
-                .padding(horizontal = if (isExpanded) 24.dp else 16.dp),
+            modifier = Modifier.padding(horizontal = if (isExpanded) 24.dp else 16.dp),
             colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
             contentPadding = FloatingToolbarDefaults.ContentPadding,
             leadingContent = {

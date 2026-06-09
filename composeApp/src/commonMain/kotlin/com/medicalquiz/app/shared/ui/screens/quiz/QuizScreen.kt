@@ -1,7 +1,6 @@
 package com.medicalquiz.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -422,46 +421,39 @@ private fun QuizQuestionCard(
             }
         }
 
-        // Question metadata & logs container with smooth size animation
-        Column(
-            modifier = Modifier.animateContentSize(
+        // Question metadata - shown after answering (inside scrollable area)
+        AnimatedVisibility(
+            visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
+            enter = fadeIn(
+                animationSpec = defaultEffectsSpec,
+            ) + expandVertically(
                 animationSpec = defaultSpatialSpec,
+            ),
+            exit = fadeOut(
+                animationSpec = defaultEffectsSpec,
             )
         ) {
-            // Question metadata - shown after answering (inside scrollable area)
-            AnimatedVisibility(
-                visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
-                enter = fadeIn(
-                    animationSpec = defaultEffectsSpec,
-                ) + expandVertically(
-                    animationSpec = defaultSpatialSpec,
-                ),
-                exit = fadeOut(
-                    animationSpec = defaultEffectsSpec,
-                )
-            ) {
-                Column {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    QuestionMetadataCard(sections = metadataSections)
-                }
+            Column {
+                Spacer(modifier = Modifier.height(12.dp))
+                QuestionMetadataCard(sections = metadataSections)
             }
+        }
 
-            // Performance logs - shown after answering if logs enabled (inside scrollable area)
-            AnimatedVisibility(
-                visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
-                enter = fadeIn(
-                    animationSpec = defaultEffectsSpec,
-                ) + expandVertically(
-                    animationSpec = defaultSpatialSpec,
-                ),
-                exit = fadeOut(
-                    animationSpec = defaultEffectsSpec,
-                )
-            ) {
-                Column {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    PerformanceCard(performance = state.currentPerformance)
-                }
+        // Performance logs - shown after answering if logs enabled (inside scrollable area)
+        AnimatedVisibility(
+            visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
+            enter = fadeIn(
+                animationSpec = defaultEffectsSpec,
+            ) + expandVertically(
+                animationSpec = defaultSpatialSpec,
+            ),
+            exit = fadeOut(
+                animationSpec = defaultEffectsSpec,
+            )
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(12.dp))
+                PerformanceCard(performance = state.currentPerformance)
             }
         }
     }
