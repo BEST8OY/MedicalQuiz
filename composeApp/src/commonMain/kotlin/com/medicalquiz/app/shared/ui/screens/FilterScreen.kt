@@ -79,7 +79,10 @@ internal fun FilterScreen(
                     bottom = 40.dp + bottomContentPadding,
                 )
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
                 Column(
                     modifier = Modifier
                         .weight(1f)
