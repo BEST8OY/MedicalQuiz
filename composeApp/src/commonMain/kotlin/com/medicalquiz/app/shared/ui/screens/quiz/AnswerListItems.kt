@@ -41,8 +41,9 @@ import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import com.medicalquiz.app.shared.data.models.Answer
-import kotlin.math.min
+import com.medicalquiz.app.shared.ui.theme.LocalExtendedColors
 import com.medicalquiz.app.shared.ui.richtext.RichText
+import kotlin.math.min
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -71,9 +72,11 @@ private fun AnswerListItem(
     val spatialSpec = motionScheme.defaultSpatialSpec<Float>()
     val dpSpatialSpec = motionScheme.defaultSpatialSpec<Dp>()
 
+    val extendedColors = LocalExtendedColors.current
+
     val containerColor by animateColorAsState(
         targetValue = when {
-            showResult && isCorrect -> MaterialTheme.colorScheme.secondaryContainer
+            showResult && isCorrect -> extendedColors.successContainer
             showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.errorContainer
             isSelected -> MaterialTheme.colorScheme.primaryContainer
             else -> MaterialTheme.colorScheme.surfaceContainerLow
@@ -84,7 +87,7 @@ private fun AnswerListItem(
 
     val contentColor by animateColorAsState(
         targetValue = when {
-            showResult && isCorrect -> MaterialTheme.colorScheme.onSecondaryContainer
+            showResult && isCorrect -> extendedColors.onSuccessContainer
             showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.onErrorContainer
             isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
             else -> MaterialTheme.colorScheme.onSurface
@@ -112,21 +115,21 @@ private fun AnswerListItem(
     val leadingContent: @Composable () -> Unit = {
         val labelContainerColor by animateColorAsState(
             targetValue = if (showResult && isCorrect) {
-                MaterialTheme.colorScheme.secondary
+                extendedColors.successContainer
             } else if (isSelected) {
                 MaterialTheme.colorScheme.primary
             } else {
-                MaterialTheme.colorScheme.secondaryContainer
+                MaterialTheme.colorScheme.surfaceContainerHigh
             },
             animationSpec = colorSpec
         )
         val labelContentColor by animateColorAsState(
             targetValue = if (showResult && isCorrect) {
-                MaterialTheme.colorScheme.onSecondary
+                extendedColors.onSuccessContainer
             } else if (isSelected) {
                 MaterialTheme.colorScheme.onPrimary
             } else {
-                MaterialTheme.colorScheme.onSecondaryContainer
+                MaterialTheme.colorScheme.onSurfaceVariant
             },
             animationSpec = colorSpec
         )

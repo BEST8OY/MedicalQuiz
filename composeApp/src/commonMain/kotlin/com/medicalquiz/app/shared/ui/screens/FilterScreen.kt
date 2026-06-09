@@ -299,7 +299,7 @@ private fun FilterPreviewCard(previewCount: Int) {
         targetValue = if (hasPreview) 
             MaterialTheme.colorScheme.primaryContainer 
         else 
-            MaterialTheme.colorScheme.errorContainer,
+            MaterialTheme.colorScheme.surfaceVariant,
         animationSpec = motionScheme.defaultEffectsSpec()
     )
 
@@ -316,12 +316,12 @@ private fun FilterPreviewCard(previewCount: Int) {
                 text = statusText,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = if (hasPreview) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+                color = if (hasPreview) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = supportingText,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (hasPreview) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+                color = if (hasPreview) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

@@ -494,7 +494,7 @@ private fun SelectionItem(
                 checked = isChecked,
                 onCheckedChange = onCheckedChange,
                 colors = CheckboxDefaults.colors(
-                    checkedColor = MaterialTheme.colorScheme.primary
+                    checkedColor = MaterialTheme.colorScheme.secondary
                 )
             )
         }

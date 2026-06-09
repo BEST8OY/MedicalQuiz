@@ -8,6 +8,7 @@ import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 
 // Light color scheme — official M3 Expressive defaults
 private val LightColorScheme = expressiveLightColorScheme()
@@ -27,11 +28,15 @@ fun AppTheme(
     val colorScheme = getPlatformColorScheme(useDarkTheme)
         ?: if (useDarkTheme) DarkColorScheme else LightColorScheme
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = AppTypography,
-        shapes = Shapes,
-        motionScheme = MotionScheme.expressive(),
-        content = content
-    )
+    CompositionLocalProvider(
+        LocalExtendedColors provides extendedColorsFor(useDarkTheme)
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = AppTypography,
+            shapes = Shapes,
+            motionScheme = MotionScheme.expressive(),
+            content = content
+        )
+    }
 }
