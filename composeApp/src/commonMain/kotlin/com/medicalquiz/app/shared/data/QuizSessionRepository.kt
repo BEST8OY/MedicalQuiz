@@ -45,6 +45,7 @@ class QuizSessionRepository {
         appendToHistory: Boolean = true,
         isLoggingEnabled: Boolean = false,
         submissionMode: SubmissionMode = SubmissionMode.INSTANT,
+        currentSessionId: String = "",
     ): String {
         if (databaseName.isBlank() || currentQuestionIndex < 0) {
             clearSession()
@@ -52,13 +53,17 @@ class QuizSessionRepository {
         }
 
         val now = Clock.System.now().toEpochMilliseconds()
-        val sessionId = resolveSessionId(
-            databaseName = databaseName,
-            selectedSubjectIds = selectedSubjectIds,
-            selectedSystemIds = selectedSystemIds,
-            performanceFilter = performanceFilter,
-            now = now,
-        )
+        val sessionId = if (currentSessionId.isNotBlank()) {
+            currentSessionId
+        } else {
+            resolveSessionId(
+                databaseName = databaseName,
+                selectedSubjectIds = selectedSubjectIds,
+                selectedSystemIds = selectedSystemIds,
+                performanceFilter = performanceFilter,
+                now = now,
+            )
+        }
         val session = QuizSession(
             id = sessionId,
             databaseName = databaseName,
@@ -91,6 +96,7 @@ class QuizSessionRepository {
         appendToHistory: Boolean = true,
         isLoggingEnabled: Boolean = false,
         submissionMode: SubmissionMode = SubmissionMode.INSTANT,
+        currentSessionId: String = "",
     ): String = withContext(Dispatchers.IO) {
         val sessionId = saveSession(
             databaseName = databaseName,
@@ -101,6 +107,7 @@ class QuizSessionRepository {
             appendToHistory = appendToHistory,
             isLoggingEnabled = isLoggingEnabled,
             submissionMode = submissionMode,
+            currentSessionId = currentSessionId,
         )
         if (appendToHistory) {
             _historyEntries.value = listHistory()
