@@ -359,6 +359,7 @@ fun App() {
                             if (restore) {
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = false, appendToHistory = false)
                             } else {
+                                quizVM.setSessionId("")
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = true)
                             }
                             workflowState = workflowCoordinator.quizRestoreConsumed(workflowState)
