@@ -246,6 +246,7 @@ fun App() {
         }
 
         val returnQuizToFilter: () -> Unit = {
+            scope.launch { sessionRepository.clearSessionAsync() }
             workflowState = workflowCoordinator.quizReturnedToFilter(workflowState)
             navigator.returnQuizToFilter()
         }
@@ -368,7 +369,6 @@ fun App() {
                         viewModel = quizVM,
                         mediaHandler = mediaHandler,
                         onNavigateBack = dropUnlessResumed {
-                            quizVM.clearSession()
                             returnQuizToFilter()
                         },
                         onOpenSettingsScreen = dropUnlessResumed {
