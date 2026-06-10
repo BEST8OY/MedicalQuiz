@@ -246,7 +246,6 @@ fun App() {
         }
 
         val returnQuizToFilter: () -> Unit = {
-            scope.launch { sessionRepository.clearSessionAsync() }
             workflowState = workflowCoordinator.quizReturnedToFilter(workflowState)
             navigator.returnQuizToFilter()
         }
@@ -303,6 +302,7 @@ fun App() {
                                 RequestedFilterPane.Filters -> FilterPane.Filters
                                 RequestedFilterPane.History -> FilterPane.History
                             }
+                            filterVM.initializeAfterDatabaseSwitch()
                             workflowState = workflowCoordinator.filterPaneRequestConsumed(workflowState)
                         }
                     }

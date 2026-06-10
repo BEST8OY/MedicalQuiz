@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medicalquiz.app.shared.data.ActiveDatabaseHolder
 import com.medicalquiz.app.shared.data.QuizSessionRepository
+import com.medicalquiz.app.shared.data.SettingsRepository
 import com.medicalquiz.app.shared.data.models.SubmissionMode
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.domain.ApplyFiltersUseCase
@@ -30,6 +31,7 @@ class FilterViewModel(
     private val historyCoordinator: AppHistoryCoordinator,
     private val applyFiltersUseCase: ApplyFiltersUseCase,
     private val sessionRepository: QuizSessionRepository,
+    private val settingsRepository: SettingsRepository,
     private val snackbarSink: SnackbarSink,
     private val appScope: CoroutineScope,
 ) : ViewModel() {
@@ -40,6 +42,7 @@ class FilterViewModel(
     val historyEntries: StateFlow<List<QuizSessionRepository.QuizSession>> = sessionRepository.historyEntries
 
     private var lastFetchedSubjectIds: List<Long>? = null
+    private var isInitializing = false
 
     init {
         viewModelScope.launch {
@@ -55,13 +58,18 @@ class FilterViewModel(
         }
     }
 
-    private suspend fun initializeAfterDatabaseSwitch() {
+    internal suspend fun initializeAfterDatabaseSwitch() {
+        if (isInitializing) return
+        isInitializing = true
+        try {
         _state.update {
             it.copy(
                 selectedSubjectIds = emptySet(),
                 selectedSystemIds = emptySet(),
                 performanceFilter = PerformanceFilter.ALL,
-                previewQuestionCount = 0
+                previewQuestionCount = 0,
+                isLoggingEnabled = settingsRepository.isLoggingEnabled.value,
+                submissionMode = settingsRepository.submissionMode.value,
             )
         }
         lastFetchedSubjectIds = null
@@ -74,8 +82,6 @@ class FilterViewModel(
                     selectedSubjectIds = savedSession.selectedSubjectIds.toSet(),
                     selectedSystemIds = savedSession.selectedSystemIds.toSet(),
                     performanceFilter = savedSession.performanceFilter,
-                    isLoggingEnabled = savedSession.isLoggingEnabled,
-                    submissionMode = savedSession.submissionMode,
                 )
             }
         }
@@ -83,6 +89,9 @@ class FilterViewModel(
         fetchSubjects()
         fetchSystemsForSubjects(null)
         updatePreviewQuestionCountInternal()
+        } finally {
+            isInitializing = false
+        }
     }
 
     fun fetchSubjects() {
@@ -259,6 +268,7 @@ class FilterViewModel(
 
     fun setLoggingEnabled(enabled: Boolean) {
         _state.update { it.copy(isLoggingEnabled = enabled) }
+        settingsRepository.setLoggingEnabled(enabled)
         viewModelScope.launch(Dispatchers.IO) {
             saveSession()
         }
@@ -266,6 +276,7 @@ class FilterViewModel(
 
     fun setSubmissionMode(mode: SubmissionMode) {
         _state.update { it.copy(submissionMode = mode) }
+        settingsRepository.setSubmissionMode(mode)
         viewModelScope.launch(Dispatchers.IO) {
             saveSession()
         }

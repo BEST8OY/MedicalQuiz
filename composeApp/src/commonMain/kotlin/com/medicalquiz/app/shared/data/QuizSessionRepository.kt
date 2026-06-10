@@ -222,16 +222,7 @@ class QuizSessionRepository {
         performanceFilter: PerformanceFilter,
         now: Long,
     ): String {
-        val existingSession = restoreSession() ?: return buildSessionId(databaseName, now)
-        val matchesContext = existingSession.databaseName == databaseName &&
-            existingSession.selectedSubjectIds.toSet() == selectedSubjectIds &&
-            existingSession.selectedSystemIds.toSet() == selectedSystemIds &&
-            existingSession.performanceFilter == performanceFilter
-        return if (matchesContext && existingSession.id.isNotBlank()) {
-            existingSession.id
-        } else {
-            buildSessionId(databaseName, now)
-        }
+        return buildSessionId(databaseName, now)
     }
 
     private fun appendHistoryEntry(session: QuizSession) {
