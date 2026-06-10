@@ -222,10 +222,6 @@ class QuizSessionRepository {
         performanceFilter: PerformanceFilter,
         now: Long,
     ): String {
-        val activeSession = restoreSession()
-        if (activeSession != null && activeSession.databaseName == databaseName) {
-            return activeSession.id
-        }
         return buildSessionId(databaseName, now)
     }
 

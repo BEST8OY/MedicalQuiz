@@ -357,7 +357,7 @@ fun App() {
                             val restore = workflowState.shouldAttemptSessionRestore || workflowState.activeQuizLaunchSource == QuizLaunchSource.History
                             quizVM.restoreSession()
                             if (restore) {
-                                quizVM.loadFilteredQuestionIds(startFromBeginning = false)
+                                quizVM.loadFilteredQuestionIds(startFromBeginning = false, appendToHistory = false)
                             } else {
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = true)
                             }
