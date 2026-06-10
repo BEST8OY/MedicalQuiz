@@ -191,7 +191,7 @@ class QuizViewModel(
     fun loadQuestion(
         index: Int,
         resetAnswerState: Boolean = true,
-        appendToHistory: Boolean = false,
+        appendToHistory: Boolean = true,
     ) {
         val ids = state.value.questionIds
         val questionId = ids.getOrNull(index) ?: return

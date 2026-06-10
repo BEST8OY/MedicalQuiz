@@ -222,6 +222,10 @@ class QuizSessionRepository {
         performanceFilter: PerformanceFilter,
         now: Long,
     ): String {
+        val activeSession = restoreSession()
+        if (activeSession != null && activeSession.databaseName == databaseName) {
+            return activeSession.id
+        }
         return buildSessionId(databaseName, now)
     }
 
@@ -248,9 +252,6 @@ class QuizSessionRepository {
     private fun deleteHistoryEntriesStrict(entryIds: Set<String>) {
         val updated = listHistory().filterNot { it.id in entryIds }
         saveHistoryList(updated)
-        if (restoreSession()?.id in entryIds) {
-            clearSession()
-        }
     }
 
     private fun writeSession(session: QuizSession) {
