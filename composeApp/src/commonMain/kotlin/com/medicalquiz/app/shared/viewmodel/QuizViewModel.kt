@@ -175,9 +175,23 @@ class QuizViewModel(
         }
     }
 
-    fun clearSession() {
-        viewModelScope.launch(Dispatchers.IO) {
-            quizSessionBoundaryUseCase.clearSession()
+    suspend fun clearSession() = withContext(Dispatchers.IO) {
+        sessionId = kotlin.random.Random.nextLong().toString()
+        _state.update {
+            it.copy(
+                questionIds = emptyList(),
+                currentQuestionIndex = -1,
+                currentQuestion = null,
+                currentAnswers = emptyList(),
+                selectedAnswerId = null,
+                answerSubmitted = false,
+                currentPerformance = null,
+                selectedSubjectIds = emptySet(),
+                selectedSystemIds = emptySet(),
+                performanceFilter = PerformanceFilter.ALL,
+                previewQuestionCount = 0,
+                isLoading = false,
+            )
         }
     }
 

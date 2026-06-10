@@ -369,7 +369,10 @@ fun App() {
                         viewModel = quizVM,
                         mediaHandler = mediaHandler,
                         onNavigateBack = dropUnlessResumed {
-                            returnQuizToFilter()
+                            scope.launch {
+                                quizVM.clearSession()
+                                returnQuizToFilter()
+                            }
                         },
                         onOpenSettingsScreen = dropUnlessResumed {
                             navigator.navigateTo(MedicalQuizRoutes.Settings)

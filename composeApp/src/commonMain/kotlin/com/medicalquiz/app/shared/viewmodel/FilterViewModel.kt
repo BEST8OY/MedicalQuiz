@@ -176,6 +176,7 @@ class FilterViewModel(
             lastFetchedSubjectIds = null
             fetchSystemsForSubjects(null)
             updatePreviewQuestionCountInternal()
+            saveSession()
         }
     }
 

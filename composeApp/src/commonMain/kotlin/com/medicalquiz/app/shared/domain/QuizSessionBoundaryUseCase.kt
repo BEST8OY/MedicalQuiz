@@ -41,10 +41,6 @@ class QuizSessionBoundaryUseCase(
         )
     }
 
-    suspend fun clearSession() {
-        sessionRepository.clearSessionAsync()
-    }
-
     sealed interface RestoreResult {
         data object NoSession : RestoreResult
         data object DatabaseMismatch : RestoreResult
