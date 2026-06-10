@@ -383,7 +383,7 @@ class QuizViewModel(
                         previewQuestionCount = if (updatePreviewCount) ids.size else it.previewQuestionCount
                     )
                 }
-                loadQuestion(newIndex, appendToHistory = true)
+                loadQuestion(newIndex, appendToHistory = appendToHistory)
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false) }
                 Logger.e("QuizViewModel", "Error loading filtered questions", e)
