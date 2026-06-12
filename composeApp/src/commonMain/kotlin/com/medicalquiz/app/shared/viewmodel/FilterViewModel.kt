@@ -147,7 +147,7 @@ class FilterViewModel(
     }
 
     fun applySelectedSubjects(newSubjectIds: Set<Long>, loadQuestions: Boolean = false) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             val previouslySelectedSystems = state.value.selectedSystemIds
             _state.update { it.copy(selectedSubjectIds = newSubjectIds) }
 
@@ -168,7 +168,7 @@ class FilterViewModel(
     }
 
     fun applySelectedSystems(newSystemIds: Set<Long>, loadQuestions: Boolean = false) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             val db = activeDatabaseHolder.databaseProvider.value
             val normalizedSelection = applyFiltersUseCase.normalizeSelectedSystems(
                 db = db,
@@ -184,14 +184,14 @@ class FilterViewModel(
 
     fun setPerformanceFilter(filter: PerformanceFilter, loadQuestions: Boolean = false) {
         _state.update { it.copy(performanceFilter = filter) }
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             updatePreviewQuestionCountInternal()
             saveSession()
         }
     }
 
     fun clearAllFilters() {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             _state.update {
                 it.copy(
                     selectedSubjectIds = emptySet(),
