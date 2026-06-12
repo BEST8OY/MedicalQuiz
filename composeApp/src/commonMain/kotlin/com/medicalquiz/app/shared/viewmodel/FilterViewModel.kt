@@ -56,6 +56,18 @@ class FilterViewModel(
                 }
             }
         }
+        viewModelScope.launch {
+            settingsRepository.isLoggingEnabled.collect { enabled ->
+                _state.update { it.copy(isLoggingEnabled = enabled) }
+                saveSession()
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.submissionMode.collect { mode ->
+                _state.update { it.copy(submissionMode = mode) }
+                saveSession()
+            }
+        }
     }
 
     internal suspend fun initializeAfterDatabaseSwitch() {
@@ -267,19 +279,11 @@ class FilterViewModel(
     }
 
     fun setLoggingEnabled(enabled: Boolean) {
-        _state.update { it.copy(isLoggingEnabled = enabled) }
         settingsRepository.setLoggingEnabled(enabled)
-        viewModelScope.launch(Dispatchers.IO) {
-            saveSession()
-        }
     }
 
     fun setSubmissionMode(mode: SubmissionMode) {
-        _state.update { it.copy(submissionMode = mode) }
         settingsRepository.setSubmissionMode(mode)
-        viewModelScope.launch(Dispatchers.IO) {
-            saveSession()
-        }
     }
 
     private fun emitSnackbar(message: String) {

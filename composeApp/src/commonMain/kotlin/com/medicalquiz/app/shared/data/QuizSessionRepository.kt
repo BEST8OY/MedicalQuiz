@@ -56,13 +56,7 @@ class QuizSessionRepository {
         val sessionId = if (currentSessionId.isNotBlank()) {
             currentSessionId
         } else {
-            resolveSessionId(
-                databaseName = databaseName,
-                selectedSubjectIds = selectedSubjectIds,
-                selectedSystemIds = selectedSystemIds,
-                performanceFilter = performanceFilter,
-                now = now,
-            )
+            buildSessionId(databaseName, now)
         }
         val session = QuizSession(
             id = sessionId,
@@ -222,15 +216,7 @@ class QuizSessionRepository {
         }
     }
 
-    private fun resolveSessionId(
-        databaseName: String,
-        selectedSubjectIds: Set<Long>,
-        selectedSystemIds: Set<Long>,
-        performanceFilter: PerformanceFilter,
-        now: Long,
-    ): String {
-        return buildSessionId(databaseName, now)
-    }
+
 
     private fun appendHistoryEntry(session: QuizSession) {
         val history = listHistory().toMutableList()
