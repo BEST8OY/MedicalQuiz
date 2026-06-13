@@ -1,6 +1,7 @@
 package com.medicalquiz.app.shared.domain
 
 import com.medicalquiz.app.shared.data.database.DatabaseProvider
+import com.medicalquiz.app.shared.data.database.LogsProvider
 import com.medicalquiz.app.shared.data.database.PerformanceFilter
 
 class ApplyFiltersUseCase {
@@ -40,15 +41,22 @@ class ApplyFiltersUseCase {
 
     suspend fun previewQuestionCount(
         db: DatabaseProvider?,
+        logsProvider: LogsProvider?,
         selectedSubjectIds: Set<Long>,
         selectedSystemIds: Set<Long>,
         performanceFilter: PerformanceFilter,
     ): Int {
-        return db?.getQuestionIds(
+        val allIds = db?.getQuestionIds(
             subjectIds = selectedSubjectIds.toList(),
             systemIds = selectedSystemIds.toList(),
-            performanceFilter = performanceFilter,
-        )?.size ?: 0
+        ) ?: return 0
+
+        if (performanceFilter == PerformanceFilter.ALL || logsProvider == null) {
+            return allIds.size
+        }
+
+        val filtered = logsProvider.getQuestionIdsByPerformance(allIds, performanceFilter)
+        return filtered.size
     }
 
     fun subjectsForSystemsFetch(subjectIds: Set<Long>): List<Long>? =
@@ -64,6 +72,6 @@ class ApplyFiltersUseCase {
         } else {
             provider.getSystems(selectedSubjectIds.toList())
         }
-        return systems.map { it.id }.toSet()
+        return systems?.map { it.id }?.toSet() ?: emptySet()
     }
 }

@@ -207,9 +207,11 @@ class FilterViewModel(
     private suspend fun updatePreviewQuestionCountInternal() {
         val currentState = state.value
         val db = activeDatabaseHolder.databaseProvider.value
+        val logs = activeDatabaseHolder.logsProvider.value
         val count = runCatching {
             applyFiltersUseCase.previewQuestionCount(
                 db = db,
+                logsProvider = logs,
                 selectedSubjectIds = currentState.selectedSubjectIds,
                 selectedSystemIds = currentState.selectedSystemIds,
                 performanceFilter = currentState.performanceFilter,
@@ -238,13 +240,16 @@ class FilterViewModel(
         entries: List<QuizSessionRepository.QuizSession>
     ): String = withContext(Dispatchers.IO) {
         val db = activeDatabaseHolder.databaseProvider.value
+        val logs = activeDatabaseHolder.logsProvider.value
         buildString {
             entries.forEach { entry ->
-                val questionIds = db?.getQuestionIds(
+                var questionIds = db?.getQuestionIds(
                     subjectIds = entry.selectedSubjectIds,
                     systemIds = entry.selectedSystemIds,
-                    performanceFilter = entry.performanceFilter
                 ) ?: emptyList()
+                if (entry.performanceFilter != PerformanceFilter.ALL && logs != null) {
+                    questionIds = logs.getQuestionIdsByPerformance(questionIds, entry.performanceFilter)
+                }
                 questionIds.forEach { qid ->
                     appendLine(qid)
                 }

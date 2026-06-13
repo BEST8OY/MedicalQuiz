@@ -203,6 +203,7 @@ class QuizViewModel(
             try {
                 val result = loadQuestionUseCase(
                     db = db,
+                    logsProvider = activeDatabaseHolder.logsProvider.value,
                     questionId = questionId,
                     isLoggingEnabled = state.value.isLoggingEnabled,
                 )
@@ -284,7 +285,7 @@ class QuizViewModel(
                 if (state.value.isLoggingEnabled && db != null) {
                     val correctAnswer = currentState.currentAnswers.getOrNull(question.corrAns - 1)
                     val correctAnswerId = correctAnswer?.answerId?.toInt() ?: -1
-                    db.logAnswer(
+                    activeDatabaseHolder.logsProvider.value?.logAnswer(
                         qid = question.id,
                         selectedAnswer = selectedAnswerId,
                         corrAnswer = correctAnswerId,
@@ -347,13 +348,17 @@ class QuizViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true) }
             val db = activeDatabaseHolder.databaseProvider.value
+            val logs = activeDatabaseHolder.logsProvider.value
             try {
                 val currentState = state.value
-                val ids = db?.getQuestionIds(
+                var ids = db?.getQuestionIds(
                     subjectIds = currentState.selectedSubjectIds.toList(),
                     systemIds = currentState.selectedSystemIds.toList(),
-                    performanceFilter = currentState.performanceFilter
                 ) ?: emptyList()
+
+                if (currentState.performanceFilter != PerformanceFilter.ALL && logs != null && ids.isNotEmpty()) {
+                    ids = logs.getQuestionIdsByPerformance(ids, currentState.performanceFilter)
+                }
 
                 if (ids.isEmpty()) {
                     _state.update {
@@ -395,9 +400,8 @@ class QuizViewModel(
     fun clearCurrentQuestionLog() {
         val questionId = _state.value.currentQuestion?.id ?: return
         viewModelScope.launch(Dispatchers.IO) {
-            val db = activeDatabaseHolder.databaseProvider.value
             try {
-                db?.clearLogForQuestion(questionId)
+                activeDatabaseHolder.logsProvider.value?.clearLogForQuestion(questionId)
                 _state.update { it.copy(currentPerformance = null) }
                 emitSnackbar("Log cleared for current question")
             } catch (e: Exception) {

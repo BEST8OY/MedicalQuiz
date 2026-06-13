@@ -34,7 +34,6 @@ class DatabaseSelectionViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             if (FolderPicker.hasPersistedFolder()) {
-                SafImporter.importDatabases()
                 MediaResolver.init()
                 val dbs = startupCoordinator.initializeApp(userDataManager)
                 _availableDatabases.value = dbs
@@ -53,20 +52,6 @@ class DatabaseSelectionViewModel(
             MediaResolver.init()
             val dbs = startupCoordinator.refreshDatabases()
             _availableDatabases.value = dbs
-            _isLoading.value = false
-        }
-    }
-
-    fun refreshDatabases() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            if (FolderPicker.hasPersistedFolder()) {
-                MediaResolver.init()
-                val dbs = startupCoordinator.refreshDatabases()
-                _availableDatabases.value = dbs
-            } else {
-                _availableDatabases.value = emptyList()
-            }
             _isLoading.value = false
         }
     }

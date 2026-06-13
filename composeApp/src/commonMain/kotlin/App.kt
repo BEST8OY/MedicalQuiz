@@ -276,7 +276,6 @@ fun App() {
                         databases = databases,
                         isLoading = isLoading,
                         hasFolder = hasFolder,
-                        onRefreshDatabases = { dbVM.refreshDatabases() },
                         onDatabaseSelected = { dbName ->
                             workflowState = workflowCoordinator.databaseSelected(workflowState, dbName)
                             scope.launch {

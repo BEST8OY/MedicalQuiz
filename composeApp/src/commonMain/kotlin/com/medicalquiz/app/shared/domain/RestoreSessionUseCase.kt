@@ -2,17 +2,25 @@ package com.medicalquiz.app.shared.domain
 
 import com.medicalquiz.app.shared.data.ActiveDatabaseHolder
 import com.medicalquiz.app.shared.data.DatabaseManager
+import com.medicalquiz.app.shared.data.LogsManager
 import com.medicalquiz.app.shared.data.QuizSessionRepository
 import com.medicalquiz.app.shared.navigation.QuizLaunchSource
 import com.medicalquiz.app.shared.platform.FileSystemHelper
+import com.medicalquiz.app.shared.platform.StorageProvider
 
-/**
- * UseCase to handle SQLite database connection setup and active session verification.
- */
 class RestoreSessionUseCase(
     private val activeDatabaseHolder: ActiveDatabaseHolder,
     private val sessionRepository: QuizSessionRepository
 ) {
+    private var logsManager: LogsManager? = null
+
+    suspend fun initLogsManager(): LogsManager {
+        logsManager?.let { return it }
+        val manager = LogsManager("${StorageProvider.getAppStorageDirectory()}/logs.db")
+        manager.init()
+        logsManager = manager
+        return manager
+    }
 
     suspend operator fun invoke(
         dbName: String,
@@ -82,7 +90,8 @@ class RestoreSessionUseCase(
         val databaseManager = DatabaseManager(dbPath)
         databaseManager.init()
 
-        activeDatabaseHolder.setDatabase(dbName.removeSuffix(".db"), databaseManager)
+        val logs = initLogsManager()
+        activeDatabaseHolder.setDatabase(dbName.removeSuffix(".db"), databaseManager, logs)
         return dbName
     }
 }

@@ -4,9 +4,7 @@ import java.io.File
 
 actual object StorageProvider {
     actual fun getAppStorageDirectory(): String {
-        val dir = File(AppContext.context.filesDir, "MedicalQuiz")
-        if (!dir.exists()) dir.mkdirs()
-        return dir.absolutePath
+        return AppContext.context.filesDir.absolutePath
     }
 
     actual fun getMediaDirectory(): String = "${getAppStorageDirectory()}/media"
