@@ -1,7 +1,7 @@
 package com.medicalquiz.app.shared.data
 
 import com.medicalquiz.app.shared.platform.FileSystemHelper
-import com.medicalquiz.app.shared.platform.StorageProvider
+import com.medicalquiz.app.shared.platform.MediaResolver
 import com.medicalquiz.app.shared.utils.HtmlUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -13,8 +13,7 @@ class LocalContentRepository {
     }
 
     suspend fun loadHtmlDocument(fileName: String): HtmlDocumentResult = withContext(Dispatchers.IO) {
-        val path = mediaFilePath(fileName)
-        val exists = FileSystemHelper.exists(path)
+        val exists = MediaResolver.hasMediaFile(fileName)
         if (!exists) {
             return@withContext HtmlDocumentResult(
                 fileExists = false,
@@ -22,26 +21,24 @@ class LocalContentRepository {
             )
         }
 
-        val raw = FileSystemHelper.readText(path)
+        val raw = MediaResolver.readMediaText(fileName)
         HtmlDocumentResult(
             fileExists = true,
             sanitizedHtml = raw?.let(HtmlUtils::sanitizeForRichText),
         )
     }
 
-    fun mediaFilePath(fileName: String): String =
-        "${StorageProvider.getMediaDirectory()}/$fileName"
+    fun mediaFilePath(fileName: String): String = MediaResolver.getMediaUri(fileName) ?: ""
 
     suspend fun mediaFileExists(fileName: String): Boolean = withContext(Dispatchers.IO) {
-        FileSystemHelper.exists(mediaFilePath(fileName))
+        MediaResolver.hasMediaFile(fileName)
     }
 
     suspend fun resolveOverlayPaths(mediaFiles: List<String>): Map<String, String?> = withContext(Dispatchers.IO) {
         mediaFiles.associateWith { fileName ->
             if (!fileName.startsWith("big_", ignoreCase = true)) return@associateWith null
             val overlayFile = fileName.substringBeforeLast('.') + ".svg"
-            val overlayPath = mediaFilePath(overlayFile)
-            if (FileSystemHelper.exists(overlayPath)) overlayPath else null
+            if (MediaResolver.hasMediaFile(overlayFile)) MediaResolver.getMediaUri(overlayFile) else null
         }
     }
 

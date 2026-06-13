@@ -1,6 +1,6 @@
 package com.medicalquiz.app.shared.utils
 
-import com.medicalquiz.app.shared.platform.FileSystemHelper
+import com.medicalquiz.app.shared.platform.MediaResolver
 import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlParser
 import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlHandler
 
@@ -190,7 +190,7 @@ object HtmlUtils {
                 return mediaPathCache[fileName]
             }
         }
-        val path = FileSystemHelper.getMediaFile(fileName)
+        val path = MediaResolver.getMediaUri(fileName)
         synchronized(mediaPathCache) {
             mediaPathCache[fileName] = path
         }
