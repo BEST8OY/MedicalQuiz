@@ -8,8 +8,7 @@ actual object FileSystemHelper {
     }
 
     actual fun getMediaFile(fileName: String): String? {
-        val storageRoot = StorageProvider.getAppStorageDirectory()
-        val mediaFile = File(File(storageRoot, "media"), fileName)
+        val mediaFile = File(StorageProvider.getMediaDirectory(), fileName)
         if (mediaFile.exists()) return mediaFile.absolutePath
         return null
     }
@@ -53,16 +52,13 @@ actual object FileSystemHelper {
     }
 
     actual fun getDatabasePath(dbName: String): String {
-        val storageRoot = StorageProvider.getAppStorageDirectory()
-        val dbFile = File(File(storageRoot, "QBanks"), dbName)
-        return dbFile.absolutePath
+        return "${StorageProvider.getDatabaseDirectory()}/$dbName"
     }
 
     actual fun listDatabases(): List<String> {
-        val storageRoot = StorageProvider.getAppStorageDirectory()
-        val qBanksDir = File(storageRoot, "QBanks")
-        if (!qBanksDir.exists()) return emptyList()
-        return qBanksDir.listFiles { file -> file.extension == "db" }
+        val databasesDir = java.io.File(StorageProvider.getDatabaseDirectory())
+        if (!databasesDir.exists()) return emptyList()
+        return databasesDir.listFiles { file -> file.extension == "db" }
             ?.map { it.name }
             ?.sorted()
             ?: emptyList()
