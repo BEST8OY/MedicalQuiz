@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
-import androidx.documentfile.provider.DocumentFile
 
 actual object FolderPicker {
     private const val PREFS_NAME = "saf_folder_picker"
@@ -67,20 +66,5 @@ actual object FolderPicker {
         val treeDocId = DocumentsContract.getTreeDocumentId(treeUri)
         val childDocId = "$treeDocId/$childName"
         return DocumentsContract.buildDocumentUriUsingTree(treeUri, childDocId)
-    }
-
-    fun listChildren(path: String = ""): List<DocumentFile> {
-        val treeUri = getTreeDocumentUri() ?: return emptyList()
-        val treeDoc = DocumentFile.fromTreeUri(AppContext.context, treeUri) ?: return emptyList()
-        return if (path.isEmpty()) {
-            treeDoc.listFiles().toList()
-        } else {
-            val parts = path.split("/")
-            var current = treeDoc
-            for (part in parts) {
-                current = current.findFile(part) ?: return emptyList()
-            }
-            if (current.isDirectory) current.listFiles().toList() else emptyList()
-        }
     }
 }
