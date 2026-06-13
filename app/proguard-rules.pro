@@ -16,21 +16,7 @@
 -dontwarn kotlin.**
 
 # ==================== KOTLINX COROUTINES ====================
-# Official rules from: https://github.com/Kotlin/kotlinx.coroutines
-
-# ServiceLoader support
--keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
--keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
-
-# Most volatile fields are updated with AFU and should not be mangled
--keepclassmembers class kotlinx.coroutines.** {
-    volatile <fields>;
-}
-
-# SafeContinuation also uses AtomicReferenceFieldUpdater
--keepclassmembers class kotlin.coroutines.SafeContinuation {
-    volatile <fields>;
-}
+# Coroutines v1.7.0+ bundles its own consumer rules — no manual rules needed.
 
 # Debug agent classes (not needed in release)
 -dontwarn java.lang.instrument.ClassFileTransformer
@@ -96,17 +82,18 @@
 
 # ==================== KSOUP ====================
 
-# HTML parsing library (uses reflection)
--keep class com.mohamedrejeb.ksoup.** { *; }
+# HTML parsing library — keep only the public API classes that may use reflection
+-keep class com.mohamedrejeb.ksoup.html.Ksoup { *; }
+-keep class com.mohamedrejeb.ksoup.html.KsoupConverter { *; }
 -dontwarn com.mohamedrejeb.ksoup.**
 
 # ==================== APP SPECIFIC ====================
 
-# Keep data layer (serialization + reflection)
--keep class com.medicalquiz.app.shared.data.** { *; }
-
-# Keep ViewModels (reflection-based instantiation)
--keep class com.medicalquiz.app.shared.viewmodel.** { *; }
+# Keep serializable data models (needed for kotlinx.serialization)
+-keepclassmembers @kotlinx.serialization.Serializable class com.medicalquiz.app.shared.data.models.** {
+    <fields>;
+    <init>(...);
+}
 
 # Keep main app entry points (Android manifest references)
 -keep class com.medicalquiz.app.MainActivity { *; }

@@ -21,14 +21,20 @@ actual object FileSystemHelper {
 
     actual fun writeText(path: String, content: String) {
         val file = File(path)
+        val tmpFile = File(path + ".tmp")
         file.parentFile?.mkdirs()
-        file.writeText(content)
+        tmpFile.writeText(content)
+        if (!tmpFile.renameTo(file)) {
+            file.writeText(content)
+            tmpFile.delete()
+        }
     }
 
     actual fun delete(path: String): Boolean {
         return try {
             File(path).delete()
         } catch (e: Exception) {
+            Logger.e("FileSystemHelper", "Failed to delete: $path", e)
             false
         }
     }

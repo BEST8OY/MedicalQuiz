@@ -68,6 +68,7 @@ import com.medicalquiz.app.shared.viewmodel.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -183,6 +184,7 @@ fun App() {
         // Save navigation state to file whenever back stack changes
         LaunchedEffect(Unit) {
             snapshotFlow { Pair(backStack.toList(), workflowState) }
+                .debounce(300)
                 .collect { (currentStack, wState) ->
                     navPersistenceCoordinator.onBackStackChanged(
                         backStack = currentStack,
