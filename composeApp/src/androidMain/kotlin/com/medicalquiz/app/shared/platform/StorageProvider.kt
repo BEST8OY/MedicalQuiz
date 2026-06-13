@@ -5,11 +5,7 @@ import android.os.Environment
 import java.io.File
 
 actual object StorageProvider {
-    private var resolvedDirectory: String? = null
-
     actual fun getAppStorageDirectory(): String {
-        resolvedDirectory?.let { return it }
-
         val dir = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
             File(Environment.getExternalStorageDirectory(), "MedicalQuiz")
         } else {
@@ -17,7 +13,7 @@ actual object StorageProvider {
                 ?: AppContext.context.filesDir
         }
 
-        return dir.absolutePath.also { resolvedDirectory = it }
+        return dir.absolutePath
     }
 
     actual fun getMediaDirectory(): String = "${getAppStorageDirectory()}/media"

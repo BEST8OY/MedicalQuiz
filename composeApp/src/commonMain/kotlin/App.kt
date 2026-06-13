@@ -421,9 +421,15 @@ fun App() {
                         },
                         onSaveMedia = { fileName ->
                             scope.launch {
-                                val sourcePath = localContentRepository.mediaFilePath(fileName)
                                 val saveDir = com.medicalquiz.app.shared.platform.StorageProvider.getAppStorageDirectory() + "/saved_media"
-                                val destPath = "$saveDir/$fileName"
+                                val sanitizedName = fileName.substringAfterLast("/").substringAfterLast("\\")
+                                val destPath = "$saveDir/$sanitizedName"
+                                // JVM-only: java.io.File works because both targets (Android, Desktop) are JVM-based
+                                if (!java.io.File(destPath).canonicalPath.startsWith(java.io.File(saveDir).canonicalPath)) {
+                                    container.snackbarDispatcher.emitSnackbar("Invalid file name")
+                                    return@launch
+                                }
+                                val sourcePath = localContentRepository.mediaFilePath(fileName)
                                 val success = com.medicalquiz.app.shared.platform.FileSystemHelper.copyFile(sourcePath, destPath)
                                 if (success) {
                                     container.snackbarDispatcher.emitSnackbar("Media saved to: $destPath")

@@ -7,5 +7,5 @@ import androidx.compose.runtime.Composable
 
 @Composable
 actual fun getPlatformColorScheme(darkTheme: Boolean): ColorScheme? {
-    return null
+    return if (darkTheme) darkColorScheme() else expressiveLightColorScheme()
 }

@@ -24,8 +24,11 @@ actual object FileSystemHelper {
         file.parentFile?.mkdirs()
         tmpFile.writeText(content)
         if (!tmpFile.renameTo(file)) {
-            file.writeText(content)
-            tmpFile.delete()
+            try {
+                file.writeText(content)
+            } finally {
+                tmpFile.delete()
+            }
         }
     }
 
