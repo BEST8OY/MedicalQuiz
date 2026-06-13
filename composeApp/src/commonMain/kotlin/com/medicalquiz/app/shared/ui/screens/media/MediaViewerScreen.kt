@@ -6,8 +6,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -16,15 +14,11 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.calculateCentroid
-import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.foundation.gestures.calculateZoom
+import net.engawapg.lib.zoomable.rememberZoomState
+import net.engawapg.lib.zoomable.toggleScale
+import net.engawapg.lib.zoomable.zoomable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -47,6 +41,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Warning
@@ -67,23 +62,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -129,6 +118,7 @@ fun MediaViewerScreen(
     resolveOverlayPaths: suspend (List<String>) -> Map<String, String?>,
     onLinkClick: ((String) -> Unit)? = null,
     onBack: () -> Unit,
+    onSaveMedia: ((String) -> Unit)? = null,
     sharedTransitionKey: String? = null,
 ) {
     SharedTransitionLayout {
@@ -142,6 +132,7 @@ fun MediaViewerScreen(
             resolveOverlayPaths = resolveOverlayPaths,
             onLinkClick = onLinkClick,
             onBack = onBack,
+            onSaveMedia = onSaveMedia,
             sharedTransitionKey = sharedTransitionKey,
         )
     }
@@ -159,6 +150,7 @@ private fun SharedTransitionScope.MediaViewerContent(
     resolveOverlayPaths: suspend (List<String>) -> Map<String, String?>,
     onLinkClick: ((String) -> Unit)?,
     onBack: () -> Unit,
+    onSaveMedia: ((String) -> Unit)?,
     sharedTransitionKey: String?,
 ) {
     if (mediaFiles.isEmpty()) {
@@ -285,6 +277,22 @@ private fun SharedTransitionScope.MediaViewerContent(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                if (onSaveMedia != null) {
+                    FilledIconButton(
+                        onClick = { onSaveMedia(currentFileName) },
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Save,
+                            contentDescription = "Save media",
                         )
                     }
                 }
@@ -620,229 +628,56 @@ private fun ImageContent(
         return
     }
 
-    var scale by rememberSaveable(fileName) { mutableFloatStateOf(MIN_SCALE) }
-    var offsetX by rememberSaveable(fileName) { mutableFloatStateOf(0f) }
-    var offsetY by rememberSaveable(fileName) { mutableFloatStateOf(0f) }
-    var animationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val zoomState = rememberZoomState()
 
-    // Velocity tracking for fling
-    var velocityX by remember { mutableFloatStateOf(0f) }
-    var velocityY by remember { mutableFloatStateOf(0f) }
-
-    val scope = rememberCoroutineScope()
-    val isZoomed by remember(scale) { derivedStateOf { scale > MIN_SCALE + 0.01f } }
-
-    LaunchedEffect(isZoomed) {
-        onZoomChanged(isZoomed)
+    LaunchedEffect(zoomState.scale) {
+        onZoomChanged(zoomState.scale > MIN_SCALE + 0.01f)
     }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            animationJob?.cancel()
-        }
-    }
-
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val density = LocalDensity.current
-        val containerWidth = with(density) { maxWidth.toPx() }
-        val containerHeight = with(density) { maxHeight.toPx() }
-
-        fun boundsFor(currentScale: Float): Offset {
-            if (currentScale <= MIN_SCALE) return Offset.Zero
-            val maxX = ((containerWidth * currentScale) - containerWidth) / 2f
-            val maxY = ((containerHeight * currentScale) - containerHeight) / 2f
-            return Offset(maxOf(0f, maxX), maxOf(0f, maxY))
-        }
-
-        fun clampOffset(offset: Offset, currentScale: Float): Offset {
-            if (currentScale <= MIN_SCALE) return Offset.Zero
-            val bounds = boundsFor(currentScale)
-            return Offset(
-                x = offset.x.coerceIn(-bounds.x, bounds.x),
-                y = offset.y.coerceIn(-bounds.y, bounds.y),
-            )
-        }
-
-        fun targetOffsetForDoubleTap(tapOffset: Offset, targetScale: Float): Offset {
-            if (targetScale <= MIN_SCALE) return Offset.Zero
-            val center = Offset(containerWidth / 2f, containerHeight / 2f)
-            val raw = Offset(
-                x = (center.x - tapOffset.x) * (targetScale - 1f),
-                y = (center.y - tapOffset.y) * (targetScale - 1f),
-            )
-            return clampOffset(raw, targetScale)
-        }
-
-        val transformModifier = Modifier
-            .pointerInput(containerWidth, containerHeight) {
-                detectTapGestures(
-                    onTap = { onSingleTap() },
-                    onDoubleTap = { tapOffset ->
-                        animationJob?.cancel()
-                        animationJob = scope.launch {
-                            val startScale = scale
-                            val startOffset = Offset(offsetX, offsetY)
-                            val zoomIn = scale <= MIN_SCALE + 0.05f
-                            val targetScale = if (zoomIn) DOUBLE_TAP_ZOOM else MIN_SCALE
-                            val targetOffset = targetOffsetForDoubleTap(
-                                tapOffset = tapOffset,
-                                targetScale = targetScale,
-                            )
-
-                            androidx.compose.animation.core.animate(
-                                initialValue = 0f,
-                                targetValue = 1f,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMediumLow,
-                                ),
-                            ) { value, _ ->
-                                scale = lerp(startScale, targetScale, value)
-                                offsetX = lerp(startOffset.x, targetOffset.x, value)
-                                offsetY = lerp(startOffset.y, targetOffset.y, value)
-                            }
-                        }
-                    },
-                )
-            }
-            .pointerInput(containerWidth, containerHeight) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    var isTransforming = false
-                    var previousTime = 0L
-                    var lastCentroid = Offset.Zero
-
-                    do {
-                        val event = awaitPointerEvent()
-                        val changes = event.changes
-                        val pointerCount = changes.count { it.pressed }
-                        val currentTime = changes.firstOrNull()?.uptimeMillis ?: 0L
-
-                        // Start transform on multi-touch or if already zoomed
-                        if (pointerCount > 1 || (pointerCount > 0 && scale > MIN_SCALE + 0.01f)) {
-                            isTransforming = true
-                        }
-
-                        if (!isTransforming) {
-                            continue
-                        }
-
-                        // Calculate time delta for velocity
-                        val timeDelta = if (previousTime > 0) (currentTime - previousTime).coerceAtLeast(1) else 1
-                        previousTime = currentTime
-
-                        val zoomChange = event.calculateZoom()
-                        val panChange = event.calculatePan()
-                        val centroid = event.calculateCentroid()
-
-                        // Only apply zoom from 2+ fingers to avoid centroid jumps
-                        val currentOffset = Offset(offsetX, offsetY)
-                        val previousScale = scale
-                        val effectiveZoom = if (pointerCount >= 2) zoomChange else 1f
-                        val nextScale = (previousScale * effectiveZoom).coerceIn(MIN_SCALE, MAX_SCALE)
-                        val center = Offset(containerWidth / 2f, containerHeight / 2f)
-
-                        // Calculate offset with proper centroid handling
-                        val updatedOffset = if (pointerCount >= 2 && effectiveZoom != 1f) {
-                            val relativeToContent = (centroid - center - currentOffset) / previousScale
-                            centroid - center - (relativeToContent * nextScale) + panChange
-                        } else {
-                            currentOffset + panChange
-                        }
-
-                        val clampedOffset = clampOffset(updatedOffset, nextScale)
-
-                        // Track velocity for fling
-                        if (pointerCount >= 1 && lastCentroid != Offset.Zero) {
-                            val dx = (clampedOffset.x - currentOffset.x)
-                            val dy = (clampedOffset.y - currentOffset.y)
-                            velocityX = dx / timeDelta * 1000f
-                            velocityY = dy / timeDelta * 1000f
-                        }
-                        if (pointerCount >= 2) {
-                            lastCentroid = centroid
-                        }
-
-                        scale = nextScale
-                        offsetX = clampedOffset.x
-                        offsetY = clampedOffset.y
-
-                        changes.forEach { it.consume() }
-                    } while (event.changes.any { it.pressed })
-
-                    // Apply fling animation when gesture ends and zoomed in
-                    if (isTransforming && scale > MIN_SCALE + 0.01f) {
-                        val flingVelocityX = velocityX.coerceIn(-8000f, 8000f)
-                        val flingVelocityY = velocityY.coerceIn(-8000f, 8000f)
-
-                        if (flingVelocityX.absoluteValue > 500f || flingVelocityY.absoluteValue > 500f) {
-                            animationJob?.cancel()
-                            animationJob = scope.launch {
-                                var animScale = scale
-                                androidx.compose.animation.core.animate(
-                                    initialValue = 1f,
-                                    targetValue = 0f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessLow,
-                                    ),
-                                ) { value, _ ->
-                                    val targetX = offsetX + flingVelocityX * 0.016f * value
-                                    val targetY = offsetY + flingVelocityY * 0.016f * value
-                                    val clamped = clampOffset(Offset(targetX, targetY), animScale)
-                                    offsetX = clamped.x
-                                    offsetY = clamped.y
-                                }
-                            }
-                        }
-                    }
-
-                    velocityX = 0f
-                    velocityY = 0f
-                }
-            }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(transformModifier)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = offsetX
-                    translationY = offsetY
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .zoomable(
+                zoomState = zoomState,
+                onDoubleTap = { position ->
+                    val targetScale = if (zoomState.scale < 2f) DOUBLE_TAP_ZOOM else MIN_SCALE
+                    zoomState.changeScale(targetScale, position)
                 },
-            contentAlignment = Alignment.Center,
-        ) {
-            var isLoading by remember { mutableStateOf(true) }
+                onTap = { onSingleTap() },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        var isLoading by remember { mutableStateOf(true) }
 
+        AsyncImage(
+            model = filePath,
+            contentDescription = fileName,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit,
+            onState = { state ->
+                isLoading = state is AsyncImagePainter.State.Loading
+                if (state is AsyncImagePainter.State.Success) {
+                    zoomState.setContentSize(state.painter.intrinsicSize)
+                }
+            },
+        )
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                LoadingIndicator()
+            }
+        }
+
+        if (overlayPath != null && showOverlay) {
             AsyncImage(
-                model = filePath,
-                contentDescription = fileName,
+                model = overlayPath,
+                contentDescription = "Overlay",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
-                onState = { state ->
-                    isLoading = state is AsyncImagePainter.State.Loading
-                },
             )
-
-            if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    LoadingIndicator()
-                }
-            }
-
-            if (overlayPath != null && showOverlay) {
-                AsyncImage(
-                    model = overlayPath,
-                    contentDescription = "Overlay",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit,
-                )
-            }
         }
     }
 }

@@ -419,6 +419,19 @@ fun App() {
                                 // Handle external URLs if not media
                             }
                         },
+                        onSaveMedia = { fileName ->
+                            scope.launch {
+                                val sourcePath = localContentRepository.mediaFilePath(fileName)
+                                val saveDir = com.medicalquiz.app.shared.platform.StorageProvider.getAppStorageDirectory() + "/saved_media"
+                                val destPath = "$saveDir/$fileName"
+                                val success = com.medicalquiz.app.shared.platform.FileSystemHelper.copyFile(sourcePath, destPath)
+                                if (success) {
+                                    container.snackbarDispatcher.emitSnackbar("Media saved to: $destPath")
+                                } else {
+                                    container.snackbarDispatcher.emitSnackbar("Failed to save media")
+                                }
+                            }
+                        },
                         onBack = dropUnlessResumed {
                             navigator.navigateBack()
                             scope.launch {

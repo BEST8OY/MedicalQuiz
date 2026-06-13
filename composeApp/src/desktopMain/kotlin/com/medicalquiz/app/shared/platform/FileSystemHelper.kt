@@ -30,6 +30,19 @@ actual object FileSystemHelper {
         }
     }
 
+    actual fun copyFile(source: String, destination: String): Boolean {
+        return try {
+            val srcFile = File(source)
+            val dstFile = File(destination)
+            dstFile.parentFile?.mkdirs()
+            srcFile.copyTo(dstFile, overwrite = true)
+            true
+        } catch (e: Exception) {
+            Logger.e("FileSystemHelper", "Failed to copy file: $source -> $destination", e)
+            false
+        }
+    }
+
     actual fun delete(path: String): Boolean {
         return try {
             File(path).delete()
