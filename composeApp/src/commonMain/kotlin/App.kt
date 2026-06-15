@@ -68,6 +68,7 @@ import com.medicalquiz.app.shared.viewmodel.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -183,6 +184,7 @@ fun App() {
         // Save navigation state to file whenever back stack changes
         LaunchedEffect(Unit) {
             snapshotFlow { Pair(backStack.toList(), workflowState) }
+                .debounce(300)
                 .collect { (currentStack, wState) ->
                     navPersistenceCoordinator.onBackStackChanged(
                         backStack = currentStack,
@@ -246,7 +248,6 @@ fun App() {
         }
 
         val returnQuizToFilter: () -> Unit = {
-            scope.launch { sessionRepository.clearSessionAsync() }
             workflowState = workflowCoordinator.quizReturnedToFilter(workflowState)
             navigator.returnQuizToFilter()
         }
@@ -303,6 +304,7 @@ fun App() {
                                 RequestedFilterPane.Filters -> FilterPane.Filters
                                 RequestedFilterPane.History -> FilterPane.History
                             }
+                            filterVM.initializeAfterDatabaseSwitch()
                             workflowState = workflowCoordinator.filterPaneRequestConsumed(workflowState)
                         }
                     }
@@ -357,8 +359,9 @@ fun App() {
                             val restore = workflowState.shouldAttemptSessionRestore || workflowState.activeQuizLaunchSource == QuizLaunchSource.History
                             quizVM.restoreSession()
                             if (restore) {
-                                quizVM.loadFilteredQuestionIds(startFromBeginning = false)
+                                quizVM.loadFilteredQuestionIds(startFromBeginning = false, appendToHistory = false)
                             } else {
+                                quizVM.setSessionId("")
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = true)
                             }
                             workflowState = workflowCoordinator.quizRestoreConsumed(workflowState)
@@ -414,6 +417,25 @@ fun App() {
                         onLinkClick = { url ->
                             if (!mediaHandler.handleMediaLink(url)) {
                                 // Handle external URLs if not media
+                            }
+                        },
+                        onSaveMedia = { fileName ->
+                            scope.launch {
+                                val saveDir = com.medicalquiz.app.shared.platform.StorageProvider.getAppStorageDirectory() + "/saved_media"
+                                val sanitizedName = fileName.substringAfterLast("/").substringAfterLast("\\")
+                                val destPath = "$saveDir/$sanitizedName"
+                                // JVM-only: java.io.File works because both targets (Android, Desktop) are JVM-based
+                                if (!java.io.File(destPath).canonicalPath.startsWith(java.io.File(saveDir).canonicalPath)) {
+                                    container.snackbarDispatcher.emitSnackbar("Invalid file name")
+                                    return@launch
+                                }
+                                val sourcePath = localContentRepository.mediaFilePath(fileName)
+                                val success = com.medicalquiz.app.shared.platform.FileSystemHelper.copyFile(sourcePath, destPath)
+                                if (success) {
+                                    container.snackbarDispatcher.emitSnackbar("Media saved to: $destPath")
+                                } else {
+                                    container.snackbarDispatcher.emitSnackbar("Failed to save media")
+                                }
                             }
                         },
                         onBack = dropUnlessResumed {

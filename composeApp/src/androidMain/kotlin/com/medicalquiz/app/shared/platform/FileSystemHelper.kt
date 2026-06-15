@@ -8,8 +8,7 @@ actual object FileSystemHelper {
     }
 
     actual fun getMediaFile(fileName: String): String? {
-        val storageRoot = StorageProvider.getAppStorageDirectory()
-        val mediaFile = File(File(storageRoot, "media"), fileName)
+        val mediaFile = File(StorageProvider.getMediaDirectory(), fileName)
         if (mediaFile.exists()) return mediaFile.absolutePath
         return null
     }
@@ -21,27 +20,46 @@ actual object FileSystemHelper {
 
     actual fun writeText(path: String, content: String) {
         val file = File(path)
+        val tmpFile = File(path + ".tmp")
         file.parentFile?.mkdirs()
-        file.writeText(content)
+        tmpFile.writeText(content)
+        if (!tmpFile.renameTo(file)) {
+            try {
+                file.writeText(content)
+            } finally {
+                tmpFile.delete()
+            }
+        }
+    }
+
+    actual fun copyFile(source: String, destination: String): Boolean {
+        return try {
+            val srcFile = File(source)
+            val dstFile = File(destination)
+            dstFile.parentFile?.mkdirs()
+            srcFile.copyTo(dstFile, overwrite = true)
+            true
+        } catch (e: Exception) {
+            Logger.e("FileSystemHelper", "Failed to copy file: $source -> $destination", e)
+            false
+        }
     }
 
     actual fun delete(path: String): Boolean {
         return try {
             File(path).delete()
         } catch (e: Exception) {
+            Logger.e("FileSystemHelper", "Failed to delete: $path", e)
             false
         }
     }
 
     actual fun getDatabasePath(dbName: String): String {
-        val storageRoot = StorageProvider.getAppStorageDirectory()
-        val dbFile = File(File(storageRoot, "QBanks"), dbName)
-        return dbFile.absolutePath
+        return "${StorageProvider.getDatabaseDirectory()}/$dbName"
     }
 
     actual fun listDatabases(): List<String> {
-        val storageRoot = StorageProvider.getAppStorageDirectory()
-        val databasesDir = File(storageRoot, "QBanks")
+        val databasesDir = java.io.File(StorageProvider.getDatabaseDirectory())
         if (!databasesDir.exists()) return emptyList()
         return databasesDir.listFiles { file -> file.extension == "db" }
             ?.map { it.name }

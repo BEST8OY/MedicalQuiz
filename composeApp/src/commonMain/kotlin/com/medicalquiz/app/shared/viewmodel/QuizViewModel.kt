@@ -64,7 +64,7 @@ class QuizViewModel(
     }
 
     private var settingsObservationJob: Job? = null
-    private var sessionId = kotlin.random.Random.nextLong().toString()
+    private var sessionId = ""
 
     private val _state = MutableStateFlow(QuizUiState.EMPTY)
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
@@ -106,11 +106,12 @@ class QuizViewModel(
         val savedSystemIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SYSTEM_IDS).orEmpty()
         val savedPerformanceName = savedStateHandle.get<String>(KEY_PERFORMANCE_FILTER)
         val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: 0
-        val savedIsLoggingEnabled = savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED) ?: false
+        val savedIsLoggingEnabled = savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED)
+            ?: settingsRepository.isLoggingEnabled.value
         val savedSubmissionModeName = savedStateHandle.get<String>(KEY_SUBMISSION_MODE)
         val savedSubmissionMode = savedSubmissionModeName
             ?.let { runCatching { SubmissionMode.valueOf(it) }.getOrNull() }
-            ?: SubmissionMode.INSTANT
+            ?: settingsRepository.submissionMode.value
 
         val savedFilter = savedPerformanceName
             ?.let { runCatching { PerformanceFilter.valueOf(it) }.getOrNull() }
@@ -166,12 +167,13 @@ class QuizViewModel(
     }
 
     private suspend fun saveSession(appendToHistory: Boolean = true) {
-        val sessionId = quizSessionBoundaryUseCase.saveSession(
+        val newSessionId = quizSessionBoundaryUseCase.saveSession(
             state = state.value,
             appendToHistory = appendToHistory,
+            currentSessionId = sessionId,
         )
-        if (sessionId.isNotBlank()) {
-            setSessionId(sessionId)
+        if (newSessionId.isNotBlank()) {
+            setSessionId(newSessionId)
         }
     }
 
@@ -224,9 +226,9 @@ class QuizViewModel(
                 Logger.e("QuizViewModel", "Error loading question $questionId", e)
                 emitSnackbar("Failed to load question: ${e.message}")
             } finally {
-                _state.update { it.copy(isLoading = false) }
                 cacheManager.trimCachesIfNeeded(index)
                 saveSession(appendToHistory = appendToHistory)
+                _state.update { it.copy(isLoading = false) }
             }
         }
     }

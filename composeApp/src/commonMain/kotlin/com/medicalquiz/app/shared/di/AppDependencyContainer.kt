@@ -76,6 +76,7 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
             historyCoordinator = historyCoordinator,
             applyFiltersUseCase = applyFiltersUseCase,
             sessionRepository = sessionRepository,
+            settingsRepository = settingsRepository,
             snackbarSink = snackbarDispatcher,
             appScope = appScope
         )

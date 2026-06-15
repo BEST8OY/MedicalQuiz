@@ -211,10 +211,9 @@ private fun HighlightColorChip(
 internal fun HighlightColor.toComposeColor(): Color {
     val hex = this.hex.removePrefix("#")
     val colorLong = hex.toLongOrNull(16) ?: return Color.Yellow
-    val color = Color(
+    return Color(
         red = ((colorLong shr 16) and 0xFF) / 255f,
         green = ((colorLong shr 8) and 0xFF) / 255f,
         blue = (colorLong and 0xFF) / 255f
     )
-    return color
 }

@@ -45,6 +45,7 @@ class QuizSessionRepository {
         appendToHistory: Boolean = true,
         isLoggingEnabled: Boolean = false,
         submissionMode: SubmissionMode = SubmissionMode.INSTANT,
+        currentSessionId: String = "",
     ): String {
         if (databaseName.isBlank() || currentQuestionIndex < 0) {
             clearSession()
@@ -52,13 +53,11 @@ class QuizSessionRepository {
         }
 
         val now = Clock.System.now().toEpochMilliseconds()
-        val sessionId = resolveSessionId(
-            databaseName = databaseName,
-            selectedSubjectIds = selectedSubjectIds,
-            selectedSystemIds = selectedSystemIds,
-            performanceFilter = performanceFilter,
-            now = now,
-        )
+        val sessionId = if (currentSessionId.isNotBlank()) {
+            currentSessionId
+        } else {
+            buildSessionId(databaseName, now)
+        }
         val session = QuizSession(
             id = sessionId,
             databaseName = databaseName,
@@ -91,6 +90,7 @@ class QuizSessionRepository {
         appendToHistory: Boolean = true,
         isLoggingEnabled: Boolean = false,
         submissionMode: SubmissionMode = SubmissionMode.INSTANT,
+        currentSessionId: String = "",
     ): String = withContext(Dispatchers.IO) {
         val sessionId = saveSession(
             databaseName = databaseName,
@@ -101,6 +101,7 @@ class QuizSessionRepository {
             appendToHistory = appendToHistory,
             isLoggingEnabled = isLoggingEnabled,
             submissionMode = submissionMode,
+            currentSessionId = currentSessionId,
         )
         if (appendToHistory) {
             _historyEntries.value = listHistory()
@@ -215,24 +216,7 @@ class QuizSessionRepository {
         }
     }
 
-    private fun resolveSessionId(
-        databaseName: String,
-        selectedSubjectIds: Set<Long>,
-        selectedSystemIds: Set<Long>,
-        performanceFilter: PerformanceFilter,
-        now: Long,
-    ): String {
-        val existingSession = restoreSession() ?: return buildSessionId(databaseName, now)
-        val matchesContext = existingSession.databaseName == databaseName &&
-            existingSession.selectedSubjectIds.toSet() == selectedSubjectIds &&
-            existingSession.selectedSystemIds.toSet() == selectedSystemIds &&
-            existingSession.performanceFilter == performanceFilter
-        return if (matchesContext && existingSession.id.isNotBlank()) {
-            existingSession.id
-        } else {
-            buildSessionId(databaseName, now)
-        }
-    }
+
 
     private fun appendHistoryEntry(session: QuizSession) {
         val history = listHistory().toMutableList()
@@ -257,9 +241,6 @@ class QuizSessionRepository {
     private fun deleteHistoryEntriesStrict(entryIds: Set<String>) {
         val updated = listHistory().filterNot { it.id in entryIds }
         saveHistoryList(updated)
-        if (restoreSession()?.id in entryIds) {
-            clearSession()
-        }
     }
 
     private fun writeSession(session: QuizSession) {

@@ -242,6 +242,7 @@ private fun MorphingMaterialShapeBadge(
     var currentShape by remember { mutableStateOf(targetShape) }
     val progress = remember { Animatable(1f) }
     val cachedPath = remember { Path() }
+    val matrix = remember { Matrix() }
 
     LaunchedEffect(targetShape) {
         if (targetShape != currentShape) {
@@ -267,7 +268,7 @@ private fun MorphingMaterialShapeBadge(
                     startAngle = 0
                 )
                 shapePath.transform(
-                    Matrix().apply {
+                    matrix.apply {
                         resetToPivotedTransform(
                             pivotX = 0.5f,
                             pivotY = 0.5f,

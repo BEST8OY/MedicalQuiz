@@ -23,7 +23,7 @@ class QuizSessionBoundaryUseCase(
         )
     }
 
-    suspend fun saveSession(state: QuizUiState, appendToHistory: Boolean): String {
+    suspend fun saveSession(state: QuizUiState, appendToHistory: Boolean, currentSessionId: String = ""): String {
         if (state.databaseName.isBlank()) {
             sessionRepository.clearSessionAsync()
             return ""
@@ -38,6 +38,7 @@ class QuizSessionBoundaryUseCase(
             appendToHistory = appendToHistory,
             isLoggingEnabled = state.isLoggingEnabled,
             submissionMode = state.submissionMode,
+            currentSessionId = currentSessionId,
         )
     }
 

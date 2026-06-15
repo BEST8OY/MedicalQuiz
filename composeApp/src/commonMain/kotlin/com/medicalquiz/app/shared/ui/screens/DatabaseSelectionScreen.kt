@@ -71,7 +71,7 @@ fun DatabaseSelectionScreen(
                         item {
                             EmptyStateMessage(
                                 title = "No QBanks found",
-                                subtitle = "Add .db files to the app directory under /QBanks and pull to refresh.",
+                                subtitle = "Add .db files to /MedicalQuiz/QBanks and pull to refresh.",
                             )
                         }
                     } else {
@@ -121,4 +121,3 @@ private fun DatabaseItemCard(
         }
     }
 }
-

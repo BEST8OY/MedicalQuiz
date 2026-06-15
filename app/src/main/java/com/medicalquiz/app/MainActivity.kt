@@ -29,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.medicalquiz.app.shared.App
-import com.medicalquiz.app.shared.generateImageLoader
 import com.medicalquiz.app.shared.platform.AppContext
 import com.medicalquiz.app.shared.ui.theme.AppTheme
 
@@ -54,7 +53,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         AppContext.init(this)
         WindowCompat.enableEdgeToEdge(window)
-        
+
         val isDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !isDark
@@ -89,7 +88,7 @@ class MainActivity : ComponentActivity() {
                 this,
                 Manifest.permission.READ_EXTERNAL_STORAGE
             ) == PackageManager.PERMISSION_GRANTED
-            
+
             if (!isPermissionGranted) {
                 requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
