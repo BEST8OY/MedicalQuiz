@@ -30,7 +30,7 @@ class LocalContentRepository {
     }
 
     fun mediaFilePath(fileName: String): String =
-        "${StorageProvider.getAppStorageDirectory()}/media/$fileName"
+        "${StorageProvider.getMediaDirectory()}/$fileName"
 
     suspend fun mediaFileExists(fileName: String): Boolean = withContext(Dispatchers.IO) {
         FileSystemHelper.exists(mediaFilePath(fileName))

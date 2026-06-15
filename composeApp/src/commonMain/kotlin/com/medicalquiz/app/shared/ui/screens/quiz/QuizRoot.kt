@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.medicalquiz.app.shared.data.models.SubmissionMode
 import com.medicalquiz.app.shared.ui.media.MediaHandler
 import com.medicalquiz.app.shared.ui.dialogs.JumpToDialog
 import com.medicalquiz.app.shared.ui.screens.media.PlatformBackHandler
@@ -100,7 +101,7 @@ fun QuizRoot(
                 totalQuestions = state.totalQuestions,
                 hasPreviousQuestion = state.hasPreviousQuestion,
                 hasNextQuestion = state.hasNextQuestion,
-                showSubmitButton = !state.answerSubmitted && state.submissionMode == com.medicalquiz.app.shared.data.models.SubmissionMode.MANUAL,
+                showSubmitButton = !state.answerSubmitted && state.submissionMode == SubmissionMode.MANUAL,
                 canSubmit = state.selectedAnswerId != null,
             ),
             onPrevious = { viewModel.loadPrevious() },
