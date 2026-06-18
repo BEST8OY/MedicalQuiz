@@ -76,13 +76,13 @@ private val START_DESTINATION: MedicalQuizRoutes = MedicalQuizRoutes.DatabaseSel
 
 private val navConfig = SavedStateConfiguration {
     serializersModule = SerializersModule {
-        polymorphic(NavKey::class) {
-            subclass(MedicalQuizRoutes.DatabaseSelection::class, MedicalQuizRoutes.DatabaseSelection.serializer())
-            subclass(MedicalQuizRoutes.Filter::class, MedicalQuizRoutes.Filter.serializer())
-            subclass(MedicalQuizRoutes.Quiz::class, MedicalQuizRoutes.Quiz.serializer())
-            subclass(MedicalQuizRoutes.Settings::class, MedicalQuizRoutes.Settings.serializer())
-            subclass(MedicalQuizRoutes.MediaViewer::class, MedicalQuizRoutes.MediaViewer.serializer())
-            subclass(MedicalQuizRoutes.HtmlViewer::class, MedicalQuizRoutes.HtmlViewer.serializer())
+        polymorphic(baseClass = NavKey::class) {
+            subclass(serializer = MedicalQuizRoutes.DatabaseSelection.serializer())
+            subclass(serializer = MedicalQuizRoutes.Filter.serializer())
+            subclass(serializer = MedicalQuizRoutes.Quiz.serializer())
+            subclass(serializer = MedicalQuizRoutes.Settings.serializer())
+            subclass(serializer = MedicalQuizRoutes.MediaViewer.serializer())
+            subclass(serializer = MedicalQuizRoutes.HtmlViewer.serializer())
         }
     }
 }
