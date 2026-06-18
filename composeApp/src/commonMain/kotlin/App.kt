@@ -31,9 +31,9 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.createSavedStateHandle
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
-import androidx.navigation3.runtime.NavKey
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
@@ -148,15 +148,6 @@ fun App() {
 
         var workflowState by rememberSaveable(stateSaver = AppWorkflowStateSaver) {
             mutableStateOf(workflowCoordinator.initialState())
-        }
-
-        // On process-death restore, if Quiz is on top, signal session restore
-        LaunchedEffect(Unit) {
-            if (backStack.lastOrNull() is MedicalQuizRoutes.Quiz &&
-                !workflowState.shouldAttemptSessionRestore
-            ) {
-                workflowState = workflowState.copy(shouldAttemptSessionRestore = true)
-            }
         }
 
         // Filter transient routes (MediaViewer/HtmlViewer) from restored back stack
@@ -349,15 +340,15 @@ fun App() {
                         // Wait until the active database name is propagated to the view model
                         quizVM.state.first { it.databaseName.isNotEmpty() }
                         if (quizVM.state.value.questionIds.isEmpty()) {
-                            val restore = workflowState.shouldAttemptSessionRestore || workflowState.activeQuizLaunchSource == QuizLaunchSource.History
-                            quizVM.restoreSession()
-                            if (restore) {
+                            val result = quizVM.restoreSession()
+                            if (result == QuizViewModel.SessionRestoreResult.Restored ||
+                                workflowState.activeQuizLaunchSource == QuizLaunchSource.History
+                            ) {
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = false, appendToHistory = false)
                             } else {
                                 quizVM.setSessionId("")
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = true)
                             }
-                            workflowState = workflowCoordinator.quizRestoreConsumed(workflowState)
                         }
                     }
 
