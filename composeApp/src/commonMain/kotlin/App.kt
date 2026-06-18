@@ -51,6 +51,7 @@ import com.medicalquiz.app.shared.domain.AppIntent
 import com.medicalquiz.app.shared.navigation.MedicalQuizRoutes
 import com.medicalquiz.app.shared.navigation.QuizLaunchSource
 import com.medicalquiz.app.shared.navigation.AppNavigator
+import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.orchestration.AppWorkflowState
 import com.medicalquiz.app.shared.orchestration.RequestedFilterPane
 import com.medicalquiz.app.shared.ui.theme.AppTheme
@@ -148,6 +149,16 @@ fun App() {
 
         var workflowState by rememberSaveable(stateSaver = AppWorkflowStateSaver) {
             mutableStateOf(workflowCoordinator.initialState())
+        }
+
+        // On process-death restore, if Quiz is on top, signal session restore
+        LaunchedEffect(Unit) {
+            val lastRoute = backStack.lastOrNull() as? MedicalQuizRoutes
+            Logger.d("App", "Session restore check: lastRoute=$lastRoute, shouldAttemptSessionRestore=${workflowState.shouldAttemptSessionRestore}")
+            if (lastRoute is MedicalQuizRoutes.Quiz && !workflowState.shouldAttemptSessionRestore) {
+                Logger.d("App", "Process-death restore detected: setting shouldAttemptSessionRestore=true")
+                workflowState = workflowState.copy(shouldAttemptSessionRestore = true)
+            }
         }
 
         // Handle database initialization when selected
@@ -333,16 +344,22 @@ fun App() {
                     LaunchedEffect(quizVM) {
                         // Wait until the active database name is propagated to the view model
                         quizVM.state.first { it.databaseName.isNotEmpty() }
+                        Logger.d("App", "Quiz LaunchedEffect: questionIds.isEmpty()=${quizVM.state.value.questionIds.isEmpty()}, shouldAttemptSessionRestore=${workflowState.shouldAttemptSessionRestore}, activeQuizLaunchSource=${workflowState.activeQuizLaunchSource}")
                         if (quizVM.state.value.questionIds.isEmpty()) {
                             val restore = workflowState.shouldAttemptSessionRestore || workflowState.activeQuizLaunchSource == QuizLaunchSource.History
+                            Logger.d("App", "Quiz LaunchedEffect: restore=$restore, calling restoreSession()")
                             quizVM.restoreSession()
                             if (restore) {
+                                Logger.d("App", "Quiz LaunchedEffect: restoring session (startFromBeginning=false, appendToHistory=false)")
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = false, appendToHistory = false)
                             } else {
+                                Logger.d("App", "Quiz LaunchedEffect: fresh start (setSessionId empty, startFromBeginning=true)")
                                 quizVM.setSessionId("")
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = true)
                             }
                             workflowState = workflowCoordinator.quizRestoreConsumed(workflowState)
+                        } else {
+                            Logger.d("App", "Quiz LaunchedEffect: questionIds not empty, skipping restore logic")
                         }
                     }
 

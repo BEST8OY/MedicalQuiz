@@ -10,6 +10,7 @@ import com.medicalquiz.app.shared.data.database.PerformanceFilter
 import com.medicalquiz.app.shared.domain.ApplyFiltersUseCase
 import com.medicalquiz.app.shared.domain.SnackbarSink
 import com.medicalquiz.app.shared.orchestration.AppHistoryCoordinator
+import com.medicalquiz.app.shared.platform.Logger
 import com.medicalquiz.app.shared.ui.state.FilterUiState
 import com.medicalquiz.app.shared.utils.Resource
 import kotlinx.coroutines.CoroutineScope
@@ -268,12 +269,16 @@ class FilterViewModel(
     }
 
     fun restoreHistoryEntry(entry: QuizSessionRepository.QuizSession, onRestored: (String) -> Unit) {
+        Logger.d("FilterViewModel", "restoreHistoryEntry called: id=${entry.id}, db=${entry.databaseName}")
         appScope.launch {
             val matchingDatabase = historyCoordinator.restoreHistoryEntry(
                 entry = entry,
             )
+            Logger.d("FilterViewModel", "restoreHistoryEntry result: matchingDatabase=$matchingDatabase")
             if (matchingDatabase != null) {
                 onRestored(matchingDatabase)
+            } else {
+                Logger.w("FilterViewModel", "restoreHistoryEntry: onRestored NOT called — matchingDatabase is null")
             }
         }
     }
