@@ -72,6 +72,9 @@ kotlin {
                 implementation(libs.coil.android)
                 implementation(libs.ktor.client.okhttp)
                 
+                // Android-only Navigation 3 for proper process-death persistence
+                implementation(libs.androidx.navigation3.runtime)
+                
                 // Media3 for video/audio playback
                 implementation(libs.media3.exoplayer)
                 implementation(libs.media3.ui)

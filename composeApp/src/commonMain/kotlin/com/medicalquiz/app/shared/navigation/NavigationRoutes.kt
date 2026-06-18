@@ -35,12 +35,6 @@ sealed interface MedicalQuizRoutes : NavKey {
     data class HtmlViewer(
         val fileName: String,
     ) : MedicalQuizRoutes
-
-    val isTransient: Boolean
-        get() = this is MediaViewer || this is HtmlViewer
-
-    val isPersistent: Boolean
-        get() = !isTransient
 }
 
 @Serializable
