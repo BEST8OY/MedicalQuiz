@@ -32,9 +32,14 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.createSavedStateHandle
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import androidx.savedstate.serialization.SavedStateConfiguration
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.subclass
+import kotlinx.serialization.modules.polymorphic
 import coil3.compose.setSingletonImageLoaderFactory
 import com.medicalquiz.app.shared.data.CacheManager
 import com.medicalquiz.app.shared.data.LocalContentRepository
@@ -46,7 +51,6 @@ import com.medicalquiz.app.shared.domain.AppIntent
 import com.medicalquiz.app.shared.navigation.MedicalQuizRoutes
 import com.medicalquiz.app.shared.navigation.QuizLaunchSource
 import com.medicalquiz.app.shared.navigation.AppNavigator
-import com.medicalquiz.app.shared.platform.rememberBackStack
 import com.medicalquiz.app.shared.orchestration.AppWorkflowState
 import com.medicalquiz.app.shared.orchestration.RequestedFilterPane
 import com.medicalquiz.app.shared.ui.theme.AppTheme
@@ -69,6 +73,19 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private val START_DESTINATION: MedicalQuizRoutes = MedicalQuizRoutes.DatabaseSelection
+
+private val navConfig = SavedStateConfiguration {
+    serializersModule = SerializersModule {
+        polymorphic(NavKey::class) {
+            subclass(MedicalQuizRoutes.DatabaseSelection::class, MedicalQuizRoutes.DatabaseSelection.serializer())
+            subclass(MedicalQuizRoutes.Filter::class, MedicalQuizRoutes.Filter.serializer())
+            subclass(MedicalQuizRoutes.Quiz::class, MedicalQuizRoutes.Quiz.serializer())
+            subclass(MedicalQuizRoutes.Settings::class, MedicalQuizRoutes.Settings.serializer())
+            subclass(MedicalQuizRoutes.MediaViewer::class, MedicalQuizRoutes.MediaViewer.serializer())
+            subclass(MedicalQuizRoutes.HtmlViewer::class, MedicalQuizRoutes.HtmlViewer.serializer())
+        }
+    }
+}
 
 private val AppWorkflowStateSaver = Saver<AppWorkflowState, List<Any?>>(
     save = { state ->
@@ -126,7 +143,7 @@ fun App() {
         val localContentRepository = container.localContentRepository
         val sessionRepository = container.sessionRepository
 
-        val backStack = rememberBackStack(START_DESTINATION)
+        val backStack = rememberNavBackStack(navConfig, START_DESTINATION)
         val navigator = remember(backStack) { AppNavigator(backStack) }
 
         var workflowState by rememberSaveable(stateSaver = AppWorkflowStateSaver) {
