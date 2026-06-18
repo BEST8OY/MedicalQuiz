@@ -11,47 +11,36 @@ import kotlinx.serialization.Serializable
  * - transient routes: skipped when restoring navigation state (media/html overlays)
  */
 @Serializable
-sealed class MedicalQuizRoutes : NavKey {
+sealed interface MedicalQuizRoutes : NavKey {
 
     @Serializable
-    data object DatabaseSelection : MedicalQuizRoutes()
+    data object DatabaseSelection : MedicalQuizRoutes
 
     @Serializable
-    data object Filter : MedicalQuizRoutes()
+    data object Filter : MedicalQuizRoutes
 
     @Serializable
-    data object Quiz : MedicalQuizRoutes()
+    data object Quiz : MedicalQuizRoutes
 
     @Serializable
-    data object Settings : MedicalQuizRoutes()
+    data object Settings : MedicalQuizRoutes
 
     @Serializable
     data class MediaViewer(
         val files: List<String>,
         val startIndex: Int = 0,
-    ) : MedicalQuizRoutes()
+    ) : MedicalQuizRoutes
 
     @Serializable
     data class HtmlViewer(
         val fileName: String,
-    ) : MedicalQuizRoutes()
+    ) : MedicalQuizRoutes
 
     val isTransient: Boolean
         get() = this is MediaViewer || this is HtmlViewer
 
     val isPersistent: Boolean
         get() = !isTransient
-
-    companion object {
-        fun sanitizeRestoredBackStack(stack: List<MedicalQuizRoutes>?): List<MedicalQuizRoutes>? {
-            val persistentRoutes = stack
-                ?.filter { it.isPersistent }
-                ?.takeIf { it.isNotEmpty() }
-                ?: return null
-
-            return persistentRoutes.takeIf { it.first() is DatabaseSelection }
-        }
-    }
 }
 
 @Serializable
