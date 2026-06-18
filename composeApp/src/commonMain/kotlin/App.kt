@@ -334,15 +334,15 @@ fun App() {
                         // Wait until the active database name is propagated to the view model
                         quizVM.state.first { it.databaseName.isNotEmpty() }
                         if (quizVM.state.value.questionIds.isEmpty()) {
-                            val result = quizVM.restoreSession()
-                            if (result == QuizViewModel.SessionRestoreResult.Restored ||
-                                workflowState.activeQuizLaunchSource == QuizLaunchSource.History
-                            ) {
+                            val restore = workflowState.shouldAttemptSessionRestore || workflowState.activeQuizLaunchSource == QuizLaunchSource.History
+                            quizVM.restoreSession()
+                            if (restore) {
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = false, appendToHistory = false)
                             } else {
                                 quizVM.setSessionId("")
                                 quizVM.loadFilteredQuestionIds(startFromBeginning = true)
                             }
+                            workflowState = workflowCoordinator.quizRestoreConsumed(workflowState)
                         }
                     }
 
