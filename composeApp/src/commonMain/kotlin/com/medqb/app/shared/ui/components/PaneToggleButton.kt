@@ -1,10 +1,5 @@
 package com.medqb.app.shared.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -16,7 +11,6 @@ import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -30,7 +24,6 @@ fun PaneToggleButton(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val motionScheme = MaterialTheme.motionScheme
     ToggleButton(
         checked = checked,
         onCheckedChange = onCheckedChange,
@@ -45,13 +38,7 @@ fun PaneToggleButton(
             checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         ),
     ) {
-        AnimatedVisibility(
-            visible = checked,
-            enter = expandHorizontally(motionScheme.defaultSpatialSpec(), Alignment.Start) +
-                    fadeIn(motionScheme.defaultEffectsSpec()),
-            exit = shrinkHorizontally(motionScheme.defaultSpatialSpec(), Alignment.Start) +
-                   fadeOut(motionScheme.defaultEffectsSpec()),
-        ) {
+        if (checked) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
