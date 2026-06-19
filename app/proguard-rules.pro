@@ -1,4 +1,4 @@
-# ProGuard rules for MedicalQuiz Android app
+# ProGuard rules for MedQB Android app
 # https://developer.android.com/guide/developing/tools/proguard.html
 
 # ==================== GENERAL SETTINGS ====================
@@ -90,14 +90,14 @@
 # ==================== APP SPECIFIC ====================
 
 # Keep serializable data models (needed for kotlinx.serialization)
--keepclassmembers @kotlinx.serialization.Serializable class com.medicalquiz.app.shared.data.models.** {
+-keepclassmembers @kotlinx.serialization.Serializable class com.medqb.app.shared.data.models.** {
     <fields>;
     <init>(...);
 }
 
 # Keep main app entry points (Android manifest references)
--keep class com.medicalquiz.app.MainActivity { *; }
--keep class com.medicalquiz.app.MedicalQuizApp { *; }
+-keep class com.medqb.app.MainActivity { *; }
+-keep class com.medqb.app.MedQBApp { *; }
 
 # ==================== OPTIMIZATION ====================
 

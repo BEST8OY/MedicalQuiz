@@ -40,19 +40,19 @@ No KSP is used — `ORG_GRADLE_PROJECT_ksp_incremental: false` is set in CI but 
 
 ### Entry points
 
-- **Desktop**: `composeApp/src/desktopMain/kotlin/main.kt` → `com.medicalquiz.app.shared.MainKt` → calls `App()` composable
-- **Android**: `app/src/main/java/com/medicalquiz/app/MainActivity.kt` → requests storage permission → calls `App()` composable
+- **Desktop**: `composeApp/src/desktopMain/kotlin/main.kt` → `com.medqb.app.shared.MainKt` → calls `App()` composable
+- **Android**: `app/src/main/java/com/medqb/app/MainActivity.kt` → requests storage permission → calls `App()` composable
 - **Shared `App()`**: `composeApp/src/commonMain/kotlin/App.kt` — the single composable root. Sets up DI, navigation, theme.
 
 ### Dependency injection
 
-Manual DI via `AppDependencyContainer` at `composeApp/src/commonMain/kotlin/com/medicalquiz/app/shared/di/AppDependencyContainer.kt`. No Hilt/Dagger/Koin. ViewModels created via `viewModelFactory { initializer { ... } }` in `App.kt`.
+Manual DI via `AppDependencyContainer` at `composeApp/src/commonMain/kotlin/com/medqb/app/shared/di/AppDependencyContainer.kt`. No Hilt/Dagger/Koin. ViewModels created via `viewModelFactory { initializer { ... } }` in `App.kt`.
 
 ### Navigation
 
-Uses **Jetpack Navigation 3** (NOT Navigation Compose). Routes defined in `NavigationRoutes.kt`. Back stack managed via `SnapshotStateList<MedicalQuizRoutes>`. Navigation persistence across restarts via `NavigationStateRepository`.
+Uses **Jetpack Navigation 3** (NOT Navigation Compose). Routes defined in `NavigationRoutes.kt`. Back stack managed via `SnapshotStateList<MedQBRoutes>`. Navigation persistence across restarts via `NavigationStateRepository`.
 
-### Key packages (all under `composeApp/src/commonMain/kotlin/com/medicalquiz/app/shared/`)
+### Key packages (all under `composeApp/src/commonMain/kotlin/com/medqb/app/shared/`)
 
 | Package | Purpose |
 |---------|---------|

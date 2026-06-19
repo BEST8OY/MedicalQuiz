@@ -16,6 +16,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MedicalQuiz"
+rootProject.name = "MedQB"
 include(":app")
 include(":composeApp")

@@ -15,7 +15,7 @@ kotlin {
     // New Android-KMP plugin DSL (replaces androidTarget() + top-level android { })
     // https://developer.android.com/kotlin/multiplatform/plugin
     android {
-        namespace = "com.medicalquiz.app.shared"
+        namespace = "com.medqb.app.shared"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
         androidResources {
@@ -100,14 +100,14 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "com.medicalquiz.app.shared.MainKt"
+        mainClass = "com.medqb.app.shared.MainKt"
         nativeDistributions {
             targetFormats(
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg,
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi,
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb
             )
-            packageName = "MedicalQuiz"
+            packageName = "MedQB"
             packageVersion = "1.0.0"
             
             // Reduce package size
@@ -125,7 +125,7 @@ compose.desktop {
                     iconFile.set(windowsIcon)
                 }
                 dirChooser = true
-                menuGroup = "MedicalQuiz"
+                menuGroup = "MedQB"
             }
             macOS {
                 val macIcon = project.file("src/desktopMain/resources/icon.icns")

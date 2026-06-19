@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.medicalquiz.app"
+    namespace = "com.medqb.app"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.medicalquiz.app"
+        applicationId = "com.medqb.app"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1

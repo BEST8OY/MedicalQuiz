@@ -1,4 +1,4 @@
-package com.medicalquiz.app.shared
+package com.medqb.app.shared
 
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -41,48 +41,48 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.subclass
 import kotlinx.serialization.modules.polymorphic
 import coil3.compose.setSingletonImageLoaderFactory
-import com.medicalquiz.app.shared.data.CacheManager
-import com.medicalquiz.app.shared.data.LocalContentRepository
-import com.medicalquiz.app.shared.data.MediaDescription
-import com.medicalquiz.app.shared.data.MediaDescriptionRepository
-import com.medicalquiz.app.shared.data.QuizSessionRepository
-import com.medicalquiz.app.shared.di.AppDependencyContainer
-import com.medicalquiz.app.shared.domain.AppIntent
-import com.medicalquiz.app.shared.navigation.MedicalQuizRoutes
-import com.medicalquiz.app.shared.navigation.QuizLaunchSource
-import com.medicalquiz.app.shared.navigation.AppNavigator
-import com.medicalquiz.app.shared.orchestration.AppWorkflowState
-import com.medicalquiz.app.shared.orchestration.RequestedFilterPane
-import com.medicalquiz.app.shared.ui.theme.AppTheme
-import com.medicalquiz.app.shared.ui.screens.DatabaseSelectionScreen
-import com.medicalquiz.app.shared.ui.screens.FilterHubScreen
-import com.medicalquiz.app.shared.ui.screens.FilterPane
-import com.medicalquiz.app.shared.ui.screens.media.HtmlViewerScreen
-import com.medicalquiz.app.shared.ui.screens.SettingsScreen
-import com.medicalquiz.app.shared.ui.screens.media.MediaViewerScreen
-import com.medicalquiz.app.shared.ui.screens.quiz.QuizRoot
-import com.medicalquiz.app.shared.ui.media.MediaHandler
-import com.medicalquiz.app.shared.viewmodel.DatabaseSelectionViewModel
-import com.medicalquiz.app.shared.viewmodel.FilterViewModel
-import com.medicalquiz.app.shared.viewmodel.QuizViewModel
-import com.medicalquiz.app.shared.viewmodel.SettingsViewModel
+import com.medqb.app.shared.data.CacheManager
+import com.medqb.app.shared.data.LocalContentRepository
+import com.medqb.app.shared.data.MediaDescription
+import com.medqb.app.shared.data.MediaDescriptionRepository
+import com.medqb.app.shared.data.QuizSessionRepository
+import com.medqb.app.shared.di.AppDependencyContainer
+import com.medqb.app.shared.domain.AppIntent
+import com.medqb.app.shared.navigation.MedQBRoutes
+import com.medqb.app.shared.navigation.QuizLaunchSource
+import com.medqb.app.shared.navigation.AppNavigator
+import com.medqb.app.shared.orchestration.AppWorkflowState
+import com.medqb.app.shared.orchestration.RequestedFilterPane
+import com.medqb.app.shared.ui.theme.AppTheme
+import com.medqb.app.shared.ui.screens.DatabaseSelectionScreen
+import com.medqb.app.shared.ui.screens.FilterHubScreen
+import com.medqb.app.shared.ui.screens.FilterPane
+import com.medqb.app.shared.ui.screens.media.HtmlViewerScreen
+import com.medqb.app.shared.ui.screens.SettingsScreen
+import com.medqb.app.shared.ui.screens.media.MediaViewerScreen
+import com.medqb.app.shared.ui.screens.quiz.QuizRoot
+import com.medqb.app.shared.ui.media.MediaHandler
+import com.medqb.app.shared.viewmodel.DatabaseSelectionViewModel
+import com.medqb.app.shared.viewmodel.FilterViewModel
+import com.medqb.app.shared.viewmodel.QuizViewModel
+import com.medqb.app.shared.viewmodel.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-private val START_DESTINATION: MedicalQuizRoutes = MedicalQuizRoutes.DatabaseSelection
+private val START_DESTINATION: MedQBRoutes = MedQBRoutes.DatabaseSelection
 
 private val navConfig = SavedStateConfiguration {
     serializersModule = SerializersModule {
         polymorphic(baseClass = NavKey::class) {
-            subclass(serializer = MedicalQuizRoutes.DatabaseSelection.serializer())
-            subclass(serializer = MedicalQuizRoutes.Filter.serializer())
-            subclass(serializer = MedicalQuizRoutes.Quiz.serializer())
-            subclass(serializer = MedicalQuizRoutes.Settings.serializer())
-            subclass(serializer = MedicalQuizRoutes.MediaViewer.serializer())
-            subclass(serializer = MedicalQuizRoutes.HtmlViewer.serializer())
+            subclass(serializer = MedQBRoutes.DatabaseSelection.serializer())
+            subclass(serializer = MedQBRoutes.Filter.serializer())
+            subclass(serializer = MedQBRoutes.Quiz.serializer())
+            subclass(serializer = MedQBRoutes.Settings.serializer())
+            subclass(serializer = MedQBRoutes.MediaViewer.serializer())
+            subclass(serializer = MedQBRoutes.HtmlViewer.serializer())
         }
     }
 }
@@ -152,7 +152,7 @@ fun App() {
 
         // On process-death restore, if Quiz is on top, signal session restore
         LaunchedEffect(Unit) {
-            if (backStack.lastOrNull() is MedicalQuizRoutes.Quiz &&
+            if (backStack.lastOrNull() is MedQBRoutes.Quiz &&
                 !workflowState.shouldAttemptSessionRestore
             ) {
                 workflowState = workflowState.copy(shouldAttemptSessionRestore = true)
@@ -202,7 +202,7 @@ fun App() {
                     navigateToMediaViewer(files, index)
                 },
                 onOpenHtml = { fileName ->
-                    navigator.navigateTo(MedicalQuizRoutes.HtmlViewer(fileName = fileName))
+                    navigator.navigateTo(MedQBRoutes.HtmlViewer(fileName = fileName))
                 }
             )
         }
@@ -213,7 +213,7 @@ fun App() {
                 container.appIntentDispatcher.intents.collect { intent ->
                     when (intent) {
                         is AppIntent.OpenHtmlFile -> {
-                            navigator.navigateTo(MedicalQuizRoutes.HtmlViewer(fileName = intent.fileName))
+                            navigator.navigateTo(MedQBRoutes.HtmlViewer(fileName = intent.fileName))
                         }
                         is AppIntent.OpenMedia -> {
                             navigateToMediaViewer(intent.urls, intent.startIndex)
@@ -247,7 +247,7 @@ fun App() {
         ) {
             entryProvider<NavKey> {
                 // Database Selection Screen
-                entry<MedicalQuizRoutes.DatabaseSelection> {
+                entry<MedQBRoutes.DatabaseSelection> {
                     val dbVM = viewModel<DatabaseSelectionViewModel>(
                         factory = viewModelFactory {
                             initializer {
@@ -267,16 +267,16 @@ fun App() {
                             scope.launch {
                                 sessionRepository.clearSessionAsync()
                             }
-                            navigator.navigateTo(MedicalQuizRoutes.Filter)
+                            navigator.navigateTo(MedQBRoutes.Filter)
                         },
                         onOpenSettings = {
-                            navigator.navigateTo(MedicalQuizRoutes.Settings)
+                            navigator.navigateTo(MedQBRoutes.Settings)
                         },
                     )
                 }
 
                 // Filter Screen - pre-quiz configurations
-                entry<MedicalQuizRoutes.Filter> {
+                entry<MedQBRoutes.Filter> {
                     val filterVM = viewModel<FilterViewModel>(
                         factory = viewModelFactory {
                             initializer {
@@ -307,11 +307,11 @@ fun App() {
                         viewModel = filterVM,
                         onHistoryLaunchPrepared = { matchingDatabase ->
                             workflowState = workflowCoordinator.historyLaunchPrepared(workflowState, matchingDatabase)
-                            navigator.navigateTo(MedicalQuizRoutes.Quiz)
+                            navigator.navigateTo(MedQBRoutes.Quiz)
                         },
                         onStartQuiz = dropUnlessResumed {
                             workflowState = workflowCoordinator.standardQuizLaunchPrepared(workflowState)
-                            navigator.navigateTo(MedicalQuizRoutes.Quiz)
+                            navigator.navigateTo(MedQBRoutes.Quiz)
                         },
                     )
 
@@ -328,7 +328,7 @@ fun App() {
                 }
 
                 // Quiz Screen - active quiz takings
-                entry<MedicalQuizRoutes.Quiz> {
+                entry<MedQBRoutes.Quiz> {
                     val quizVM = viewModel<QuizViewModel>(
                         factory = viewModelFactory {
                             initializer {
@@ -362,13 +362,13 @@ fun App() {
                             returnQuizToFilter()
                         },
                         onOpenSettingsScreen = dropUnlessResumed {
-                            navigator.navigateTo(MedicalQuizRoutes.Settings)
+                            navigator.navigateTo(MedQBRoutes.Settings)
                         }
                     )
                 }
 
                 // Settings Screen
-                entry<MedicalQuizRoutes.Settings> {
+                entry<MedQBRoutes.Settings> {
                     val settingsVM = viewModel<SettingsViewModel>(
                         factory = viewModelFactory {
                             initializer {
@@ -384,7 +384,7 @@ fun App() {
                 }
 
                 // Media Viewer Screen
-                entry<MedicalQuizRoutes.MediaViewer> { key ->
+                entry<MedQBRoutes.MediaViewer> { key ->
                     val mediaDescriptions by mediaDescriptionsFlow.collectAsStateWithLifecycle()
                     val fontScalePreference = container.settingsRepository.fontScalePreference
                         .collectAsStateWithLifecycle(null).value
@@ -408,7 +408,7 @@ fun App() {
                         },
                         onSaveMedia = { fileName ->
                             scope.launch {
-                                val saveDir = com.medicalquiz.app.shared.platform.StorageProvider.getAppStorageDirectory() + "/saved_media"
+                                val saveDir = com.medqb.app.shared.platform.StorageProvider.getAppStorageDirectory() + "/saved_media"
                                 val sanitizedName = fileName.substringAfterLast("/").substringAfterLast("\\")
                                 val destPath = "$saveDir/$sanitizedName"
                                 // JVM-only: java.io.File works because both targets (Android, Desktop) are JVM-based
@@ -417,7 +417,7 @@ fun App() {
                                     return@launch
                                 }
                                 val sourcePath = localContentRepository.mediaFilePath(fileName)
-                                val success = com.medicalquiz.app.shared.platform.FileSystemHelper.copyFile(sourcePath, destPath)
+                                val success = com.medqb.app.shared.platform.FileSystemHelper.copyFile(sourcePath, destPath)
                                 if (success) {
                                     container.snackbarDispatcher.emitSnackbar("Media saved to: $destPath")
                                 } else {
@@ -435,7 +435,7 @@ fun App() {
                 }
 
                 // HTML Viewer Screen
-                entry<MedicalQuizRoutes.HtmlViewer> { key ->
+                entry<MedQBRoutes.HtmlViewer> { key ->
                     val htmlDocument by produceState<LocalContentRepository.HtmlDocumentResult?>(
                         initialValue = null,
                         key1 = key.fileName,
@@ -465,7 +465,7 @@ fun App() {
             NavDisplay(
                 backStack = backStack,
                 onBack = {
-                    if (navigator.currentRoute is MedicalQuizRoutes.Quiz) {
+                    if (navigator.currentRoute is MedQBRoutes.Quiz) {
                         returnQuizToFilter()
                     } else {
                         navigator.navigateBack()
