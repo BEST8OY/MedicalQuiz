@@ -59,7 +59,7 @@ fun QuizFloatingToolbar(
         HorizontalFloatingToolbar(
             expanded = true,
             modifier = Modifier.padding(horizontal = if (isExpanded) 24.dp else 16.dp),
-            colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
+            colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
             contentPadding = FloatingToolbarDefaults.ContentPadding,
             leadingContent = {
                 IconButton(
