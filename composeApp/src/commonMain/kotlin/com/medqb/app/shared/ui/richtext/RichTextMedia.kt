@@ -2,7 +2,6 @@ package com.medqb.app.shared.ui.richtext
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -32,16 +31,12 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     val clickTarget = block.mediaRef ?: block.source
     val imageSizeModifier = remember(block.width, block.height) {
         val w = block.width?.takeIf { it > 0 }
-        val h = block.height?.takeIf { it > 0 }
         when {
-            // Both dimensions known: cap width and fix ratio so Coil gets a bounded box
-            w != null && h != null -> Modifier
-                .widthIn(max = w.dp)
-                .aspectRatio(w.toFloat() / h)
-            // No dimensions: use a default ratio so Coil never receives an infinite height
+            w != null -> Modifier
+                .widthIn(max = minOf(w, MaxEmbeddedImageWidth.value.toInt()).dp)
             else -> Modifier
                 .fillMaxWidth()
-                .aspectRatio(DefaultMediaAspectRatio)
+                .widthIn(max = MaxEmbeddedImageWidth)
         }
     }
 
@@ -77,7 +72,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     }
 }
 
-private const val DefaultMediaAspectRatio = 4f / 3f
+private val MaxEmbeddedImageWidth = 512.dp
 
 /**
  * Resolves the media source to a Coil-compatible model.
