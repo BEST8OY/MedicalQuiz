@@ -20,6 +20,9 @@ sealed interface MedQBRoutes : NavKey {
     data object Filter : MedQBRoutes
 
     @Serializable
+    data object History : MedQBRoutes
+
+    @Serializable
     data object Quiz : MedQBRoutes
 
     @Serializable

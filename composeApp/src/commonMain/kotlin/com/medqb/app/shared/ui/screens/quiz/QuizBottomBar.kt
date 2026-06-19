@@ -19,7 +19,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingToolbarDefaults
-import androidx.compose.material3.FloatingToolbarScrollBehavior
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,7 +48,6 @@ fun QuizFloatingToolbar(
     onNext: () -> Unit,
     onJumpTo: () -> Unit,
     onSubmit: () -> Unit = {},
-    scrollBehavior: FloatingToolbarScrollBehavior? = null,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
@@ -60,7 +58,6 @@ fun QuizFloatingToolbar(
 
         HorizontalFloatingToolbar(
             expanded = true,
-            scrollBehavior = scrollBehavior,
             modifier = Modifier.padding(horizontal = if (isExpanded) 24.dp else 16.dp),
             colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
             contentPadding = FloatingToolbarDefaults.ContentPadding,
@@ -140,25 +137,4 @@ fun QuizFloatingToolbar(
             }
         )
     }
-}
-
-// Legacy composable for backward compatibility
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-fun QuizBottomBar(
-    uiState: QuizBottomToolbarUiState,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-    onJumpTo: () -> Unit,
-    onSubmit: () -> Unit = {},
-    modifier: Modifier = Modifier,
-) {
-    QuizFloatingToolbar(
-        uiState = uiState,
-        onPrevious = onPrevious,
-        onNext = onNext,
-        onJumpTo = onJumpTo,
-        onSubmit = onSubmit,
-        modifier = modifier
-    )
 }

@@ -20,6 +20,13 @@ class AppNavigator(
         }
     }
 
+    fun switchTo(route: MedQBRoutes) {
+        if (currentRoute != route) {
+            backStack.removeLastOrNull()
+            backStack.add(route)
+        }
+    }
+
     fun navigateBack(): Boolean {
         if (backStack.size <= 1) return false
         backStack.removeLastOrNull()
@@ -39,6 +46,16 @@ class AppNavigator(
         if (currentRoute !is MedQBRoutes.Filter) {
             popToDatabaseSelection()
             navigateTo(MedQBRoutes.Filter)
+        }
+    }
+
+    fun returnQuizToHistory() {
+        if (currentRoute is MedQBRoutes.Quiz) {
+            navigateBack()
+        }
+        if (currentRoute !is MedQBRoutes.History) {
+            popToDatabaseSelection()
+            navigateTo(MedQBRoutes.History)
         }
     }
 }

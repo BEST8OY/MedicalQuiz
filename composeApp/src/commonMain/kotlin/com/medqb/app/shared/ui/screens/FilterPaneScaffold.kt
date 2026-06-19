@@ -1,7 +1,6 @@
 package com.medqb.app.shared.ui.screens
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -30,8 +29,7 @@ internal fun FilterPaneScaffold(
     selectedPane: FilterPane,
     onPaneSelected: (FilterPane) -> Unit,
     showPaneToolbar: Boolean,
-    filterContent: @Composable () -> Unit,
-    historyContent: @Composable () -> Unit,
+    content: @Composable () -> Unit,
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -41,11 +39,7 @@ internal fun FilterPaneScaffold(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.statusBars),
         ) {
-            if (selectedPane == FilterPane.Filters) {
-                filterContent()
-            } else {
-                historyContent()
-            }
+            content()
         }
 
         if (showPaneToolbar) {
@@ -72,7 +66,6 @@ private fun FilterPaneFloatingToolbar(
         expanded = true,
         modifier = modifier,
         colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
-        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
     ) {
         PaneToggleButton(
             checked = selectedPane == FilterPane.Filters,

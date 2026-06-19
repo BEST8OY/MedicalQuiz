@@ -49,4 +49,22 @@ class LocalContentRepository {
         val fileExists: Boolean,
         val sanitizedHtml: String?,
     )
+
+    sealed class SaveMediaResult {
+        data class Success(val destPath: String) : SaveMediaResult()
+        data object InvalidFileName : SaveMediaResult()
+        data object CopyFailed : SaveMediaResult()
+    }
+
+    suspend fun saveMediaFile(fileName: String): SaveMediaResult = withContext(Dispatchers.IO) {
+        val saveDir = StorageProvider.getAppStorageDirectory() + "/saved_media"
+        val sanitizedName = fileName.substringAfterLast("/").substringAfterLast("\\")
+        val destPath = "$saveDir/$sanitizedName"
+        if (!java.io.File(destPath).canonicalPath.startsWith(java.io.File(saveDir).canonicalPath)) {
+            return@withContext SaveMediaResult.InvalidFileName
+        }
+        val sourcePath = mediaFilePath(fileName)
+        val success = FileSystemHelper.copyFile(sourcePath, destPath)
+        if (success) SaveMediaResult.Success(destPath) else SaveMediaResult.CopyFailed
+    }
 }

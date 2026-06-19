@@ -5,41 +5,28 @@ import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
-import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.SnackbarSink
-import com.medqb.app.shared.orchestration.AppHistoryCoordinator
 import com.medqb.app.shared.ui.state.FilterUiState
 import com.medqb.app.shared.utils.Resource
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-/**
- * Scoped ViewModel for the Filter Hub screen.
- * Tracks selected filters, loads subjects/systems dynamically, and exposes session histories.
- */
 class FilterViewModel(
     private val activeDatabaseHolder: ActiveDatabaseHolder,
-    private val historyCoordinator: AppHistoryCoordinator,
     private val applyFiltersUseCase: ApplyFiltersUseCase,
     private val sessionRepository: QuizSessionRepository,
     private val settingsRepository: SettingsRepository,
     private val snackbarSink: SnackbarSink,
-    private val appScope: CoroutineScope,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FilterUiState.EMPTY)
     val state: StateFlow<FilterUiState> = _state.asStateFlow()
-
-    val historyEntries: StateFlow<List<QuizSessionRepository.QuizSession>> = sessionRepository.historyEntries
 
     private var lastFetchedSubjectIds: List<Long>? = null
     private var isInitializing = false
@@ -74,33 +61,32 @@ class FilterViewModel(
         if (isInitializing) return
         isInitializing = true
         try {
-        _state.update {
-            it.copy(
-                selectedSubjectIds = emptySet(),
-                selectedSystemIds = emptySet(),
-                performanceFilter = PerformanceFilter.ALL,
-                previewQuestionCount = 0,
-                isLoggingEnabled = settingsRepository.isLoggingEnabled.value,
-                submissionMode = settingsRepository.submissionMode.value,
-            )
-        }
-        lastFetchedSubjectIds = null
-
-        // Pre-load from saved active session if matches current DB
-        val savedSession = sessionRepository.restoreSessionAsync()
-        if (savedSession != null && savedSession.databaseName == state.value.databaseName) {
             _state.update {
                 it.copy(
-                    selectedSubjectIds = savedSession.selectedSubjectIds.toSet(),
-                    selectedSystemIds = savedSession.selectedSystemIds.toSet(),
-                    performanceFilter = savedSession.performanceFilter,
+                    selectedSubjectIds = emptySet(),
+                    selectedSystemIds = emptySet(),
+                    performanceFilter = PerformanceFilter.ALL,
+                    previewQuestionCount = 0,
+                    isLoggingEnabled = settingsRepository.isLoggingEnabled.value,
+                    submissionMode = settingsRepository.submissionMode.value,
                 )
             }
-        }
+            lastFetchedSubjectIds = null
 
-        fetchSubjects()
-        fetchSystemsForSubjects(null)
-        updatePreviewQuestionCountInternal()
+            val savedSession = sessionRepository.restoreSessionAsync()
+            if (savedSession != null && savedSession.databaseName == state.value.databaseName) {
+                _state.update {
+                    it.copy(
+                        selectedSubjectIds = savedSession.selectedSubjectIds.toSet(),
+                        selectedSystemIds = savedSession.selectedSystemIds.toSet(),
+                        performanceFilter = savedSession.performanceFilter,
+                    )
+                }
+            }
+
+            fetchSubjects()
+            fetchSystemsForSubjects(null)
+            updatePreviewQuestionCountInternal()
         } finally {
             isInitializing = false
         }
@@ -123,7 +109,7 @@ class FilterViewModel(
 
     fun fetchSystemsForSubjects(subjectIds: List<Long>?) {
         if (shouldSkipSystemFetch(subjectIds)) return
-        
+
         lastFetchedSubjectIds = subjectIds?.toList() ?: emptyList()
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -196,7 +182,7 @@ class FilterViewModel(
                 it.copy(
                     selectedSubjectIds = emptySet(),
                     selectedSystemIds = emptySet(),
-                    performanceFilter = PerformanceFilter.ALL
+                    performanceFilter = PerformanceFilter.ALL,
                 )
             }
             updatePreviewQuestionCountInternal()
@@ -232,58 +218,6 @@ class FilterViewModel(
                 submissionMode = currentState.submissionMode,
             )
         }
-    }
-
-    suspend fun getQuestionIdsForHistoryEntries(
-        entries: List<QuizSessionRepository.QuizSession>
-    ): String = withContext(Dispatchers.IO) {
-        val db = activeDatabaseHolder.databaseProvider.value
-        buildString {
-            entries.forEach { entry ->
-                val questionIds = db?.getQuestionIds(
-                    subjectIds = entry.selectedSubjectIds,
-                    systemIds = entry.selectedSystemIds,
-                    performanceFilter = entry.performanceFilter
-                ) ?: emptyList()
-                questionIds.forEach { qid ->
-                    appendLine(qid)
-                }
-            }
-        }
-    }
-
-    fun deleteHistoryEntries(entryIds: Set<String>) {
-        appScope.launch {
-            historyCoordinator.deleteHistoryEntries(entryIds)
-        }
-    }
-
-    fun renameHistoryEntry(entryId: String, newName: String) {
-        appScope.launch {
-            historyCoordinator.renameHistoryEntry(
-                entryId = entryId,
-                newName = newName,
-            )
-        }
-    }
-
-    fun restoreHistoryEntry(entry: QuizSessionRepository.QuizSession, onRestored: (String) -> Unit) {
-        viewModelScope.launch {
-            val matchingDatabase = historyCoordinator.restoreHistoryEntry(
-                entry = entry,
-            )
-            if (matchingDatabase != null) {
-                onRestored(matchingDatabase)
-            }
-        }
-    }
-
-    fun setLoggingEnabled(enabled: Boolean) {
-        settingsRepository.setLoggingEnabled(enabled)
-    }
-
-    fun setSubmissionMode(mode: SubmissionMode) {
-        settingsRepository.setSubmissionMode(mode)
     }
 
     private fun emitSnackbar(message: String) {

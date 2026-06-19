@@ -39,7 +39,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,23 +46,19 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.FontScalePresets
 import com.medqb.app.shared.ui.richtext.scaledBy
-import com.medqb.app.shared.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsScreen(
-    viewModel: SettingsViewModel,
+    showMetadata: Boolean,
+    fontScalePreference: Float?,
+    onShowMetadataToggle: (Boolean) -> Unit,
+    onFontScaleChange: (Float?) -> Unit,
     onBack: () -> Unit,
 ) {
     val motionScheme = MaterialTheme.motionScheme
-
-    val showMetadata by viewModel.showMetadata
-        .collectAsStateWithLifecycle(true)
-    val fontScalePreference by viewModel.fontScalePreference
-        .collectAsStateWithLifecycle(null)
 
     val useSystemSize = fontScalePreference == null
     val currentScale = fontScalePreference ?: FontScalePresets.DEFAULT
@@ -136,7 +131,7 @@ fun SettingsScreen(
                     trailingContent = {
                         Switch(
                             checked = showMetadata,
-                            onCheckedChange = { viewModel.setShowMetadata(it) }
+                            onCheckedChange = onShowMetadataToggle
                         )
                     },
                     colors = ListItemDefaults.colors(
@@ -183,14 +178,14 @@ fun SettingsScreen(
                             )
                         },
                         trailingContent = {
-                            Switch(
-                                checked = useSystemSize,
-                                onCheckedChange = { checked ->
-                                    if (checked) {
-                                        viewModel.setFontScalePreference(null)
-                                    } else {
-                                        viewModel.setFontScalePreference(FontScalePresets.DEFAULT)
-                                    }
+                        Switch(
+                            checked = useSystemSize,
+                            onCheckedChange = { checked ->
+                                if (checked) {
+                                    onFontScaleChange(null)
+                                } else {
+                                    onFontScaleChange(FontScalePresets.DEFAULT)
+                                }
                                 }
                             )
                         },
@@ -237,7 +232,7 @@ fun SettingsScreen(
                                     value = sliderIndex,
                                     onValueChange = { indexFloat ->
                                         val newScale = indexToScale(indexFloat.toInt())
-                                        viewModel.setFontScalePreference(newScale)
+                                        onFontScaleChange(newScale)
                                     },
                                     valueRange = 0f..3f,
                                     steps = 2,

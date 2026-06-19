@@ -58,10 +58,6 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
 
     // ViewModel Factory Methods
     
-    fun createSettingsViewModel(): SettingsViewModel {
-        return SettingsViewModel(settingsRepository)
-    }
-
     fun createDatabaseSelectionViewModel(): DatabaseSelectionViewModel {
         return DatabaseSelectionViewModel(
             startupCoordinator = startupCoordinator,
@@ -72,12 +68,19 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
     fun createFilterViewModel(): FilterViewModel {
         return FilterViewModel(
             activeDatabaseHolder = activeDatabaseHolder,
-            historyCoordinator = historyCoordinator,
             applyFiltersUseCase = applyFiltersUseCase,
             sessionRepository = sessionRepository,
             settingsRepository = settingsRepository,
             snackbarSink = snackbarDispatcher,
-            appScope = appScope
+        )
+    }
+
+    fun createHistoryViewModel(): HistoryViewModel {
+        return HistoryViewModel(
+            activeDatabaseHolder = activeDatabaseHolder,
+            historyCoordinator = historyCoordinator,
+            sessionRepository = sessionRepository,
+            appScope = appScope,
         )
     }
 
