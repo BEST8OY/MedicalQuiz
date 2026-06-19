@@ -5,28 +5,79 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Source 1 (Tertiary - Purple) -60° -->
+    <!-- 1. Soft Shadow behind the Cross (Offset Y by 3dp) -->
     <path
-        android:fillColor="#6A5589"
-        android:pathData="M 29.81,53.89 C 24.07,50.58 22.11,43.24 25.42,37.50 C 28.73,31.76 36.07,29.79 41.81,33.11 L 78.19,54.11 C 83.93,57.42 85.89,64.76 82.58,70.50 C 79.27,76.24 71.93,78.21 66.19,74.89 Z" />
+        android:fillColor="#000000"
+        android:fillAlpha="0.35"
+        android:pathData="M 50,35 H 58 A 4,4 0 0 1 62,39 V 47 A 2,2 0 0 0 64,49 H 72 A 4,4 0 0 1 76,53 V 61 A 4,4 0 0 1 72,65 H 64 A 2,2 0 0 0 62,67 V 75 A 4,4 0 0 1 58,79 H 50 A 4,4 0 0 1 46,75 V 67 A 2,2 0 0 0 44,65 H 36 A 4,4 0 0 1 32,61 V 53 A 4,4 0 0 1 36,49 H 44 A 2,2 0 0 0 46,47 V 39 A 4,4 0 0 1 50,35 Z" />
 
-    <!-- Source 2 (Secondary - Teal) 60° -->
+    <!-- 2. Glossy Medical Cross Body (Cyan-Teal-Indigo Gradient) -->
     <path
-        android:fillColor="#006A61"
-        android:pathData="M 66.19,33.11 C 71.93,29.79 79.27,31.76 82.58,37.50 C 85.89,43.24 83.93,50.58 78.19,53.89 L 41.81,74.89 C 36.07,78.21 28.73,76.24 25.42,70.50 C 22.11,64.76 24.07,57.42 29.81,54.11 Z" />
+        android:pathData="M 50,32 H 58 A 4,4 0 0 1 62,36 V 44 A 2,2 0 0 0 64,46 H 72 A 4,4 0 0 1 76,50 V 58 A 4,4 0 0 1 72,62 H 64 A 2,2 0 0 0 62,64 V 72 A 4,4 0 0 1 58,76 H 50 A 4,4 0 0 1 46,72 V 64 A 2,2 0 0 0 44,62 H 36 A 4,4 0 0 1 32,58 V 50 A 4,4 0 0 1 36,46 H 44 A 2,2 0 0 0 46,44 V 36 A 4,4 0 0 1 50,32 Z">
+        <gradient
+            android:type="linear"
+            android:startX="32"
+            android:startY="32"
+            android:endX="76"
+            android:endY="76">
+            <item android:offset="0.0" android:color="#00E5FF" />
+            <item android:offset="0.4" android:color="#00796B" />
+            <item android:offset="1.0" android:color="#3949AB" />
+        </gradient>
+    </path>
 
-    <!-- Source 3 (Primary - Blue) 0° -->
+    <!-- 3. Upper Highlight Edge (Glassmorphic Bevel Effect) -->
     <path
-        android:fillColor="#0061A4"
-        android:pathData="M 42.00,33.00 C 42.00,26.37 47.37,21.00 54.00,21.00 C 60.63,21.00 66.00,26.37 66.00,33.00 L 66.00,75.00 C 66.00,81.63 60.63,87.00 54.00,87.00 C 47.37,87.00 42.00,81.63 42.00,75.00 Z" />
+        android:strokeWidth="1.2"
+        android:pathData="M 50,32 H 58 A 4,4 0 0 1 62,36 V 44 A 2,2 0 0 0 64,46 H 72 A 4,4 0 0 1 76,50 V 58 A 4,4 0 0 1 72,62 H 64 A 2,2 0 0 0 62,64 V 72 A 4,4 0 0 1 58,76 H 50 A 4,4 0 0 1 46,72 V 64 A 2,2 0 0 0 44,62 H 36 A 4,4 0 0 1 32,58 V 50 A 4,4 0 0 1 36,46 H 44 A 2,2 0 0 0 46,44 V 36 A 4,4 0 0 1 50,32 Z">
+        <gradient
+            android:type="linear"
+            android:startX="32"
+            android:startY="32"
+            android:endX="76"
+            android:endY="76">
+            <item android:offset="0.0" android:color="#E0F7FA" />
+            <item android:offset="0.5" android:color="#40FFFFFF" />
+            <item android:offset="1.0" android:color="#00FFFFFF" />
+        </gradient>
+    </path>
 
-    <!-- Checkmark drawn matching the background color to act as a sleek cutout -->
+    <!-- 4. Diagonal Glass reflection (Clipped to Cross Boundary) -->
+    <clip-path
+        android:pathData="M 50,32 H 58 A 4,4 0 0 1 62,36 V 44 A 2,2 0 0 0 64,46 H 72 A 4,4 0 0 1 76,50 V 58 A 4,4 0 0 1 72,62 H 64 A 2,2 0 0 0 62,64 V 72 A 4,4 0 0 1 58,76 H 50 A 4,4 0 0 1 46,72 V 64 A 2,2 0 0 0 44,62 H 36 A 4,4 0 0 1 32,58 V 50 A 4,4 0 0 1 36,46 H 44 A 2,2 0 0 0 46,44 V 36 A 4,4 0 0 1 50,32 Z" />
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#DCEBFE"
-        android:strokeWidth="8"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M 42,54 L 50,62 L 67,45" />
+        android:pathData="M 15,15 L 100,15 L 15,100 Z">
+        <gradient
+            android:type="linear"
+            android:startX="30"
+            android:startY="30"
+            android:endX="65"
+            android:endY="65">
+            <item android:offset="0.0" android:color="#FFFFFF" android:alpha="0.45" />
+            <item android:offset="1.0" android:color="#FFFFFF" android:alpha="0.0" />
+        </gradient>
+    </path>
 
+    <!-- Clear Clip-Path to restore normal drawing -->
+    <clip-path android:pathData="M 0,0 H 108 V 108 H 0 Z" />
+
+    <!-- 5. Checkmark Drop Shadow (Offset Y by 1.5dp) -->
+    <path
+        android:fillColor="#001824"
+        android:fillAlpha="0.4"
+        android:pathData="M 41,53.5 L 48,60.5 L 63,45.5 L 60,42.5 L 48,54.5 L 44,50.5 Z" />
+
+    <!-- 6. Embedded Glowing Checkmark -->
+    <path
+        android:pathData="M 41,52 L 48,59 L 63,44 L 60,41 L 48,53 L 44,49 Z">
+        <gradient
+            android:type="linear"
+            android:startX="41"
+            android:startY="41"
+            android:endX="63"
+            android:endY="59">
+            <item android:offset="0.0" android:color="#FFFFFF" />
+            <item android:offset="1.0" android:color="#80DEEA" />
+        </gradient>
+    </path>
 </vector>
