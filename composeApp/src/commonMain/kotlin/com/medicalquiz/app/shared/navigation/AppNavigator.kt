@@ -1,5 +1,7 @@
 package com.medicalquiz.app.shared.navigation
 
+import androidx.navigation3.runtime.NavKey
+
 /**
  * Small imperative wrapper around the Navigation 3 back stack.
  *
@@ -7,10 +9,10 @@ package com.medicalquiz.app.shared.navigation
  * to test and keeps the root App composable focused on rendering entries.
  */
 class AppNavigator(
-    private val backStack: MutableList<MedicalQuizRoutes>,
+    private val backStack: MutableList<NavKey>,
 ) {
     val currentRoute: MedicalQuizRoutes?
-        get() = backStack.lastOrNull()
+        get() = backStack.lastOrNull() as? MedicalQuizRoutes
 
     fun navigateTo(route: MedicalQuizRoutes) {
         if (currentRoute != route) {

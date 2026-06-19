@@ -1,7 +1,6 @@
 package com.medicalquiz.app.shared.orchestration
 
 import com.medicalquiz.app.shared.domain.RestoreSessionDecision
-import com.medicalquiz.app.shared.navigation.MedicalQuizRoutes
 import com.medicalquiz.app.shared.navigation.QuizLaunchSource
 
 /**
@@ -19,18 +18,11 @@ class AppWorkflowCoordinator(
     // ── Bootstrap ────────────────────────────────────────────────────────
 
     /**
-     * Builds the initial [AppWorkflowState] from restored navigation data.
+     * Builds the initial [AppWorkflowState] for a fresh start.
+     * Saved state is restored by [rememberSaveable] in the composable layer.
      */
-    fun initialState(
-        savedBackStack: List<MedicalQuizRoutes>?,
-        savedDatabaseName: String?,
-        savedQuizLaunchSource: QuizLaunchSource,
-    ): AppWorkflowState {
-        return AppWorkflowState(
-            selectedDatabase = savedDatabaseName,
-            activeQuizLaunchSource = savedQuizLaunchSource,
-            shouldAttemptSessionRestore = savedBackStack?.lastOrNull() is MedicalQuizRoutes.Quiz,
-        )
+    fun initialState(): AppWorkflowState {
+        return AppWorkflowState()
     }
 
     // ── Database selection flow ──────────────────────────────────────────
