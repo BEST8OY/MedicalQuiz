@@ -28,21 +28,12 @@ class RestoreSessionUseCase(
         val activeSession = sessionRepository.restoreSessionAsync()
 
         if (pendingLaunchSource == QuizLaunchSource.History) {
-            return if (activeSession != null && activeSession.databaseName == dbName.removeSuffix(".db")) {
-                RestoreSessionDecision(
-                    initializedDatabase = resolvedInitializedDatabase,
-                    pendingLaunchSource = null,
-                    shouldAttemptSessionRestore = shouldAttemptSessionRestore,
-                    shouldPopToDatabaseSelection = false,
-                )
-            } else {
-                RestoreSessionDecision(
-                    initializedDatabase = resolvedInitializedDatabase,
-                    pendingLaunchSource = null,
-                    shouldAttemptSessionRestore = shouldAttemptSessionRestore,
-                    shouldPopToDatabaseSelection = true,
-                )
-            }
+            return RestoreSessionDecision(
+                initializedDatabase = resolvedInitializedDatabase,
+                pendingLaunchSource = null,
+                shouldAttemptSessionRestore = shouldAttemptSessionRestore,
+                shouldPopToDatabaseSelection = false,
+            )
         }
 
         if (shouldAttemptSessionRestore) {

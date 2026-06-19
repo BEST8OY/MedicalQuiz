@@ -268,7 +268,7 @@ class FilterViewModel(
     }
 
     fun restoreHistoryEntry(entry: QuizSessionRepository.QuizSession, onRestored: (String) -> Unit) {
-        appScope.launch {
+        viewModelScope.launch {
             val matchingDatabase = historyCoordinator.restoreHistoryEntry(
                 entry = entry,
             )

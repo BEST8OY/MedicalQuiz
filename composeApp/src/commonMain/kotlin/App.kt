@@ -18,16 +18,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.snapshots.SnapshotStateList
-import androidx.compose.runtime.toMutableStateList
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -35,9 +31,15 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.createSavedStateHandle
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import androidx.savedstate.serialization.SavedStateConfiguration
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.subclass
+import kotlinx.serialization.modules.polymorphic
 import coil3.compose.setSingletonImageLoaderFactory
 import com.medicalquiz.app.shared.data.CacheManager
 import com.medicalquiz.app.shared.data.LocalContentRepository
@@ -49,7 +51,6 @@ import com.medicalquiz.app.shared.domain.AppIntent
 import com.medicalquiz.app.shared.navigation.MedicalQuizRoutes
 import com.medicalquiz.app.shared.navigation.QuizLaunchSource
 import com.medicalquiz.app.shared.navigation.AppNavigator
-import com.medicalquiz.app.shared.navigation.NavigationSnapshot
 import com.medicalquiz.app.shared.orchestration.AppWorkflowState
 import com.medicalquiz.app.shared.orchestration.RequestedFilterPane
 import com.medicalquiz.app.shared.ui.theme.AppTheme
@@ -68,11 +69,23 @@ import com.medicalquiz.app.shared.viewmodel.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private val START_DESTINATION: MedicalQuizRoutes = MedicalQuizRoutes.DatabaseSelection
+
+private val navConfig = SavedStateConfiguration {
+    serializersModule = SerializersModule {
+        polymorphic(baseClass = NavKey::class) {
+            subclass(serializer = MedicalQuizRoutes.DatabaseSelection.serializer())
+            subclass(serializer = MedicalQuizRoutes.Filter.serializer())
+            subclass(serializer = MedicalQuizRoutes.Quiz.serializer())
+            subclass(serializer = MedicalQuizRoutes.Settings.serializer())
+            subclass(serializer = MedicalQuizRoutes.MediaViewer.serializer())
+            subclass(serializer = MedicalQuizRoutes.HtmlViewer.serializer())
+        }
+    }
+}
 
 private val AppWorkflowStateSaver = Saver<AppWorkflowState, List<Any?>>(
     save = { state ->
@@ -124,45 +137,26 @@ fun App() {
             }
         }
 
-        val navStateRepo = container.navStateRepo
         val navPersistenceCoordinator = container.navPersistenceCoordinator
         val workflowCoordinator = container.workflowCoordinator
         val mediaNavCoordinator = container.mediaNavigationCoordinator
         val localContentRepository = container.localContentRepository
         val sessionRepository = container.sessionRepository
 
-        val navRestoreBootstrap by produceState(
-            initialValue = NavigationRestoreBootstrap(loaded = false, snapshot = null),
-            key1 = navStateRepo,
-        ) {
-            value = NavigationRestoreBootstrap(
-                loaded = true,
-                snapshot = navStateRepo.restoreNavigationStateAsync(),
-            )
-        }
-
-        if (!navRestoreBootstrap.loaded) {
-            return@AppTheme
-        }
-
-        val snapshot = navRestoreBootstrap.snapshot
-        val savedBackStack = snapshot?.routes
-        val savedDbName = snapshot?.selectedDatabase
-        val savedQuizLaunchSource = snapshot?.quizLaunchSource
-
-        val backStack: SnapshotStateList<MedicalQuizRoutes> = remember {
-            savedBackStack?.toMutableStateList() ?: mutableStateListOf(START_DESTINATION)
-        }
+        val backStack = rememberNavBackStack(navConfig, START_DESTINATION)
         val navigator = remember(backStack) { AppNavigator(backStack) }
 
         var workflowState by rememberSaveable(stateSaver = AppWorkflowStateSaver) {
-            mutableStateOf(
-                workflowCoordinator.initialState(
-                    savedBackStack = savedBackStack,
-                    savedDatabaseName = savedDbName,
-                    savedQuizLaunchSource = savedQuizLaunchSource ?: QuizLaunchSource.Standard
-                )
-            )
+            mutableStateOf(workflowCoordinator.initialState())
+        }
+
+        // On process-death restore, if Quiz is on top, signal session restore
+        LaunchedEffect(Unit) {
+            if (backStack.lastOrNull() is MedicalQuizRoutes.Quiz &&
+                !workflowState.shouldAttemptSessionRestore
+            ) {
+                workflowState = workflowState.copy(shouldAttemptSessionRestore = true)
+            }
         }
 
         // Handle database initialization when selected
@@ -181,17 +175,10 @@ fun App() {
             }
         }
 
-        // Save navigation state to file whenever back stack changes
-        LaunchedEffect(Unit) {
-            snapshotFlow { Pair(backStack.toList(), workflowState) }
-                .debounce(300)
-                .collect { (currentStack, wState) ->
-                    navPersistenceCoordinator.onBackStackChanged(
-                        backStack = currentStack,
-                        selectedDatabase = wState.selectedDatabase,
-                        quizLaunchSource = wState.activeQuizLaunchSource,
-                    )
-                }
+        // Refresh history when returning to database selection or filter screen
+        LaunchedEffect(backStack.toList()) {
+            val currentStack = backStack.toList()
+            navPersistenceCoordinator.onBackStackChanged(currentStack)
         }
 
         // Media descriptions state for viewer
@@ -258,7 +245,7 @@ fun App() {
             mediaDescriptionsFlow,
             localContentRepository,
         ) {
-            entryProvider<MedicalQuizRoutes> {
+            entryProvider<NavKey> {
                 // Database Selection Screen
                 entry<MedicalQuizRoutes.DatabaseSelection> {
                     val dbVM = viewModel<DatabaseSelectionViewModel>(
@@ -520,11 +507,6 @@ fun App() {
         }
     }
 }
-
-private data class NavigationRestoreBootstrap(
-    val loaded: Boolean,
-    val snapshot: NavigationSnapshot?,
-)
 
 private data class FilterRouteHandlers(
     val onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
