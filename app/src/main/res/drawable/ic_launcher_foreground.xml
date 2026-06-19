@@ -1,81 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 1. Soft Shadow behind the Cross (Offset Y by 3dp) -->
+    <!-- Vertical Bar of the Cross with Gradient Fill -->
     <path
-        android:fillColor="#000000"
-        android:fillAlpha="0.35"
-        android:pathData="M 50,35 H 58 A 4,4 0 0 1 62,39 V 47 A 2,2 0 0 0 64,49 H 72 A 4,4 0 0 1 76,53 V 61 A 4,4 0 0 1 72,65 H 64 A 2,2 0 0 0 62,67 V 75 A 4,4 0 0 1 58,79 H 50 A 4,4 0 0 1 46,75 V 67 A 2,2 0 0 0 44,65 H 36 A 4,4 0 0 1 32,61 V 53 A 4,4 0 0 1 36,49 H 44 A 2,2 0 0 0 46,47 V 39 A 4,4 0 0 1 50,35 Z" />
-
-    <!-- 2. Glossy Medical Cross Body (Cyan-Teal-Indigo Gradient) -->
-    <path
-        android:pathData="M 50,32 H 58 A 4,4 0 0 1 62,36 V 44 A 2,2 0 0 0 64,46 H 72 A 4,4 0 0 1 76,50 V 58 A 4,4 0 0 1 72,62 H 64 A 2,2 0 0 0 62,64 V 72 A 4,4 0 0 1 58,76 H 50 A 4,4 0 0 1 46,72 V 64 A 2,2 0 0 0 44,62 H 36 A 4,4 0 0 1 32,58 V 50 A 4,4 0 0 1 36,46 H 44 A 2,2 0 0 0 46,44 V 36 A 4,4 0 0 1 50,32 Z">
-        <gradient
-            android:type="linear"
-            android:startX="32"
-            android:startY="32"
-            android:endX="76"
-            android:endY="76">
-            <item android:offset="0.0" android:color="#00E5FF" />
-            <item android:offset="0.4" android:color="#00796B" />
-            <item android:offset="1.0" android:color="#3949AB" />
-        </gradient>
-    </path>
-
-    <!-- 3. Upper Highlight Edge (Glassmorphic Bevel Effect) -->
-    <path
-        android:pathData="M 50,32 H 58 A 4,4 0 0 1 62,36 V 44 A 2,2 0 0 0 64,46 H 72 A 4,4 0 0 1 76,50 V 58 A 4,4 0 0 1 72,62 H 64 A 2,2 0 0 0 62,64 V 72 A 4,4 0 0 1 58,76 H 50 A 4,4 0 0 1 46,72 V 64 A 2,2 0 0 0 44,62 H 36 A 4,4 0 0 1 32,58 V 50 A 4,4 0 0 1 36,46 H 44 A 2,2 0 0 0 46,44 V 36 A 4,4 0 0 1 50,32 Z">
-        <gradient
-            android:type="linear"
-            android:startX="32"
-            android:startY="32"
-            android:endX="76"
-            android:endY="76">
-            <item android:offset="0.0" android:color="#E0F7FA" />
-            <item android:offset="0.5" android:color="#40FFFFFF" />
-            <item android:offset="1.0" android:color="#00FFFFFF" />
-        </gradient>
-    </path>
-
-    <!-- 4. Diagonal Glass reflection (Clipped to Cross Boundary) -->
-    <group>
-        <clip-path
-            android:pathData="M 50,32 H 58 A 4,4 0 0 1 62,36 V 44 A 2,2 0 0 0 64,46 H 72 A 4,4 0 0 1 76,50 V 58 A 4,4 0 0 1 72,62 H 64 A 2,2 0 0 0 62,64 V 72 A 4,4 0 0 1 58,76 H 50 A 4,4 0 0 1 46,72 V 64 A 2,2 0 0 0 44,62 H 36 A 4,4 0 0 1 32,58 V 50 A 4,4 0 0 1 36,46 H 44 A 2,2 0 0 0 46,44 V 36 A 4,4 0 0 1 50,32 Z" />
-        <path
-            android:pathData="M 15,15 L 100,15 L 15,100 Z">
+        android:pathData="M 51,28 h 6 a 6,6 0 0 1 6,6 v 40 a 6,6 0 0 1 -6,6 h -6 a 6,6 0 0 1 -6,-6 v -40 a 6,6 0 0 1 6,-6 z">
+        <aapt:attr name="android:fillColor">
             <gradient
-                android:type="linear"
-                android:startX="30"
-                android:startY="30"
-                android:endX="65"
-                android:endY="65">
-                <item android:offset="0.0" android:color="#FFFFFF" android:alpha="0.45" />
-                <item android:offset="1.0" android:color="#FFFFFF" android:alpha="0.0" />
+                android:startX="28"
+                android:startY="28"
+                android:endX="80"
+                android:endY="80"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#006D6F" />
+                <item android:offset="0.5" android:color="#00BCD4" />
+                <item android:offset="1.0" android:color="#3F51B5" />
             </gradient>
-        </path>
-    </group>
-
-    <!-- 5. Checkmark Drop Shadow (Offset Y by 1.5dp) -->
-    <path
-        android:fillColor="#001824"
-        android:fillAlpha="0.4"
-        android:pathData="M 41,53.5 L 48,60.5 L 62,46.5 L 59,43.5 L 48,54.5 L 44,50.5 Z" />
-
-    <!-- 6. Embedded Glowing Checkmark -->
-    <path
-        android:pathData="M 41,52 L 48,59 L 62,45 L 59,42 L 48,53 L 44,49 Z">
-        <gradient
-            android:type="linear"
-            android:startX="41"
-            android:startY="41"
-            android:endX="63"
-            android:endY="59">
-            <item android:offset="0.0" android:color="#FFFFFF" />
-            <item android:offset="1.0" android:color="#80DEEA" />
-        </gradient>
+        </aapt:attr>
     </path>
+
+    <!-- Horizontal Bar of the Cross with Gradient Fill -->
+    <path
+        android:pathData="M 34,45 h 40 a 6,6 0 0 1 6,6 v 6 a 6,6 0 0 1 -6,6 h -40 a 6,6 0 0 1 -6,-6 v -6 a 6,6 0 0 1 6,-6 z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="28"
+                android:startY="28"
+                android:endX="80"
+                android:endY="80"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#006D6F" />
+                <item android:offset="0.5" android:color="#00BCD4" />
+                <item android:offset="1.0" android:color="#3F51B5" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Glowing Checkmark: Soft Neon Underlay -->
+    <path
+        android:pathData="M 42,52 L 51,61 L 68,42"
+        android:strokeColor="#6600BCD4"
+        android:strokeWidth="10"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Glowing Checkmark: Solid White Core -->
+    <path
+        android:pathData="M 42,52 L 51,61 L 68,42"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
 </vector>

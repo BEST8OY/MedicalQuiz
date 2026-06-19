@@ -1,8 +1,8 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Base.Theme.MedicalQuiz" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Base.Theme.MedQB" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:statusBarColor" tools:targetApi="l">@android:color/transparent</item>
     </style>
 
-    <style name="Theme.MedicalQuiz" parent="Base.Theme.MedicalQuiz" />
+    <style name="Theme.MedQB" parent="Base.Theme.MedQB" />
 </resources>

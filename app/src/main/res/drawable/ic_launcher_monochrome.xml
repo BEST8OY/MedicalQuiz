@@ -5,10 +5,19 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Cross with Checkmark Cutout (Even-Odd Fill Rule) -->
+    <!-- Clip-path to subtract the checkmark shape from the cross -->
+    <clip-path
+        android:pathData="M 0,0 h 108 v 108 h -108 z M 40,52 L 51,63 L 70,42 L 66,38 L 51,55 L 44,48 z"
+        android:fillType="evenOdd" />
+
+    <!-- Vertical Bar of the Cross -->
     <path
-        android:fillColor="#000000"
-        android:fillType="evenOdd"
-        android:pathData="M 50,32 H 58 A 4,4 0 0 1 62,36 V 44 A 2,2 0 0 0 64,46 H 72 A 4,4 0 0 1 76,50 V 58 A 4,4 0 0 1 72,62 H 64 A 2,2 0 0 0 62,64 V 72 A 4,4 0 0 1 58,76 H 50 A 4,4 0 0 1 46,72 V 64 A 2,2 0 0 0 44,62 H 36 A 4,4 0 0 1 32,58 V 50 A 4,4 0 0 1 36,46 H 44 A 2,2 0 0 0 46,44 V 36 A 4,4 0 0 1 50,32 Z 
-                          M 41,52 L 48,59 L 62,45 L 59,42 L 48,53 L 44,49 Z" />
+        android:pathData="M 51,28 h 6 a 6,6 0 0 1 6,6 v 40 a 6,6 0 0 1 -6,6 h -6 a 6,6 0 0 1 -6,-6 v -40 a 6,6 0 0 1 6,-6 z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Horizontal Bar of the Cross -->
+    <path
+        android:pathData="M 34,45 h 40 a 6,6 0 0 1 6,6 v 6 a 6,6 0 0 1 -6,6 h -40 a 6,6 0 0 1 -6,-6 v -6 a 6,6 0 0 1 6,-6 z"
+        android:fillColor="#FFFFFF" />
+
 </vector>

@@ -1,9 +1,9 @@
-# ProGuard rules for MedicalQuiz Compose Desktop
+# ProGuard rules for MedQB Compose Desktop
 # Optimizes and shrinks the desktop application
 
 # ==================== MAIN ENTRY POINT ====================
 
--keep class com.medicalquiz.app.shared.MainKt {
+-keep class com.medqb.app.shared.MainKt {
     public static void main(java.lang.String[]);
 }
 
@@ -153,7 +153,7 @@
 # ==================== APP SPECIFIC ====================
 
 # Keep serializable data models (needed for kotlinx.serialization)
--keepclassmembers @kotlinx.serialization.Serializable class com.medicalquiz.app.shared.data.models.** {
+-keepclassmembers @kotlinx.serialization.Serializable class com.medqb.app.shared.data.models.** {
     <fields>;
     <init>(...);
 }
