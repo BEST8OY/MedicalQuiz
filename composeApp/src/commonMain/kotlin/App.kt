@@ -57,6 +57,7 @@ import com.medqb.app.shared.ui.theme.AppTheme
 import com.medqb.app.shared.ui.screens.DatabaseSelectionScreen
 import com.medqb.app.shared.ui.screens.FilterHubScreen
 import com.medqb.app.shared.ui.screens.FilterPane
+import com.medqb.app.shared.ui.screens.HistoryScreen
 import com.medqb.app.shared.ui.screens.media.HtmlViewerScreen
 import com.medqb.app.shared.ui.screens.SettingsScreen
 import com.medqb.app.shared.ui.screens.media.MediaViewerScreen
@@ -64,8 +65,8 @@ import com.medqb.app.shared.ui.screens.quiz.QuizRoot
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.viewmodel.DatabaseSelectionViewModel
 import com.medqb.app.shared.viewmodel.FilterViewModel
+import com.medqb.app.shared.viewmodel.HistoryViewModel
 import com.medqb.app.shared.viewmodel.QuizViewModel
-import com.medqb.app.shared.viewmodel.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -79,6 +80,7 @@ private val navConfig = SavedStateConfiguration {
         polymorphic(baseClass = NavKey::class) {
             subclass(serializer = MedQBRoutes.DatabaseSelection.serializer())
             subclass(serializer = MedQBRoutes.Filter.serializer())
+            subclass(serializer = MedQBRoutes.History.serializer())
             subclass(serializer = MedQBRoutes.Quiz.serializer())
             subclass(serializer = MedQBRoutes.Settings.serializer())
             subclass(serializer = MedQBRoutes.MediaViewer.serializer())
@@ -236,7 +238,12 @@ fun App() {
 
         val returnQuizToFilter: () -> Unit = {
             workflowState = workflowCoordinator.quizReturnedToFilter(workflowState)
-            navigator.returnQuizToFilter()
+            val targetPane = workflowState.requestedFilterPane
+            workflowState = workflowState.copy(requestedFilterPane = null)
+            when (targetPane) {
+                RequestedFilterPane.History -> navigator.returnQuizToHistory()
+                else -> navigator.returnQuizToFilter()
+            }
         }
 
         val entryProvider = remember(
@@ -284,46 +291,63 @@ fun App() {
                             }
                         }
                     )
-                    var selectedPane by rememberSaveable { mutableStateOf(FilterPane.Filters) }
-                    LaunchedEffect(workflowState.requestedFilterPane) {
-                        workflowState.requestedFilterPane?.let { pane ->
-                            selectedPane = when (pane) {
-                                RequestedFilterPane.Filters -> FilterPane.Filters
-                                RequestedFilterPane.History -> FilterPane.History
-                            }
-                            filterVM.initializeAfterDatabaseSwitch()
-                            workflowState = workflowCoordinator.filterPaneRequestConsumed(workflowState)
-                        }
+
+                    val onStartQuiz = dropUnlessResumed {
+                        workflowState = workflowCoordinator.standardQuizLaunchPrepared(workflowState)
+                        navigator.navigateTo(MedQBRoutes.Quiz)
                     }
 
-                    val filterState by filterVM.state.collectAsStateWithLifecycle()
-                    val databaseName = filterState.databaseName
-                    val sessionHistory by filterVM.historyEntries.collectAsStateWithLifecycle(emptyList())
+                    FilterHubScreen(
+                        viewModel = filterVM,
+                        selectedPane = FilterPane.Filters,
+                        onPaneSelected = { pane ->
+                            when (pane) {
+                                FilterPane.Filters -> navigator.switchTo(MedQBRoutes.Filter)
+                                FilterPane.History -> navigator.switchTo(MedQBRoutes.History)
+                            }
+                        },
+                        onStartQuiz = onStartQuiz,
+                        onLoggingToggle = { container.settingsRepository.setLoggingEnabled(it) },
+                        onSubmissionModeToggle = { container.settingsRepository.setSubmissionMode(it) },
+                    )
+                }
+
+                // History Screen - quiz history
+                entry<MedQBRoutes.History> {
+                    val historyVM = viewModel<HistoryViewModel>(
+                        factory = viewModelFactory {
+                            initializer {
+                                container.createHistoryViewModel()
+                            }
+                        }
+                    )
+
+                    val databaseName by container.activeDatabaseHolder.databaseName.collectAsStateWithLifecycle()
+                    val sessionHistory by historyVM.historyEntries.collectAsStateWithLifecycle()
                     val scopedHistoryEntries = remember(sessionHistory, databaseName) {
                         sessionHistory.filter { it.databaseName == databaseName }
                     }
 
-                    val routeHandlers = buildFilterRouteHandlers(
-                        viewModel = filterVM,
-                        onHistoryLaunchPrepared = { matchingDatabase ->
+                    val onHistorySelected = { entry: QuizSessionRepository.QuizSession ->
+                        historyVM.restoreHistoryEntry(entry) { matchingDatabase ->
                             workflowState = workflowCoordinator.historyLaunchPrepared(workflowState, matchingDatabase)
                             navigator.navigateTo(MedQBRoutes.Quiz)
-                        },
-                        onStartQuiz = dropUnlessResumed {
-                            workflowState = workflowCoordinator.standardQuizLaunchPrepared(workflowState)
-                            navigator.navigateTo(MedQBRoutes.Quiz)
-                        },
-                    )
+                        }
+                    }
 
-                    FilterHubScreen(
-                        viewModel = filterVM,
-                        selectedPane = selectedPane,
-                        onPaneSelected = { selectedPane = it },
+                    HistoryScreen(
                         historyEntries = scopedHistoryEntries,
-                        onHistorySelected = routeHandlers.onHistorySelected,
-                        onDeleteHistoryEntries = routeHandlers.onDeleteHistoryEntries,
-                        onRenameHistoryEntry = routeHandlers.onRenameHistoryEntry,
-                        onStartQuiz = routeHandlers.onStartQuiz,
+                        onHistorySelected = onHistorySelected,
+                        onDeleteHistoryEntries = { historyVM.deleteHistoryEntries(it) },
+                        onRenameHistoryEntry = { id, name -> historyVM.renameHistoryEntry(id, name) },
+                        onCopyAllQids = { historyVM.getQuestionIdsForHistoryEntries(it) },
+                        selectedPane = FilterPane.History,
+                        onPaneSelected = { pane ->
+                            when (pane) {
+                                FilterPane.Filters -> navigator.switchTo(MedQBRoutes.Filter)
+                                FilterPane.History -> navigator.switchTo(MedQBRoutes.History)
+                            }
+                        },
                     )
                 }
 
@@ -369,16 +393,16 @@ fun App() {
 
                 // Settings Screen
                 entry<MedQBRoutes.Settings> {
-                    val settingsVM = viewModel<SettingsViewModel>(
-                        factory = viewModelFactory {
-                            initializer {
-                                container.createSettingsViewModel()
-                            }
-                        }
-                    )
+                    val showMetadata by container.settingsRepository.showMetadata
+                        .collectAsStateWithLifecycle(true)
+                    val fontScalePreference by container.settingsRepository.fontScalePreference
+                        .collectAsStateWithLifecycle(null)
 
                     SettingsScreen(
-                        viewModel = settingsVM,
+                        showMetadata = showMetadata,
+                        fontScalePreference = fontScalePreference,
+                        onShowMetadataToggle = { container.settingsRepository.setShowMetadata(it) },
+                        onFontScaleChange = { container.settingsRepository.setFontScalePreference(it) },
                         onBack = dropUnlessResumed { navigator.navigateBack() },
                     )
                 }
@@ -408,20 +432,13 @@ fun App() {
                         },
                         onSaveMedia = { fileName ->
                             scope.launch {
-                                val saveDir = com.medqb.app.shared.platform.StorageProvider.getAppStorageDirectory() + "/saved_media"
-                                val sanitizedName = fileName.substringAfterLast("/").substringAfterLast("\\")
-                                val destPath = "$saveDir/$sanitizedName"
-                                // JVM-only: java.io.File works because both targets (Android, Desktop) are JVM-based
-                                if (!java.io.File(destPath).canonicalPath.startsWith(java.io.File(saveDir).canonicalPath)) {
-                                    container.snackbarDispatcher.emitSnackbar("Invalid file name")
-                                    return@launch
-                                }
-                                val sourcePath = localContentRepository.mediaFilePath(fileName)
-                                val success = com.medqb.app.shared.platform.FileSystemHelper.copyFile(sourcePath, destPath)
-                                if (success) {
-                                    container.snackbarDispatcher.emitSnackbar("Media saved to: $destPath")
-                                } else {
-                                    container.snackbarDispatcher.emitSnackbar("Failed to save media")
+                                when (val result = localContentRepository.saveMediaFile(fileName)) {
+                                    is LocalContentRepository.SaveMediaResult.Success ->
+                                        container.snackbarDispatcher.emitSnackbar("Media saved to: ${result.destPath}")
+                                    LocalContentRepository.SaveMediaResult.InvalidFileName ->
+                                        container.snackbarDispatcher.emitSnackbar("Invalid file name")
+                                    LocalContentRepository.SaveMediaResult.CopyFailed ->
+                                        container.snackbarDispatcher.emitSnackbar("Failed to save media")
                                 }
                             }
                         },
@@ -506,32 +523,4 @@ fun App() {
             )
         }
     }
-}
-
-private data class FilterRouteHandlers(
-    val onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
-    val onDeleteHistoryEntries: (Set<String>) -> Unit,
-    val onRenameHistoryEntry: (String, String) -> Unit,
-    val onStartQuiz: () -> Unit,
-)
-
-private fun buildFilterRouteHandlers(
-    viewModel: FilterViewModel,
-    onHistoryLaunchPrepared: (String) -> Unit,
-    onStartQuiz: () -> Unit,
-): FilterRouteHandlers {
-    return FilterRouteHandlers(
-        onHistorySelected = { entry ->
-            viewModel.restoreHistoryEntry(entry) { matchingDatabase ->
-                onHistoryLaunchPrepared(matchingDatabase)
-            }
-        },
-        onDeleteHistoryEntries = { entryIds ->
-            viewModel.deleteHistoryEntries(entryIds)
-        },
-        onRenameHistoryEntry = { entryId, newName ->
-            viewModel.renameHistoryEntry(entryId, newName)
-        },
-        onStartQuiz = onStartQuiz,
-    )
 }

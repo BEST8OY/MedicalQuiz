@@ -9,7 +9,7 @@ class AppNavigationPersistenceCoordinator(
 ) {
     suspend fun onBackStackChanged(backStack: List<NavKey>) {
         val lastRoute = backStack.lastOrNull() as? MedQBRoutes
-        if (lastRoute is MedQBRoutes.DatabaseSelection || lastRoute is MedQBRoutes.Filter) {
+        if (lastRoute is MedQBRoutes.DatabaseSelection || lastRoute is MedQBRoutes.Filter || lastRoute is MedQBRoutes.History) {
             sessionRepository.refreshHistoryAsync()
         }
     }
