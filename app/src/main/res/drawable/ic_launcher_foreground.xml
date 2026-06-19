@@ -6,54 +6,186 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Vertical Bar of the Cross with Gradient Fill -->
+    <!-- Shield Inner Fill (Subtle Cyan-Purple Gradient) -->
     <path
-        android:pathData="M 51,28 h 6 a 6,6 0 0 1 6,6 v 40 a 6,6 0 0 1 -6,6 h -6 a 6,6 0 0 1 -6,-6 v -40 a 6,6 0 0 1 6,-6 z">
+        android:pathData="M 54,26 L 78,38 L 78,70 L 54,84 L 30,70 L 30,38 Z"
+        android:fillAlpha="0.06">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:startX="28"
-                android:startY="28"
-                android:endX="80"
-                android:endY="80"
+                android:startX="30"
+                android:startY="26"
+                android:endX="78"
+                android:endY="84"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#006D6F" />
-                <item android:offset="0.5" android:color="#00BCD4" />
-                <item android:offset="1.0" android:color="#3F51B5" />
+                <item android:offset="0.0" android:color="#00F2FE"/>
+                <item android:offset="1.0" android:color="#9B51E0"/>
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Horizontal Bar of the Cross with Gradient Fill -->
+    <!-- Shield Outer Glow (Thick Neon Stroke) -->
     <path
-        android:pathData="M 34,45 h 40 a 6,6 0 0 1 6,6 v 6 a 6,6 0 0 1 -6,6 h -40 a 6,6 0 0 1 -6,-6 v -6 a 6,6 0 0 1 6,-6 z">
-        <aapt:attr name="android:fillColor">
+        android:pathData="M 54,26 L 78,38 L 78,70 L 54,84 L 30,70 L 30,38 Z"
+        android:strokeWidth="5.0"
+        android:strokeAlpha="0.3"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
             <gradient
-                android:startX="28"
-                android:startY="28"
-                android:endX="80"
-                android:endY="80"
+                android:startX="30"
+                android:startY="26"
+                android:endX="78"
+                android:endY="84"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#006D6F" />
-                <item android:offset="0.5" android:color="#00BCD4" />
-                <item android:offset="1.0" android:color="#3F51B5" />
+                <item android:offset="0.0" android:color="#00F2FE"/>
+                <item android:offset="0.5" android:color="#4FACFE"/>
+                <item android:offset="1.0" android:color="#9B51E0"/>
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Glowing Checkmark: Soft Neon Underlay -->
+    <!-- Shield Inner Core Outline (Thin Bright Stroke) -->
     <path
-        android:pathData="M 42,52 L 51,61 L 68,42"
-        android:strokeColor="#6600BCD4"
-        android:strokeWidth="10"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+        android:pathData="M 54,26 L 78,38 L 78,70 L 54,84 L 30,70 L 30,38 Z"
+        android:strokeWidth="1.5"
+        android:strokeAlpha="1.0"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="30"
+                android:startY="26"
+                android:endX="78"
+                android:endY="84"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#E0F7FA"/>
+                <item android:offset="0.5" android:color="#00F2FE"/>
+                <item android:offset="1.0" android:color="#9B51E0"/>
+            </gradient>
+        </aapt:attr>
+    </path>
 
-    <!-- Glowing Checkmark: Solid White Core -->
+    <!-- DNA Base Pairs (Horizontal Rungs) -->
     <path
-        android:pathData="M 42,52 L 51,61 L 68,42"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="4"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+        android:pathData="M 50,47 L 58,47 M 50,65 L 58,65"
+        android:strokeWidth="1.2"
+        android:strokeColor="#00F2FE"
+        android:strokeAlpha="0.7"
+        android:strokeLineCap="round"/>
 
+    <!-- DNA Strand A (Outer Cyan Glow) -->
+    <path
+        android:pathData="M 46,42 C 46,47 62,49 62,56 C 62,63 46,65 46,70"
+        android:strokeWidth="4.0"
+        android:strokeAlpha="0.25"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="46"
+                android:startY="42"
+                android:endX="62"
+                android:endY="70"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#00F2FE"/>
+                <item android:offset="1.0" android:color="#9B51E0"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- DNA Strand A (Sharp Inner Core) -->
+    <path
+        android:pathData="M 46,42 C 46,47 62,49 62,56 C 62,63 46,65 46,70"
+        android:strokeWidth="1.5"
+        android:strokeAlpha="1.0"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="46"
+                android:startY="42"
+                android:endX="62"
+                android:endY="70"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#E0F7FA"/>
+                <item android:offset="1.0" android:color="#00F2FE"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- DNA Strand B (Outer Purple Glow) -->
+    <path
+        android:pathData="M 62,42 C 62,47 46,49 46,56 C 46,63 62,65 62,70"
+        android:strokeWidth="4.0"
+        android:strokeAlpha="0.25"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="62"
+                android:startY="42"
+                android:endX="46"
+                android:endY="70"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#00F2FE"/>
+                <item android:offset="1.0" android:color="#9B51E0"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- DNA Strand B (Sharp Inner Core) -->
+    <path
+        android:pathData="M 62,42 C 62,47 46,49 46,56 C 46,63 62,65 62,70"
+        android:strokeWidth="1.5"
+        android:strokeAlpha="1.0"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="62"
+                android:startY="42"
+                android:endX="46"
+                android:endY="70"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#E0F7FA"/>
+                <item android:offset="1.0" android:color="#00F2FE"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Central Spark (Soft Radial Outer Glow) -->
+    <path
+        android:pathData="M 54,46 Q 54,56 64,56 Q 54,56 54,66 Q 54,56 44,56 Q 54,56 54,46 Z"
+        android:fillAlpha="0.35">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="54"
+                android:centerY="56"
+                android:gradientRadius="10"
+                android:type="radial">
+                <item android:offset="0.0" android:color="#FFFFFF"/>
+                <item android:offset="0.6" android:color="#00F2FE"/>
+                <item android:offset="1.0" android:color="#00000000"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Central Spark (Sharp White Core Flare) -->
+    <path
+        android:pathData="M 54,48 Q 54,56 62,56 Q 54,56 54,64 Q 54,56 46,56 Q 54,56 54,48 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="54"
+                android:centerY="56"
+                android:gradientRadius="7"
+                android:type="radial">
+                <item android:offset="0.0" android:color="#FFFFFF"/>
+                <item android:offset="0.7" android:color="#E0F7FA"/>
+                <item android:offset="1.0" android:color="#00F2FE"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Core Bright Dot -->
+    <path
+        android:pathData="M 54,56 m -1.2,0 a 1.2,1.2 0 1,1 2.4,0 a 1.2,1.2 0 1,1 -2.4,0"
+        android:fillColor="#FFFFFF"/>
 </vector>
