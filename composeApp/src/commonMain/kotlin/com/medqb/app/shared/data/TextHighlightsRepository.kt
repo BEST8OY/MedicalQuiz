@@ -6,6 +6,7 @@ import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.platform.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,9 +20,10 @@ import kotlinx.coroutines.sync.withLock
  * and syncs with UserDataManager for persistence.
  */
 class TextHighlightsRepository(
-    private val userDataManager: UserDataManager,
-    private val scope: CoroutineScope
+    private val userDataManager: UserDataManager
 ) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private data class HighlightContext(
         val dbName: String,
         val questionId: Long
