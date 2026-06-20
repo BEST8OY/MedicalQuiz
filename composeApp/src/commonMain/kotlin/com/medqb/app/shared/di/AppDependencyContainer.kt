@@ -18,8 +18,8 @@ class AppDependencyContainer {
     val localContentRepository = LocalContentRepository()
     val userDataManager = UserDataManager()
     val cacheManager = CacheManager()
-    val sessionRepository = QuizSessionRepository()
     val activeDatabaseHolder = ActiveDatabaseHolder()
+    val sessionRepository = QuizSessionRepository(activeDatabaseHolder)
     
     val appIntentDispatcher = AppIntentDispatcher()
     val snackbarDispatcher = SnackbarDispatcher()
@@ -29,14 +29,10 @@ class AppDependencyContainer {
     )
     
     // Use Cases
-    val restoreSessionUseCase = RestoreSessionUseCase(activeDatabaseHolder, sessionRepository)
     val applyFiltersUseCase = ApplyFiltersUseCase()
     val loadQuestionUseCase = LoadQuestionUseCase()
     
-    val quizSessionBoundaryUseCase = QuizSessionBoundaryUseCase(sessionRepository)
-    
     val quizViewModelDependencies = QuizViewModelDependencies(
-        quizSessionBoundaryUseCase = quizSessionBoundaryUseCase,
         applyFiltersUseCase = applyFiltersUseCase,
         loadQuestionUseCase = loadQuestionUseCase,
         appIntentSink = appIntentDispatcher,
@@ -49,7 +45,7 @@ class AppDependencyContainer {
     val startupCoordinator = AppStartupCoordinator(
         localContentRepository = localContentRepository,
         sessionRepository = sessionRepository,
-        restoreSessionUseCase = restoreSessionUseCase
+        activeDatabaseHolder = activeDatabaseHolder,
     )
     val workflowCoordinator = AppWorkflowCoordinator(startupCoordinator)
     val mediaNavigationCoordinator = MediaNavigationCoordinator(localContentRepository)
@@ -67,7 +63,6 @@ class AppDependencyContainer {
         return FilterViewModel(
             activeDatabaseHolder = activeDatabaseHolder,
             applyFiltersUseCase = applyFiltersUseCase,
-            sessionRepository = sessionRepository,
             settingsRepository = settingsRepository,
             snackbarSink = snackbarDispatcher,
         )
@@ -85,6 +80,7 @@ class AppDependencyContainer {
         return QuizViewModel(
             settingsRepository = settingsRepository,
             textHighlightsRepository = textHighlightsRepository,
+            sessionRepository = sessionRepository,
             cacheManager = cacheManager,
             savedStateHandle = savedStateHandle,
             dependencies = quizViewModelDependencies,

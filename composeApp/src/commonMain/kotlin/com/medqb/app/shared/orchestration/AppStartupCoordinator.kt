@@ -1,11 +1,12 @@
 package com.medqb.app.shared.orchestration
 
+import com.medqb.app.shared.data.ActiveDatabaseHolder
+import com.medqb.app.shared.data.DatabaseManager
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.UserDataManager
-import com.medqb.app.shared.domain.RestoreSessionDecision
-import com.medqb.app.shared.domain.RestoreSessionUseCase
 import com.medqb.app.shared.navigation.QuizLaunchSource
+import com.medqb.app.shared.platform.FileSystemHelper
 
 /**
  * Coordinates app startup routines: listings available DBs, handling DB selections.
@@ -13,7 +14,7 @@ import com.medqb.app.shared.navigation.QuizLaunchSource
 class AppStartupCoordinator(
     private val localContentRepository: LocalContentRepository,
     private val sessionRepository: QuizSessionRepository,
-    private val restoreSessionUseCase: RestoreSessionUseCase,
+    private val activeDatabaseHolder: ActiveDatabaseHolder,
 ) {
     suspend fun initializeApp(userDataManager: UserDataManager): List<String> {
         userDataManager.init()
@@ -28,14 +29,30 @@ class AppStartupCoordinator(
         selectedDatabase: String?,
         initializedDatabase: String?,
         pendingLaunchSource: QuizLaunchSource?,
-        shouldAttemptSessionRestore: Boolean,
-    ): RestoreSessionDecision? {
+    ): DatabaseSelectionDecision? {
         val dbName = selectedDatabase ?: return null
-        return restoreSessionUseCase(
-            dbName = dbName,
-            initializedDatabase = initializedDatabase,
+        val resolvedDatabase = ensureDatabaseInitialized(dbName)
+
+        return DatabaseSelectionDecision(
+            initializedDatabase = resolvedDatabase,
             pendingLaunchSource = pendingLaunchSource,
-            shouldAttemptSessionRestore = shouldAttemptSessionRestore,
         )
     }
+
+    private suspend fun ensureDatabaseInitialized(dbName: String): String {
+        val hasDatabaseManager = activeDatabaseHolder.databaseProvider.value != null
+        if (hasDatabaseManager) return dbName
+
+        val dbPath = FileSystemHelper.getDatabasePath(dbName)
+        val databaseManager = DatabaseManager(dbPath)
+        databaseManager.init()
+
+        activeDatabaseHolder.setDatabase(dbName.removeSuffix(".db"), databaseManager)
+        return dbName
+    }
 }
+
+data class DatabaseSelectionDecision(
+    val initializedDatabase: String,
+    val pendingLaunchSource: QuizLaunchSource?,
+)

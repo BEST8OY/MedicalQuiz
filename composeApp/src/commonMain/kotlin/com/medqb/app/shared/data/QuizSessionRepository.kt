@@ -1,56 +1,40 @@
 package com.medqb.app.shared.data
 
 import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.QuizSessionHistoryRow
 import com.medqb.app.shared.data.models.SubmissionMode
-import com.medqb.app.shared.platform.FileSystemHelper
 import com.medqb.app.shared.platform.Logger
-import com.medqb.app.shared.platform.StorageProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.EncodeDefault
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 
 /**
- * Manages quiz session persistence for process death recovery and session history.
+ * Manages quiz session history persistence via the active SQLite database.
  */
-class QuizSessionRepository {
+class QuizSessionRepository(
+    private val activeDatabaseHolder: ActiveDatabaseHolder,
+) {
     private val _historyEntries = MutableStateFlow<List<QuizSession>>(emptyList())
     val historyEntries: StateFlow<List<QuizSession>> = _historyEntries.asStateFlow()
 
-    private val sessionFile: String
-        get() = "${StorageProvider.getAppStorageDirectory()}/quiz_session.json"
+    private suspend fun db() = activeDatabaseHolder.databaseProvider.value
+        ?: throw IllegalStateException("No active database")
 
-    private val historyFile: String
-        get() = "${StorageProvider.getAppStorageDirectory()}/quiz_session_history.json"
-
-    private val json = Json {
-        ignoreUnknownKeys = true
-        prettyPrint = false
-    }
-
-    fun saveSession(
+    private suspend fun appendToHistory(
         databaseName: String,
         selectedSubjectIds: Set<Long>,
         selectedSystemIds: Set<Long>,
         performanceFilter: PerformanceFilter,
         currentQuestionIndex: Int,
-        appendToHistory: Boolean = true,
         isLoggingEnabled: Boolean = false,
         submissionMode: SubmissionMode = SubmissionMode.INSTANT,
         currentSessionId: String = "",
     ): String {
-        if (databaseName.isBlank() || currentQuestionIndex < 0) {
-            clearSession()
-            return ""
-        }
+        if (databaseName.isBlank()) return ""
 
         val now = Clock.System.now().toEpochMilliseconds()
         val sessionId = if (currentSessionId.isNotBlank()) {
@@ -58,69 +42,54 @@ class QuizSessionRepository {
         } else {
             buildSessionId(databaseName, now)
         }
-        val session = QuizSession(
-            id = sessionId,
-            databaseName = databaseName,
-            selectedSubjectIds = selectedSubjectIds.toSortedSet().toList(),
-            selectedSystemIds = selectedSystemIds.toSortedSet().toList(),
-            performanceFilter = performanceFilter,
-            currentQuestionIndex = currentQuestionIndex,
-            updatedAtEpochMillis = now,
-            isLoggingEnabled = isLoggingEnabled,
-            submissionMode = submissionMode,
-        )
 
-        runCatching { writeSession(session) }
-            .onFailure { Logger.e("QuizSession", "Error saving active session", it) }
-
-        if (appendToHistory) {
-            runCatching { appendHistoryEntry(session) }
-                .onFailure { Logger.e("QuizSession", "Error appending session history", it) }
-        }
+        runCatching {
+            db().upsertHistoryEntry(
+                sessionId = sessionId,
+                databaseName = databaseName,
+                entryName = "",
+                selectedSubjectIds = selectedSubjectIds.toSortedSet().toList(),
+                selectedSystemIds = selectedSystemIds.toSortedSet().toList(),
+                performanceFilter = performanceFilter.name,
+                currentQuestionIndex = currentQuestionIndex,
+                updatedAt = now,
+                isLoggingEnabled = isLoggingEnabled,
+                submissionMode = submissionMode.name,
+            )
+        }.onFailure { Logger.e("QuizSession", "Error appending session history", it) }
 
         return sessionId
     }
 
-    suspend fun saveSessionAsync(
+    suspend fun appendToHistoryAsync(
         databaseName: String,
         selectedSubjectIds: Set<Long>,
         selectedSystemIds: Set<Long>,
         performanceFilter: PerformanceFilter,
         currentQuestionIndex: Int,
-        appendToHistory: Boolean = true,
         isLoggingEnabled: Boolean = false,
         submissionMode: SubmissionMode = SubmissionMode.INSTANT,
         currentSessionId: String = "",
     ): String = withContext(Dispatchers.IO) {
-        val sessionId = saveSession(
+        val sessionId = appendToHistory(
             databaseName = databaseName,
             selectedSubjectIds = selectedSubjectIds,
             selectedSystemIds = selectedSystemIds,
             performanceFilter = performanceFilter,
             currentQuestionIndex = currentQuestionIndex,
-            appendToHistory = appendToHistory,
             isLoggingEnabled = isLoggingEnabled,
             submissionMode = submissionMode,
             currentSessionId = currentSessionId,
         )
-        if (appendToHistory) {
-            _historyEntries.value = listHistory()
-        }
+        _historyEntries.value = listHistory()
         sessionId
     }
 
-    fun restoreSession(): QuizSession? =
-        readFromFile<QuizSession>(sessionFile, ReadContext.Session)?.normalized()
-
-    suspend fun restoreSessionAsync(): QuizSession? = withContext(Dispatchers.IO) {
-        restoreSession()
-    }
-
-    fun listHistory(): List<QuizSession> =
-        readFromFile<List<QuizSession>>(historyFile, ReadContext.History)
-            ?.map { it.normalized() }
-            ?.sortedByDescending { it.updatedAtEpochMillis }
-            ?: emptyList()
+    fun listHistory(): List<QuizSession> = runCatching {
+        runBlocking(Dispatchers.IO) {
+            db().listHistoryEntries().map { it.toQuizSession() }
+        }
+    }.getOrDefault(emptyList())
 
     suspend fun listHistoryAsync(): List<QuizSession> = withContext(Dispatchers.IO) {
         listHistory()
@@ -132,16 +101,11 @@ class QuizSessionRepository {
         history
     }
 
-    fun restoreHistoryEntry(entryId: String): QuizSession? {
-        val entry = listHistory().firstOrNull { it.id == entryId } ?: return null
-        return runCatching {
-            writeSession(entry)
-            entry
-        }.getOrElse {
-            Logger.e("QuizSession", "Error restoring history entry", it)
-            null
+    fun restoreHistoryEntry(entryId: String): QuizSession? = runCatching {
+        runBlocking(Dispatchers.IO) {
+            db().getHistoryEntry(entryId)?.toQuizSession()
         }
-    }
+    }.getOrNull()
 
     suspend fun restoreHistoryEntryAsync(entryId: String): QuizSession? = withContext(Dispatchers.IO) {
         restoreHistoryEntry(entryId).also {
@@ -156,7 +120,9 @@ class QuizSessionRepository {
     fun deleteHistoryEntries(entryIds: Set<String>) {
         if (entryIds.isEmpty()) return
         runCatching {
-            deleteHistoryEntriesStrict(entryIds)
+            runBlocking(Dispatchers.IO) {
+                db().deleteHistoryEntries(entryIds.toList())
+            }
         }.onFailure {
             Logger.e("QuizSession", "Error deleting history entries", it)
         }
@@ -169,7 +135,7 @@ class QuizSessionRepository {
 
     suspend fun deleteHistoryEntriesStrictAsync(entryIds: Set<String>) = withContext(Dispatchers.IO) {
         if (entryIds.isEmpty()) return@withContext
-        deleteHistoryEntriesStrict(entryIds)
+        db().deleteHistoryEntries(entryIds.toList())
         _historyEntries.value = listHistory()
     }
 
@@ -177,15 +143,8 @@ class QuizSessionRepository {
         val trimmedName = newName.trim()
         if (trimmedName.isBlank()) return
         runCatching {
-            val history = listHistory().toMutableList()
-            val index = history.indexOfFirst { it.id == entryId }
-            if (index < 0) return@runCatching
-            history[index] = history[index].copy(entryName = trimmedName)
-            saveHistoryList(history)
-
-            val activeSession = restoreSession()
-            if (activeSession?.id == entryId) {
-                writeSession(activeSession.copy(entryName = trimmedName))
+            runBlocking(Dispatchers.IO) {
+                db().renameHistoryEntry(entryId, trimmedName)
             }
         }.onFailure {
             Logger.e("QuizSession", "Error renaming history entry", it)
@@ -197,81 +156,8 @@ class QuizSessionRepository {
         _historyEntries.value = listHistory()
     }
 
-    fun clearSession() {
-        runCatching { FileSystemHelper.delete(sessionFile) }
-            .onFailure { Logger.e("QuizSession", "Error clearing quiz session", it) }
-    }
-
-    suspend fun clearSessionAsync() = withContext(Dispatchers.IO) {
-        clearSession()
-    }
-
-    private inline fun <reified T> readFromFile(path: String, context: ReadContext): T? {
-        return runCatching {
-            val content = FileSystemHelper.readText(path) ?: return null
-            json.decodeFromString<T>(content)
-        }.getOrElse {
-            handleReadError(path = path, context = context, throwable = it)
-            null
-        }
-    }
-
-
-
-    private fun appendHistoryEntry(session: QuizSession) {
-        val history = listHistory().toMutableList()
-        val existingEntry = history.firstOrNull { it.id == session.id }
-        history.removeAll { it.id == session.id }
-        history.add(
-            session.copy(
-                entryName = existingEntry?.entryName.orEmpty(),
-            ),
-        )
-        saveHistoryList(history)
-    }
-
-    private fun saveHistoryList(history: List<QuizSession>) {
-        val bounded = history
-            .map { it.normalized() }
-            .sortedByDescending { it.updatedAtEpochMillis }
-            .take(MAX_HISTORY_ENTRIES)
-        FileSystemHelper.writeText(historyFile, json.encodeToString(bounded))
-    }
-
-    private fun deleteHistoryEntriesStrict(entryIds: Set<String>) {
-        val updated = listHistory().filterNot { it.id in entryIds }
-        saveHistoryList(updated)
-    }
-
-    private fun writeSession(session: QuizSession) {
-        FileSystemHelper.writeText(sessionFile, json.encodeToString(session.normalized()))
-    }
-
-    private fun QuizSession.normalized(): QuizSession = copy(
-        selectedSubjectIds = selectedSubjectIds.distinct().sorted(),
-        selectedSystemIds = selectedSystemIds.distinct().sorted(),
-        entryName = entryName.trim(),
-        currentQuestionIndex = currentQuestionIndex.coerceAtLeast(0),
-    )
-
     private fun buildSessionId(databaseName: String, now: Long): String = "$databaseName-$now"
 
-    private fun handleReadError(path: String, context: ReadContext, throwable: Throwable) {
-        if (throwable is SerializationException) {
-            Logger.e("QuizSession", "Invalid ${context.label} payload, clearing corrupted file", throwable)
-            runCatching { FileSystemHelper.delete(path) }
-                .onFailure { Logger.e("QuizSession", "Failed to delete corrupted ${context.label} file", it) }
-            return
-        }
-        Logger.e("QuizSession", "Error reading ${context.label}", throwable)
-    }
-
-    private enum class ReadContext(val label: String) {
-        Session("session"),
-        History("history"),
-    }
-
-    @Serializable
     data class QuizSession(
         val id: String = "",
         val databaseName: String,
@@ -281,11 +167,20 @@ class QuizSessionRepository {
         val performanceFilter: PerformanceFilter,
         val currentQuestionIndex: Int,
         val updatedAtEpochMillis: Long = 0,
-        @EncodeDefault val isLoggingEnabled: Boolean = false,
-        @EncodeDefault val submissionMode: SubmissionMode = SubmissionMode.INSTANT,
+        val isLoggingEnabled: Boolean = false,
+        val submissionMode: SubmissionMode = SubmissionMode.INSTANT,
     )
-
-    companion object {
-        private const val MAX_HISTORY_ENTRIES = 20
-    }
 }
+
+private fun QuizSessionHistoryRow.toQuizSession() = QuizSessionRepository.QuizSession(
+    id = sessionId,
+    databaseName = databaseName,
+    entryName = entryName,
+    selectedSubjectIds = selectedSubjectIds,
+    selectedSystemIds = selectedSystemIds,
+    performanceFilter = runCatching { PerformanceFilter.valueOf(performanceFilter) }.getOrDefault(PerformanceFilter.ALL),
+    currentQuestionIndex = currentQuestionIndex,
+    updatedAtEpochMillis = updatedAt,
+    isLoggingEnabled = isLoggingEnabled,
+    submissionMode = runCatching { SubmissionMode.valueOf(submissionMode) }.getOrDefault(SubmissionMode.INSTANT),
+)

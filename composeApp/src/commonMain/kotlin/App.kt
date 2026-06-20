@@ -97,7 +97,6 @@ private val AppWorkflowStateSaver = Saver<AppWorkflowState, List<Any?>>(
             state.pendingLaunchSource?.name,
             state.activeQuizLaunchSource.name,
             state.requestedFilterPane?.name,
-            state.shouldAttemptSessionRestore
         )
     },
     restore = { list ->
@@ -107,7 +106,6 @@ private val AppWorkflowStateSaver = Saver<AppWorkflowState, List<Any?>>(
             pendingLaunchSource = (list[2] as String?)?.let { QuizLaunchSource.valueOf(it) },
             activeQuizLaunchSource = QuizLaunchSource.valueOf(list[3] as String),
             requestedFilterPane = (list[4] as String?)?.let { RequestedFilterPane.valueOf(it) },
-            shouldAttemptSessionRestore = list[5] as Boolean
         )
     }
 )
@@ -143,7 +141,6 @@ fun App() {
         val workflowCoordinator = container.workflowCoordinator
         val mediaNavCoordinator = container.mediaNavigationCoordinator
         val localContentRepository = container.localContentRepository
-        val sessionRepository = container.sessionRepository
 
         val backStack = rememberNavBackStack(navConfig, START_DESTINATION)
         val navigator = remember(backStack) { AppNavigator(backStack) }
@@ -152,28 +149,15 @@ fun App() {
             mutableStateOf(workflowCoordinator.initialState())
         }
 
-        // On process-death restore, if Quiz is on top, signal session restore
-        LaunchedEffect(Unit) {
-            if (backStack.lastOrNull() is MedQBRoutes.Quiz &&
-                !workflowState.shouldAttemptSessionRestore
-            ) {
-                workflowState = workflowState.copy(shouldAttemptSessionRestore = true)
-            }
-        }
-
         // Handle database initialization when selected
         LaunchedEffect(
             workflowState.selectedDatabase,
             workflowState.initializedDatabase,
             workflowState.pendingLaunchSource,
-            workflowState.shouldAttemptSessionRestore
         ) {
             val decision = workflowCoordinator.handleDatabaseSelection(workflowState)
             if (decision != null) {
                 workflowState = workflowCoordinator.applyDatabaseSelectionDecision(workflowState, decision)
-                if (decision.shouldPopToDatabaseSelection) {
-                    navigator.popToDatabaseSelection()
-                }
             }
         }
 
@@ -224,7 +208,6 @@ fun App() {
                             navigator.popToDatabaseSelection()
                             workflowState = workflowCoordinator.databaseSelectionRequested(workflowState)
                             container.activeDatabaseHolder.closeDatabase()
-                            sessionRepository.clearSessionAsync()
                         }
                     }
                 }
@@ -271,9 +254,6 @@ fun App() {
                         onRefreshDatabases = { dbVM.refreshDatabases() },
                         onDatabaseSelected = { dbName ->
                             workflowState = workflowCoordinator.databaseSelected(workflowState, dbName)
-                            scope.launch {
-                                sessionRepository.clearSessionAsync()
-                            }
                             navigator.navigateTo(MedQBRoutes.Filter)
                         },
                         onOpenSettings = {
@@ -367,15 +347,7 @@ fun App() {
                         // Wait until the active database name is propagated to the view model
                         quizVM.state.first { it.databaseName.isNotEmpty() }
                         if (quizVM.state.value.questionIds.isEmpty()) {
-                            val restore = workflowState.shouldAttemptSessionRestore || workflowState.activeQuizLaunchSource == QuizLaunchSource.History
-                            quizVM.restoreSession()
-                            if (restore) {
-                                quizVM.loadFilteredQuestionIds(startFromBeginning = false, appendToHistory = false)
-                            } else {
-                                quizVM.setSessionId("")
-                                quizVM.loadFilteredQuestionIds(startFromBeginning = true)
-                            }
-                            workflowState = workflowCoordinator.quizRestoreConsumed(workflowState)
+                            quizVM.loadFilteredQuestionIds(startFromBeginning = true)
                         }
                     }
 
