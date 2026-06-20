@@ -6,6 +6,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.medqb.app.shared.data.database.DatabaseProvider
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.database.QuestionPerformance
+import com.medqb.app.shared.data.database.QuizSessionHistoryRow
 import com.medqb.app.shared.data.models.Answer
 import com.medqb.app.shared.data.models.Question
 import com.medqb.app.shared.data.models.Subject
@@ -507,6 +508,23 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
             END
             """.trimIndent()
         ).use { stmt -> stmt.step() }
+
+        conn.prepare(
+            """
+            CREATE TABLE IF NOT EXISTS quiz_history (
+                session_id TEXT PRIMARY KEY,
+                database_name TEXT NOT NULL,
+                entry_name TEXT NOT NULL DEFAULT '',
+                selected_subject_ids TEXT NOT NULL DEFAULT '[]',
+                selected_system_ids TEXT NOT NULL DEFAULT '[]',
+                performance_filter TEXT NOT NULL DEFAULT 'ALL',
+                current_question_index INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL DEFAULT 0,
+                is_logging_enabled INTEGER NOT NULL DEFAULT 0,
+                submission_mode TEXT NOT NULL DEFAULT 'INSTANT'
+            )
+            """.trimIndent()
+        ).use { stmt -> stmt.step() }
     }
 
     private fun ensureSessionExistsLocked(sessionId: String) {
@@ -526,5 +544,122 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
             }
         }
         return rowId
+    }
+
+    override suspend fun upsertHistoryEntry(
+        sessionId: String,
+        databaseName: String,
+        entryName: String,
+        selectedSubjectIds: List<Long>,
+        selectedSystemIds: List<Long>,
+        performanceFilter: String,
+        currentQuestionIndex: Int,
+        updatedAt: Long,
+        isLoggingEnabled: Boolean,
+        submissionMode: String,
+    ) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val sql = """
+                INSERT OR REPLACE INTO quiz_history
+                (session_id, database_name, entry_name, selected_subject_ids, selected_system_ids,
+                 performance_filter, current_question_index, updated_at, is_logging_enabled, submission_mode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            getConnection().prepare(sql).use { stmt ->
+                stmt.bindText(1, sessionId)
+                stmt.bindText(2, databaseName)
+                stmt.bindText(3, entryName)
+                stmt.bindText(4, selectedSubjectIds.joinToString(","))
+                stmt.bindText(5, selectedSystemIds.joinToString(","))
+                stmt.bindText(6, performanceFilter)
+                stmt.bindLong(7, currentQuestionIndex.toLong())
+                stmt.bindLong(8, updatedAt)
+                stmt.bindLong(9, if (isLoggingEnabled) 1L else 0L)
+                stmt.bindText(10, submissionMode)
+                stmt.step()
+            }
+            Unit
+        }
+    }
+
+    override suspend fun listHistoryEntries(): List<QuizSessionHistoryRow> = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val sql = """
+                SELECT session_id, database_name, entry_name, selected_subject_ids, selected_system_ids,
+                       performance_filter, current_question_index, updated_at, is_logging_enabled, submission_mode
+                FROM quiz_history
+                ORDER BY updated_at DESC
+            """
+            val result = mutableListOf<QuizSessionHistoryRow>()
+            getConnection().prepare(sql).use { stmt ->
+                while (stmt.step()) {
+                    result.add(
+                        QuizSessionHistoryRow(
+                            sessionId = stmt.getText(0),
+                            databaseName = stmt.getText(1),
+                            entryName = stmt.getText(2),
+                            selectedSubjectIds = stmt.getText(3).split(",").mapNotNull { it.trim().toLongOrNull() },
+                            selectedSystemIds = stmt.getText(4).split(",").mapNotNull { it.trim().toLongOrNull() },
+                            performanceFilter = stmt.getText(5),
+                            currentQuestionIndex = stmt.getLong(6).toInt(),
+                            updatedAt = stmt.getLong(7),
+                            isLoggingEnabled = stmt.getLong(8) == 1L,
+                            submissionMode = stmt.getText(9),
+                        )
+                    )
+                }
+            }
+            result
+        }
+    }
+
+    override suspend fun getHistoryEntry(sessionId: String): QuizSessionHistoryRow? = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val sql = """
+                SELECT session_id, database_name, entry_name, selected_subject_ids, selected_system_ids,
+                       performance_filter, current_question_index, updated_at, is_logging_enabled, submission_mode
+                FROM quiz_history WHERE session_id = ?
+            """
+            getConnection().prepare(sql).use { stmt ->
+                stmt.bindText(1, sessionId)
+                if (stmt.step()) {
+                    QuizSessionHistoryRow(
+                        sessionId = stmt.getText(0),
+                        databaseName = stmt.getText(1),
+                        entryName = stmt.getText(2),
+                        selectedSubjectIds = stmt.getText(3).split(",").mapNotNull { it.trim().toLongOrNull() },
+                        selectedSystemIds = stmt.getText(4).split(",").mapNotNull { it.trim().toLongOrNull() },
+                        performanceFilter = stmt.getText(5),
+                        currentQuestionIndex = stmt.getLong(6).toInt(),
+                        updatedAt = stmt.getLong(7),
+                        isLoggingEnabled = stmt.getLong(8) == 1L,
+                        submissionMode = stmt.getText(9),
+                    )
+                } else null
+            }
+        }
+    }
+
+    override suspend fun deleteHistoryEntries(sessionIds: List<String>) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            if (sessionIds.isEmpty()) return@withContext
+            val placeholders = sessionIds.joinToString(",") { "?" }
+            getConnection().prepare("DELETE FROM quiz_history WHERE session_id IN ($placeholders)").use { stmt ->
+                sessionIds.forEachIndexed { index, id -> stmt.bindText(index + 1, id) }
+                stmt.step()
+            }
+            Unit
+        }
+    }
+
+    override suspend fun renameHistoryEntry(sessionId: String, newName: String) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            getConnection().prepare("UPDATE quiz_history SET entry_name = ? WHERE session_id = ?").use { stmt ->
+                stmt.bindText(1, newName)
+                stmt.bindText(2, sessionId)
+                stmt.step()
+            }
+            Unit
+        }
     }
 }

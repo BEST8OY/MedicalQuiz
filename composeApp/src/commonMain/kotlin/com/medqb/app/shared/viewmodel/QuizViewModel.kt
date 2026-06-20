@@ -5,15 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.CacheManager
+import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.models.SubmissionMode
-import com.medqb.app.shared.domain.QuizSessionBoundaryUseCase
 import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.ui.state.QuizUiState
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,13 +34,13 @@ private const val MAX_SCROLL_CACHE_SIZE = 100
 class QuizViewModel(
     internal val settingsRepository: SettingsRepository,
     private val textHighlightsRepository: TextHighlightsRepository,
+    private val sessionRepository: QuizSessionRepository,
     private val cacheManager: CacheManager,
     private val savedStateHandle: SavedStateHandle,
     dependencies: QuizViewModelDependencies,
     private val activeDatabaseHolder: ActiveDatabaseHolder,
 ) : ViewModel() {
 
-    private val quizSessionBoundaryUseCase = dependencies.quizSessionBoundaryUseCase
     private val applyFiltersUseCase = dependencies.applyFiltersUseCase
     private val loadQuestionUseCase = dependencies.loadQuestionUseCase
     private val appIntentSink = dependencies.appIntentSink
@@ -55,12 +54,6 @@ class QuizViewModel(
         const val KEY_CURRENT_QUESTION_INDEX = "current_question_index"
         const val KEY_IS_LOGGING_ENABLED = "is_logging_enabled"
         const val KEY_SUBMISSION_MODE = "submission_mode"
-    }
-
-    enum class SessionRestoreResult {
-        Restored,
-        NoSession,
-        DatabaseMismatch,
     }
 
     private var settingsObservationJob: Job? = null
@@ -142,44 +135,19 @@ class QuizViewModel(
 
     fun getTextHighlightsRepository(): TextHighlightsRepository = textHighlightsRepository
 
-    suspend fun restoreSession(): SessionRestoreResult {
-        return when (val result = quizSessionBoundaryUseCase.restoreSessionForDatabase(state.value.databaseName)) {
-            QuizSessionBoundaryUseCase.RestoreResult.NoSession -> SessionRestoreResult.NoSession
-            QuizSessionBoundaryUseCase.RestoreResult.DatabaseMismatch -> SessionRestoreResult.DatabaseMismatch
-            is QuizSessionBoundaryUseCase.RestoreResult.Restored -> {
-                if (result.sessionId.isNotBlank()) {
-                    setSessionId(result.sessionId)
-                }
-                _state.update {
-                    it.copy(
-                        selectedSubjectIds = result.selectedSubjectIds,
-                        selectedSystemIds = result.selectedSystemIds,
-                        performanceFilter = result.performanceFilter,
-                        currentQuestionIndex = result.currentQuestionIndex,
-                        isLoggingEnabled = result.isLoggingEnabled,
-                        submissionMode = result.submissionMode,
-                    )
-                }
-                persistStateSnapshot()
-                SessionRestoreResult.Restored
-            }
-        }
-    }
-
-    private suspend fun saveSession(appendToHistory: Boolean = true) {
-        val newSessionId = quizSessionBoundaryUseCase.saveSession(
-            state = state.value,
-            appendToHistory = appendToHistory,
+    private suspend fun appendToHistory() {
+        val newSessionId = sessionRepository.appendToHistoryAsync(
+            databaseName = state.value.databaseName,
+            selectedSubjectIds = state.value.selectedSubjectIds,
+            selectedSystemIds = state.value.selectedSystemIds,
+            performanceFilter = state.value.performanceFilter,
+            currentQuestionIndex = state.value.currentQuestionIndex,
+            isLoggingEnabled = state.value.isLoggingEnabled,
+            submissionMode = state.value.submissionMode,
             currentSessionId = sessionId,
         )
         if (newSessionId.isNotBlank()) {
-            setSessionId(newSessionId)
-        }
-    }
-
-    fun clearSession() {
-        viewModelScope.launch(Dispatchers.IO) {
-            quizSessionBoundaryUseCase.clearSession()
+            sessionId = newSessionId
         }
     }
 
@@ -227,7 +195,9 @@ class QuizViewModel(
                 emitSnackbar("Failed to load question: ${e.message}")
             } finally {
                 cacheManager.trimCachesIfNeeded(index)
-                saveSession(appendToHistory = appendToHistory)
+                if (appendToHistory) {
+                    appendToHistory()
+                }
                 _state.update { it.copy(isLoading = false) }
             }
         }
@@ -341,7 +311,6 @@ class QuizViewModel(
 
     fun loadFilteredQuestionIds(
         updatePreviewCount: Boolean = true,
-        appendToHistory: Boolean = true,
         startFromBeginning: Boolean = false,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -368,7 +337,6 @@ class QuizViewModel(
                             isLoading = false,
                         )
                     }
-                    saveSession(appendToHistory = false)
                     return@launch
                 }
 
@@ -384,7 +352,7 @@ class QuizViewModel(
                         previewQuestionCount = if (updatePreviewCount) ids.size else it.previewQuestionCount
                     )
                 }
-                loadQuestion(newIndex, appendToHistory = appendToHistory)
+                loadQuestion(newIndex)
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false) }
                 Logger.e("QuizViewModel", "Error loading filtered questions", e)

@@ -20,8 +20,6 @@ data class AppWorkflowState(
     val activeQuizLaunchSource: QuizLaunchSource = QuizLaunchSource.Standard,
     /** Which filter pane to reveal when returning from a quiz. */
     val requestedFilterPane: RequestedFilterPane? = null,
-    /** Whether the quiz entry should attempt to restore a prior session. */
-    val shouldAttemptSessionRestore: Boolean = false,
 )
 
 /**

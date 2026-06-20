@@ -3,7 +3,6 @@ package com.medqb.app.shared.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
-import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
@@ -20,7 +19,6 @@ import kotlinx.coroutines.launch
 class FilterViewModel(
     private val activeDatabaseHolder: ActiveDatabaseHolder,
     private val applyFiltersUseCase: ApplyFiltersUseCase,
-    private val sessionRepository: QuizSessionRepository,
     private val settingsRepository: SettingsRepository,
     private val snackbarSink: SnackbarSink,
 ) : ViewModel() {
@@ -46,13 +44,11 @@ class FilterViewModel(
         viewModelScope.launch {
             settingsRepository.isLoggingEnabled.collect { enabled ->
                 _state.update { it.copy(isLoggingEnabled = enabled) }
-                saveSession()
             }
         }
         viewModelScope.launch {
             settingsRepository.submissionMode.collect { mode ->
                 _state.update { it.copy(submissionMode = mode) }
-                saveSession()
             }
         }
     }
@@ -72,17 +68,6 @@ class FilterViewModel(
                 )
             }
             lastFetchedSubjectIds = null
-
-            val savedSession = sessionRepository.restoreSessionAsync()
-            if (savedSession != null && savedSession.databaseName == state.value.databaseName) {
-                _state.update {
-                    it.copy(
-                        selectedSubjectIds = savedSession.selectedSubjectIds.toSet(),
-                        selectedSystemIds = savedSession.selectedSystemIds.toSet(),
-                        performanceFilter = savedSession.performanceFilter,
-                    )
-                }
-            }
 
             fetchSubjects()
             fetchSystemsForSubjects(null)
@@ -149,7 +134,6 @@ class FilterViewModel(
             fetchSystemsForSubjects(subjectsForSystems)
 
             updatePreviewQuestionCountInternal()
-            saveSession()
         }
     }
 
@@ -164,7 +148,6 @@ class FilterViewModel(
 
             _state.update { it.copy(selectedSystemIds = normalizedSelection) }
             updatePreviewQuestionCountInternal()
-            saveSession()
         }
     }
 
@@ -172,7 +155,6 @@ class FilterViewModel(
         _state.update { it.copy(performanceFilter = filter) }
         viewModelScope.launch {
             updatePreviewQuestionCountInternal()
-            saveSession()
         }
     }
 
@@ -186,7 +168,6 @@ class FilterViewModel(
                 )
             }
             updatePreviewQuestionCountInternal()
-            saveSession()
         }
     }
 
@@ -202,22 +183,6 @@ class FilterViewModel(
             )
         }.getOrDefault(0)
         _state.update { it.copy(previewQuestionCount = count) }
-    }
-
-    private suspend fun saveSession() {
-        val currentState = state.value
-        if (currentState.databaseName.isNotEmpty()) {
-            sessionRepository.saveSessionAsync(
-                databaseName = currentState.databaseName,
-                selectedSubjectIds = currentState.selectedSubjectIds,
-                selectedSystemIds = currentState.selectedSystemIds,
-                performanceFilter = currentState.performanceFilter,
-                currentQuestionIndex = 0,
-                appendToHistory = false,
-                isLoggingEnabled = currentState.isLoggingEnabled,
-                submissionMode = currentState.submissionMode,
-            )
-        }
     }
 
     private fun emitSnackbar(message: String) {

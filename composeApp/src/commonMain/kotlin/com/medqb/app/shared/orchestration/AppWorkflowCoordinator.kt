@@ -1,6 +1,5 @@
 package com.medqb.app.shared.orchestration
 
-import com.medqb.app.shared.domain.RestoreSessionDecision
 import com.medqb.app.shared.navigation.QuizLaunchSource
 
 /**
@@ -19,7 +18,6 @@ class AppWorkflowCoordinator(
 
     /**
      * Builds the initial [AppWorkflowState] for a fresh start.
-     * Saved state is restored by [rememberSaveable] in the composable layer.
      */
     fun initialState(): AppWorkflowState {
         return AppWorkflowState()
@@ -32,27 +30,25 @@ class AppWorkflowCoordinator(
      */
     suspend fun handleDatabaseSelection(
         state: AppWorkflowState,
-    ): RestoreSessionDecision? {
+    ): DatabaseSelectionDecision? {
         val dbName = state.selectedDatabase ?: return null
         return startupCoordinator.handleDatabaseSelection(
             selectedDatabase = dbName,
             initializedDatabase = state.initializedDatabase,
             pendingLaunchSource = state.pendingLaunchSource,
-            shouldAttemptSessionRestore = state.shouldAttemptSessionRestore,
         )
     }
 
     /**
-     * Applies a [RestoreSessionDecision] to the workflow state.
+     * Applies a [DatabaseSelectionDecision] to the workflow state.
      */
     fun applyDatabaseSelectionDecision(
         state: AppWorkflowState,
-        decision: RestoreSessionDecision,
+        decision: DatabaseSelectionDecision,
     ): AppWorkflowState {
         return state.copy(
             initializedDatabase = decision.initializedDatabase,
             pendingLaunchSource = decision.pendingLaunchSource,
-            shouldAttemptSessionRestore = decision.shouldAttemptSessionRestore,
         )
     }
 
@@ -65,7 +61,6 @@ class AppWorkflowCoordinator(
             initializedDatabase = null,
             pendingLaunchSource = null,
             activeQuizLaunchSource = QuizLaunchSource.Standard,
-            shouldAttemptSessionRestore = false,
         )
     }
 
@@ -119,7 +114,6 @@ class AppWorkflowCoordinator(
         return state.copy(
             pendingLaunchSource = null,
             activeQuizLaunchSource = QuizLaunchSource.Standard,
-            shouldAttemptSessionRestore = false,
             requestedFilterPane = targetPane,
         )
     }
@@ -132,13 +126,5 @@ class AppWorkflowCoordinator(
      */
     fun filterPaneRequestConsumed(state: AppWorkflowState): AppWorkflowState {
         return state.copy(requestedFilterPane = null)
-    }
-
-    /**
-     * Consumes the [AppWorkflowState.shouldAttemptSessionRestore] flag
-     * after the quiz entry has used it.
-     */
-    fun quizRestoreConsumed(state: AppWorkflowState): AppWorkflowState {
-        return state.copy(shouldAttemptSessionRestore = false)
     }
 }
