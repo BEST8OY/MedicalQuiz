@@ -129,7 +129,7 @@ fun App() {
         val scope = rememberCoroutineScope()
         
         // Initialize the Composition Root / manual DI Container
-        val container = remember(scope) { AppDependencyContainer(scope) }
+        val container = remember { AppDependencyContainer() }
 
         DisposableEffect(container.userDataManager) {
             onDispose {

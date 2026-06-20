@@ -137,11 +137,13 @@ private fun HighlightableBlockRenderer(
 ) {
     when (block) {
         is RichTextBlock.Paragraph -> {
-            val blockHighlights = mapHighlightsToLocal(
-                highlights = highlights,
-                start = baseOffset,
-                end = baseOffset + block.text.length
-            )
+            val blockHighlights = remember(highlights, baseOffset, block.text.length) {
+                mapHighlightsToLocal(
+                    highlights = highlights,
+                    start = baseOffset,
+                    end = baseOffset + block.text.length
+                )
+            }
             
             SelectableHighlightText(
                 text = block.text,
@@ -242,11 +244,13 @@ private fun HighlightableList(
 
         items.forEachIndexed { index, itemText ->
             val itemLength = itemText.length
-            val itemHighlights = mapHighlightsToLocal(
-                highlights = highlights,
-                start = itemOffset,
-                end = itemOffset + itemLength
-            )
+            val itemHighlights = remember(highlights, itemOffset, itemLength) {
+                mapHighlightsToLocal(
+                    highlights = highlights,
+                    start = itemOffset,
+                    end = itemOffset + itemLength
+                )
+            }
 
             Row(modifier = Modifier.fillMaxWidth()) {
                 MaterialText(
@@ -351,11 +355,13 @@ private fun HighlightableTable(
 
                             if (currentCellOffset != null) {
                                 val cellLength = cell.cell.text.length
-                                val cellHighlights = mapHighlightsToLocal(
-                                    highlights = highlights,
-                                    start = currentCellOffset,
-                                    end = currentCellOffset + cellLength
-                                )
+                                val cellHighlights = remember(highlights, currentCellOffset, cellLength) {
+                                    mapHighlightsToLocal(
+                                        highlights = highlights,
+                                        start = currentCellOffset,
+                                        end = currentCellOffset + cellLength
+                                    )
+                                }
 
                                 SelectableHighlightText(
                                     text = cell.cell.text,
@@ -435,16 +441,6 @@ private fun getHighlightsForRange(
     end: Int
 ): List<TextHighlight> {
     return highlights.filter { it.overlaps(start, end) }
-}
-
-/**
- * Adjust highlight offsets relative to a base offset.
- */
-private fun TextHighlight.adjustedForOffset(offset: Int): TextHighlight {
-    return copy(
-        startOffset = (startOffset + offset).coerceAtLeast(0),
-        endOffset = (endOffset + offset).coerceAtLeast(0)
-    )
 }
 
 private fun mapHighlightsToLocal(

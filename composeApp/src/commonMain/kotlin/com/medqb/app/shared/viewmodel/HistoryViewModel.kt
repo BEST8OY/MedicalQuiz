@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +16,6 @@ class HistoryViewModel(
     private val activeDatabaseHolder: ActiveDatabaseHolder,
     private val historyCoordinator: AppHistoryCoordinator,
     private val sessionRepository: QuizSessionRepository,
-    private val appScope: CoroutineScope,
 ) : ViewModel() {
 
     val historyEntries: StateFlow<List<QuizSessionRepository.QuizSession>> =
@@ -25,13 +23,13 @@ class HistoryViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun deleteHistoryEntries(entryIds: Set<String>) {
-        appScope.launch {
+        viewModelScope.launch {
             historyCoordinator.deleteHistoryEntries(entryIds)
         }
     }
 
     fun renameHistoryEntry(entryId: String, newName: String) {
-        appScope.launch {
+        viewModelScope.launch {
             historyCoordinator.renameHistoryEntry(entryId = entryId, newName = newName)
         }
     }

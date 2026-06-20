@@ -6,13 +6,12 @@ import com.medqb.app.shared.domain.*
 import com.medqb.app.shared.navigation.*
 import com.medqb.app.shared.orchestration.*
 import com.medqb.app.shared.viewmodel.*
-import kotlinx.coroutines.CoroutineScope
 
 /**
  * Composition Root for manual dependency injection.
  * Manages the lifecycle of singletons and provides factories for scoped ViewModels.
  */
-class AppDependencyContainer(val appScope: CoroutineScope) {
+class AppDependencyContainer {
     
     // Core Shared Repositories & Data Sources
     val settingsRepository = SettingsRepository()
@@ -26,8 +25,7 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
     val snackbarDispatcher = SnackbarDispatcher()
     
     val textHighlightsRepository = TextHighlightsRepository(
-        userDataManager = userDataManager,
-        scope = appScope
+        userDataManager = userDataManager
     )
     
     // Use Cases
@@ -80,7 +78,6 @@ class AppDependencyContainer(val appScope: CoroutineScope) {
             activeDatabaseHolder = activeDatabaseHolder,
             historyCoordinator = historyCoordinator,
             sessionRepository = sessionRepository,
-            appScope = appScope,
         )
     }
 
