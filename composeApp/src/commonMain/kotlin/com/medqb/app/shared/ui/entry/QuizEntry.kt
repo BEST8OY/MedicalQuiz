@@ -38,7 +38,8 @@ fun QuizEntry(
     LaunchedEffect(quizVM) {
         quizVM.state.first { it.databaseName.isNotEmpty() }
         if (quizVM.state.value.questionIds.isEmpty()) {
-            quizVM.loadFilteredQuestionIds(startFromBeginning = true)
+            val startFromBeginning = quizVM.state.value.currentQuestionIndex <= 0
+            quizVM.loadFilteredQuestionIds(startFromBeginning = startFromBeginning)
         }
     }
 

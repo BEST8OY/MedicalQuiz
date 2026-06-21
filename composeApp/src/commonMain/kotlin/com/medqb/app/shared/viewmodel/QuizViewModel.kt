@@ -75,6 +75,11 @@ class QuizViewModel(
             sessionId = restoredId
         }
 
+        val restoredIndex = filterStateHolder.consumePendingHistoryQuestionIndex()
+        if (restoredIndex > 0) {
+            _state.update { it.copy(currentQuestionIndex = restoredIndex) }
+        }
+
         viewModelScope.launch {
             activeDatabaseHolder.databaseName.collect { dbName ->
                 if (dbName.isNotEmpty()) {

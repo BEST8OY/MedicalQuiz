@@ -41,6 +41,7 @@ class FilterStateHolder {
         _selectedSystemIds.value = emptySet()
         _performanceFilter.value = PerformanceFilter.ALL
         _pendingHistoryEntryId.value = null
+        _pendingHistoryQuestionIndex.value = 0
     }
 
     private val _pendingHistoryEntryId = MutableStateFlow<String?>(null)
@@ -54,5 +55,18 @@ class FilterStateHolder {
         val id = _pendingHistoryEntryId.value
         _pendingHistoryEntryId.value = null
         return id
+    }
+
+    private val _pendingHistoryQuestionIndex = MutableStateFlow(0)
+    val pendingHistoryQuestionIndex: StateFlow<Int> = _pendingHistoryQuestionIndex.asStateFlow()
+
+    fun setPendingHistoryQuestionIndex(index: Int) {
+        _pendingHistoryQuestionIndex.value = index
+    }
+
+    fun consumePendingHistoryQuestionIndex(): Int {
+        val index = _pendingHistoryQuestionIndex.value
+        _pendingHistoryQuestionIndex.value = 0
+        return index
     }
 }
