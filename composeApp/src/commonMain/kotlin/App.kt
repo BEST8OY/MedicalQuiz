@@ -48,6 +48,7 @@ import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.domain.AppIntent
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.navigation.QuizLaunchSource
+import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.orchestration.AppWorkflowState
 import com.medqb.app.shared.orchestration.RequestedFilterPane
@@ -359,6 +360,7 @@ fun App() {
                     LaunchedEffect(quizVM) {
                         // Wait until the active database name is propagated to the view model
                         quizVM.state.first { it.databaseName.isNotEmpty() }
+                        Logger.d("App", "Quiz LaunchedEffect: dbName='${quizVM.state.value.databaseName}', questionIds.size=${quizVM.state.value.questionIds.size}")
                         if (quizVM.state.value.questionIds.isEmpty()) {
                             quizVM.loadFilteredQuestionIds(startFromBeginning = true)
                         }
