@@ -301,6 +301,7 @@ fun App() {
 
                 // History Screen - quiz history
                 entry<MedQBRoutes.History> {
+                    Logger.d("App", "History ENTRY composed")
                     val historyVM = viewModel<HistoryViewModel>(
                         factory = viewModelFactory {
                             initializer {
