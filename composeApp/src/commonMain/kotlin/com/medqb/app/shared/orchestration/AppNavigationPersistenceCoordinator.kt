@@ -10,9 +10,6 @@ class AppNavigationPersistenceCoordinator(
     private val sessionRepository: QuizSessionRepository,
 ) {
     suspend fun onBackStackChanged(backStack: List<NavKey>) {
-        val lastRoute = backStack.lastOrNull() as? MedQBRoutes
-        if (lastRoute is MedQBRoutes.DatabaseSelection || lastRoute is MedQBRoutes.Filter || lastRoute is MedQBRoutes.History) {
-            sessionRepository.refreshHistoryAsync()
-        }
+        // History data is now owned by HistoryViewModel — no async refresh needed here.
     }
 }
