@@ -9,11 +9,8 @@ import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
-import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.models.SubmissionMode
-import com.medqb.app.shared.domain.ApplyFiltersUseCase
-import com.medqb.app.shared.domain.AppIntentSink
 import com.medqb.app.shared.domain.LoadQuestionUseCase
 import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.platform.Logger
@@ -25,7 +22,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -33,22 +29,15 @@ import kotlinx.coroutines.launch
 
 private const val MAX_SCROLL_CACHE_SIZE = 100
 
-/**
- * Scoped ViewModel for the active Quiz session.
- * Manages question selection, answer submission, log updates, scroll caching, and text highlights.
- * Filter selections are read from the shared FilterStateHolder.
- */
 @Inject
 class QuizViewModel(
-    internal val settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepository,
     private val textHighlightsRepository: TextHighlightsRepository,
     private val sessionRepository: QuizSessionRepository,
     private val cacheManager: CacheManager,
     private val savedStateHandle: SavedStateHandle,
     private val activeDatabaseHolder: ActiveDatabaseHolder,
-    private val applyFiltersUseCase: ApplyFiltersUseCase,
     private val loadQuestionUseCase: LoadQuestionUseCase,
-    private val appIntentSink: AppIntentSink,
     private val snackbarSink: SnackbarSink,
     private val filterStateHolder: FilterStateHolder,
 ) : ViewModel() {
@@ -58,9 +47,8 @@ class QuizViewModel(
         const val KEY_CURRENT_QUESTION_INDEX = "current_question_index"
         const val KEY_IS_LOGGING_ENABLED = "is_logging_enabled"
         const val KEY_SUBMISSION_MODE = "submission_mode"
+        const val KEY_SESSION_ID = "session_id"
     }
-
-    private var sessionId = ""
 
     private val _state = MutableStateFlow(QuizUiState.EMPTY)
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
@@ -68,13 +56,7 @@ class QuizViewModel(
     val toolbarTitle = state
         .map { it.databaseName }
         .distinctUntilChanged()
-        .stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            ""
-        )
-
-
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
     private val scrollPositionCache = object : LinkedHashMap<Long, Int>(MAX_SCROLL_CACHE_SIZE, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Int>?): Boolean {
@@ -82,16 +64,19 @@ class QuizViewModel(
         }
     }
 
+    private var sessionId: String
+        get() = savedStateHandle.get<String>(KEY_SESSION_ID).orEmpty()
+        set(value) { savedStateHandle[KEY_SESSION_ID] = value }
+
     init {
         restoreFromSavedState()
-        observeSettings(settingsRepository)
+        observeSettings()
 
         val restoredId = filterStateHolder.consumePendingHistoryEntryId()
         if (!restoredId.isNullOrBlank()) {
             sessionId = restoredId
         }
 
-        // Observe active database name changes
         viewModelScope.launch {
             activeDatabaseHolder.databaseName.collect { dbName ->
                 if (dbName.isNotEmpty()) {
@@ -128,7 +113,8 @@ class QuizViewModel(
         savedStateHandle[KEY_SUBMISSION_MODE] = snapshot.submissionMode.name
     }
 
-    fun getTextHighlightsRepository(): TextHighlightsRepository = textHighlightsRepository
+    val highlightsRepository: TextHighlightsRepository
+        get() = textHighlightsRepository
 
     private suspend fun appendToHistory() {
         try {
@@ -150,12 +136,6 @@ class QuizViewModel(
         }
     }
 
-    fun setSessionId(id: String) {
-        sessionId = id
-    }
-
-    fun getSessionId(): String = sessionId
-
     fun loadQuestion(
         index: Int,
         resetAnswerState: Boolean = true,
@@ -173,14 +153,14 @@ class QuizViewModel(
                     questionId = questionId,
                     isLoggingEnabled = state.value.isLoggingEnabled,
                 )
-                _state.update { 
+                _state.update {
                     it.copy(currentQuestionIndex = index)
-                      .copyWithQuestion(
-                          question = result.question,
-                          answers = result.answers,
-                          resetAnswerState = resetAnswerState
-                      )
-                      .copy(currentPerformance = result.performance)
+                        .copyWithQuestion(
+                            question = result.question,
+                            answers = result.answers,
+                            resetAnswerState = resetAnswerState
+                        )
+                        .copy(currentPerformance = result.performance)
                 }
                 persistStateSnapshot()
                 if (result.question != null) {
@@ -203,31 +183,27 @@ class QuizViewModel(
     }
 
     fun loadNext() {
-        val currentState = state.value
-        if (currentState.currentQuestion == null) {
-            if (currentState.questionIds.isNotEmpty()) {
-                loadQuestion(0)
-            }
-            return
+        val s = state.value
+        val index = if (s.currentQuestion == null) {
+            if (s.questionIds.isNotEmpty()) 0 else return
+        } else {
+            val next = s.currentQuestionIndex + 1
+            if (next >= s.questionIds.size) return
+            next
         }
-        val nextIndex = currentState.currentQuestionIndex + 1
-        if (nextIndex < currentState.questionIds.size) {
-            loadQuestion(nextIndex)
-        }
+        loadQuestion(index)
     }
 
     fun loadPrevious() {
-        val currentState = state.value
-        if (currentState.currentQuestion == null) {
-            if (currentState.questionIds.isNotEmpty()) {
-                loadQuestion(0)
-            }
-            return
+        val s = state.value
+        val index = if (s.currentQuestion == null) {
+            if (s.questionIds.isNotEmpty()) 0 else return
+        } else {
+            val prev = s.currentQuestionIndex - 1
+            if (prev < 0) return
+            prev
         }
-        val previousIndex = currentState.currentQuestionIndex - 1
-        if (previousIndex >= 0) {
-            loadQuestion(previousIndex)
-        }
+        loadQuestion(index)
     }
 
     fun onAnswerSelected(answerId: Long) {
@@ -373,22 +349,15 @@ class QuizViewModel(
         }
     }
 
-    fun openMedia(urls: List<String>, startIndex: Int) {
+    private fun observeSettings() {
         viewModelScope.launch {
-            appIntentSink.send(com.medqb.app.shared.domain.AppIntent.OpenMedia(urls, startIndex))
-        }
-    }
-
-    fun openHtmlFile(fileName: String) {
-        viewModelScope.launch {
-            appIntentSink.send(com.medqb.app.shared.domain.AppIntent.OpenHtmlFile(fileName))
-        }
-    }
-
-    private fun observeSettings(repo: SettingsRepository) {
-        viewModelScope.launch {
-            repo.showMetadata.collect { visible ->
+            settingsRepository.showMetadata.collect { visible ->
                 _state.update { it.copy(showMetadata = visible) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.fontScalePreference.collect { scale ->
+                _state.update { it.copy(fontScalePreference = scale) }
             }
         }
     }

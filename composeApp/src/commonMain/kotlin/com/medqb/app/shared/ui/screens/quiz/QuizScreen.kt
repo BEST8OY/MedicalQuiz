@@ -80,8 +80,7 @@ fun QuizScreen(
     bottomClearance: Dp = 80.dp
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val fontScalePreference = viewModel.settingsRepository.fontScalePreference
-        .collectAsStateWithLifecycle(null).value
+    val fontScalePreference = state.fontScalePreference
 
     RichTextScaleProvider(proseScale = fontScalePreference ?: 1f) {
         QuestionContent(
@@ -337,7 +336,7 @@ private fun QuizQuestionCard(
             HighlightableRichText(
                 html = questionHtml,
                 section = HighlightSection.QUESTION,
-                highlightsRepository = viewModel.getTextHighlightsRepository(),
+                highlightsRepository = viewModel.highlightsRepository,
                 showSelectedHighlight = state.answerSubmitted,
                 onLinkClick = linkHandler,
                 onMediaClick = mediaClick,
@@ -412,7 +411,7 @@ private fun QuizQuestionCard(
                     HighlightableRichText(
                         html = explanationHtml,
                         section = HighlightSection.EXPLANATION,
-                        highlightsRepository = viewModel.getTextHighlightsRepository(),
+                        highlightsRepository = viewModel.highlightsRepository,
                         showSelectedHighlight = state.answerSubmitted,
                         onLinkClick = linkHandler,
                         onMediaClick = mediaClick

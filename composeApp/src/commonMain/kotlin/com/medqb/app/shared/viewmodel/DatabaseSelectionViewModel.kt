@@ -30,7 +30,7 @@ class DatabaseSelectionViewModel(
         initializeApp()
     }
 
-    fun initializeApp() {
+    private fun initializeApp() {
         viewModelScope.launch {
             _isLoading.value = true
             val dbs = startupCoordinator.initializeApp(userDataManager)

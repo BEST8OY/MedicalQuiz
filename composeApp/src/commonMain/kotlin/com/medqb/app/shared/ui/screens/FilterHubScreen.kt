@@ -70,11 +70,11 @@ internal fun FilterHubScreen(
             selectedIds = state.selectedSubjectIds,
             onRetry = { viewModel.fetchSubjects() },
             onApply = { selected ->
-                viewModel.applySelectedSubjects(selected, loadQuestions = false)
+                viewModel.applySelectedSubjects(selected)
                 showSubjectDialog = false
             },
             onClear = {
-                viewModel.applySelectedSubjects(emptySet(), loadQuestions = false)
+                viewModel.applySelectedSubjects(emptySet())
                 showSubjectDialog = false
             },
             onDismiss = { showSubjectDialog = false }
@@ -91,11 +91,11 @@ internal fun FilterHubScreen(
                 viewModel.fetchSystemsForSubjects(subjects)
             },
             onApply = { selected ->
-                viewModel.applySelectedSystems(selected, loadQuestions = false)
+                viewModel.applySelectedSystems(selected)
                 showSystemDialog = false
             },
             onClear = {
-                viewModel.applySelectedSystems(emptySet(), loadQuestions = false)
+                viewModel.applySelectedSystems(emptySet())
                 showSystemDialog = false
             },
             onDismiss = { showSystemDialog = false }
@@ -106,7 +106,7 @@ internal fun FilterHubScreen(
         PerformanceFilterDialog(
             current = state.performanceFilter,
             onSelect = { filter ->
-                viewModel.setPerformanceFilter(filter, loadQuestions = false)
+                viewModel.setPerformanceFilter(filter)
                 showPerformanceDialog = false
             },
             onDismiss = { showPerformanceDialog = false }

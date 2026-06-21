@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.SettingsRepository
+import com.medqb.app.shared.data.database.DatabaseProvider
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.SnackbarSink
@@ -57,7 +58,7 @@ class FilterViewModel(
         }
     }
 
-    internal suspend fun initializeAfterDatabaseSwitch() {
+    private suspend fun initializeAfterDatabaseSwitch() {
         if (isInitializing) return
         isInitializing = true
         try {
@@ -98,7 +99,6 @@ class FilterViewModel(
 
     fun fetchSystemsForSubjects(subjectIds: List<Long>?) {
         if (shouldSkipSystemFetch(subjectIds)) return
-
         lastFetchedSubjectIds = subjectIds?.toList() ?: emptyList()
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -121,7 +121,7 @@ class FilterViewModel(
         return lastFetched.toSet() == normalizedRequested
     }
 
-    fun applySelectedSubjects(newSubjectIds: Set<Long>, loadQuestions: Boolean = false) {
+    fun applySelectedSubjects(newSubjectIds: Set<Long>) {
         viewModelScope.launch {
             val previouslySelectedSystems = state.value.selectedSystemIds
             _state.update { it.copy(selectedSubjectIds = newSubjectIds) }
@@ -143,7 +143,7 @@ class FilterViewModel(
         }
     }
 
-    fun applySelectedSystems(newSystemIds: Set<Long>, loadQuestions: Boolean = false) {
+    fun applySelectedSystems(newSystemIds: Set<Long>) {
         viewModelScope.launch {
             val db = activeDatabaseHolder.databaseProvider.value
             val normalizedSelection = applyFiltersUseCase.normalizeSelectedSystems(
@@ -158,7 +158,7 @@ class FilterViewModel(
         }
     }
 
-    fun setPerformanceFilter(filter: PerformanceFilter, loadQuestions: Boolean = false) {
+    fun setPerformanceFilter(filter: PerformanceFilter) {
         _state.update { it.copy(performanceFilter = filter) }
         filterStateHolder.updatePerformanceFilter(filter)
         viewModelScope.launch {
