@@ -7,9 +7,7 @@ import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -22,7 +20,6 @@ class HistoryViewModel(
 
     val historyEntries: StateFlow<List<QuizSessionRepository.QuizSession>> =
         sessionRepository.historyEntries
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun deleteHistoryEntries(entryIds: Set<String>) {
         viewModelScope.launch {
