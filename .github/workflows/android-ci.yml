@@ -54,15 +54,15 @@ jobs:
           add-job-summary: on-failure
           cache-cleanup: on-success
 
-      - name: Build Release APK
-        run: ./gradlew assembleRelease --stacktrace
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
         if: success()
         with:
-          name: android-apk-${{ github.sha }}
-          path: app/build/outputs/apk/release/*.apk
+          name: android-debug-apk-${{ github.sha }}
+          path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
           compression-level: 0
 
