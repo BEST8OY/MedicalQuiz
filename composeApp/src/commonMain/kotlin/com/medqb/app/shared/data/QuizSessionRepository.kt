@@ -5,22 +5,48 @@ import com.medqb.app.shared.data.database.QuizSessionHistoryRow
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.platform.Logger
 import dev.zacsweers.metro.Inject
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
 /**
  * Manages quiz session history persistence via the active SQLite database.
+ *
+ * Automatically refreshes the in-memory history cache when:
+ * - A database is first selected (observes [ActiveDatabaseHolder.databaseProvider])
+ * - A mutation occurs (append/delete/rename via [mutationEvents])
  */
 @Inject
 class QuizSessionRepository(
     private val activeDatabaseHolder: ActiveDatabaseHolder,
 ) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private val _historyEntries = MutableStateFlow<List<QuizSession>>(emptyList())
     val historyEntries: StateFlow<List<QuizSession>> = _historyEntries.asStateFlow()
+
+    private val mutationEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    init {
+        scope.launch {
+            activeDatabaseHolder.databaseProvider
+                .filterNotNull()
+                .distinctUntilChanged()
+                .collect { refreshFromDb() }
+        }
+        scope.launch {
+            mutationEvents.collect { refreshFromDb() }
+        }
+    }
 
     private suspend fun db() = activeDatabaseHolder.databaseProvider.value
         ?: throw IllegalStateException("No active database")
@@ -71,21 +97,21 @@ class QuizSessionRepository(
             submissionMode = submissionMode.name,
         )
 
-        refreshFromDb()
+        mutationEvents.tryEmit(Unit)
         return sessionId
     }
 
     suspend fun deleteHistoryEntries(entryIds: Set<String>) {
         if (entryIds.isEmpty()) return
         db().deleteHistoryEntries(entryIds.toList())
-        refreshFromDb()
+        mutationEvents.tryEmit(Unit)
     }
 
     suspend fun renameHistoryEntry(entryId: String, newName: String) {
         val trimmedName = newName.trim()
         if (trimmedName.isBlank()) return
         db().renameHistoryEntry(entryId, trimmedName)
-        refreshFromDb()
+        mutationEvents.tryEmit(Unit)
     }
 
     suspend fun restoreHistoryEntry(entryId: String): QuizSession? = withContext(Dispatchers.IO) {
