@@ -134,7 +134,6 @@ fun App() {
             }
         }
 
-        val navPersistenceCoordinator = graph.navPersistenceCoordinator
         val workflowCoordinator = graph.workflowCoordinator
         val mediaNavCoordinator = graph.mediaNavigationCoordinator
         val localContentRepository = graph.localContentRepository
@@ -156,12 +155,6 @@ fun App() {
             if (decision != null) {
                 workflowState = workflowCoordinator.applyDatabaseSelectionDecision(workflowState, decision)
             }
-        }
-
-        // Refresh history when returning to database selection or filter screen
-        LaunchedEffect(backStack.toList()) {
-            val currentStack = backStack.toList()
-            navPersistenceCoordinator.onBackStackChanged(currentStack)
         }
 
         // Media descriptions state for viewer

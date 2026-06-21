@@ -17,7 +17,7 @@ class AppHistoryCoordinator(
             it.removeSuffix(".db") == entry.databaseName
         } ?: return null
 
-        if (sessionRepository.restoreHistoryEntryAsync(entry.id) == null) {
+        if (sessionRepository.restoreHistoryEntry(entry.id) == null) {
             return null
         }
 
@@ -26,10 +26,10 @@ class AppHistoryCoordinator(
 
     suspend fun deleteHistoryEntries(entryIds: Set<String>) {
         if (entryIds.isEmpty()) return
-        sessionRepository.deleteHistoryEntriesStrictAsync(entryIds)
+        sessionRepository.deleteHistoryEntries(entryIds)
     }
 
     suspend fun renameHistoryEntry(entryId: String, newName: String) {
-        sessionRepository.renameHistoryEntryAsync(entryId, newName)
+        sessionRepository.renameHistoryEntry(entryId, newName)
     }
 }

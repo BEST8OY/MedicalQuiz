@@ -132,7 +132,7 @@ class QuizViewModel(
 
     private suspend fun appendToHistory() {
         try {
-            val newSessionId = sessionRepository.appendToHistoryAsync(
+            val newSessionId = sessionRepository.appendToHistory(
                 databaseName = state.value.databaseName,
                 selectedSubjectIds = filterStateHolder.selectedSubjectIds.value,
                 selectedSystemIds = filterStateHolder.selectedSystemIds.value,

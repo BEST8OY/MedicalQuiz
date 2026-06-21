@@ -560,10 +560,20 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
     ) = withContext(Dispatchers.IO) {
         mutex.withLock {
             val sql = """
-                INSERT OR REPLACE INTO quiz_history
+                INSERT INTO quiz_history
                 (session_id, database_name, entry_name, selected_subject_ids, selected_system_ids,
                  performance_filter, current_question_index, updated_at, is_logging_enabled, submission_mode)
-                VALUES (?, ?, COALESCE(NULLIF(?, ''), entry_name), ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(session_id) DO UPDATE SET
+                    database_name = excluded.database_name,
+                    entry_name = CASE WHEN excluded.entry_name = '' THEN quiz_history.entry_name ELSE excluded.entry_name END,
+                    selected_subject_ids = excluded.selected_subject_ids,
+                    selected_system_ids = excluded.selected_system_ids,
+                    performance_filter = excluded.performance_filter,
+                    current_question_index = excluded.current_question_index,
+                    updated_at = excluded.updated_at,
+                    is_logging_enabled = excluded.is_logging_enabled,
+                    submission_mode = excluded.submission_mode
             """
             getConnection().prepare(sql).use { stmt ->
                 stmt.bindText(1, sessionId)

@@ -20,9 +20,7 @@ class AppStartupCoordinator(
 ) {
     suspend fun initializeApp(userDataManager: UserDataManager): List<String> {
         userDataManager.init()
-        val databases = localContentRepository.listDatabases()
-        sessionRepository.refreshHistoryAsync()
-        return databases
+        return localContentRepository.listDatabases()
     }
 
     suspend fun refreshDatabases(): List<String> = localContentRepository.listDatabases()

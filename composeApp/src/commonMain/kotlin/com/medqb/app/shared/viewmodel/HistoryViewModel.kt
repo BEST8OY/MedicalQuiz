@@ -7,11 +7,8 @@ import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 @Inject
@@ -21,29 +18,18 @@ class HistoryViewModel(
     private val sessionRepository: QuizSessionRepository,
 ) : ViewModel() {
 
-    private val _historyEntries = MutableStateFlow(
-        runBlocking { sessionRepository.listHistory() }
-    )
     val historyEntries: StateFlow<List<QuizSessionRepository.QuizSession>> =
-        _historyEntries.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            sessionRepository.historyEntries.collect { _historyEntries.value = it }
-        }
-    }
+        sessionRepository.historyEntries
 
     fun deleteHistoryEntries(entryIds: Set<String>) {
         viewModelScope.launch {
             historyCoordinator.deleteHistoryEntries(entryIds)
-            _historyEntries.value = sessionRepository.listHistory()
         }
     }
 
     fun renameHistoryEntry(entryId: String, newName: String) {
         viewModelScope.launch {
             historyCoordinator.renameHistoryEntry(entryId = entryId, newName = newName)
-            _historyEntries.value = sessionRepository.listHistory()
         }
     }
 
