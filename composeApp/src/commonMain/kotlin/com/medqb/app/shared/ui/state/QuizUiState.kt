@@ -19,11 +19,6 @@ data class QuizUiState(
     val answerSubmitted: Boolean = false,
     val isLoading: Boolean = false,
     
-    // Decoupled selection parameters preserved for state saving and DB matching
-    val selectedSubjectIds: Set<Long> = emptySet(),
-    val selectedSystemIds: Set<Long> = emptySet(),
-    val performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
-    
     val previewQuestionCount: Int = 0,
     val currentPerformance: QuestionPerformance? = null,
     val isLoggingEnabled: Boolean = false,
