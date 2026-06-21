@@ -9,7 +9,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
@@ -37,7 +36,7 @@ class QuizSessionRepository(
         currentSessionId: String = "",
     ): String {
         if (databaseName.isBlank()) {
-            Logger.e("QuizSession", "appendToHistory SKIPPED: databaseName is blank")
+            Logger.e("QuizSession", "Cannot append history: databaseName is blank")
             return ""
         }
 
@@ -48,22 +47,18 @@ class QuizSessionRepository(
             buildSessionId(databaseName, now)
         }
 
-        Logger.d("QuizSession", "appendToHistory: sessionId=$sessionId, databaseName=$databaseName")
-        runCatching {
-            db().upsertHistoryEntry(
-                sessionId = sessionId,
-                databaseName = databaseName,
-                entryName = "",
-                selectedSubjectIds = selectedSubjectIds.toSortedSet().toList(),
-                selectedSystemIds = selectedSystemIds.toSortedSet().toList(),
-                performanceFilter = performanceFilter.name,
-                currentQuestionIndex = currentQuestionIndex,
-                updatedAt = now,
-                isLoggingEnabled = isLoggingEnabled,
-                submissionMode = submissionMode.name,
-            )
-            Logger.d("QuizSession", "appendToHistory: upsert succeeded")
-        }.onFailure { Logger.e("QuizSession", "Error appending session history", it) }
+        db().upsertHistoryEntry(
+            sessionId = sessionId,
+            databaseName = databaseName,
+            entryName = "",
+            selectedSubjectIds = selectedSubjectIds.toSortedSet().toList(),
+            selectedSystemIds = selectedSystemIds.toSortedSet().toList(),
+            performanceFilter = performanceFilter.name,
+            currentQuestionIndex = currentQuestionIndex,
+            updatedAt = now,
+            isLoggingEnabled = isLoggingEnabled,
+            submissionMode = submissionMode.name,
+        )
 
         return sessionId
     }
@@ -92,14 +87,8 @@ class QuizSessionRepository(
         sessionId
     }
 
-    fun listHistory(): List<QuizSession> = runCatching {
-        runBlocking(Dispatchers.IO) {
-            db().listHistoryEntries().map { it.toQuizSession() }
-        }
-    }.getOrDefault(emptyList())
-
-    suspend fun listHistoryAsync(): List<QuizSession> = withContext(Dispatchers.IO) {
-        listHistory()
+    suspend fun listHistory(): List<QuizSession> = withContext(Dispatchers.IO) {
+        db().listHistoryEntries().map { it.toQuizSession() }
     }
 
     suspend fun refreshHistoryAsync(): List<QuizSession> = withContext(Dispatchers.IO) {
@@ -108,11 +97,9 @@ class QuizSessionRepository(
         history
     }
 
-    fun restoreHistoryEntry(entryId: String): QuizSession? = runCatching {
-        runBlocking(Dispatchers.IO) {
-            db().getHistoryEntry(entryId)?.toQuizSession()
-        }
-    }.getOrNull()
+    suspend fun restoreHistoryEntry(entryId: String): QuizSession? = withContext(Dispatchers.IO) {
+        db().getHistoryEntry(entryId)?.toQuizSession()
+    }
 
     suspend fun restoreHistoryEntryAsync(entryId: String): QuizSession? = withContext(Dispatchers.IO) {
         restoreHistoryEntry(entryId).also {
@@ -120,19 +107,13 @@ class QuizSessionRepository(
         }
     }
 
-    fun deleteHistoryEntry(entryId: String) {
+    suspend fun deleteHistoryEntry(entryId: String) {
         deleteHistoryEntries(setOf(entryId))
     }
 
-    fun deleteHistoryEntries(entryIds: Set<String>) {
+    suspend fun deleteHistoryEntries(entryIds: Set<String>) {
         if (entryIds.isEmpty()) return
-        runCatching {
-            runBlocking(Dispatchers.IO) {
-                db().deleteHistoryEntries(entryIds.toList())
-            }
-        }.onFailure {
-            Logger.e("QuizSession", "Error deleting history entries", it)
-        }
+        db().deleteHistoryEntries(entryIds.toList())
     }
 
     suspend fun deleteHistoryEntriesAsync(entryIds: Set<String>) = withContext(Dispatchers.IO) {
@@ -146,16 +127,10 @@ class QuizSessionRepository(
         _historyEntries.value = listHistory()
     }
 
-    fun renameHistoryEntry(entryId: String, newName: String) {
+    suspend fun renameHistoryEntry(entryId: String, newName: String) {
         val trimmedName = newName.trim()
         if (trimmedName.isBlank()) return
-        runCatching {
-            runBlocking(Dispatchers.IO) {
-                db().renameHistoryEntry(entryId, trimmedName)
-            }
-        }.onFailure {
-            Logger.e("QuizSession", "Error renaming history entry", it)
-        }
+        db().renameHistoryEntry(entryId, trimmedName)
     }
 
     suspend fun renameHistoryEntryAsync(entryId: String, newName: String) = withContext(Dispatchers.IO) {
