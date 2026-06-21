@@ -42,8 +42,9 @@ class AppStartupCoordinator(
     }
 
     private suspend fun ensureDatabaseInitialized(dbName: String): String {
-        val hasDatabaseManager = activeDatabaseHolder.databaseProvider.value != null
-        if (hasDatabaseManager) return dbName
+        val currentName = activeDatabaseHolder.databaseName.value
+        val currentProvider = activeDatabaseHolder.databaseProvider.value
+        if (currentName == dbName.removeSuffix(".db") && currentProvider != null) return dbName
 
         val dbPath = FileSystemHelper.getDatabasePath(dbName)
         val databaseManager = DatabaseManager(dbPath)
