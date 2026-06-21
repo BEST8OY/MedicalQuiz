@@ -3,9 +3,11 @@ package com.medqb.app.shared.data
 import com.medqb.app.shared.platform.FileSystemHelper
 import com.medqb.app.shared.platform.StorageProvider
 import com.medqb.app.shared.utils.HtmlUtils
+import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+@Inject
 class LocalContentRepository {
 
     suspend fun listDatabases(): List<String> = withContext(Dispatchers.IO) {

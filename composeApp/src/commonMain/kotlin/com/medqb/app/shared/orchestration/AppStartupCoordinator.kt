@@ -7,10 +7,12 @@ import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.navigation.QuizLaunchSource
 import com.medqb.app.shared.platform.FileSystemHelper
+import dev.zacsweers.metro.Inject
 
 /**
  * Coordinates app startup routines: listings available DBs, handling DB selections.
  */
+@Inject
 class AppStartupCoordinator(
     private val localContentRepository: LocalContentRepository,
     private val sessionRepository: QuizSessionRepository,

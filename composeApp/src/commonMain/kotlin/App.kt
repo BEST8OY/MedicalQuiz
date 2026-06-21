@@ -41,12 +41,10 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.subclass
 import kotlinx.serialization.modules.polymorphic
 import coil3.compose.setSingletonImageLoaderFactory
-import com.medqb.app.shared.data.CacheManager
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.MediaDescription
-import com.medqb.app.shared.data.MediaDescriptionRepository
 import com.medqb.app.shared.data.QuizSessionRepository
-import com.medqb.app.shared.di.AppDependencyContainer
+import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.domain.AppIntent
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.navigation.QuizLaunchSource
@@ -60,6 +58,7 @@ import com.medqb.app.shared.ui.screens.FilterPane
 import com.medqb.app.shared.ui.screens.HistoryScreen
 import com.medqb.app.shared.ui.screens.media.HtmlViewerScreen
 import com.medqb.app.shared.ui.screens.SettingsScreen
+import com.medqb.app.shared.viewmodel.SettingsViewModel
 import com.medqb.app.shared.ui.screens.media.MediaViewerScreen
 import com.medqb.app.shared.ui.screens.quiz.QuizRoot
 import com.medqb.app.shared.ui.media.MediaHandler
@@ -67,7 +66,6 @@ import com.medqb.app.shared.viewmodel.DatabaseSelectionViewModel
 import com.medqb.app.shared.viewmodel.FilterViewModel
 import com.medqb.app.shared.viewmodel.HistoryViewModel
 import com.medqb.app.shared.viewmodel.QuizViewModel
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -126,21 +124,20 @@ fun App() {
     AppTheme {
         val scope = rememberCoroutineScope()
         
-        // Initialize the Composition Root / manual DI Container
-        val container = remember { AppDependencyContainer() }
+        val graph = LocalAppGraph.current
 
-        DisposableEffect(container.userDataManager) {
+        DisposableEffect(graph.userDataManager) {
             onDispose {
-                CoroutineScope(Dispatchers.IO).launch {
-                    container.userDataManager.close()
+                scope.launch(Dispatchers.IO) {
+                    graph.userDataManager.close()
                 }
             }
         }
 
-        val navPersistenceCoordinator = container.navPersistenceCoordinator
-        val workflowCoordinator = container.workflowCoordinator
-        val mediaNavCoordinator = container.mediaNavigationCoordinator
-        val localContentRepository = container.localContentRepository
+        val navPersistenceCoordinator = graph.navPersistenceCoordinator
+        val workflowCoordinator = graph.workflowCoordinator
+        val mediaNavCoordinator = graph.mediaNavigationCoordinator
+        val localContentRepository = graph.localContentRepository
 
         val backStack = rememberNavBackStack(navConfig, START_DESTINATION)
         val navigator = remember(backStack) { AppNavigator(backStack) }
@@ -171,12 +168,14 @@ fun App() {
         val mediaDescriptionsFlow = remember { MutableStateFlow<Map<String, MediaDescription>>(emptyMap()) }
         val snackbarHostState = remember { SnackbarHostState() }
 
-        val navigateToMediaViewer: (List<String>, Int) -> Unit = { files, index ->
-            scope.launch {
-                val request = mediaNavCoordinator.resolveMediaViewerRequest(files, index)
-                if (request != null) {
-                    mediaDescriptionsFlow.value = request.mediaDescriptions
-                    navigator.navigateTo(request.route)
+        val navigateToMediaViewer = remember(scope, mediaNavCoordinator, mediaDescriptionsFlow, navigator) {
+            { files: List<String>, index: Int ->
+                scope.launch {
+                    val request = mediaNavCoordinator.resolveMediaViewerRequest(files, index)
+                    if (request != null) {
+                        mediaDescriptionsFlow.value = request.mediaDescriptions
+                        navigator.navigateTo(request.route)
+                    }
                 }
             }
         }
@@ -194,9 +193,9 @@ fun App() {
         }
 
         // Handle navigation and snackbar events from coordinators/dispatchers
-        LaunchedEffect(container.appIntentDispatcher, container.snackbarDispatcher) {
+        LaunchedEffect(graph.appIntentDispatcher, graph.snackbarDispatcher) {
             launch {
-                container.appIntentDispatcher.intents.collect { intent ->
+                graph.appIntentDispatcher.intents.collect { intent ->
                     when (intent) {
                         is AppIntent.OpenHtmlFile -> {
                             navigator.navigateTo(MedQBRoutes.HtmlViewer(fileName = intent.fileName))
@@ -207,13 +206,13 @@ fun App() {
                         is AppIntent.NavigateToDatabaseSelection -> {
                             navigator.popToDatabaseSelection()
                             workflowState = workflowCoordinator.databaseSelectionRequested(workflowState)
-                            container.activeDatabaseHolder.closeDatabase()
+                            graph.activeDatabaseHolder.closeDatabase()
                         }
                     }
                 }
             }
             launch {
-                container.snackbarDispatcher.messages.collect { message ->
+                graph.snackbarDispatcher.messages.collect { message ->
                     snackbarHostState.showSnackbar(message)
                 }
             }
@@ -230,7 +229,7 @@ fun App() {
         }
 
         val entryProvider = remember(
-            container,
+            graph,
             mediaHandler,
             mediaDescriptionsFlow,
             localContentRepository,
@@ -241,7 +240,7 @@ fun App() {
                     val dbVM = viewModel<DatabaseSelectionViewModel>(
                         factory = viewModelFactory {
                             initializer {
-                                container.createDatabaseSelectionViewModel()
+                                graph.createDatabaseSelectionViewModel()
                             }
                         }
                     )
@@ -267,7 +266,7 @@ fun App() {
                     val filterVM = viewModel<FilterViewModel>(
                         factory = viewModelFactory {
                             initializer {
-                                container.createFilterViewModel()
+                                graph.createFilterViewModel()
                             }
                         }
                     )
@@ -287,8 +286,8 @@ fun App() {
                             }
                         },
                         onStartQuiz = onStartQuiz,
-                        onLoggingToggle = { container.settingsRepository.setLoggingEnabled(it) },
-                        onSubmissionModeToggle = { container.settingsRepository.setSubmissionMode(it) },
+                        onLoggingToggle = { graph.settingsRepository.setLoggingEnabled(it) },
+                        onSubmissionModeToggle = { graph.settingsRepository.setSubmissionMode(it) },
                     )
                 }
 
@@ -297,22 +296,26 @@ fun App() {
                     val historyVM = viewModel<HistoryViewModel>(
                         factory = viewModelFactory {
                             initializer {
-                                container.createHistoryViewModel()
+                                graph.createHistoryViewModel()
                             }
                         }
                     )
 
-                    val databaseName by container.activeDatabaseHolder.databaseName.collectAsStateWithLifecycle()
+                    val databaseName by graph.activeDatabaseHolder.databaseName.collectAsStateWithLifecycle()
                     val sessionHistory by historyVM.historyEntries.collectAsStateWithLifecycle()
                     val scopedHistoryEntries = remember(sessionHistory, databaseName) {
                         sessionHistory.filter { it.databaseName == databaseName }
                     }
 
                     val onHistorySelected = { entry: QuizSessionRepository.QuizSession ->
-                        historyVM.restoreHistoryEntry(entry) { matchingDatabase ->
-                            workflowState = workflowCoordinator.historyLaunchPrepared(workflowState, matchingDatabase)
-                            navigator.navigateTo(MedQBRoutes.Quiz)
+                        scope.launch {
+                            val matchingDatabase = historyVM.restoreHistoryEntry(entry)
+                            if (matchingDatabase != null) {
+                                workflowState = workflowCoordinator.historyLaunchPrepared(workflowState, matchingDatabase)
+                                navigator.navigateTo(MedQBRoutes.Quiz)
+                            }
                         }
+                        Unit
                     }
 
                     HistoryScreen(
@@ -336,7 +339,7 @@ fun App() {
                     val quizVM = viewModel<QuizViewModel>(
                         factory = viewModelFactory {
                             initializer {
-                                container.createQuizViewModel(
+                                graph.createQuizViewModel(
                                     createSavedStateHandle()
                                 )
                             }
@@ -365,16 +368,22 @@ fun App() {
 
                 // Settings Screen
                 entry<MedQBRoutes.Settings> {
-                    val showMetadata by container.settingsRepository.showMetadata
-                        .collectAsStateWithLifecycle(true)
-                    val fontScalePreference by container.settingsRepository.fontScalePreference
-                        .collectAsStateWithLifecycle(null)
+                    val settingsVM = viewModel<SettingsViewModel>(
+                        factory = viewModelFactory {
+                            initializer {
+                                graph.createSettingsViewModel()
+                            }
+                        }
+                    )
+
+                    val showMetadata by settingsVM.showMetadata.collectAsStateWithLifecycle()
+                    val fontScalePreference by settingsVM.fontScalePreference.collectAsStateWithLifecycle()
 
                     SettingsScreen(
                         showMetadata = showMetadata,
                         fontScalePreference = fontScalePreference,
-                        onShowMetadataToggle = { container.settingsRepository.setShowMetadata(it) },
-                        onFontScaleChange = { container.settingsRepository.setFontScalePreference(it) },
+                        onShowMetadataToggle = { settingsVM.setShowMetadata(it) },
+                        onFontScaleChange = { settingsVM.setFontScalePreference(it) },
                         onBack = dropUnlessResumed { navigator.navigateBack() },
                     )
                 }
@@ -382,7 +391,7 @@ fun App() {
                 // Media Viewer Screen
                 entry<MedQBRoutes.MediaViewer> { key ->
                     val mediaDescriptions by mediaDescriptionsFlow.collectAsStateWithLifecycle()
-                    val fontScalePreference = container.settingsRepository.fontScalePreference
+                    val fontScalePreference = graph.settingsRepository.fontScalePreference
                         .collectAsStateWithLifecycle(null).value
 
                     MediaViewerScreen(
@@ -406,11 +415,11 @@ fun App() {
                             scope.launch {
                                 when (val result = localContentRepository.saveMediaFile(fileName)) {
                                     is LocalContentRepository.SaveMediaResult.Success ->
-                                        container.snackbarDispatcher.emitSnackbar("Media saved to: ${result.destPath}")
+                                        graph.snackbarDispatcher.emitSnackbar("Media saved to: ${result.destPath}")
                                     LocalContentRepository.SaveMediaResult.InvalidFileName ->
-                                        container.snackbarDispatcher.emitSnackbar("Invalid file name")
+                                        graph.snackbarDispatcher.emitSnackbar("Invalid file name")
                                     LocalContentRepository.SaveMediaResult.CopyFailed ->
-                                        container.snackbarDispatcher.emitSnackbar("Failed to save media")
+                                        graph.snackbarDispatcher.emitSnackbar("Failed to save media")
                                 }
                             }
                         },

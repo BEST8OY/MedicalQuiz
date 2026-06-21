@@ -4,6 +4,7 @@ import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.database.QuizSessionHistoryRow
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.platform.Logger
+import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +16,7 @@ import kotlin.time.Clock
 /**
  * Manages quiz session history persistence via the active SQLite database.
  */
+@Inject
 class QuizSessionRepository(
     private val activeDatabaseHolder: ActiveDatabaseHolder,
 ) {

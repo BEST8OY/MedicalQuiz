@@ -2,7 +2,9 @@ package com.medqb.app.shared.orchestration
 
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.QuizSessionRepository
+import dev.zacsweers.metro.Inject
 
+@Inject
 class AppHistoryCoordinator(
     private val sessionRepository: QuizSessionRepository,
     private val localContentRepository: LocalContentRepository,

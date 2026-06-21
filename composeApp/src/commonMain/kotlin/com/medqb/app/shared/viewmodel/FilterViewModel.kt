@@ -9,6 +9,7 @@ import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.ui.state.FilterUiState
 import com.medqb.app.shared.utils.Resource
+import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@Inject
 class FilterViewModel(
     private val activeDatabaseHolder: ActiveDatabaseHolder,
     private val applyFiltersUseCase: ApplyFiltersUseCase,

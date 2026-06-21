@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.metro)
 }
 
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -142,14 +143,6 @@ compose.desktop {
             optimize.set(true)
             configurationFiles.from(project.file("proguard-desktop.pro"))
         }
-        
-        // Enable native Wayland support
-        // Wayland uses a different rendering pipeline than X11 for better performance and security
-        jvmArgs(
-            "-Dawt.toolkit.name=WLToolkit",
-            "-Dwayland.enabled=true",
-            "-Djava.awt.headless=false"
-        )
     }
 }
 

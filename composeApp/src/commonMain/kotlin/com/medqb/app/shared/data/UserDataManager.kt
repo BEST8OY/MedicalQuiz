@@ -5,8 +5,11 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.TextHighlight
+import com.medqb.app.shared.di.AppScope
 import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.platform.StorageProvider
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -16,6 +19,8 @@ import kotlinx.coroutines.withContext
  * Manages the user_data.db SQLite database for storing personal data
  * like text highlights and notes that persist across question databases.
  */
+@Inject
+@SingleIn(AppScope::class)
 class UserDataManager {
     private val driver = BundledSQLiteDriver()
     private var connection: SQLiteConnection? = null

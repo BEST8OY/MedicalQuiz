@@ -6,6 +6,7 @@ import com.medqb.app.shared.data.MediaDescriptionRepository
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.ui.media.MediaType
 import com.medqb.app.shared.utils.MediaTypeUtils
+import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -14,6 +15,7 @@ import kotlinx.coroutines.withContext
  * `navigateToMediaViewer` in App.kt: filtering playable files,
  * loading descriptions, and producing the navigation route.
  */
+@Inject
 class MediaNavigationCoordinator(
     private val localContentRepository: LocalContentRepository,
 ) {

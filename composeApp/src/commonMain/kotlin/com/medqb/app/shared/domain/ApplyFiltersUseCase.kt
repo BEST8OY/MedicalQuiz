@@ -2,7 +2,9 @@ package com.medqb.app.shared.domain
 
 import com.medqb.app.shared.data.database.DatabaseProvider
 import com.medqb.app.shared.data.database.PerformanceFilter
+import dev.zacsweers.metro.Inject
 
+@Inject
 class ApplyFiltersUseCase {
 
     suspend fun pruneSystemsForSubjects(

@@ -4,6 +4,7 @@ import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.platform.Logger
+import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,6 +20,7 @@ import kotlinx.coroutines.sync.withLock
  * Maintains an in-memory cache of highlights for the current question
  * and syncs with UserDataManager for persistence.
  */
+@Inject
 class TextHighlightsRepository(
     private val userDataManager: UserDataManager
 ) {

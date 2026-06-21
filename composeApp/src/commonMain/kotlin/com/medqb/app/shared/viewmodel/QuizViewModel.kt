@@ -11,10 +11,14 @@ import com.medqb.app.shared.data.TextHighlightsRepository
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.models.SubmissionMode
+import com.medqb.app.shared.domain.ApplyFiltersUseCase
+import com.medqb.app.shared.domain.AppIntentSink
+import com.medqb.app.shared.domain.LoadQuestionUseCase
+import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.ui.state.QuizUiState
+import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,20 +35,19 @@ private const val MAX_SCROLL_CACHE_SIZE = 100
  * Scoped ViewModel for the active Quiz session.
  * Manages question selection, answer submission, log updates, scroll caching, and text highlights.
  */
+@Inject
 class QuizViewModel(
     internal val settingsRepository: SettingsRepository,
     private val textHighlightsRepository: TextHighlightsRepository,
     private val sessionRepository: QuizSessionRepository,
     private val cacheManager: CacheManager,
     private val savedStateHandle: SavedStateHandle,
-    dependencies: QuizViewModelDependencies,
     private val activeDatabaseHolder: ActiveDatabaseHolder,
+    private val applyFiltersUseCase: ApplyFiltersUseCase,
+    private val loadQuestionUseCase: LoadQuestionUseCase,
+    private val appIntentSink: AppIntentSink,
+    private val snackbarSink: SnackbarSink,
 ) : ViewModel() {
-
-    private val applyFiltersUseCase = dependencies.applyFiltersUseCase
-    private val loadQuestionUseCase = dependencies.loadQuestionUseCase
-    private val appIntentSink = dependencies.appIntentSink
-    private val snackbarSink = dependencies.snackbarSink
 
     private companion object {
         const val KEY_DATABASE_NAME = "database_name"
@@ -56,7 +59,6 @@ class QuizViewModel(
         const val KEY_SUBMISSION_MODE = "submission_mode"
     }
 
-    private var settingsObservationJob: Job? = null
     private var sessionId = ""
 
     private val _state = MutableStateFlow(QuizUiState.EMPTY)
@@ -81,7 +83,7 @@ class QuizViewModel(
 
     init {
         restoreFromSavedState()
-        settingsObservationJob = observeSettings(settingsRepository)
+        observeSettings(settingsRepository)
 
         // Observe active database name changes
         viewModelScope.launch {
@@ -386,8 +388,8 @@ class QuizViewModel(
         }
     }
 
-    private fun observeSettings(repo: SettingsRepository): Job {
-        return viewModelScope.launch {
+    private fun observeSettings(repo: SettingsRepository) {
+        viewModelScope.launch {
             repo.showMetadata.collect { visible ->
                 _state.update { it.copy(showMetadata = visible) }
             }
@@ -410,10 +412,5 @@ class QuizViewModel(
 
     fun clearScrollPosition(questionId: Long) {
         scrollPositionCache.remove(questionId)
-    }
-
-    override fun onCleared() {
-        settingsObservationJob?.cancel()
-        super.onCleared()
     }
 }
