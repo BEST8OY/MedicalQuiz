@@ -28,6 +28,8 @@ Kotlin Multiplatform (Android + Desktop) medical quiz app using Compose Multipla
 
 No separate typecheck or formatter commands — compilation is the typecheck. No ktlint/detekt configured.
 
+**Important**: Android builds cannot be run locally — there is no Android SDK on this system. Android APKs are built exclusively via GitHub Actions CI. Only desktop builds (`desktopTest`, `packageReleaseDistributionForCurrentOS`) can be run locally.
+
 ## Architecture
 
 - **Shared module**: `composeApp/src/commonMain/kotlin/com/medqb/app/shared/`
