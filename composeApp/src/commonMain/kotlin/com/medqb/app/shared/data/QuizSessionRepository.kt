@@ -3,8 +3,10 @@ package com.medqb.app.shared.data
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.database.QuizSessionHistoryRow
 import com.medqb.app.shared.data.models.SubmissionMode
+import com.medqb.app.shared.di.AppScope
 import com.medqb.app.shared.platform.Logger
 import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,6 +28,7 @@ import kotlin.time.Clock
  * - A mutation occurs (append/delete/rename via [mutationEvents])
  */
 @Inject
+@SingleIn(AppScope::class)
 class QuizSessionRepository(
     private val activeDatabaseHolder: ActiveDatabaseHolder,
 ) {

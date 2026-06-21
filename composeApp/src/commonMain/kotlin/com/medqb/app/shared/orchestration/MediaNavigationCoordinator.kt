@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 @Inject
 class MediaNavigationCoordinator(
     private val localContentRepository: LocalContentRepository,
+    private val mediaDescriptionRepository: MediaDescriptionRepository,
 ) {
 
     /**
@@ -53,7 +54,7 @@ class MediaNavigationCoordinator(
         val safeIndex = newIndex.coerceIn(0, availableFiles.lastIndex)
 
         val mediaDescriptions = withContext(Dispatchers.IO) {
-            MediaDescriptionRepository.load()
+            mediaDescriptionRepository.load()
         }
 
         return MediaViewerRequest(
