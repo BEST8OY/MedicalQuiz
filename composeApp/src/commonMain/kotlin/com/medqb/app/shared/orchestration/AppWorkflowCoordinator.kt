@@ -1,5 +1,6 @@
 package com.medqb.app.shared.orchestration
 
+import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.navigation.QuizLaunchSource
 import dev.zacsweers.metro.Inject
 
@@ -14,6 +15,7 @@ import dev.zacsweers.metro.Inject
 @Inject
 class AppWorkflowCoordinator(
     private val startupCoordinator: AppStartupCoordinator,
+    private val filterStateHolder: FilterStateHolder,
 ) {
 
     // ── Bootstrap ────────────────────────────────────────────────────────
@@ -58,6 +60,7 @@ class AppWorkflowCoordinator(
      * Called when the user picks a database from the selection screen.
      */
     fun databaseSelected(state: AppWorkflowState, dbName: String): AppWorkflowState {
+        filterStateHolder.reset()
         return state.copy(
             selectedDatabase = dbName,
             initializedDatabase = null,
