@@ -14,7 +14,6 @@ import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.LoadQuestionUseCase
 import com.medqb.app.shared.domain.SnackbarDispatcher
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
-import com.medqb.app.shared.orchestration.AppNavigationPersistenceCoordinator
 import com.medqb.app.shared.orchestration.AppStartupCoordinator
 import com.medqb.app.shared.orchestration.AppWorkflowCoordinator
 import com.medqb.app.shared.orchestration.MediaNavigationCoordinator
@@ -41,7 +40,6 @@ interface AppGraph {
     val snackbarDispatcher: SnackbarDispatcher
     val applyFiltersUseCase: ApplyFiltersUseCase
     val loadQuestionUseCase: LoadQuestionUseCase
-    val navPersistenceCoordinator: AppNavigationPersistenceCoordinator
     val historyCoordinator: AppHistoryCoordinator
     val startupCoordinator: AppStartupCoordinator
     val workflowCoordinator: AppWorkflowCoordinator

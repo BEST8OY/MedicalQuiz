@@ -25,7 +25,18 @@ class QuizSessionRepository(
     private suspend fun db() = activeDatabaseHolder.databaseProvider.value
         ?: throw IllegalStateException("No active database")
 
-    private suspend fun appendToHistory(
+    private suspend fun refreshFromDb() {
+        _historyEntries.value = listHistory()
+    }
+
+    suspend fun listHistory(): List<QuizSession> {
+        val provider = activeDatabaseHolder.databaseProvider.value ?: return emptyList()
+        return withContext(Dispatchers.IO) {
+            provider.listHistoryEntries().map { it.toQuizSession() }
+        }
+    }
+
+    suspend fun appendToHistory(
         databaseName: String,
         selectedSubjectIds: Set<Long>,
         selectedSystemIds: Set<Long>,
@@ -60,85 +71,25 @@ class QuizSessionRepository(
             submissionMode = submissionMode.name,
         )
 
+        refreshFromDb()
         return sessionId
-    }
-
-    suspend fun appendToHistoryAsync(
-        databaseName: String,
-        selectedSubjectIds: Set<Long>,
-        selectedSystemIds: Set<Long>,
-        performanceFilter: PerformanceFilter,
-        currentQuestionIndex: Int,
-        isLoggingEnabled: Boolean = false,
-        submissionMode: SubmissionMode = SubmissionMode.INSTANT,
-        currentSessionId: String = "",
-    ): String = withContext(Dispatchers.IO) {
-        val sessionId = appendToHistory(
-            databaseName = databaseName,
-            selectedSubjectIds = selectedSubjectIds,
-            selectedSystemIds = selectedSystemIds,
-            performanceFilter = performanceFilter,
-            currentQuestionIndex = currentQuestionIndex,
-            isLoggingEnabled = isLoggingEnabled,
-            submissionMode = submissionMode,
-            currentSessionId = currentSessionId,
-        )
-        _historyEntries.value = listHistory()
-        sessionId
-    }
-
-    suspend fun listHistory(): List<QuizSession> {
-        val provider = activeDatabaseHolder.databaseProvider.value ?: return emptyList()
-        return withContext(Dispatchers.IO) {
-            provider.listHistoryEntries().map { it.toQuizSession() }
-        }
-    }
-
-    suspend fun refreshHistoryAsync(): List<QuizSession> = withContext(Dispatchers.IO) {
-        val history = listHistory()
-        _historyEntries.value = history
-        history
-    }
-
-    suspend fun restoreHistoryEntry(entryId: String): QuizSession? = withContext(Dispatchers.IO) {
-        db().getHistoryEntry(entryId)?.toQuizSession()
-    }
-
-    suspend fun restoreHistoryEntryAsync(entryId: String): QuizSession? = withContext(Dispatchers.IO) {
-        restoreHistoryEntry(entryId).also {
-            _historyEntries.value = listHistory()
-        }
-    }
-
-    suspend fun deleteHistoryEntry(entryId: String) {
-        deleteHistoryEntries(setOf(entryId))
     }
 
     suspend fun deleteHistoryEntries(entryIds: Set<String>) {
         if (entryIds.isEmpty()) return
         db().deleteHistoryEntries(entryIds.toList())
-    }
-
-    suspend fun deleteHistoryEntriesAsync(entryIds: Set<String>) = withContext(Dispatchers.IO) {
-        deleteHistoryEntries(entryIds)
-        _historyEntries.value = listHistory()
-    }
-
-    suspend fun deleteHistoryEntriesStrictAsync(entryIds: Set<String>) = withContext(Dispatchers.IO) {
-        if (entryIds.isEmpty()) return@withContext
-        db().deleteHistoryEntries(entryIds.toList())
-        _historyEntries.value = listHistory()
+        refreshFromDb()
     }
 
     suspend fun renameHistoryEntry(entryId: String, newName: String) {
         val trimmedName = newName.trim()
         if (trimmedName.isBlank()) return
         db().renameHistoryEntry(entryId, trimmedName)
+        refreshFromDb()
     }
 
-    suspend fun renameHistoryEntryAsync(entryId: String, newName: String) = withContext(Dispatchers.IO) {
-        renameHistoryEntry(entryId, newName)
-        _historyEntries.value = listHistory()
+    suspend fun restoreHistoryEntry(entryId: String): QuizSession? = withContext(Dispatchers.IO) {
+        db().getHistoryEntry(entryId)?.toQuizSession()
     }
 
     private fun buildSessionId(databaseName: String, now: Long): String = "$databaseName-$now"
