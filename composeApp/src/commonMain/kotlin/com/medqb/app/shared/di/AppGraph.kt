@@ -64,7 +64,6 @@ interface AppGraph {
 
     fun createHistoryViewModel(): HistoryViewModel {
         return HistoryViewModel(
-            activeDatabaseHolder = activeDatabaseHolder,
             historyCoordinator = historyCoordinator,
             sessionRepository = sessionRepository,
         )
@@ -78,9 +77,7 @@ interface AppGraph {
             cacheManager = cacheManager,
             savedStateHandle = savedStateHandle,
             activeDatabaseHolder = activeDatabaseHolder,
-            applyFiltersUseCase = applyFiltersUseCase,
             loadQuestionUseCase = loadQuestionUseCase,
-            appIntentSink = appIntentDispatcher,
             snackbarSink = snackbarDispatcher,
             filterStateHolder = filterStateHolder,
         )

@@ -24,7 +24,8 @@ data class QuizUiState(
     val isLoggingEnabled: Boolean = false,
     val submissionMode: SubmissionMode = SubmissionMode.INSTANT,
     val showMetadata: Boolean = true,
-    val autoLoadFirstQuestion: Boolean = false
+    val autoLoadFirstQuestion: Boolean = false,
+    val fontScalePreference: Float? = null,
 ) {
     val totalQuestions: Int
         get() = questionIds.size

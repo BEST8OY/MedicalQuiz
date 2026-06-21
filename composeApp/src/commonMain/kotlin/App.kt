@@ -15,21 +15,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.dropUnlessResumed
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.lifecycle.createSavedStateHandle
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -41,34 +32,24 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.subclass
 import kotlinx.serialization.modules.polymorphic
 import coil3.compose.setSingletonImageLoaderFactory
-import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.MediaDescription
-import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.domain.AppIntent
 import com.medqb.app.shared.navigation.MedQBRoutes
-import com.medqb.app.shared.navigation.QuizLaunchSource
 import com.medqb.app.shared.navigation.AppNavigator
-import com.medqb.app.shared.orchestration.AppWorkflowState
 import com.medqb.app.shared.orchestration.RequestedFilterPane
+import com.medqb.app.shared.orchestration.rememberAppWorkflow
 import com.medqb.app.shared.ui.theme.AppTheme
-import com.medqb.app.shared.ui.screens.DatabaseSelectionScreen
-import com.medqb.app.shared.ui.screens.FilterHubScreen
-import com.medqb.app.shared.ui.screens.FilterPane
-import com.medqb.app.shared.ui.screens.HistoryScreen
-import com.medqb.app.shared.ui.screens.media.HtmlViewerScreen
-import com.medqb.app.shared.ui.screens.SettingsScreen
-import com.medqb.app.shared.viewmodel.SettingsViewModel
-import com.medqb.app.shared.ui.screens.media.MediaViewerScreen
-import com.medqb.app.shared.ui.screens.quiz.QuizRoot
+import com.medqb.app.shared.ui.entry.DatabaseSelectionEntry
+import com.medqb.app.shared.ui.entry.FilterEntry
+import com.medqb.app.shared.ui.entry.HistoryEntry
+import com.medqb.app.shared.ui.entry.HtmlViewerEntry
+import com.medqb.app.shared.ui.entry.MediaViewerEntry
+import com.medqb.app.shared.ui.entry.QuizEntry
+import com.medqb.app.shared.ui.entry.SettingsEntry
 import com.medqb.app.shared.ui.media.MediaHandler
-import com.medqb.app.shared.viewmodel.DatabaseSelectionViewModel
-import com.medqb.app.shared.viewmodel.FilterViewModel
-import com.medqb.app.shared.viewmodel.HistoryViewModel
-import com.medqb.app.shared.viewmodel.QuizViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private val START_DESTINATION: MedQBRoutes = MedQBRoutes.DatabaseSelection
@@ -87,30 +68,8 @@ private val navConfig = SavedStateConfiguration {
     }
 }
 
-private val AppWorkflowStateSaver = Saver<AppWorkflowState, List<Any?>>(
-    save = { state ->
-        listOf(
-            state.selectedDatabase,
-            state.initializedDatabase,
-            state.pendingLaunchSource?.name,
-            state.activeQuizLaunchSource.name,
-            state.requestedFilterPane?.name,
-        )
-    },
-    restore = { list ->
-        AppWorkflowState(
-            selectedDatabase = list[0] as String?,
-            initializedDatabase = list[1] as String?,
-            pendingLaunchSource = (list[2] as String?)?.let { QuizLaunchSource.valueOf(it) },
-            activeQuizLaunchSource = QuizLaunchSource.valueOf(list[3] as String),
-            requestedFilterPane = (list[4] as String?)?.let { RequestedFilterPane.valueOf(it) },
-        )
-    }
-)
-
 @Composable
 fun App() {
-    // Install Coil's singleton ImageLoader once.
     var coilInstalled by remember { mutableStateOf(false) }
     if (!coilInstalled) {
         setSingletonImageLoaderFactory { context ->
@@ -123,7 +82,6 @@ fun App() {
 
     AppTheme {
         val scope = rememberCoroutineScope()
-        
         val graph = LocalAppGraph.current
 
         DisposableEffect(graph.userDataManager) {
@@ -134,37 +92,20 @@ fun App() {
             }
         }
 
-        val workflowCoordinator = graph.workflowCoordinator
-        val mediaNavCoordinator = graph.mediaNavigationCoordinator
-        val localContentRepository = graph.localContentRepository
-
         val backStack = rememberNavBackStack(navConfig, START_DESTINATION)
         val navigator = remember(backStack) { AppNavigator(backStack) }
+        val workflow = rememberAppWorkflow(
+            workflowCoordinator = graph.workflowCoordinator,
+            filterStateHolder = graph.filterStateHolder,
+        )
 
-        var workflowState by rememberSaveable(stateSaver = AppWorkflowStateSaver) {
-            mutableStateOf(workflowCoordinator.initialState())
-        }
-
-        // Handle database initialization when selected
-        LaunchedEffect(
-            workflowState.selectedDatabase,
-            workflowState.initializedDatabase,
-            workflowState.pendingLaunchSource,
-        ) {
-            val decision = workflowCoordinator.handleDatabaseSelection(workflowState)
-            if (decision != null) {
-                workflowState = workflowCoordinator.applyDatabaseSelectionDecision(workflowState, decision)
-            }
-        }
-
-        // Media descriptions state for viewer
         val mediaDescriptionsFlow = remember { MutableStateFlow<Map<String, MediaDescription>>(emptyMap()) }
         val snackbarHostState = remember { SnackbarHostState() }
 
-        val navigateToMediaViewer = remember(scope, mediaNavCoordinator, mediaDescriptionsFlow, navigator) {
+        val navigateToMediaViewer = remember(scope, graph.mediaNavigationCoordinator, mediaDescriptionsFlow, navigator) {
             { files: List<String>, index: Int ->
                 scope.launch {
-                    val request = mediaNavCoordinator.resolveMediaViewerRequest(files, index)
+                    val request = graph.mediaNavigationCoordinator.resolveMediaViewerRequest(files, index)
                     if (request != null) {
                         mediaDescriptionsFlow.value = request.mediaDescriptions
                         navigator.navigateTo(request.route)
@@ -173,19 +114,15 @@ fun App() {
             }
         }
 
-        // Media handler with navigation callbacks
-        val mediaHandler = remember {
+        val mediaHandler = remember(navigateToMediaViewer, navigator) {
             MediaHandler(
-                onOpenMedia = { files, index ->
-                    navigateToMediaViewer(files, index)
-                },
+                onOpenMedia = { files, index -> navigateToMediaViewer(files, index) },
                 onOpenHtml = { fileName ->
                     navigator.navigateTo(MedQBRoutes.HtmlViewer(fileName = fileName))
                 }
             )
         }
 
-        // Handle navigation and snackbar events from coordinators/dispatchers
         LaunchedEffect(graph.appIntentDispatcher, graph.snackbarDispatcher) {
             launch {
                 graph.appIntentDispatcher.intents.collect { intent ->
@@ -198,8 +135,7 @@ fun App() {
                         }
                         is AppIntent.NavigateToDatabaseSelection -> {
                             navigator.popToDatabaseSelection()
-                            workflowState = workflowCoordinator.databaseSelectionRequested(workflowState)
-                            graph.activeDatabaseHolder.closeDatabase()
+                            workflow.onDatabaseSelectionRequested(graph.activeDatabaseHolder)
                         }
                     }
                 }
@@ -212,9 +148,7 @@ fun App() {
         }
 
         val returnQuizToFilter: () -> Unit = {
-            workflowState = workflowCoordinator.quizReturnedToFilter(workflowState)
-            val targetPane = workflowState.requestedFilterPane
-            workflowState = workflowState.copy(requestedFilterPane = null)
+            val targetPane = workflow.onQuizReturn()
             when (targetPane) {
                 RequestedFilterPane.History -> navigator.returnQuizToHistory()
                 else -> navigator.returnQuizToFilter()
@@ -223,241 +157,70 @@ fun App() {
 
         val entryProvider = remember(
             graph,
+            workflow,
+            navigator,
             mediaHandler,
             mediaDescriptionsFlow,
-            localContentRepository,
+            returnQuizToFilter,
         ) {
             entryProvider<NavKey> {
-                // Database Selection Screen
                 entry<MedQBRoutes.DatabaseSelection> {
-                    val dbVM = viewModel<DatabaseSelectionViewModel>(
-                        factory = viewModelFactory {
-                            initializer {
-                                graph.createDatabaseSelectionViewModel()
-                            }
-                        }
-                    )
-                    val databases by dbVM.availableDatabases.collectAsStateWithLifecycle()
-                    val isLoading by dbVM.isLoading.collectAsStateWithLifecycle()
-
-                    DatabaseSelectionScreen(
-                        databases = databases,
-                        isLoading = isLoading,
-                        onRefreshDatabases = { dbVM.refreshDatabases() },
-                        onDatabaseSelected = { dbName ->
-                            workflowState = workflowCoordinator.databaseSelected(workflowState, dbName)
-                            navigator.navigateTo(MedQBRoutes.Filter)
-                        },
-                        onOpenSettings = {
-                            navigator.navigateTo(MedQBRoutes.Settings)
-                        },
+                    DatabaseSelectionEntry(
+                        graph = graph,
+                        workflow = workflow,
+                        navigator = navigator,
                     )
                 }
 
-                // Filter Screen - pre-quiz configurations
                 entry<MedQBRoutes.Filter> {
-                    val filterVM = viewModel<FilterViewModel>(
-                        factory = viewModelFactory {
-                            initializer {
-                                graph.createFilterViewModel()
-                            }
-                        }
-                    )
-
-                    LaunchedEffect(filterVM) {
-                        val s = filterVM.state.value
-                        graph.filterStateHolder.updateSubjectIds(s.selectedSubjectIds)
-                        graph.filterStateHolder.updateSystemIds(s.selectedSystemIds)
-                        graph.filterStateHolder.updatePerformanceFilter(s.performanceFilter)
-                    }
-
-                    val onStartQuiz = dropUnlessResumed {
-                        workflowState = workflowCoordinator.standardQuizLaunchPrepared(workflowState)
-                        navigator.navigateTo(MedQBRoutes.Quiz)
-                    }
-
-                    FilterHubScreen(
-                        viewModel = filterVM,
-                        selectedPane = FilterPane.Filters,
-                        onPaneSelected = { pane ->
-                            when (pane) {
-                                FilterPane.Filters -> navigator.switchTo(MedQBRoutes.Filter)
-                                FilterPane.History -> navigator.switchTo(MedQBRoutes.History)
-                            }
-                        },
-                        onStartQuiz = onStartQuiz,
-                        onLoggingToggle = { graph.settingsRepository.setLoggingEnabled(it) },
-                        onSubmissionModeToggle = { graph.settingsRepository.setSubmissionMode(it) },
+                    FilterEntry(
+                        graph = graph,
+                        workflow = workflow,
+                        navigator = navigator,
                     )
                 }
 
-                // History Screen - quiz history
                 entry<MedQBRoutes.History> {
-                    val historyVM = viewModel<HistoryViewModel>(
-                        factory = viewModelFactory {
-                            initializer {
-                                graph.createHistoryViewModel()
-                            }
-                        }
-                    )
-
-                    val databaseName by graph.activeDatabaseHolder.databaseName.collectAsStateWithLifecycle()
-                    val sessionHistory by historyVM.historyEntries.collectAsStateWithLifecycle()
-                    val scopedHistoryEntries = remember(sessionHistory, databaseName) {
-                        sessionHistory.filter { it.databaseName == databaseName }
-                    }
-
-                    val onHistorySelected = { entry: QuizSessionRepository.QuizSession ->
-                        scope.launch {
-                            val matchingDatabase = historyVM.restoreHistoryEntry(entry)
-                            if (matchingDatabase != null) {
-                                graph.filterStateHolder.updateSubjectIds(entry.selectedSubjectIds.toSet())
-                                graph.filterStateHolder.updateSystemIds(entry.selectedSystemIds.toSet())
-                                graph.filterStateHolder.updatePerformanceFilter(entry.performanceFilter)
-                                graph.filterStateHolder.setPendingHistoryEntryId(entry.id)
-                                workflowState = workflowCoordinator.historyLaunchPrepared(workflowState, matchingDatabase)
-                                navigator.navigateTo(MedQBRoutes.Quiz)
-                            }
-                        }
-                        Unit
-                    }
-
-                    HistoryScreen(
-                        historyEntries = scopedHistoryEntries,
-                        onHistorySelected = onHistorySelected,
-                        onDeleteHistoryEntries = { historyVM.deleteHistoryEntries(it) },
-                        onRenameHistoryEntry = { id, name -> historyVM.renameHistoryEntry(id, name) },
-                        onCopyAllQids = { historyVM.getQuestionIdsForHistoryEntries(it) },
-                        selectedPane = FilterPane.History,
-                        onPaneSelected = { pane ->
-                            when (pane) {
-                                FilterPane.Filters -> navigator.switchTo(MedQBRoutes.Filter)
-                                FilterPane.History -> navigator.switchTo(MedQBRoutes.History)
-                            }
-                        },
+                    HistoryEntry(
+                        graph = graph,
+                        workflow = workflow,
+                        navigator = navigator,
                     )
                 }
 
-                // Quiz Screen - active quiz takings
                 entry<MedQBRoutes.Quiz> {
-                    val quizVM = viewModel<QuizViewModel>(
-                        factory = viewModelFactory {
-                            initializer {
-                                graph.createQuizViewModel(
-                                    createSavedStateHandle()
-                                )
-                            }
-                        }
-                    )
-
-                    LaunchedEffect(quizVM) {
-                        // Wait until the active database name is propagated to the view model
-                        quizVM.state.first { it.databaseName.isNotEmpty() }
-                        if (quizVM.state.value.questionIds.isEmpty()) {
-                            quizVM.loadFilteredQuestionIds(startFromBeginning = true)
-                        }
-                    }
-
-                    QuizRoot(
-                        viewModel = quizVM,
+                    QuizEntry(
+                        graph = graph,
+                        workflow = workflow,
+                        navigator = navigator,
                         mediaHandler = mediaHandler,
-                        onNavigateBack = dropUnlessResumed {
-                            returnQuizToFilter()
-                        },
-                        onOpenSettingsScreen = dropUnlessResumed {
-                            navigator.navigateTo(MedQBRoutes.Settings)
-                        }
+                        onReturnToFilter = returnQuizToFilter,
                     )
                 }
 
-                // Settings Screen
                 entry<MedQBRoutes.Settings> {
-                    val settingsVM = viewModel<SettingsViewModel>(
-                        factory = viewModelFactory {
-                            initializer {
-                                graph.createSettingsViewModel()
-                            }
-                        }
-                    )
-
-                    val showMetadata by settingsVM.showMetadata.collectAsStateWithLifecycle()
-                    val fontScalePreference by settingsVM.fontScalePreference.collectAsStateWithLifecycle()
-
-                    SettingsScreen(
-                        showMetadata = showMetadata,
-                        fontScalePreference = fontScalePreference,
-                        onShowMetadataToggle = { settingsVM.setShowMetadata(it) },
-                        onFontScaleChange = { settingsVM.setFontScalePreference(it) },
-                        onBack = dropUnlessResumed { navigator.navigateBack() },
+                    SettingsEntry(
+                        graph = graph,
+                        navigator = navigator,
                     )
                 }
 
-                // Media Viewer Screen
                 entry<MedQBRoutes.MediaViewer> { key ->
-                    val mediaDescriptions by mediaDescriptionsFlow.collectAsStateWithLifecycle()
-                    val fontScalePreference = graph.settingsRepository.fontScalePreference
-                        .collectAsStateWithLifecycle(null).value
-
-                    MediaViewerScreen(
-                        mediaFiles = key.files,
-                        startIndex = key.startIndex,
-                        mediaDescriptions = mediaDescriptions,
-                        richTextScale = fontScalePreference ?: 1f,
-                        resolveMediaFilePath = localContentRepository::mediaFilePath,
-                        mediaFileExists = { fileName ->
-                            localContentRepository.mediaFileExists(fileName)
-                        },
-                        resolveOverlayPaths = { files ->
-                            localContentRepository.resolveOverlayPaths(files)
-                        },
-                        onLinkClick = { url ->
-                            if (!mediaHandler.handleMediaLink(url)) {
-                                // Handle external URLs if not media
-                            }
-                        },
-                        onSaveMedia = { fileName ->
-                            scope.launch {
-                                when (val result = localContentRepository.saveMediaFile(fileName)) {
-                                    is LocalContentRepository.SaveMediaResult.Success ->
-                                        graph.snackbarDispatcher.emitSnackbar("Media saved to: ${result.destPath}")
-                                    LocalContentRepository.SaveMediaResult.InvalidFileName ->
-                                        graph.snackbarDispatcher.emitSnackbar("Invalid file name")
-                                    LocalContentRepository.SaveMediaResult.CopyFailed ->
-                                        graph.snackbarDispatcher.emitSnackbar("Failed to save media")
-                                }
-                            }
-                        },
-                        onBack = dropUnlessResumed {
-                            navigator.navigateBack()
-                            scope.launch {
-                                mediaDescriptionsFlow.value = emptyMap()
-                            }
-                        }
+                    MediaViewerEntry(
+                        key = key,
+                        graph = graph,
+                        navigator = navigator,
+                        mediaHandler = mediaHandler,
+                        mediaDescriptionsFlow = mediaDescriptionsFlow,
                     )
                 }
 
-                // HTML Viewer Screen
                 entry<MedQBRoutes.HtmlViewer> { key ->
-                    val htmlDocument by produceState<LocalContentRepository.HtmlDocumentResult?>(
-                        initialValue = null,
-                        key1 = key.fileName,
-                    ) {
-                        value = localContentRepository.loadHtmlDocument(key.fileName)
-                    }
-
-                    HtmlViewerScreen(
-                        fileName = key.fileName,
-                        htmlContent = htmlDocument?.sanitizedHtml,
-                        fileExists = htmlDocument?.fileExists ?: true,
-                        isLoading = htmlDocument == null,
-                        onBack = dropUnlessResumed {
-                            navigator.navigateBack()
-                        },
-                        onLinkClick = { url ->
-                            if (!mediaHandler.handleMediaLink(url)) {
-                                // Handle external URLs
-                            }
-                        }
+                    HtmlViewerEntry(
+                        key = key,
+                        graph = graph,
+                        navigator = navigator,
+                        mediaHandler = mediaHandler,
                     )
                 }
             }
