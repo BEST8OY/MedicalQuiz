@@ -359,7 +359,6 @@ fun App() {
                     LaunchedEffect(quizVM) {
                         // Wait until the active database name is propagated to the view model
                         quizVM.state.first { it.databaseName.isNotEmpty() }
-                        Logger.d("App", "Quiz LaunchedEffect: dbName='${quizVM.state.value.databaseName}', questionIds.size=${quizVM.state.value.questionIds.size}")
                         if (quizVM.state.value.questionIds.isEmpty()) {
                             quizVM.loadFilteredQuestionIds(startFromBeginning = true)
                         }
