@@ -6,8 +6,10 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import medqb.composeapp.generated.resources.Res
 import org.jetbrains.compose.resources.ExperimentalResourceApi
+import dev.zacsweers.metro.Inject
 
-object MediaDescriptionRepository {
+@Inject
+class MediaDescriptionRepository {
     private var cachedDescriptions: Map<String, MediaDescription> = emptyMap()
 
     @OptIn(ExperimentalResourceApi::class)
@@ -15,22 +17,21 @@ object MediaDescriptionRepository {
         if (cachedDescriptions.isNotEmpty()) return cachedDescriptions
 
         try {
-            // Read from Compose Resources
             val bytes = Res.readBytes("files/media_descriptions.json")
             val jsonString = bytes.decodeToString()
-            
+
             val array = Json.parseToJsonElement(jsonString).jsonArray
             val entries = mutableMapOf<String, MediaDescription>()
-            
+
             for (element in array) {
                 val obj = element.jsonObject
                 val imageName = obj["image_name"]?.jsonPrimitive?.content ?: continue
                 val description = obj["description"]?.jsonPrimitive?.content ?: continue
-                
+
                 if (imageName.isBlank() || description.isBlank()) continue
-                
+
                 val title = obj["title"]?.jsonPrimitive?.content ?: ""
-                
+
                 entries[imageName] = MediaDescription(
                     imageName = imageName,
                     title = title,
@@ -39,9 +40,8 @@ object MediaDescriptionRepository {
             }
             cachedDescriptions = entries
         } catch (_: Exception) {
-            // Silently handle missing or malformed descriptions file
         }
-        
+
         return cachedDescriptions
     }
 }

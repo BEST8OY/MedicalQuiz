@@ -122,14 +122,4 @@ class AppWorkflowCoordinator(
             requestedFilterPane = targetPane,
         )
     }
-
-    // ── One-shot flag consumers ──────────────────────────────────────────
-
-    /**
-     * Consumes the [AppWorkflowState.requestedFilterPane] flag after the
-     * filter screen has applied it.
-     */
-    fun filterPaneRequestConsumed(state: AppWorkflowState): AppWorkflowState {
-        return state.copy(requestedFilterPane = null)
-    }
 }

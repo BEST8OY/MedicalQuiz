@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
-import com.medqb.app.shared.data.CacheManager
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
@@ -34,7 +33,6 @@ class QuizViewModel(
     private val settingsRepository: SettingsRepository,
     private val textHighlightsRepository: TextHighlightsRepository,
     private val sessionRepository: QuizSessionRepository,
-    private val cacheManager: CacheManager,
     private val savedStateHandle: SavedStateHandle,
     private val activeDatabaseHolder: ActiveDatabaseHolder,
     private val loadQuestionUseCase: LoadQuestionUseCase,
@@ -173,7 +171,6 @@ class QuizViewModel(
                 Logger.e("QuizViewModel", "Error loading question $questionId", e)
                 emitSnackbar("Failed to load question: ${e.message}")
             } finally {
-                cacheManager.trimCachesIfNeeded(index)
                 if (appendToHistory) {
                     appendToHistory()
                 }

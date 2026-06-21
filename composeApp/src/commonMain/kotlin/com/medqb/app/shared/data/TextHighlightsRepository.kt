@@ -31,9 +31,9 @@ class TextHighlightsRepository(
         val questionId: Long
     )
 
-    private var currentDbName: String = ""
-    private var currentQuestionId: Long = -1
-    private var activeLoadRequestId: Long = 0
+    @Volatile private var currentDbName: String = ""
+    @Volatile private var currentQuestionId: Long = -1
+    @Volatile private var activeLoadRequestId: Long = 0
     private val highlightMutationMutex = Mutex()
 
     // Highlights for current question, grouped by section
@@ -317,16 +317,6 @@ class TextHighlightsRepository(
         _explanationHighlights.value = emptyList()
     }
 
-    private fun invalidatePendingLoads() {
-        activeLoadRequestId++
-    }
-
-    private data class TextSegment(
-        val startOffset: Int,
-        val endOffset: Int,
-        val text: String
-    )
-
     private fun mergeHighlightedText(
         mergedStart: Int,
         mergedEnd: Int,
@@ -335,6 +325,8 @@ class TextHighlightsRepository(
         highlightedText: String,
         overlappingHighlights: List<TextHighlight>
     ): String {
+        data class TextSegment(val startOffset: Int, val endOffset: Int, val text: String)
+
         val totalLength = mergedEnd - mergedStart
         if (totalLength <= 0) return ""
 
