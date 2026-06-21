@@ -48,7 +48,6 @@ import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.domain.AppIntent
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.navigation.QuizLaunchSource
-import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.orchestration.AppWorkflowState
 import com.medqb.app.shared.orchestration.RequestedFilterPane
@@ -301,7 +300,6 @@ fun App() {
 
                 // History Screen - quiz history
                 entry<MedQBRoutes.History> {
-                    Logger.d("App", "History ENTRY composed")
                     val historyVM = viewModel<HistoryViewModel>(
                         factory = viewModelFactory {
                             initializer {
@@ -313,8 +311,6 @@ fun App() {
                     val databaseName by graph.activeDatabaseHolder.databaseName.collectAsStateWithLifecycle()
                     val sessionHistory by historyVM.historyEntries.collectAsStateWithLifecycle()
                     val scopedHistoryEntries = remember(sessionHistory, databaseName) {
-                        Logger.d("App", "History: sessionHistory.size=${sessionHistory.size}, dbName='$databaseName'")
-                        sessionHistory.forEach { Logger.d("App", "History entry: id='${it.id}', db='${it.databaseName}'") }
                         sessionHistory.filter { it.databaseName == databaseName }
                     }
 
