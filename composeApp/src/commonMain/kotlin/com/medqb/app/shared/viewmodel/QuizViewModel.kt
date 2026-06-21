@@ -126,8 +126,14 @@ class QuizViewModel(
     fun getTextHighlightsRepository(): TextHighlightsRepository = textHighlightsRepository
 
     private suspend fun appendToHistory() {
+        val db = state.value.databaseName
+        Logger.d("QuizViewModel", "appendToHistory: databaseName='$db', sessionId='$sessionId'")
+        if (db.isBlank()) {
+            Logger.e("QuizViewModel", "appendToHistory SKIPPED: databaseName is blank")
+            return
+        }
         val newSessionId = sessionRepository.appendToHistoryAsync(
-            databaseName = state.value.databaseName,
+            databaseName = db,
             selectedSubjectIds = filterStateHolder.selectedSubjectIds.value,
             selectedSystemIds = filterStateHolder.selectedSystemIds.value,
             performanceFilter = filterStateHolder.performanceFilter.value,
@@ -153,7 +159,12 @@ class QuizViewModel(
         appendToHistory: Boolean = true,
     ) {
         val ids = state.value.questionIds
-        val questionId = ids.getOrNull(index) ?: return
+        val questionId = ids.getOrNull(index)
+        Logger.d("QuizViewModel", "loadQuestion: index=$index, ids.size=${ids.size}, questionId=$questionId, appendToHistory=$appendToHistory")
+        if (questionId == null) {
+            Logger.e("QuizViewModel", "loadQuestion EARLY RETURN: questionId is null (index=$index, ids.size=${ids.size})")
+            return
+        }
 
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true, currentPerformance = null) }
@@ -306,6 +317,7 @@ class QuizViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true) }
             val db = activeDatabaseHolder.databaseProvider.value
+            Logger.d("QuizViewModel", "loadFilteredQuestionIds: db=${db != null}, subjectIds=${filterStateHolder.selectedSubjectIds.value}, systemIds=${filterStateHolder.selectedSystemIds.value}, performance=${filterStateHolder.performanceFilter.value}")
             try {
                 val currentState = state.value
                 val ids = db?.getQuestionIds(
@@ -313,6 +325,7 @@ class QuizViewModel(
                     systemIds = filterStateHolder.selectedSystemIds.value.toList(),
                     performanceFilter = filterStateHolder.performanceFilter.value
                 ) ?: emptyList()
+                Logger.d("QuizViewModel", "loadFilteredQuestionIds: got ${ids.size} question IDs")
 
                 if (ids.isEmpty()) {
                     _state.update {

@@ -36,7 +36,10 @@ class QuizSessionRepository(
         submissionMode: SubmissionMode = SubmissionMode.INSTANT,
         currentSessionId: String = "",
     ): String {
-        if (databaseName.isBlank()) return ""
+        if (databaseName.isBlank()) {
+            Logger.e("QuizSession", "appendToHistory SKIPPED: databaseName is blank")
+            return ""
+        }
 
         val now = Clock.System.now().toEpochMilliseconds()
         val sessionId = if (currentSessionId.isNotBlank()) {
@@ -45,6 +48,7 @@ class QuizSessionRepository(
             buildSessionId(databaseName, now)
         }
 
+        Logger.d("QuizSession", "appendToHistory: sessionId=$sessionId, databaseName=$databaseName")
         runCatching {
             db().upsertHistoryEntry(
                 sessionId = sessionId,
@@ -58,6 +62,7 @@ class QuizSessionRepository(
                 isLoggingEnabled = isLoggingEnabled,
                 submissionMode = submissionMode.name,
             )
+            Logger.d("QuizSession", "appendToHistory: upsert succeeded")
         }.onFailure { Logger.e("QuizSession", "Error appending session history", it) }
 
         return sessionId
