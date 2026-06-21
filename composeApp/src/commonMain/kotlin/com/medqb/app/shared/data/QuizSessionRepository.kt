@@ -88,14 +88,19 @@ class QuizSessionRepository(
     }
 
     suspend fun listHistory(): List<QuizSession> {
-        val provider = activeDatabaseHolder.databaseProvider.value ?: return emptyList()
+        val provider = activeDatabaseHolder.databaseProvider.value
+        Logger.d("QuizSession", "listHistory: provider=${provider != null}")
+        if (provider == null) return emptyList()
         return withContext(Dispatchers.IO) {
-            provider.listHistoryEntries().map { it.toQuizSession() }
+            val entries = provider.listHistoryEntries().map { it.toQuizSession() }
+            Logger.d("QuizSession", "listHistory: DB returned ${entries.size} entries")
+            entries
         }
     }
 
     suspend fun refreshHistoryAsync(): List<QuizSession> = withContext(Dispatchers.IO) {
         val history = listHistory()
+        Logger.d("QuizSession", "refreshHistoryAsync: ${history.size} entries")
         _historyEntries.value = history
         history
     }

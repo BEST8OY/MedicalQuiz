@@ -312,6 +312,8 @@ fun App() {
                     val databaseName by graph.activeDatabaseHolder.databaseName.collectAsStateWithLifecycle()
                     val sessionHistory by historyVM.historyEntries.collectAsStateWithLifecycle()
                     val scopedHistoryEntries = remember(sessionHistory, databaseName) {
+                        Logger.d("App", "History: sessionHistory.size=${sessionHistory.size}, dbName='$databaseName'")
+                        sessionHistory.forEach { Logger.d("App", "History entry: id='${it.id}', db='${it.databaseName}'") }
                         sessionHistory.filter { it.databaseName == databaseName }
                     }
 
