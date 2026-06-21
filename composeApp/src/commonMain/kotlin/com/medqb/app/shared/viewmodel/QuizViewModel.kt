@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.CacheManager
+import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -34,6 +36,7 @@ private const val MAX_SCROLL_CACHE_SIZE = 100
 /**
  * Scoped ViewModel for the active Quiz session.
  * Manages question selection, answer submission, log updates, scroll caching, and text highlights.
+ * Filter selections are read from the shared FilterStateHolder.
  */
 @Inject
 class QuizViewModel(
@@ -47,13 +50,11 @@ class QuizViewModel(
     private val loadQuestionUseCase: LoadQuestionUseCase,
     private val appIntentSink: AppIntentSink,
     private val snackbarSink: SnackbarSink,
+    private val filterStateHolder: FilterStateHolder,
 ) : ViewModel() {
 
     private companion object {
         const val KEY_DATABASE_NAME = "database_name"
-        const val KEY_SELECTED_SUBJECT_IDS = "selected_subject_ids"
-        const val KEY_SELECTED_SYSTEM_IDS = "selected_system_ids"
-        const val KEY_PERFORMANCE_FILTER = "performance_filter"
         const val KEY_CURRENT_QUESTION_INDEX = "current_question_index"
         const val KEY_IS_LOGGING_ENABLED = "is_logging_enabled"
         const val KEY_SUBMISSION_MODE = "submission_mode"
@@ -97,9 +98,6 @@ class QuizViewModel(
 
     private fun restoreFromSavedState() {
         val savedDatabaseName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
-        val savedSubjectIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SUBJECT_IDS).orEmpty()
-        val savedSystemIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SYSTEM_IDS).orEmpty()
-        val savedPerformanceName = savedStateHandle.get<String>(KEY_PERFORMANCE_FILTER)
         val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: 0
         val savedIsLoggingEnabled = savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED)
             ?: settingsRepository.isLoggingEnabled.value
@@ -108,16 +106,9 @@ class QuizViewModel(
             ?.let { runCatching { SubmissionMode.valueOf(it) }.getOrNull() }
             ?: settingsRepository.submissionMode.value
 
-        val savedFilter = savedPerformanceName
-            ?.let { runCatching { PerformanceFilter.valueOf(it) }.getOrNull() }
-            ?: PerformanceFilter.ALL
-
         _state.update {
             it.copy(
                 databaseName = savedDatabaseName,
-                selectedSubjectIds = savedSubjectIds.toSet(),
-                selectedSystemIds = savedSystemIds.toSet(),
-                performanceFilter = savedFilter,
                 currentQuestionIndex = savedQuestionIndex.coerceAtLeast(0),
                 isLoggingEnabled = savedIsLoggingEnabled,
                 submissionMode = savedSubmissionMode,
@@ -127,9 +118,6 @@ class QuizViewModel(
 
     private fun persistStateSnapshot(snapshot: QuizUiState = state.value) {
         savedStateHandle[KEY_DATABASE_NAME] = snapshot.databaseName
-        savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = snapshot.selectedSubjectIds.toList()
-        savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = snapshot.selectedSystemIds.toList()
-        savedStateHandle[KEY_PERFORMANCE_FILTER] = snapshot.performanceFilter.name
         savedStateHandle[KEY_CURRENT_QUESTION_INDEX] = snapshot.currentQuestionIndex
         savedStateHandle[KEY_IS_LOGGING_ENABLED] = snapshot.isLoggingEnabled
         savedStateHandle[KEY_SUBMISSION_MODE] = snapshot.submissionMode.name
@@ -140,9 +128,9 @@ class QuizViewModel(
     private suspend fun appendToHistory() {
         val newSessionId = sessionRepository.appendToHistoryAsync(
             databaseName = state.value.databaseName,
-            selectedSubjectIds = state.value.selectedSubjectIds,
-            selectedSystemIds = state.value.selectedSystemIds,
-            performanceFilter = state.value.performanceFilter,
+            selectedSubjectIds = filterStateHolder.selectedSubjectIds.value,
+            selectedSystemIds = filterStateHolder.selectedSystemIds.value,
+            performanceFilter = filterStateHolder.performanceFilter.value,
             currentQuestionIndex = state.value.currentQuestionIndex,
             isLoggingEnabled = state.value.isLoggingEnabled,
             submissionMode = state.value.submissionMode,
@@ -321,9 +309,9 @@ class QuizViewModel(
             try {
                 val currentState = state.value
                 val ids = db?.getQuestionIds(
-                    subjectIds = currentState.selectedSubjectIds.toList(),
-                    systemIds = currentState.selectedSystemIds.toList(),
-                    performanceFilter = currentState.performanceFilter
+                    subjectIds = filterStateHolder.selectedSubjectIds.value.toList(),
+                    systemIds = filterStateHolder.selectedSystemIds.value.toList(),
+                    performanceFilter = filterStateHolder.performanceFilter.value
                 ) ?: emptyList()
 
                 if (ids.isEmpty()) {

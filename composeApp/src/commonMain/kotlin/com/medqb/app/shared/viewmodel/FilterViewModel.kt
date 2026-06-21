@@ -3,6 +3,7 @@ package com.medqb.app.shared.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
+import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
@@ -23,6 +24,7 @@ class FilterViewModel(
     private val applyFiltersUseCase: ApplyFiltersUseCase,
     private val settingsRepository: SettingsRepository,
     private val snackbarSink: SnackbarSink,
+    private val filterStateHolder: FilterStateHolder,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FilterUiState.EMPTY)
@@ -123,6 +125,7 @@ class FilterViewModel(
         viewModelScope.launch {
             val previouslySelectedSystems = state.value.selectedSystemIds
             _state.update { it.copy(selectedSubjectIds = newSubjectIds) }
+            filterStateHolder.updateSubjectIds(newSubjectIds)
 
             val db = activeDatabaseHolder.databaseProvider.value
             val prunedSelectedSystems = applyFiltersUseCase.pruneSystemsForSubjects(
@@ -131,6 +134,7 @@ class FilterViewModel(
                 previouslySelectedSystems = previouslySelectedSystems,
             )
             _state.update { it.copy(selectedSystemIds = prunedSelectedSystems) }
+            filterStateHolder.updateSystemIds(prunedSelectedSystems)
 
             val subjectsForSystems = applyFiltersUseCase.subjectsForSystemsFetch(newSubjectIds)
             fetchSystemsForSubjects(subjectsForSystems)
@@ -149,12 +153,14 @@ class FilterViewModel(
             )
 
             _state.update { it.copy(selectedSystemIds = normalizedSelection) }
+            filterStateHolder.updateSystemIds(normalizedSelection)
             updatePreviewQuestionCountInternal()
         }
     }
 
     fun setPerformanceFilter(filter: PerformanceFilter, loadQuestions: Boolean = false) {
         _state.update { it.copy(performanceFilter = filter) }
+        filterStateHolder.updatePerformanceFilter(filter)
         viewModelScope.launch {
             updatePreviewQuestionCountInternal()
         }
@@ -169,6 +175,7 @@ class FilterViewModel(
                     performanceFilter = PerformanceFilter.ALL,
                 )
             }
+            filterStateHolder.reset()
             updatePreviewQuestionCountInternal()
         }
     }

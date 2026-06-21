@@ -3,6 +3,7 @@ package com.medqb.app.shared.di
 import androidx.lifecycle.SavedStateHandle
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.CacheManager
+import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
@@ -35,6 +36,7 @@ interface AppGraph {
     val cacheManager: CacheManager
     val sessionRepository: QuizSessionRepository
     val textHighlightsRepository: TextHighlightsRepository
+    val filterStateHolder: FilterStateHolder
     val appIntentDispatcher: AppIntentDispatcher
     val snackbarDispatcher: SnackbarDispatcher
     val applyFiltersUseCase: ApplyFiltersUseCase
@@ -58,6 +60,7 @@ interface AppGraph {
             applyFiltersUseCase = applyFiltersUseCase,
             settingsRepository = settingsRepository,
             snackbarSink = snackbarDispatcher,
+            filterStateHolder = filterStateHolder,
         )
     }
 
@@ -81,6 +84,7 @@ interface AppGraph {
             loadQuestionUseCase = loadQuestionUseCase,
             appIntentSink = appIntentDispatcher,
             snackbarSink = snackbarDispatcher,
+            filterStateHolder = filterStateHolder,
         )
     }
 
