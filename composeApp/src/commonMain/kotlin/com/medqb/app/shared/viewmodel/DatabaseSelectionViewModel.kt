@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.orchestration.AppStartupCoordinator
+import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +14,7 @@ import kotlinx.coroutines.launch
  * Scoped ViewModel for the Database Selection Screen.
  * Lists available SQLite databases and prepares them.
  */
+@Inject
 class DatabaseSelectionViewModel(
     private val startupCoordinator: AppStartupCoordinator,
     private val userDataManager: UserDataManager,

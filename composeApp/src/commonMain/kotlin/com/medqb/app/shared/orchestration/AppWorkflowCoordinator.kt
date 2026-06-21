@@ -1,6 +1,7 @@
 package com.medqb.app.shared.orchestration
 
 import com.medqb.app.shared.navigation.QuizLaunchSource
+import dev.zacsweers.metro.Inject
 
 /**
  * Pure-logic coordinator that translates user actions and startup events into
@@ -10,6 +11,7 @@ import com.medqb.app.shared.navigation.QuizLaunchSource
  * the coordinator never touches the back stack directly, keeping navigation
  * side-effects in the composable.
  */
+@Inject
 class AppWorkflowCoordinator(
     private val startupCoordinator: AppStartupCoordinator,
 ) {

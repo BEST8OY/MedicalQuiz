@@ -1,98 +1,64 @@
-# AGENTS.md
+# Agent Instructions — MedQB
 
-## Project overview
+## Project
 
-Kotlin Multiplatform medical quiz app targeting **Android** and **Desktop** (JVM). Two Gradle modules:
-- `:composeApp` — shared KMP module (Android + Desktop targets). All shared code lives here.
-- `:app` — Android-only shell (permissions, Activity entry point). Depends on `:composeApp`.
+Kotlin Multiplatform (Android + Desktop) medical quiz app using Compose Multiplatform.
 
-## Build and run
+- **Root project name**: `MedQB`
+- **Modules**: `:app` (Android shell), `:composeApp` (shared KMP module — where all UI and logic lives)
+- **Entrypoints**: `app/...MainActivity.kt` (Android), `composeApp/src/desktopMain/kotlin/main.kt` (Desktop)
+- **Java 21** required for Gradle daemon; **JVM target 17** for Kotlin compilation
+- **Kotlin 2.4.0**, **AGP 9.2.1**, **Compose Multiplatform 1.12.0-alpha01**
 
-### Android
-
-```bash
-./gradlew assembleDebug          # debug APK
-./gradlew assembleRelease        # release APK (minified, split by ABI)
-./gradlew testDebugUnitTest      # unit tests
-./gradlew lint                   # Android lint
-```
-
-### Desktop
+## Build & Test Commands
 
 ```bash
-./gradlew :composeApp:run                                # run desktop app
-./gradlew :composeApp:packageReleaseDistributionForCurrentOS  # package release
-./gradlew :composeApp:desktopTest                        # desktop tests (Linux only, needs xvfb)
+# Desktop tests
+./gradlew :composeApp:desktopTest --stacktrace
+
+# Lint (Android)
+./gradlew lint --stacktrace
+
+# Full Android release build
+./gradlew assembleRelease --stacktrace
+
+# Desktop release package
+./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
 ```
 
-Desktop tests on Linux CI require `xvfb-run -a` and packages `libgl1 libxrender1 libxrandr2`.
-
-### Full CI (what GitHub runs)
-
-CI runs Android build + lint + desktop build in parallel. See `.github/workflows/ci.yml`.
-- Android unit tests: `./gradlew testDebugUnitTest`
-- Desktop tests: `./gradlew :composeApp:desktopTest` (via xvfb on Linux)
-- Lint: `./gradlew lint`
-
-No KSP is used — `ORG_GRADLE_PROJECT_ksp_incremental: false` is set in CI but irrelevant.
+No separate typecheck or formatter commands — compilation is the typecheck. No ktlint/detekt configured.
 
 ## Architecture
 
-### Entry points
-
-- **Desktop**: `composeApp/src/desktopMain/kotlin/main.kt` → `com.medqb.app.shared.MainKt` → calls `App()` composable
-- **Android**: `app/src/main/java/com/medqb/app/MainActivity.kt` → requests storage permission → calls `App()` composable
-- **Shared `App()`**: `composeApp/src/commonMain/kotlin/App.kt` — the single composable root. Sets up DI, navigation, theme.
-
-### Dependency injection
-
-Manual DI via `AppDependencyContainer` at `composeApp/src/commonMain/kotlin/com/medqb/app/shared/di/AppDependencyContainer.kt`. No Hilt/Dagger/Koin. ViewModels created via `viewModelFactory { initializer { ... } }` in `App.kt`.
-
-### Navigation
-
-Uses **Jetpack Navigation 3** (NOT Navigation Compose). Routes defined in `NavigationRoutes.kt`. Back stack managed via `SnapshotStateList<MedQBRoutes>`. Navigation persistence across restarts via `NavigationStateRepository`.
-
-### Key packages (all under `composeApp/src/commonMain/kotlin/com/medqb/app/shared/`)
-
-| Package | Purpose |
-|---------|---------|
-| `data/` | Database (SQLite bundled), repositories, models |
-| `domain/` | Use cases, intents, snackbar dispatcher |
-| `viewmodel/` | ViewModels for each screen |
-| `ui/screens/` | Screen composables (quiz, filter, settings, media) |
-| `ui/richtext/` | HTML-to-Compose rich text rendering |
-| `navigation/` | Routes, navigator, persistence |
-| `orchestration/` | App-level workflow coordination |
-| `platform/` | `expect`/`actual` declarations for platform differences |
-| `di/` | Composition root |
-
-### Platform-specific code
-
-- `expect`/`actual` pattern with `-Xexpect-actual-classes` compiler flag
-- Key platform splits: `StorageProvider`, `FileSystemHelper`, `PlatformInfo`, `Logger`, `TextIntentLauncher`, `VideoPlayer`, `AudioPlayer`, `ClipboardCompat`, `Theme`
-- Android uses `Media3`/ExoPlayer for playback; Desktop uses `vlcj`
-
-### Toolchain versions
-
-- Kotlin **2.4.0**, JVM toolchain **21**, Java compilation target **17**
-- AGP **9.2.1**, Compose Plugin **1.12.0-alpha01** (JetBrains)
-- Compose BOM **2026.05.01** (AndroidX)
-- Android compileSdk **37**, minSdk **31**, targetSdk **37**
+- **Shared module**: `composeApp/src/commonMain/kotlin/com/medqb/app/shared/`
+  - `ui/` — Compose screens, components, dialogs, rich text subsystem, theme
+  - `data/` — repositories, database, models, cache
+  - `domain/` — use cases, intent dispatcher, snackbar dispatcher
+  - `viewmodel/` — ViewModels (one per screen)
+  - `orchestration/` — workflow, navigation persistence, media navigation coordinators
+  - `navigation/` — Navigation 3 routes (sealed interface `MedQBRoutes`)
+  - `di/` — Metro DI graph (`AppGraph` interface, `AppScope`, platform-specific `@DependencyGraph`)
+  - `platform/` — expect/actual platform implementations (Logger, StorageProvider, FileSystemHelper)
+- **Platform code**: `androidMain/` and `desktopMain/` — expect/actual implementations
+- **Metro DI** (`dev.zacsweers.metro`) — compile-time dependency injection via `@DependencyGraph`
+- **Navigation 3** (`androidx.navigation3`) — not traditional Navigation Compose
+- **SQLite bundled** (`androidx.sqlite:sqlite-bundled`) for local databases
+- **Coil 3** for image loading, **Ksoup** for HTML parsing
 
 ## Conventions
 
-- Version catalog at `gradle/libs.versions.toml` — all deps referenced via `libs.*`
-- No KSP, no annotation processing
-- Configuration cache enabled (`org.gradle.configuration-cache=true`)
-- Android release builds: `isMinifyEnabled = true`, `isShrinkResources = true`, split APKs by ABI (arm64-v8a only)
-- Desktop release: ProGuard enabled (optimize on, obfuscate off), config at `composeApp/proguard-desktop.pro`
-- Desktop has native Wayland support via JVM args
-- All shared code goes in `:composeApp` — `:app` is a thin Android wrapper only
+- Version catalog at `gradle/libs.versions.toml` — all dependencies versioned there
+- Material 3 dynamic colors on Android 12+; fallback `expressiveLightColorScheme()` on older/desktop
+- UI color reference: `docs/ui-colors.md`
+- Desktop release uses ProGuard (`proguard-desktop.pro`); release builds enable obfuscation=false
+- ABI splits enabled for Android release — only `arm64-v8a` by default
 
-## Things to watch out for
+## Gotchas
 
-- **No existing test files** in the codebase despite test dependencies in build files. CI references `testDebugUnitTest` and `desktopTest` but no test source files exist yet.
-- **Android storage permission**: App requires `MANAGE_EXTERNAL_STORAGE` for reading quiz databases from external storage. `MainActivity` gates the entire UI behind this permission.
-- **SQLite bundled**: Uses `androidx.sqlite:sqlite-bundled` (bundled native libs) for cross-platform DB.
-- **Media playback**: Android = Media3/ExoPlayer, Desktop = vlcj. Both have platform-specific `VideoPlayer` and `AudioPlayer` implementations.
-- **Desktop Linux CI**: Needs `xvfb` + X11 libs to run headless. Release packaging produces `.deb`, `.msi`, `.dmg` depending on OS.
+- **No test files exist yet** — `commonTest` has dependencies but no test classes
+- **Do not run Android tests** — `testDebugUnitTest` is excluded from agent workflows
+- CI runs Android tests, lint, and desktop tests in parallel — all must pass
+- `org.gradle.configuration-cache=true` is enabled — build scripts must be configuration-cache compatible
+- `-Xexpect-actual-classes` compiler arg is required (set in `composeApp/build.gradle.kts`)
+- Desktop main class: `com.medqb.app.shared.MainKt`
+- The `:app` module depends on `:composeApp` (`implementation(project(":composeApp"))`)

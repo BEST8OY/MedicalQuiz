@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -29,8 +30,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.medqb.app.shared.App
+import com.medqb.app.shared.di.AndroidAppGraph
+import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.platform.AppContext
 import com.medqb.app.shared.ui.theme.AppTheme
+import dev.zacsweers.metro.createGraph
 
 class MainActivity : ComponentActivity() {
     private var isPermissionGranted by mutableStateOf(false)
@@ -60,12 +64,15 @@ class MainActivity : ComponentActivity() {
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = !isDark
 
         setContent {
-            if (isPermissionGranted) {
-                App()
-            } else {
-                PermissionScreen(
-                    onGrantPermission = { openManageStorageSettings() }
-                )
+            val graph = createGraph<AndroidAppGraph>()
+            CompositionLocalProvider(LocalAppGraph provides graph) {
+                if (isPermissionGranted) {
+                    App()
+                } else {
+                    PermissionScreen(
+                        onGrantPermission = { openManageStorageSettings() }
+                    )
+                }
             }
         }
 

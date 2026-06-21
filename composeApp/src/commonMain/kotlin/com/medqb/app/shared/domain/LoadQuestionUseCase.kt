@@ -4,7 +4,9 @@ import com.medqb.app.shared.data.database.DatabaseProvider
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.models.Answer
 import com.medqb.app.shared.data.models.Question
+import dev.zacsweers.metro.Inject
 
+@Inject
 class LoadQuestionUseCase {
 
     suspend operator fun invoke(

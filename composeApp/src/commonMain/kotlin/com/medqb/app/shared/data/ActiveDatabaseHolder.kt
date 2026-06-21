@@ -1,7 +1,10 @@
 package com.medqb.app.shared.data
 
 import com.medqb.app.shared.data.database.DatabaseProvider
+import com.medqb.app.shared.di.AppScope
 import com.medqb.app.shared.platform.Logger
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,6 +16,8 @@ import kotlinx.coroutines.withContext
 /**
  * Thread-safe holder for the active database provider connection and active database name.
  */
+@Inject
+@SingleIn(AppScope::class)
 class ActiveDatabaseHolder {
     private val mutex = Mutex()
     

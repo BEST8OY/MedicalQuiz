@@ -1,9 +1,14 @@
 package com.medqb.app.shared.domain
 
+import com.medqb.app.shared.di.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
+@Inject
+@SingleIn(AppScope::class)
 class AppIntentDispatcher : AppIntentSink {
     private val intentFlow = MutableSharedFlow<AppIntent>(extraBufferCapacity = 4)
     val intents: SharedFlow<AppIntent> = intentFlow.asSharedFlow()

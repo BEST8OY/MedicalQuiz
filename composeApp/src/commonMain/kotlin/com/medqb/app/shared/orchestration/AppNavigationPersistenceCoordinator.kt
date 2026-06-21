@@ -3,7 +3,9 @@ package com.medqb.app.shared.orchestration
 import androidx.navigation3.runtime.NavKey
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.navigation.MedQBRoutes
+import dev.zacsweers.metro.Inject
 
+@Inject
 class AppNavigationPersistenceCoordinator(
     private val sessionRepository: QuizSessionRepository,
 ) {

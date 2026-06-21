@@ -1,9 +1,12 @@
 package com.medqb.app.shared.data
 
 import com.medqb.app.shared.data.models.SubmissionMode
+import com.medqb.app.shared.di.AppScope
 import com.medqb.app.shared.platform.FileSystemHelper
 import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.platform.StorageProvider
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,6 +23,8 @@ import kotlinx.serialization.json.Json
 /**
  * Simple settings repository that exposes flows for settings that affect ViewModel behavior.
  */
+@Inject
+@SingleIn(AppScope::class)
 class SettingsRepository {
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

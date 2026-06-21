@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
+import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@Inject
 class HistoryViewModel(
     private val activeDatabaseHolder: ActiveDatabaseHolder,
     private val historyCoordinator: AppHistoryCoordinator,
@@ -34,17 +36,9 @@ class HistoryViewModel(
         }
     }
 
-    fun restoreHistoryEntry(
+    suspend fun restoreHistoryEntry(
         entry: QuizSessionRepository.QuizSession,
-        onRestored: (String) -> Unit,
-    ) {
-        viewModelScope.launch {
-            val matchingDatabase = historyCoordinator.restoreHistoryEntry(entry = entry)
-            if (matchingDatabase != null) {
-                onRestored(matchingDatabase)
-            }
-        }
-    }
+    ): String? = historyCoordinator.restoreHistoryEntry(entry = entry)
 
     suspend fun getQuestionIdsForHistoryEntries(
         entries: List<QuizSessionRepository.QuizSession>,
