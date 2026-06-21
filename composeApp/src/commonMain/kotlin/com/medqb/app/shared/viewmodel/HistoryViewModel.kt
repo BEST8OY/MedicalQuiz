@@ -7,8 +7,11 @@ import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 @Inject
@@ -18,8 +21,17 @@ class HistoryViewModel(
     private val sessionRepository: QuizSessionRepository,
 ) : ViewModel() {
 
+    private val _historyEntries = MutableStateFlow<List<QuizSessionRepository.QuizSession>>(
+        runBlocking { sessionRepository.listHistory() }
+    )
     val historyEntries: StateFlow<List<QuizSessionRepository.QuizSession>> =
-        sessionRepository.historyEntries
+        _historyEntries.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            sessionRepository.historyEntries.collect { _historyEntries.value = it }
+        }
+    }
 
     fun deleteHistoryEntries(entryIds: Set<String>) {
         viewModelScope.launch {
