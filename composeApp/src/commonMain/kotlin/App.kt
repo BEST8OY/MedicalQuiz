@@ -271,6 +271,13 @@ fun App() {
                         }
                     )
 
+                    LaunchedEffect(filterVM) {
+                        val s = filterVM.state.value
+                        graph.filterStateHolder.updateSubjectIds(s.selectedSubjectIds)
+                        graph.filterStateHolder.updateSystemIds(s.selectedSystemIds)
+                        graph.filterStateHolder.updatePerformanceFilter(s.performanceFilter)
+                    }
+
                     val onStartQuiz = dropUnlessResumed {
                         workflowState = workflowCoordinator.standardQuizLaunchPrepared(workflowState)
                         navigator.navigateTo(MedQBRoutes.Quiz)
@@ -311,6 +318,9 @@ fun App() {
                         scope.launch {
                             val matchingDatabase = historyVM.restoreHistoryEntry(entry)
                             if (matchingDatabase != null) {
+                                graph.filterStateHolder.updateSubjectIds(entry.selectedSubjectIds.toSet())
+                                graph.filterStateHolder.updateSystemIds(entry.selectedSystemIds.toSet())
+                                graph.filterStateHolder.updatePerformanceFilter(entry.performanceFilter)
                                 workflowState = workflowCoordinator.historyLaunchPrepared(workflowState, matchingDatabase)
                                 navigator.navigateTo(MedQBRoutes.Quiz)
                             }
