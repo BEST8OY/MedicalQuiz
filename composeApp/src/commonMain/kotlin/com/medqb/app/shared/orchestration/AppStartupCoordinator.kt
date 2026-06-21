@@ -3,7 +3,6 @@ package com.medqb.app.shared.orchestration
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.DatabaseManager
 import com.medqb.app.shared.data.LocalContentRepository
-import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.navigation.QuizLaunchSource
 import com.medqb.app.shared.platform.FileSystemHelper
@@ -15,7 +14,6 @@ import dev.zacsweers.metro.Inject
 @Inject
 class AppStartupCoordinator(
     private val localContentRepository: LocalContentRepository,
-    private val sessionRepository: QuizSessionRepository,
     private val activeDatabaseHolder: ActiveDatabaseHolder,
 ) {
     suspend fun initializeApp(userDataManager: UserDataManager): List<String> {
