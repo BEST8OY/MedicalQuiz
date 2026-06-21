@@ -87,8 +87,11 @@ class QuizSessionRepository(
         sessionId
     }
 
-    suspend fun listHistory(): List<QuizSession> = withContext(Dispatchers.IO) {
-        db().listHistoryEntries().map { it.toQuizSession() }
+    suspend fun listHistory(): List<QuizSession> {
+        val provider = activeDatabaseHolder.databaseProvider.value ?: return emptyList()
+        return withContext(Dispatchers.IO) {
+            provider.listHistoryEntries().map { it.toQuizSession() }
+        }
     }
 
     suspend fun refreshHistoryAsync(): List<QuizSession> = withContext(Dispatchers.IO) {
