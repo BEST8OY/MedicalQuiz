@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 @Inject
@@ -21,9 +20,7 @@ class HistoryViewModel(
     private val sessionRepository: QuizSessionRepository,
 ) : ViewModel() {
 
-    private val _historyEntries = MutableStateFlow<List<QuizSessionRepository.QuizSession>>(
-        runBlocking { sessionRepository.listHistory() }
-    )
+    private val _historyEntries = MutableStateFlow(sessionRepository.historyEntries.value)
     val historyEntries: StateFlow<List<QuizSessionRepository.QuizSession>> =
         _historyEntries.asStateFlow()
 
