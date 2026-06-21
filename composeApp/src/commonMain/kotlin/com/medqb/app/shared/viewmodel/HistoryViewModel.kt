@@ -30,12 +30,14 @@ class HistoryViewModel(
     fun deleteHistoryEntries(entryIds: Set<String>) {
         viewModelScope.launch {
             historyCoordinator.deleteHistoryEntries(entryIds)
+            refresh()
         }
     }
 
     fun renameHistoryEntry(entryId: String, newName: String) {
         viewModelScope.launch {
             historyCoordinator.renameHistoryEntry(entryId = entryId, newName = newName)
+            refresh()
         }
     }
 

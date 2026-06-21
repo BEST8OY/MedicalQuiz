@@ -325,6 +325,7 @@ fun App() {
                                 graph.filterStateHolder.updateSubjectIds(entry.selectedSubjectIds.toSet())
                                 graph.filterStateHolder.updateSystemIds(entry.selectedSystemIds.toSet())
                                 graph.filterStateHolder.updatePerformanceFilter(entry.performanceFilter)
+                                graph.filterStateHolder.setPendingHistoryEntryId(entry.id)
                                 workflowState = workflowCoordinator.historyLaunchPrepared(workflowState, matchingDatabase)
                                 navigator.navigateTo(MedQBRoutes.Quiz)
                             }

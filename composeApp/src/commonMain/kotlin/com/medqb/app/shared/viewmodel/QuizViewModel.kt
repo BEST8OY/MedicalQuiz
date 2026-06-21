@@ -86,6 +86,11 @@ class QuizViewModel(
         restoreFromSavedState()
         observeSettings(settingsRepository)
 
+        val restoredId = filterStateHolder.consumePendingHistoryEntryId()
+        if (!restoredId.isNullOrBlank()) {
+            sessionId = restoredId
+        }
+
         // Observe active database name changes
         viewModelScope.launch {
             activeDatabaseHolder.databaseName.collect { dbName ->
