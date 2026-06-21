@@ -308,6 +308,10 @@ fun App() {
                         }
                     )
 
+                    LaunchedEffect(Unit) {
+                        historyVM.refresh()
+                    }
+
                     val databaseName by graph.activeDatabaseHolder.databaseName.collectAsStateWithLifecycle()
                     val sessionHistory by historyVM.historyEntries.collectAsStateWithLifecycle()
                     val scopedHistoryEntries = remember(sessionHistory, databaseName) {
