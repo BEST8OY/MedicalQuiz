@@ -563,7 +563,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
                 INSERT OR REPLACE INTO quiz_history
                 (session_id, database_name, entry_name, selected_subject_ids, selected_system_ids,
                  performance_filter, current_question_index, updated_at, is_logging_enabled, submission_mode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, COALESCE(NULLIF(?, ''), entry_name), ?, ?, ?, ?, ?, ?, ?)
             """
             getConnection().prepare(sql).use { stmt ->
                 stmt.bindText(1, sessionId)
