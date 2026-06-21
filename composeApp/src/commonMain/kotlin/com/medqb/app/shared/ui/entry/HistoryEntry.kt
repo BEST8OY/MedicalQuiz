@@ -50,6 +50,7 @@ fun HistoryEntry(
                         entry.performanceFilter,
                     )
                     graph.filterStateHolder.setPendingHistoryEntryId(entry.id)
+                    graph.filterStateHolder.setPendingHistoryQuestionIndex(entry.currentQuestionIndex)
                     workflow.onHistoryLaunchPrepared(matchingDatabase)
                     navigator.navigateTo(MedQBRoutes.Quiz)
                 }
