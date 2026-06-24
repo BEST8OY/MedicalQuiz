@@ -46,6 +46,7 @@ class FilterViewModel(
     private var subjectsJob: Job? = null
     private var systemsJob: Job? = null
     private var previewGeneration = 0L
+    private var previewCountJob: Job? = null
 
     init {
         val restoredDbName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
@@ -83,21 +84,21 @@ class FilterViewModel(
                 savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = subjectIds.toList()
                 val subjectsForSystems = applyFiltersUseCase.subjectsForSystemsFetch(subjectIds)
                 fetchSystemsForSubjects(subjectsForSystems)
-                updatePreviewQuestionCountInternal()
+                schedulePreviewCountUpdate()
             }
         }
         viewModelScope.launch {
             filterStateHolder.selectedSystemIds.collect { systemIds ->
                 _state.update { it.copy(selectedSystemIds = systemIds) }
                 savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = systemIds.toList()
-                updatePreviewQuestionCountInternal()
+                schedulePreviewCountUpdate()
             }
         }
         viewModelScope.launch {
             filterStateHolder.performanceFilter.collect { filter ->
                 _state.update { it.copy(performanceFilter = filter) }
                 savedStateHandle[KEY_PERFORMANCE_FILTER] = filter.name
-                updatePreviewQuestionCountInternal()
+                schedulePreviewCountUpdate()
             }
         }
     }
@@ -106,6 +107,7 @@ class FilterViewModel(
         initJob?.cancel()
         subjectsJob?.cancel()
         systemsJob?.cancel()
+        previewCountJob?.cancel()
         previewGeneration++
 
         initJob = viewModelScope.launch {
@@ -213,21 +215,30 @@ class FilterViewModel(
     }
 
     private suspend fun updatePreviewQuestionCountInternal() {
-        val currentState = state.value
         val gen = previewGeneration
         val db = activeDatabaseHolder.databaseProvider.value
+        val subjectIds = filterStateHolder.selectedSubjectIds.value
+        val systemIds = filterStateHolder.selectedSystemIds.value
+        val perfFilter = filterStateHolder.performanceFilter.value
         val count = withContext(Dispatchers.IO) {
             runCatching {
                 applyFiltersUseCase.previewQuestionCount(
                     db = db,
-                    selectedSubjectIds = currentState.selectedSubjectIds,
-                    selectedSystemIds = currentState.selectedSystemIds,
-                    performanceFilter = currentState.performanceFilter,
+                    selectedSubjectIds = subjectIds,
+                    selectedSystemIds = systemIds,
+                    performanceFilter = perfFilter,
                 )
             }.getOrDefault(0)
         }
         if (previewGeneration != gen) return
         _state.update { it.copy(previewQuestionCount = count) }
+    }
+
+    private fun schedulePreviewCountUpdate() {
+        previewCountJob?.cancel()
+        previewCountJob = viewModelScope.launch {
+            updatePreviewQuestionCountInternal()
+        }
     }
 
     private fun emitSnackbar(message: String) {
