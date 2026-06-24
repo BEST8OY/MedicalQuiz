@@ -66,4 +66,14 @@ actual object FileSystemHelper {
             ?.sorted()
             ?: emptyList()
     }
+
+    actual fun isSafePath(parentDir: String, childPath: String): Boolean {
+        return try {
+            val parentCanonical = File(parentDir).canonicalPath
+            val childCanonical = File(childPath).canonicalPath
+            childCanonical.startsWith(parentCanonical)
+        } catch (e: Exception) {
+            false
+        }
+    }
 }

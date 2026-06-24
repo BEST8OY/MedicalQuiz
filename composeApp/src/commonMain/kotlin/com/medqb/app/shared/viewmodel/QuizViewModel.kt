@@ -62,17 +62,24 @@ class QuizViewModel(
         }
     }
 
-    private var sessionId: String
-        get() = savedStateHandle.get<String>(KEY_SESSION_ID).orEmpty()
-        set(value) { savedStateHandle[KEY_SESSION_ID] = value }
+    private var sessionId: String = ""
+
+    private fun updateSessionId(id: String) {
+        sessionId = id
+        viewModelScope.launch(Dispatchers.Main) {
+            savedStateHandle[KEY_SESSION_ID] = id
+        }
+    }
 
     init {
         restoreFromSavedState()
         observeSettings()
 
+        sessionId = savedStateHandle.get<String>(KEY_SESSION_ID).orEmpty()
+
         val restoredId = filterStateHolder.consumePendingHistoryEntryId()
         if (!restoredId.isNullOrBlank()) {
-            sessionId = restoredId
+            updateSessionId(restoredId)
         }
 
         val restoredIndex = filterStateHolder.consumePendingHistoryQuestionIndex()
@@ -82,8 +89,13 @@ class QuizViewModel(
 
         viewModelScope.launch {
             activeDatabaseHolder.databaseName.collect { dbName ->
-                if (dbName.isNotEmpty()) {
-                    _state.update { it.copy(databaseName = dbName) }
+                if (dbName.isNotEmpty() && (dbName != _state.value.databaseName || _state.value.questionIds.isEmpty())) {
+                    val startFromBeginning = _state.value.currentQuestionIndex <= 0
+                    _state.update { it.copy(databaseName = dbName, questionIds = emptyList()) }
+                    loadFilteredQuestionIds(
+                        updatePreviewCount = true,
+                        startFromBeginning = startFromBeginning
+                    )
                 }
             }
         }
@@ -110,10 +122,12 @@ class QuizViewModel(
     }
 
     private fun persistStateSnapshot(snapshot: QuizUiState = state.value) {
-        savedStateHandle[KEY_DATABASE_NAME] = snapshot.databaseName
-        savedStateHandle[KEY_CURRENT_QUESTION_INDEX] = snapshot.currentQuestionIndex
-        savedStateHandle[KEY_IS_LOGGING_ENABLED] = snapshot.isLoggingEnabled
-        savedStateHandle[KEY_SUBMISSION_MODE] = snapshot.submissionMode.name
+        viewModelScope.launch(Dispatchers.Main) {
+            savedStateHandle[KEY_DATABASE_NAME] = snapshot.databaseName
+            savedStateHandle[KEY_CURRENT_QUESTION_INDEX] = snapshot.currentQuestionIndex
+            savedStateHandle[KEY_IS_LOGGING_ENABLED] = snapshot.isLoggingEnabled
+            savedStateHandle[KEY_SUBMISSION_MODE] = snapshot.submissionMode.name
+        }
     }
 
     val highlightsRepository: TextHighlightsRepository
@@ -132,7 +146,7 @@ class QuizViewModel(
                 currentSessionId = sessionId,
             )
             if (newSessionId.isNotBlank()) {
-                sessionId = newSessionId
+                updateSessionId(newSessionId)
             }
         } catch (e: Exception) {
             Logger.e("QuizViewModel", "Error appending to history", e)

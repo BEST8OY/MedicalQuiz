@@ -15,12 +15,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+import com.medqb.app.shared.di.AppScope
+import dev.zacsweers.metro.SingleIn
+
 /**
  * Repository for managing text highlights within question content.
  * Maintains an in-memory cache of highlights for the current question
  * and syncs with UserDataManager for persistence.
  */
 @Inject
+@SingleIn(AppScope::class)
 class TextHighlightsRepository(
     private val userDataManager: UserDataManager
 ) {

@@ -9,4 +9,5 @@ expect object FileSystemHelper {
     fun delete(path: String): Boolean
     fun getDatabasePath(dbName: String): String
     fun listDatabases(): List<String>
+    fun isSafePath(parentDir: String, childPath: String): Boolean
 }

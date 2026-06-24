@@ -7,6 +7,7 @@ import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Shared filter state holder scoped to the app graph.
@@ -52,8 +53,11 @@ class FilterStateHolder {
     }
 
     fun consumePendingHistoryEntryId(): String? {
-        val id = _pendingHistoryEntryId.value
-        _pendingHistoryEntryId.value = null
+        var id: String? = null
+        _pendingHistoryEntryId.update {
+            id = it
+            null
+        }
         return id
     }
 
@@ -65,8 +69,11 @@ class FilterStateHolder {
     }
 
     fun consumePendingHistoryQuestionIndex(): Int {
-        val index = _pendingHistoryQuestionIndex.value
-        _pendingHistoryQuestionIndex.value = 0
+        var index = 0
+        _pendingHistoryQuestionIndex.update {
+            index = it
+            0
+        }
         return index
     }
 }
