@@ -50,13 +50,14 @@ interface AppGraph {
         )
     }
 
-    fun createFilterViewModel(): FilterViewModel {
+    fun createFilterViewModel(savedStateHandle: SavedStateHandle): FilterViewModel {
         return FilterViewModel(
             activeDatabaseHolder = activeDatabaseHolder,
             applyFiltersUseCase = applyFiltersUseCase,
             settingsRepository = settingsRepository,
             snackbarSink = snackbarDispatcher,
             filterStateHolder = filterStateHolder,
+            savedStateHandle = savedStateHandle,
         )
     }
 

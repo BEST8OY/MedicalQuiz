@@ -1,5 +1,6 @@
 package com.medqb.app.shared.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Inject
 class FilterViewModel(
@@ -26,7 +28,15 @@ class FilterViewModel(
     private val settingsRepository: SettingsRepository,
     private val snackbarSink: SnackbarSink,
     private val filterStateHolder: FilterStateHolder,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
+
+    private companion object {
+        const val KEY_DATABASE_NAME = "database_name"
+        const val KEY_SELECTED_SUBJECT_IDS = "selected_subject_ids"
+        const val KEY_SELECTED_SYSTEM_IDS = "selected_system_ids"
+        const val KEY_PERFORMANCE_FILTER = "performance_filter"
+    }
 
     private val _state = MutableStateFlow(FilterUiState.EMPTY)
     val state: StateFlow<FilterUiState> = _state.asStateFlow()
@@ -35,11 +45,18 @@ class FilterViewModel(
     private var isInitializing = false
 
     init {
+        val restoredDbName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
+        if (restoredDbName.isNotEmpty()) {
+            _state.update { it.copy(databaseName = restoredDbName) }
+        }
+
         viewModelScope.launch {
             activeDatabaseHolder.databaseName.collect { dbName ->
                 if (dbName.isNotEmpty()) {
+                    val dbChanged = dbName != _state.value.databaseName
                     _state.update { it.copy(databaseName = dbName) }
-                    initializeAfterDatabaseSwitch()
+                    savedStateHandle[KEY_DATABASE_NAME] = dbName
+                    initializeAfterDatabaseSwitch(dbChanged = dbChanged)
                 } else {
                     _state.value = FilterUiState.EMPTY
                     lastFetchedSubjectIds = null
@@ -56,27 +73,58 @@ class FilterViewModel(
                 _state.update { it.copy(submissionMode = mode) }
             }
         }
+        viewModelScope.launch {
+            filterStateHolder.selectedSubjectIds.collect { subjectIds ->
+                _state.update { it.copy(selectedSubjectIds = subjectIds) }
+                savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = subjectIds.toList()
+                val subjectsForSystems = applyFiltersUseCase.subjectsForSystemsFetch(subjectIds)
+                fetchSystemsForSubjects(subjectsForSystems)
+                updatePreviewQuestionCountInternal()
+            }
+        }
+        viewModelScope.launch {
+            filterStateHolder.selectedSystemIds.collect { systemIds ->
+                _state.update { it.copy(selectedSystemIds = systemIds) }
+                savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = systemIds.toList()
+                updatePreviewQuestionCountInternal()
+            }
+        }
+        viewModelScope.launch {
+            filterStateHolder.performanceFilter.collect { filter ->
+                _state.update { it.copy(performanceFilter = filter) }
+                savedStateHandle[KEY_PERFORMANCE_FILTER] = filter.name
+                updatePreviewQuestionCountInternal()
+            }
+        }
     }
 
-    private suspend fun initializeAfterDatabaseSwitch() {
+    private suspend fun initializeAfterDatabaseSwitch(dbChanged: Boolean) {
         if (isInitializing) return
         isInitializing = true
         try {
-            _state.update {
-                it.copy(
-                    selectedSubjectIds = emptySet(),
-                    selectedSystemIds = emptySet(),
-                    performanceFilter = PerformanceFilter.ALL,
-                    previewQuestionCount = 0,
-                    isLoggingEnabled = settingsRepository.isLoggingEnabled.value,
-                    submissionMode = settingsRepository.submissionMode.value,
-                )
+            if (dbChanged) {
+                savedStateHandle.remove<List<Long>>(KEY_SELECTED_SUBJECT_IDS)
+                savedStateHandle.remove<List<Long>>(KEY_SELECTED_SYSTEM_IDS)
+                savedStateHandle.remove<String>(KEY_PERFORMANCE_FILTER)
+                filterStateHolder.reset()
+            } else {
+                val savedSubjectIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SUBJECT_IDS)?.toSet()
+                if (savedSubjectIds != null) {
+                    filterStateHolder.updateSubjectIds(savedSubjectIds)
+                }
+                val savedSystemIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SYSTEM_IDS)?.toSet()
+                if (savedSystemIds != null) {
+                    filterStateHolder.updateSystemIds(savedSystemIds)
+                }
+                val savedPerformanceFilterName = savedStateHandle.get<String>(KEY_PERFORMANCE_FILTER)
+                if (savedPerformanceFilterName != null) {
+                    runCatching { PerformanceFilter.valueOf(savedPerformanceFilterName) }.getOrNull()?.let {
+                        filterStateHolder.updatePerformanceFilter(it)
+                    }
+                }
             }
-            lastFetchedSubjectIds = null
 
             fetchSubjects()
-            fetchSystemsForSubjects(null)
-            updatePreviewQuestionCountInternal()
         } finally {
             isInitializing = false
         }
@@ -123,8 +171,7 @@ class FilterViewModel(
 
     fun applySelectedSubjects(newSubjectIds: Set<Long>) {
         viewModelScope.launch {
-            val previouslySelectedSystems = state.value.selectedSystemIds
-            _state.update { it.copy(selectedSubjectIds = newSubjectIds) }
+            val previouslySelectedSystems = filterStateHolder.selectedSystemIds.value
             filterStateHolder.updateSubjectIds(newSubjectIds)
 
             val db = activeDatabaseHolder.databaseProvider.value
@@ -133,13 +180,7 @@ class FilterViewModel(
                 newSubjectIds = newSubjectIds,
                 previouslySelectedSystems = previouslySelectedSystems,
             )
-            _state.update { it.copy(selectedSystemIds = prunedSelectedSystems) }
             filterStateHolder.updateSystemIds(prunedSelectedSystems)
-
-            val subjectsForSystems = applyFiltersUseCase.subjectsForSystemsFetch(newSubjectIds)
-            fetchSystemsForSubjects(subjectsForSystems)
-
-            updatePreviewQuestionCountInternal()
         }
     }
 
@@ -148,49 +189,34 @@ class FilterViewModel(
             val db = activeDatabaseHolder.databaseProvider.value
             val normalizedSelection = applyFiltersUseCase.normalizeSelectedSystems(
                 db = db,
-                selectedSubjectIds = state.value.selectedSubjectIds,
+                selectedSubjectIds = filterStateHolder.selectedSubjectIds.value,
                 newSystemIds = newSystemIds,
             )
-
-            _state.update { it.copy(selectedSystemIds = normalizedSelection) }
             filterStateHolder.updateSystemIds(normalizedSelection)
-            updatePreviewQuestionCountInternal()
         }
     }
 
     fun setPerformanceFilter(filter: PerformanceFilter) {
-        _state.update { it.copy(performanceFilter = filter) }
         filterStateHolder.updatePerformanceFilter(filter)
-        viewModelScope.launch {
-            updatePreviewQuestionCountInternal()
-        }
     }
 
     fun clearAllFilters() {
-        viewModelScope.launch {
-            _state.update {
-                it.copy(
-                    selectedSubjectIds = emptySet(),
-                    selectedSystemIds = emptySet(),
-                    performanceFilter = PerformanceFilter.ALL,
-                )
-            }
-            filterStateHolder.reset()
-            updatePreviewQuestionCountInternal()
-        }
+        filterStateHolder.reset()
     }
 
     private suspend fun updatePreviewQuestionCountInternal() {
         val currentState = state.value
         val db = activeDatabaseHolder.databaseProvider.value
-        val count = runCatching {
-            applyFiltersUseCase.previewQuestionCount(
-                db = db,
-                selectedSubjectIds = currentState.selectedSubjectIds,
-                selectedSystemIds = currentState.selectedSystemIds,
-                performanceFilter = currentState.performanceFilter,
-            )
-        }.getOrDefault(0)
+        val count = withContext(Dispatchers.IO) {
+            runCatching {
+                applyFiltersUseCase.previewQuestionCount(
+                    db = db,
+                    selectedSubjectIds = currentState.selectedSubjectIds,
+                    selectedSystemIds = currentState.selectedSystemIds,
+                    performanceFilter = currentState.performanceFilter,
+                )
+            }.getOrDefault(0)
+        }
         _state.update { it.copy(previewQuestionCount = count) }
     }
 
