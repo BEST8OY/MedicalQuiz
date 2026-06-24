@@ -12,20 +12,23 @@ import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.ui.state.FilterUiState
 import com.medqb.app.shared.utils.Resource
 import dev.zacsweers.metro.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Inject
@@ -43,14 +46,15 @@ class FilterViewModel(
         const val KEY_SELECTED_SUBJECT_IDS = "selected_subject_ids"
         const val KEY_SELECTED_SYSTEM_IDS = "selected_system_ids"
         const val KEY_PERFORMANCE_FILTER = "performance_filter"
+
+        private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
     }
 
     private val _state = MutableStateFlow(FilterUiState.EMPTY)
     val state: StateFlow<FilterUiState> = _state.asStateFlow()
 
-    private var lastFetchedSubjectIds: List<Long>? = null
-    private var initJob: Job? = null
-    private var fetchJob: Job? = null
+    private val _subjectsRetry = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val _systemsRetry = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     init {
         val restoredDbName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
@@ -58,55 +62,103 @@ class FilterViewModel(
             _state.update { it.copy(databaseName = restoredDbName) }
         }
 
+        setupDatabaseNameTracking()
+        setupSubjectsFlow()
+        setupSystemsFlow()
+        setupPreviewCountFlow()
+        setupSettingsCollectors()
+        restoreSavedFilters()
+    }
+
+    private fun setupDatabaseNameTracking() {
         activeDatabaseHolder.databaseName
             .onEach { dbName ->
                 if (dbName.isNotEmpty()) {
                     val dbChanged = dbName != _state.value.databaseName
                     _state.update { it.copy(databaseName = dbName) }
                     savedStateHandle[KEY_DATABASE_NAME] = dbName
-                    initializeAfterDatabaseSwitch(dbChanged = dbChanged)
+                    if (dbChanged) {
+                        savedStateHandle.remove<List<Long>>(KEY_SELECTED_SUBJECT_IDS)
+                        savedStateHandle.remove<List<Long>>(KEY_SELECTED_SYSTEM_IDS)
+                        savedStateHandle.remove<String>(KEY_PERFORMANCE_FILTER)
+                        filterStateHolder.reset()
+                    }
                 } else {
                     val restoredName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
                     _state.update { it.copy(databaseName = restoredName) }
-                    lastFetchedSubjectIds = null
                 }
             }
             .launchIn(viewModelScope)
-        settingsRepository.isLoggingEnabled
-            .onEach { enabled -> _state.update { it.copy(isLoggingEnabled = enabled) } }
-            .launchIn(viewModelScope)
-        settingsRepository.submissionMode
-            .onEach { mode -> _state.update { it.copy(submissionMode = mode) } }
-            .launchIn(viewModelScope)
-        filterStateHolder.selectedSubjectIds
-            .onEach { subjectIds ->
-                _state.update { it.copy(selectedSubjectIds = subjectIds) }
-                savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = subjectIds.toList()
-                val subjectsForSystems = applyFiltersUseCase.subjectsForSystemsFetch(subjectIds)
-                fetchSystemsForSubjects(subjectsForSystems)
-            }
-            .launchIn(viewModelScope)
-        filterStateHolder.selectedSystemIds
-            .onEach { systemIds ->
-                _state.update { it.copy(selectedSystemIds = systemIds) }
-                savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = systemIds.toList()
-            }
-            .launchIn(viewModelScope)
-        filterStateHolder.performanceFilter
-            .onEach { filter ->
-                _state.update { it.copy(performanceFilter = filter) }
-                savedStateHandle[KEY_PERFORMANCE_FILTER] = filter.name
-            }
-            .launchIn(viewModelScope)
+    }
 
+    private fun setupSubjectsFlow() {
+        combine(
+            activeDatabaseHolder.databaseProvider,
+            _subjectsRetry.map { activeDatabaseHolder.databaseProvider.value },
+        ) { db, _ -> db }
+            .distinctUntilChangedBy { it?.hashCode() }
+            .flatMapLatest { db ->
+                flow {
+                    if (db == null) {
+                        emit(Resource.Success(emptyList()))
+                        return@flow
+                    }
+                    emit(Resource.Loading)
+                    try {
+                        val subjects = withContext(Dispatchers.IO) { db.getSubjects() }
+                        emit(Resource.Success(subjects))
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        val msg = e.message ?: "Unknown error"
+                        emit(Resource.Error(msg))
+                        snackbarSink.emitSnackbar("Error fetching subjects: $msg")
+                    }
+                }
+            }
+            .onEach { resource -> _state.update { it.copy(subjectsResource = resource) } }
+            .launchIn(viewModelScope)
+    }
+
+    private fun setupSystemsFlow() {
+        combine(
+            activeDatabaseHolder.databaseProvider,
+            filterStateHolder.selectedSubjectIds,
+            _systemsRetry.map { filterStateHolder.selectedSubjectIds.value },
+        ) { db, subjectIds, _ -> db to subjectIds }
+            .distinctUntilChangedBy { (db, ids) -> "${db?.hashCode()}:${ids}" }
+            .flatMapLatest { (db, subjectIds) ->
+                flow {
+                    if (db == null || subjectIds.isEmpty()) {
+                        emit(Resource.Success(emptyList()))
+                        return@flow
+                    }
+                    emit(Resource.Loading)
+                    try {
+                        val systems = withContext(Dispatchers.IO) { db.getSystems(subjectIds.toList()) }
+                        emit(Resource.Success(systems))
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        val msg = e.message ?: "Unknown error"
+                        emit(Resource.Error(msg))
+                        snackbarSink.emitSnackbar("Error fetching systems: $msg")
+                    }
+                }
+            }
+            .onEach { resource -> _state.update { it.copy(systemsResource = resource) } }
+            .launchIn(viewModelScope)
+    }
+
+    private fun setupPreviewCountFlow() {
         combine(
             filterStateHolder.selectedSubjectIds,
             filterStateHolder.selectedSystemIds,
             filterStateHolder.performanceFilter,
-        ) { subjects, systems, perf -> Triple(subjects, systems, perf) }
-            .flatMapLatest { (subjects, systems, perf) ->
+            activeDatabaseHolder.databaseProvider,
+        ) { subjects, systems, perf, db -> Quad(subjects, systems, perf, db) }
+            .flatMapLatest { (subjects, systems, perf, db) ->
                 flow {
-                    val db = activeDatabaseHolder.databaseProvider.value
                     val count = withContext(Dispatchers.IO) {
                         runCatching {
                             applyFiltersUseCase.previewQuestionCount(
@@ -124,85 +176,44 @@ class FilterViewModel(
             .launchIn(viewModelScope)
     }
 
-    private fun initializeAfterDatabaseSwitch(dbChanged: Boolean) {
-        initJob?.cancel()
-        fetchJob?.cancel()
-        lastFetchedSubjectIds = null
+    private fun setupSettingsCollectors() {
+        settingsRepository.isLoggingEnabled
+            .onEach { enabled -> _state.update { it.copy(isLoggingEnabled = enabled) } }
+            .launchIn(viewModelScope)
+        settingsRepository.submissionMode
+            .onEach { mode -> _state.update { it.copy(submissionMode = mode) } }
+            .launchIn(viewModelScope)
+    }
 
-        initJob = viewModelScope.launch {
-            if (dbChanged) {
-                savedStateHandle.remove<List<Long>>(KEY_SELECTED_SUBJECT_IDS)
-                savedStateHandle.remove<List<Long>>(KEY_SELECTED_SYSTEM_IDS)
-                savedStateHandle.remove<String>(KEY_PERFORMANCE_FILTER)
-                _state.update { it.copy(previewQuestionCount = 0) }
-                filterStateHolder.reset()
-            } else {
-                val savedSubjectIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SUBJECT_IDS)?.toSet()
-                if (savedSubjectIds != null) {
-                    filterStateHolder.updateSubjectIds(savedSubjectIds)
-                }
-                val savedSystemIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SYSTEM_IDS)?.toSet()
-                if (savedSystemIds != null) {
-                    filterStateHolder.updateSystemIds(savedSystemIds)
-                }
-                val savedPerformanceFilterName = savedStateHandle.get<String>(KEY_PERFORMANCE_FILTER)
-                if (savedPerformanceFilterName != null) {
-                    runCatching { PerformanceFilter.valueOf(savedPerformanceFilterName) }.getOrNull()?.let {
-                        filterStateHolder.updatePerformanceFilter(it)
-                    }
-                }
+    private fun restoreSavedFilters() {
+        savedStateHandle.get<List<Long>>(KEY_SELECTED_SUBJECT_IDS)?.toSet()?.let {
+            filterStateHolder.updateSubjectIds(it)
+        }
+        savedStateHandle.get<List<Long>>(KEY_SELECTED_SYSTEM_IDS)?.toSet()?.let {
+            filterStateHolder.updateSystemIds(it)
+        }
+        savedStateHandle.get<String>(KEY_PERFORMANCE_FILTER)?.let { name ->
+            runCatching { PerformanceFilter.valueOf(name) }.getOrNull()?.let {
+                filterStateHolder.updatePerformanceFilter(it)
             }
-
-            fetchSubjects()
         }
     }
 
     fun fetchSubjects() {
-        fetchJob?.cancel()
-        fetchJob = viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(subjectsResource = Resource.Loading) }
-            val db = activeDatabaseHolder.databaseProvider.value
-            try {
-                val subjects = db?.getSubjects() ?: emptyList()
-                _state.update { it.copy(subjectsResource = Resource.Success(subjects)) }
-            } catch (e: Exception) {
-                val errorMessage = e.message ?: "Unknown error"
-                _state.update { it.copy(subjectsResource = Resource.Error(errorMessage)) }
-                emitSnackbar("Error fetching subjects: $errorMessage")
-            }
-        }
+        _subjectsRetry.tryEmit(Unit)
     }
 
     fun fetchSystemsForSubjects(subjectIds: List<Long>?) {
-        if (shouldSkipSystemFetch(subjectIds)) return
-        lastFetchedSubjectIds = subjectIds?.toList() ?: emptyList()
-
-        fetchJob?.cancel()
-        fetchJob = viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(systemsResource = Resource.Loading) }
-            val db = activeDatabaseHolder.databaseProvider.value
-            try {
-                val systems = db?.getSystems(subjectIds) ?: emptyList()
-                _state.update { it.copy(systemsResource = Resource.Success(systems)) }
-            } catch (e: Exception) {
-                val errorMessage = e.message ?: "Unknown error"
-                _state.update { it.copy(systemsResource = Resource.Error(errorMessage)) }
-                emitSnackbar("Error fetching systems: $errorMessage")
-            }
+        if (subjectIds != null) {
+            filterStateHolder.updateSubjectIds(subjectIds.toSet())
         }
-    }
-
-    private fun shouldSkipSystemFetch(subjectIds: List<Long>?): Boolean {
-        val lastFetched = lastFetchedSubjectIds ?: return false
-        val normalizedRequested = subjectIds?.toSet() ?: emptySet()
-        return lastFetched.toSet() == normalizedRequested
+        _systemsRetry.tryEmit(Unit)
     }
 
     fun applySelectedSubjects(newSubjectIds: Set<Long>) {
         viewModelScope.launch {
             val previouslySelectedSystems = filterStateHolder.selectedSystemIds.value
             filterStateHolder.updateSubjectIds(newSubjectIds)
-
             val db = activeDatabaseHolder.databaseProvider.value
             val prunedSelectedSystems = applyFiltersUseCase.pruneSystemsForSubjects(
                 db = db,
@@ -231,11 +242,5 @@ class FilterViewModel(
 
     fun clearAllFilters() {
         filterStateHolder.reset()
-    }
-
-    private fun emitSnackbar(message: String) {
-        viewModelScope.launch {
-            snackbarSink.emitSnackbar(message)
-        }
     }
 }
