@@ -308,6 +308,8 @@ class QuizViewModel(
                     )
                     updatePerformanceState(question.id, correctAnswerId, selectedAnswerId)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.update { it.copy(answerSubmitted = false) }
                 emitSnackbar("Error saving answer: ${e.message}")
@@ -398,6 +400,8 @@ class QuizViewModel(
                     )
                 }
                 loadQuestion(newIndex)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false) }
                 Logger.e("QuizViewModel", "Error loading filtered questions", e)
@@ -413,6 +417,8 @@ class QuizViewModel(
                 db?.clearLogForQuestion(questionId)
                 _state.update { it.copy(currentPerformance = null) }
                 emitSnackbar("Log cleared for current question")
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 emitSnackbar("Failed to clear log: ${e.message}")
             }
