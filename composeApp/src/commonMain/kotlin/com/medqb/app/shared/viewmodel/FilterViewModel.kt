@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
@@ -67,6 +66,7 @@ class FilterViewModel(
         setupSystemsFlow()
         setupPreviewCountFlow()
         setupSettingsCollectors()
+        setupFilterSelectionSync()
         restoreSavedFilters()
     }
 
@@ -96,7 +96,6 @@ class FilterViewModel(
             activeDatabaseHolder.databaseProvider,
             _subjectsRetry.map { activeDatabaseHolder.databaseProvider.value },
         ) { db, _ -> db }
-            .distinctUntilChangedBy { it?.hashCode() }
             .flatMapLatest { db ->
                 flow {
                     if (db == null) {
@@ -126,7 +125,6 @@ class FilterViewModel(
             filterStateHolder.selectedSubjectIds,
             _systemsRetry.map { filterStateHolder.selectedSubjectIds.value },
         ) { db, subjectIds, _ -> db to subjectIds }
-            .distinctUntilChangedBy { (db, ids) -> "${db?.hashCode()}:${ids}" }
             .flatMapLatest { (db, subjectIds) ->
                 flow {
                     if (db == null) {
@@ -178,6 +176,18 @@ class FilterViewModel(
             .launchIn(viewModelScope)
     }
 
+    private fun setupFilterSelectionSync() {
+        filterStateHolder.selectedSubjectIds
+            .onEach { ids -> _state.update { it.copy(selectedSubjectIds = ids) } }
+            .launchIn(viewModelScope)
+        filterStateHolder.selectedSystemIds
+            .onEach { ids -> _state.update { it.copy(selectedSystemIds = ids) } }
+            .launchIn(viewModelScope)
+        filterStateHolder.performanceFilter
+            .onEach { filter -> _state.update { it.copy(performanceFilter = filter) } }
+            .launchIn(viewModelScope)
+    }
+
     private fun setupSettingsCollectors() {
         settingsRepository.isLoggingEnabled
             .onEach { enabled -> _state.update { it.copy(isLoggingEnabled = enabled) } }
@@ -213,9 +223,9 @@ class FilterViewModel(
     }
 
     fun applySelectedSubjects(newSubjectIds: Set<Long>) {
-        val previouslySelectedSystems = filterStateHolder.selectedSystemIds.value
-        filterStateHolder.updateSubjectIds(newSubjectIds)
         viewModelScope.launch {
+            val previouslySelectedSystems = filterStateHolder.selectedSystemIds.value
+            filterStateHolder.updateSubjectIds(newSubjectIds)
             val db = activeDatabaseHolder.databaseProvider.value
             val prunedSelectedSystems = applyFiltersUseCase.pruneSystemsForSubjects(
                 db = db,
@@ -227,7 +237,6 @@ class FilterViewModel(
     }
 
     fun applySelectedSystems(newSystemIds: Set<Long>) {
-        filterStateHolder.updateSystemIds(newSystemIds)
         viewModelScope.launch {
             val db = activeDatabaseHolder.databaseProvider.value
             val normalizedSelection = applyFiltersUseCase.normalizeSelectedSystems(
