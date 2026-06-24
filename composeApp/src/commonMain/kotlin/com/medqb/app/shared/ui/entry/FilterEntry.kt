@@ -8,6 +8,7 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.lifecycle.createSavedStateHandle
 import com.medqb.app.shared.di.AppGraph
 import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.navigation.MedQBRoutes
@@ -25,19 +26,12 @@ fun FilterEntry(
     val filterVM = viewModel<FilterViewModel>(
         factory = viewModelFactory {
             initializer {
-                graph.createFilterViewModel()
+                graph.createFilterViewModel(
+                    createSavedStateHandle()
+                )
             }
         }
     )
-
-    LaunchedEffect(filterVM) {
-        val s = filterVM.state.value
-        workflow.onFilterSubjectsSync(
-            s.selectedSubjectIds,
-            s.selectedSystemIds,
-            s.performanceFilter,
-        )
-    }
 
     val onStartQuiz = dropUnlessResumed {
         workflow.onStandardQuizLaunchPrepared()
