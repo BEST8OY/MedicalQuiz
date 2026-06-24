@@ -45,7 +45,7 @@ class FilterViewModel(
     private var initJob: Job? = null
     private var subjectsJob: Job? = null
     private var systemsJob: Job? = null
-    private var previewGeneration = 0L
+    private var dbGeneration = 0L
     private var previewCountJob: Job? = null
 
     init {
@@ -108,7 +108,8 @@ class FilterViewModel(
         subjectsJob?.cancel()
         systemsJob?.cancel()
         previewCountJob?.cancel()
-        previewGeneration++
+        dbGeneration++
+        lastFetchedSubjectIds = null
 
         initJob = viewModelScope.launch {
             if (dbChanged) {
@@ -140,13 +141,16 @@ class FilterViewModel(
 
     fun fetchSubjects() {
         subjectsJob?.cancel()
+        val gen = dbGeneration
         subjectsJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(subjectsResource = Resource.Loading) }
             val db = activeDatabaseHolder.databaseProvider.value
             try {
                 val subjects = db?.getSubjects() ?: emptyList()
+                if (dbGeneration != gen) return@launch
                 _state.update { it.copy(subjectsResource = Resource.Success(subjects)) }
             } catch (e: Exception) {
+                if (dbGeneration != gen) return@launch
                 val errorMessage = e.message ?: "Unknown error"
                 _state.update { it.copy(subjectsResource = Resource.Error(errorMessage)) }
                 emitSnackbar("Error fetching subjects: $errorMessage")
@@ -159,13 +163,16 @@ class FilterViewModel(
         lastFetchedSubjectIds = subjectIds?.toList() ?: emptyList()
 
         systemsJob?.cancel()
+        val gen = dbGeneration
         systemsJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(systemsResource = Resource.Loading) }
             val db = activeDatabaseHolder.databaseProvider.value
             try {
                 val systems = db?.getSystems(subjectIds) ?: emptyList()
+                if (dbGeneration != gen) return@launch
                 _state.update { it.copy(systemsResource = Resource.Success(systems)) }
             } catch (e: Exception) {
+                if (dbGeneration != gen) return@launch
                 val errorMessage = e.message ?: "Unknown error"
                 _state.update { it.copy(systemsResource = Resource.Error(errorMessage)) }
                 emitSnackbar("Error fetching systems: $errorMessage")
@@ -215,7 +222,7 @@ class FilterViewModel(
     }
 
     private suspend fun updatePreviewQuestionCountInternal() {
-        val gen = previewGeneration
+        val gen = dbGeneration
         val db = activeDatabaseHolder.databaseProvider.value
         val subjectIds = filterStateHolder.selectedSubjectIds.value
         val systemIds = filterStateHolder.selectedSystemIds.value
@@ -230,7 +237,7 @@ class FilterViewModel(
                 )
             }.getOrDefault(0)
         }
-        if (previewGeneration != gen) return
+        if (dbGeneration != gen) return
         _state.update { it.copy(previewQuestionCount = count) }
     }
 
