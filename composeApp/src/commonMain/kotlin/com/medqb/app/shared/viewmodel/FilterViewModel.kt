@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.SettingsRepository
-import com.medqb.app.shared.data.database.DatabaseProvider
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.SnackbarSink
@@ -44,6 +43,9 @@ class FilterViewModel(
 
     private var lastFetchedSubjectIds: List<Long>? = null
     private var initJob: Job? = null
+    private var subjectsJob: Job? = null
+    private var systemsJob: Job? = null
+    private var previewGeneration = 0L
 
     init {
         val restoredDbName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
@@ -59,7 +61,8 @@ class FilterViewModel(
                     savedStateHandle[KEY_DATABASE_NAME] = dbName
                     initializeAfterDatabaseSwitch(dbChanged = dbChanged)
                 } else {
-                    _state.value = FilterUiState.EMPTY
+                    val restoredName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
+                    _state.update { it.copy(databaseName = restoredName) }
                     lastFetchedSubjectIds = null
                 }
             }
@@ -101,11 +104,16 @@ class FilterViewModel(
 
     private fun initializeAfterDatabaseSwitch(dbChanged: Boolean) {
         initJob?.cancel()
+        subjectsJob?.cancel()
+        systemsJob?.cancel()
+        previewGeneration++
+
         initJob = viewModelScope.launch {
             if (dbChanged) {
                 savedStateHandle.remove<List<Long>>(KEY_SELECTED_SUBJECT_IDS)
                 savedStateHandle.remove<List<Long>>(KEY_SELECTED_SYSTEM_IDS)
                 savedStateHandle.remove<String>(KEY_PERFORMANCE_FILTER)
+                _state.update { it.copy(previewQuestionCount = 0) }
                 filterStateHolder.reset()
             } else {
                 val savedSubjectIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SUBJECT_IDS)?.toSet()
@@ -129,7 +137,8 @@ class FilterViewModel(
     }
 
     fun fetchSubjects() {
-        viewModelScope.launch(Dispatchers.IO) {
+        subjectsJob?.cancel()
+        subjectsJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(subjectsResource = Resource.Loading) }
             val db = activeDatabaseHolder.databaseProvider.value
             try {
@@ -147,7 +156,8 @@ class FilterViewModel(
         if (shouldSkipSystemFetch(subjectIds)) return
         lastFetchedSubjectIds = subjectIds?.toList() ?: emptyList()
 
-        viewModelScope.launch(Dispatchers.IO) {
+        systemsJob?.cancel()
+        systemsJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(systemsResource = Resource.Loading) }
             val db = activeDatabaseHolder.databaseProvider.value
             try {
@@ -204,7 +214,7 @@ class FilterViewModel(
 
     private suspend fun updatePreviewQuestionCountInternal() {
         val currentState = state.value
-        val dbName = currentState.databaseName
+        val gen = previewGeneration
         val db = activeDatabaseHolder.databaseProvider.value
         val count = withContext(Dispatchers.IO) {
             runCatching {
@@ -216,7 +226,7 @@ class FilterViewModel(
                 )
             }.getOrDefault(0)
         }
-        if (_state.value.databaseName != dbName) return
+        if (previewGeneration != gen) return
         _state.update { it.copy(previewQuestionCount = count) }
     }
 
