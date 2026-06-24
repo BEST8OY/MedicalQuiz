@@ -1,10 +1,12 @@
 package com.medqb.app.shared.ui.screens.quiz
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -247,9 +249,18 @@ private fun QuizQuestionCard(
 
     if (question == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            if (state.isLoading) {
+            AnimatedVisibility(
+                visible = state.isLoading,
+                enter = fadeIn(animationSpec = defaultEffectsSpec),
+                exit = fadeOut(animationSpec = defaultEffectsSpec)
+            ) {
                 LoadingIndicator()
-            } else {
+            }
+            AnimatedVisibility(
+                visible = !state.isLoading,
+                enter = fadeIn(animationSpec = defaultEffectsSpec),
+                exit = fadeOut(animationSpec = defaultEffectsSpec)
+            ) {
                 Text(
                     text = "Select a question to begin",
                     style = MaterialTheme.typography.bodyMedium,
@@ -314,14 +325,22 @@ private fun QuizQuestionCard(
         viewModel.saveScrollPosition(question.id, scrollState.value)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp)
-            .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    AnimatedContent(
+        targetState = question.id,
+        transitionSpec = {
+            fadeIn(animationSpec = defaultEffectsSpec) togetherWith
+                fadeOut(animationSpec = defaultEffectsSpec)
+        },
+        label = "question_transition"
+    ) { _ ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp)
+                .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
         // Question card - elevated primary content
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
@@ -430,6 +449,8 @@ private fun QuizQuestionCard(
             ),
             exit = fadeOut(
                 animationSpec = defaultEffectsSpec,
+            ) + shrinkVertically(
+                animationSpec = defaultSpatialSpec,
             )
         ) {
             Column {
@@ -448,12 +469,15 @@ private fun QuizQuestionCard(
             ),
             exit = fadeOut(
                 animationSpec = defaultEffectsSpec,
+            ) + shrinkVertically(
+                animationSpec = defaultSpatialSpec,
             )
         ) {
             Column {
                 Spacer(modifier = Modifier.height(12.dp))
                 PerformanceCard(performance = state.currentPerformance)
             }
+        }
         }
     }
 }
