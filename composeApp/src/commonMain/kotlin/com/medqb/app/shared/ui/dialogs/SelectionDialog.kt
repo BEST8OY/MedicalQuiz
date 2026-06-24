@@ -103,7 +103,7 @@ fun SystemFilterDialog(
         isVisible = isVisible,
         title = "Select systems",
         resource = resource,
-        emptyMessage = "Select at least one subject first to see available systems.",
+        emptyMessage = "No systems available in this database.",
         selectedIds = selectedIds,
         labelProvider = { it.name },
         idProvider = { it.id },
