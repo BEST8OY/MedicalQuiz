@@ -28,6 +28,7 @@ import kotlinx.serialization.json.Json
 @Inject
 @SingleIn(AppScope::class)
 class SettingsRepository {
+    // Process-scoped: intentionally not cancelled — survives config changes
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val fileMutex = Mutex()
 

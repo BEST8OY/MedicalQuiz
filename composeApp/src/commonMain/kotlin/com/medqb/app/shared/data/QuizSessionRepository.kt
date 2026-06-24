@@ -32,6 +32,7 @@ import kotlin.time.Clock
 class QuizSessionRepository(
     private val activeDatabaseHolder: ActiveDatabaseHolder,
 ) {
+    // Process-scoped: intentionally not cancelled — survives config changes
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _historyEntries = MutableStateFlow<List<QuizSession>>(emptyList())
