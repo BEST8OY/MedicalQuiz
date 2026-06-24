@@ -86,8 +86,10 @@ fun App() {
 
         DisposableEffect(graph.userDataManager) {
             onDispose {
-                scope.launch(Dispatchers.IO) {
+                @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
+                kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
                     graph.userDataManager.close()
+                    graph.activeDatabaseHolder.closeDatabase()
                 }
             }
         }

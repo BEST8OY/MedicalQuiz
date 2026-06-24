@@ -62,7 +62,7 @@ class LocalContentRepository {
         val saveDir = StorageProvider.getAppStorageDirectory() + "/saved_media"
         val sanitizedName = fileName.substringAfterLast("/").substringAfterLast("\\")
         val destPath = "$saveDir/$sanitizedName"
-        if (!java.io.File(destPath).canonicalPath.startsWith(java.io.File(saveDir).canonicalPath)) {
+        if (!FileSystemHelper.isSafePath(saveDir, destPath)) {
             return@withContext SaveMediaResult.InvalidFileName
         }
         val sourcePath = mediaFilePath(fileName)

@@ -35,14 +35,6 @@ fun QuizEntry(
         }
     )
 
-    LaunchedEffect(quizVM) {
-        quizVM.state.first { it.databaseName.isNotEmpty() }
-        if (quizVM.state.value.questionIds.isEmpty()) {
-            val startFromBeginning = quizVM.state.value.currentQuestionIndex <= 0
-            quizVM.loadFilteredQuestionIds(startFromBeginning = startFromBeginning)
-        }
-    }
-
     QuizRoot(
         viewModel = quizVM,
         mediaHandler = mediaHandler,

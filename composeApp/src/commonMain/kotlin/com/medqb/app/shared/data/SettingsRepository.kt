@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -27,6 +29,7 @@ import kotlinx.serialization.json.Json
 @SingleIn(AppScope::class)
 class SettingsRepository {
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val fileMutex = Mutex()
 
     private val _showMetadata = MutableStateFlow(true)
     val showMetadata: StateFlow<Boolean> = _showMetadata.asStateFlow()
@@ -70,7 +73,9 @@ class SettingsRepository {
     }
 
     suspend fun refreshSettingsAsync(): SettingsSnapshot = withContext(Dispatchers.IO) {
-        loadSettingsInternal()
+        fileMutex.withLock {
+            loadSettingsInternal()
+        }
         SettingsSnapshot(
             showMetadata = _showMetadata.value,
             fontScalePreference = _fontScalePreference.value,
@@ -80,7 +85,9 @@ class SettingsRepository {
     }
 
     suspend fun saveSettingsAsync() = withContext(Dispatchers.IO) {
-        saveSettingsInternal()
+        fileMutex.withLock {
+            saveSettingsInternal()
+        }
     }
 
     private fun loadSettingsInternal() {
