@@ -177,7 +177,7 @@ private fun RichTextList(
             Row(modifier = Modifier.fillMaxWidth()) {
                 MaterialText(
                     text = markerProvider(index),
-                    style = MaterialTheme.typography.bodyLarge.scaledBy(richTextScale.proseScale),
+                    style = MaterialTheme.typography.bodyMedium.scaledBy(richTextScale.proseScale),
                     modifier = Modifier.padding(end = 12.dp),
                 )
                 RichTextParagraph(
@@ -231,13 +231,16 @@ private fun AbstractCard(
                 )
             }
             if (block.blocks.isNotEmpty()) {
-                RichText(
-                    blocks = block.blocks,
-                    onLinkClick = onLinkClick,
-                    onTooltipClick = onTooltipClick?.let { callback ->
-                        { message -> callback(RichTextTooltipContent(title = message, message = message)) }
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    block.blocks.forEach { childBlock ->
+                        RichTextBlockRenderer(
+                            block = childBlock,
+                            onLinkClick = onLinkClick,
+                            onMediaClick = {},
+                            onTooltipClick = onTooltipClick
+                        )
                     }
-                )
+                }
             }
         }
     }

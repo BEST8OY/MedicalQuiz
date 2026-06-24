@@ -103,5 +103,8 @@ internal fun mediaModelForSource(source: String, mediaRef: String?): Any? {
  * @return The filename portion after the last '/', or null if blank
  */
 internal fun extractMediaRef(source: String): String? {
-    return source.substringAfterLast('/', "").takeIf { it.isNotBlank() }
+    return source.substringAfterLast('/', "")
+        .substringBefore('?')
+        .substringBefore('#')
+        .takeIf { it.isNotBlank() }
 }
