@@ -19,20 +19,29 @@ import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private const val MAX_SCROLL_CACHE_SIZE = 100
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @Inject
 class QuizViewModel(
     private val settingsRepository: SettingsRepository,
@@ -71,13 +80,17 @@ class QuizViewModel(
     }
 
     private var sessionId: String = ""
-    private var loadJob: Job? = null
+    private val loadRequests = MutableSharedFlow<LoadRequest>(extraBufferCapacity = 1)
+
+    private data class LoadRequest(
+        val index: Int,
+        val resetAnswerState: Boolean,
+        val appendToHistory: Boolean,
+    )
 
     private fun updateSessionId(id: String) {
         sessionId = id
-        viewModelScope.launch(Dispatchers.Main) {
-            savedStateHandle[KEY_SESSION_ID] = id
-        }
+        savedStateHandle[KEY_SESSION_ID] = id
     }
 
     init {
@@ -108,6 +121,55 @@ class QuizViewModel(
                 }
             }
         }
+
+        loadRequests
+            .flatMapLatest { request ->
+                flow {
+                    val ids = state.value.questionIds
+                    val questionId = ids.getOrNull(request.index) ?: return@flow
+
+                    _state.update { it.copy(isLoading = true, currentPerformance = null) }
+                    val db = activeDatabaseHolder.databaseProvider.value
+                    try {
+                        val result = loadQuestionUseCase(
+                            db = db,
+                            questionId = questionId,
+                            isLoggingEnabled = state.value.isLoggingEnabled,
+                        )
+                        currentCoroutineContext().ensureActive()
+                        _state.update {
+                            it.copy(currentQuestionIndex = request.index)
+                                .copyWithQuestion(
+                                    question = result.question,
+                                    answers = result.answers,
+                                    resetAnswerState = request.resetAnswerState
+                                )
+                                .copy(currentPerformance = result.performance)
+                        }
+                        persistStateSnapshot()
+                        if (result.question != null) {
+                            textHighlightsRepository.loadHighlightsForQuestion(
+                                dbName = state.value.databaseName,
+                                questionId = result.question.id
+                            )
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Logger.e("QuizViewModel", "Error loading question $questionId", e)
+                        emitSnackbar("Failed to load question: ${e.message}")
+                    } finally {
+                        if (currentCoroutineContext()[Job]?.isActive == true) {
+                            if (request.appendToHistory) {
+                                appendToHistory()
+                            }
+                            _state.update { it.copy(isLoading = false) }
+                        }
+                    }
+                    emit(Unit)
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun restoreFromSavedState() {
@@ -186,49 +248,8 @@ class QuizViewModel(
         appendToHistory: Boolean = true,
     ) {
         val ids = state.value.questionIds
-        val questionId = ids.getOrNull(index) ?: return
-
-        loadJob?.cancel()
-        loadJob = viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isLoading = true, currentPerformance = null) }
-            val db = activeDatabaseHolder.databaseProvider.value
-            try {
-                val result = loadQuestionUseCase(
-                    db = db,
-                    questionId = questionId,
-                    isLoggingEnabled = state.value.isLoggingEnabled,
-                )
-                ensureActive()
-                _state.update {
-                    it.copy(currentQuestionIndex = index)
-                        .copyWithQuestion(
-                            question = result.question,
-                            answers = result.answers,
-                            resetAnswerState = resetAnswerState
-                        )
-                        .copy(currentPerformance = result.performance)
-                }
-                persistStateSnapshot()
-                if (result.question != null) {
-                    textHighlightsRepository.loadHighlightsForQuestion(
-                        dbName = state.value.databaseName,
-                        questionId = result.question.id
-                    )
-                }
-            } catch (e: CancellationException) {
-                // Ignore cancellation
-            } catch (e: Exception) {
-                Logger.e("QuizViewModel", "Error loading question $questionId", e)
-                emitSnackbar("Failed to load question: ${e.message}")
-            } finally {
-                if (isActive) {
-                    if (appendToHistory) {
-                        appendToHistory()
-                    }
-                    _state.update { it.copy(isLoading = false) }
-                }
-            }
-        }
+        if (ids.getOrNull(index) == null) return
+        loadRequests.tryEmit(LoadRequest(index, resetAnswerState, appendToHistory))
     }
 
     fun loadNext() {
@@ -399,16 +420,14 @@ class QuizViewModel(
     }
 
     private fun observeSettings() {
-        viewModelScope.launch {
-            settingsRepository.showMetadata.collect { visible ->
-                _state.update { it.copy(showMetadata = visible) }
+        combine(
+            settingsRepository.showMetadata,
+            settingsRepository.fontScalePreference,
+        ) { metadata, fontScale -> metadata to fontScale }
+            .onEach { (metadata, fontScale) ->
+                _state.update { it.copy(showMetadata = metadata, fontScalePreference = fontScale) }
             }
-        }
-        viewModelScope.launch {
-            settingsRepository.fontScalePreference.collect { scale ->
-                _state.update { it.copy(fontScalePreference = scale) }
-            }
-        }
+            .launchIn(viewModelScope)
     }
 
     private fun emitSnackbar(message: String) {

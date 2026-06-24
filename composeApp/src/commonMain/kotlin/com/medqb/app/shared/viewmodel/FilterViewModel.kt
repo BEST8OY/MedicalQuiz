@@ -25,7 +25,9 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @Inject
 class FilterViewModel(
     private val activeDatabaseHolder: ActiveDatabaseHolder,
@@ -56,8 +58,8 @@ class FilterViewModel(
             _state.update { it.copy(databaseName = restoredDbName) }
         }
 
-        viewModelScope.launch {
-            activeDatabaseHolder.databaseName.collect { dbName ->
+        activeDatabaseHolder.databaseName
+            .onEach { dbName ->
                 if (dbName.isNotEmpty()) {
                     val dbChanged = dbName != _state.value.databaseName
                     _state.update { it.copy(databaseName = dbName) }
@@ -69,37 +71,33 @@ class FilterViewModel(
                     lastFetchedSubjectIds = null
                 }
             }
-        }
-        viewModelScope.launch {
-            settingsRepository.isLoggingEnabled.collect { enabled ->
-                _state.update { it.copy(isLoggingEnabled = enabled) }
-            }
-        }
-        viewModelScope.launch {
-            settingsRepository.submissionMode.collect { mode ->
-                _state.update { it.copy(submissionMode = mode) }
-            }
-        }
-        viewModelScope.launch {
-            filterStateHolder.selectedSubjectIds.collect { subjectIds ->
+            .launchIn(viewModelScope)
+        settingsRepository.isLoggingEnabled
+            .onEach { enabled -> _state.update { it.copy(isLoggingEnabled = enabled) } }
+            .launchIn(viewModelScope)
+        settingsRepository.submissionMode
+            .onEach { mode -> _state.update { it.copy(submissionMode = mode) } }
+            .launchIn(viewModelScope)
+        filterStateHolder.selectedSubjectIds
+            .onEach { subjectIds ->
                 _state.update { it.copy(selectedSubjectIds = subjectIds) }
                 savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = subjectIds.toList()
                 val subjectsForSystems = applyFiltersUseCase.subjectsForSystemsFetch(subjectIds)
                 fetchSystemsForSubjects(subjectsForSystems)
             }
-        }
-        viewModelScope.launch {
-            filterStateHolder.selectedSystemIds.collect { systemIds ->
+            .launchIn(viewModelScope)
+        filterStateHolder.selectedSystemIds
+            .onEach { systemIds ->
                 _state.update { it.copy(selectedSystemIds = systemIds) }
                 savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = systemIds.toList()
             }
-        }
-        viewModelScope.launch {
-            filterStateHolder.performanceFilter.collect { filter ->
+            .launchIn(viewModelScope)
+        filterStateHolder.performanceFilter
+            .onEach { filter ->
                 _state.update { it.copy(performanceFilter = filter) }
                 savedStateHandle[KEY_PERFORMANCE_FILTER] = filter.name
             }
-        }
+            .launchIn(viewModelScope)
 
         combine(
             filterStateHolder.selectedSubjectIds,
