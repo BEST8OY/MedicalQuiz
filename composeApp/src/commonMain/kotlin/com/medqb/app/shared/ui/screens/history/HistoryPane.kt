@@ -5,7 +5,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleFloatingActionButton
@@ -369,33 +369,37 @@ private fun HistoryItemCard(
                 SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.tertiaryContainer
                 SwipeToDismissBoxValue.Settled -> Color.Transparent
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(cardShape)
-                    .background(backgroundColor)
-                    .padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = if (isDeleteDirection) Arrangement.End else Arrangement.Start,
+            Surface(
+                shape = cardShape,
+                color = backgroundColor,
+                modifier = Modifier.fillMaxSize(),
             ) {
-                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
-                    val actionTint = if (isDeleteDirection) {
-                        MaterialTheme.colorScheme.onErrorContainer
-                    } else {
-                        MaterialTheme.colorScheme.onTertiaryContainer
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = if (isDeleteDirection) Arrangement.End else Arrangement.Start,
+                ) {
+                    if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
+                        val actionTint = if (isDeleteDirection) {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        } else {
+                            MaterialTheme.colorScheme.onTertiaryContainer
+                        }
+                        Icon(
+                            imageVector = if (isDeleteDirection) Icons.Filled.Delete else Icons.Filled.Edit,
+                            contentDescription = null,
+                            tint = actionTint,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Text(
+                            text = if (isDeleteDirection) "Delete" else "Rename",
+                            color = actionTint,
+                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
                     }
-                    Icon(
-                        imageVector = if (isDeleteDirection) Icons.Filled.Delete else Icons.Filled.Edit,
-                        contentDescription = null,
-                        tint = actionTint,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Text(
-                        text = if (isDeleteDirection) "Delete" else "Rename",
-                        color = actionTint,
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
                 }
             }
         },
