@@ -14,16 +14,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.FilterAltOff
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.ButtonGroup
@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.SubmissionMode
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -53,6 +54,7 @@ internal fun FilterScreen(
     databaseName: String,
     subjectCount: Int,
     systemCount: Int,
+    performanceFilter: PerformanceFilter,
     performanceLabel: String,
     previewCount: Int,
     isLoggingEnabled: Boolean,
@@ -67,12 +69,9 @@ internal fun FilterScreen(
     onClearFilters: () -> Unit
 ) {
     val hasPreview = previewCount > 0
-    val hasFilters = subjectCount > 0 || systemCount > 0 || performanceLabel != "All Questions"
+    val hasFilters = subjectCount > 0 || systemCount > 0 || performanceFilter != PerformanceFilter.ALL
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surface,
-    ) {
+    Surface(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -109,7 +108,7 @@ internal fun FilterScreen(
                         FilterSelectionCard(
                             title = "Systems",
                             subtitle = if (systemCount == 0) "All systems" else "$systemCount selected",
-                            icon = Icons.Filled.FilterAlt,
+                            icon = Icons.Filled.Layers,
                             isActive = systemCount > 0,
                             onClick = onSelectSystems
                         )
@@ -118,18 +117,24 @@ internal fun FilterScreen(
                             title = "Performance",
                             subtitle = performanceLabel,
                             icon = Icons.AutoMirrored.Filled.TrendingUp,
-                            isActive = performanceLabel != "All Questions",
+                            isActive = performanceFilter != PerformanceFilter.ALL,
                             onClick = onSelectPerformance
                         )
 
-                        SubmissionModeToggleCard(
+                        ToggleCard(
+                            icon = Icons.Filled.Edit,
+                            title = "Manual Submission",
+                            description = "Review your answer before submitting",
                             checked = submissionMode == SubmissionMode.MANUAL,
                             onCheckedChange = { checked ->
                                 onSubmissionModeToggle(if (checked) SubmissionMode.MANUAL else SubmissionMode.INSTANT)
                             }
                         )
 
-                        LoggingToggleCard(
+                        ToggleCard(
+                            icon = Icons.Filled.History,
+                            title = "Track Session Progress",
+                            description = "Record answer logs for historical tracking",
                             checked = isLoggingEnabled,
                             onCheckedChange = onLoggingToggle
                         )
@@ -149,7 +154,10 @@ internal fun FilterScreen(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
-private fun LoggingToggleCard(
+private fun ToggleCard(
+    icon: ImageVector,
+    title: String,
+    description: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
@@ -206,7 +214,7 @@ private fun LoggingToggleCard(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Filled.History,
+                        imageVector = icon,
                         contentDescription = null,
                         tint = iconColor
                     )
@@ -218,104 +226,13 @@ private fun LoggingToggleCard(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
-                    text = "Track Session Progress",
+                    text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = if (checked) contentColor else MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Record answer logs for historical tracking",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = contentColor
-                )
-            }
-
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
-@Composable
-private fun SubmissionModeToggleCard(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    val motionScheme = MaterialTheme.motionScheme
-    val containerColor by animateColorAsState(
-        targetValue = if (checked)
-            MaterialTheme.colorScheme.secondaryContainer
-        else
-            MaterialTheme.colorScheme.surfaceContainerLow,
-        animationSpec = motionScheme.defaultEffectsSpec()
-    )
-
-    val contentColor by animateColorAsState(
-        targetValue = if (checked)
-            MaterialTheme.colorScheme.onSecondaryContainer
-        else
-            MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = motionScheme.defaultEffectsSpec()
-    )
-
-    val iconContainerColor by animateColorAsState(
-        targetValue = if (checked)
-            MaterialTheme.colorScheme.secondary
-        else
-            MaterialTheme.colorScheme.surfaceContainerHighest,
-        animationSpec = motionScheme.defaultEffectsSpec()
-    )
-
-    val iconColor by animateColorAsState(
-        targetValue = if (checked)
-            MaterialTheme.colorScheme.onSecondary
-        else
-            MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = motionScheme.defaultEffectsSpec()
-    )
-
-    Card(
-        onClick = { onCheckedChange(!checked) },
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = containerColor)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = MaterialTheme.shapes.small,
-                color = iconContainerColor,
-                modifier = Modifier.size(44.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Filled.Edit,
-                        contentDescription = null,
-                        tint = iconColor
-                    )
-                }
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    text = "Manual Submission",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (checked) contentColor else MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Review your answer before submitting",
+                    text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = contentColor
                 )
@@ -398,9 +315,9 @@ private fun FilterPreviewCard(previewCount: Int) {
 
     val motionScheme = MaterialTheme.motionScheme
     val containerColor by animateColorAsState(
-        targetValue = if (hasPreview) 
-            MaterialTheme.colorScheme.primaryContainer 
-        else 
+        targetValue = if (hasPreview)
+            MaterialTheme.colorScheme.primaryContainer
+        else
             MaterialTheme.colorScheme.surfaceContainerLow,
         animationSpec = motionScheme.defaultEffectsSpec()
     )
@@ -457,17 +374,17 @@ private fun FilterSelectionCard(
     )
 
     val iconContainerColor by animateColorAsState(
-        targetValue = if (isActive) 
-            MaterialTheme.colorScheme.primary 
-        else 
+        targetValue = if (isActive)
+            MaterialTheme.colorScheme.primary
+        else
             MaterialTheme.colorScheme.surfaceContainerHighest,
         animationSpec = motionScheme.defaultEffectsSpec()
     )
 
     val iconColor by animateColorAsState(
-        targetValue = if (isActive) 
-            MaterialTheme.colorScheme.onPrimary 
-        else 
+        targetValue = if (isActive)
+            MaterialTheme.colorScheme.onPrimary
+        else
             MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = motionScheme.defaultEffectsSpec()
     )
@@ -538,7 +455,8 @@ private fun PrimaryActionButtonGroup(
 
         Box(
             modifier = Modifier
-                .width(320.dp)
+                .widthIn(max = 320.dp)
+                .fillMaxWidth()
                 .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
         ) {
             AnimatedContent(
@@ -569,7 +487,7 @@ private fun FilterActionControlButtonGroup(
     onStart: () -> Unit,
     onClearFilters: () -> Unit,
 ) {
-    val groupModifier = if (showReset) Modifier.fillMaxWidth() else Modifier.width(176.dp)
+    val groupModifier = if (showReset) Modifier.fillMaxWidth() else Modifier.widthIn(min = 176.dp).fillMaxWidth()
     val groupArrangement = if (showReset) {
         Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
     } else {

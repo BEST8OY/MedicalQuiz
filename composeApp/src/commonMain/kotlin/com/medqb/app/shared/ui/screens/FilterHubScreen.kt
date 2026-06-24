@@ -39,6 +39,7 @@ internal fun FilterHubScreen(
             databaseName = state.databaseName,
             subjectCount = state.selectedSubjectIds.size,
             systemCount = state.selectedSystemIds.size,
+            performanceFilter = state.performanceFilter,
             performanceLabel = performanceLabel,
             previewCount = state.previewQuestionCount,
             isLoggingEnabled = state.isLoggingEnabled,
