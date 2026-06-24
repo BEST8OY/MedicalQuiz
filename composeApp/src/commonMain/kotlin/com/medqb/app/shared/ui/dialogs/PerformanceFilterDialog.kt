@@ -64,10 +64,7 @@ fun PerformanceFilterDialog(
 
             DialogActions(
                 primaryText = "Apply",
-                onPrimary = {
-                    onSelect(selected)
-                    onDismiss()
-                },
+                onPrimary = { onSelect(selected) },
                 secondaryText = "Cancel",
                 onSecondary = onDismiss
             )
@@ -133,26 +130,20 @@ private fun PerformanceFilterItem(
     }
 }
 
-@Composable
-private fun PerformanceFilter.displayName(): String = remember(this) {
-    when (this) {
-        PerformanceFilter.ALL -> "All Questions"
-        PerformanceFilter.UNANSWERED -> "Not Attempted"
-        PerformanceFilter.LAST_CORRECT -> "Last Correct"
-        PerformanceFilter.LAST_INCORRECT -> "Last Incorrect"
-        PerformanceFilter.EVER_CORRECT -> "Ever Correct"
-        PerformanceFilter.EVER_INCORRECT -> "Ever Incorrect"
-    }
+private fun PerformanceFilter.displayName(): String = when (this) {
+    PerformanceFilter.ALL -> "All Questions"
+    PerformanceFilter.UNANSWERED -> "Not Attempted"
+    PerformanceFilter.LAST_CORRECT -> "Last Correct"
+    PerformanceFilter.LAST_INCORRECT -> "Last Incorrect"
+    PerformanceFilter.EVER_CORRECT -> "Ever Correct"
+    PerformanceFilter.EVER_INCORRECT -> "Ever Incorrect"
 }
 
-@Composable
-private fun PerformanceFilter.description(): String = remember(this) {
-    when (this) {
-        PerformanceFilter.ALL -> "Include all questions regardless of history"
-        PerformanceFilter.UNANSWERED -> "Questions you haven't answered yet"
-        PerformanceFilter.LAST_CORRECT -> "Your most recent attempt was correct"
-        PerformanceFilter.LAST_INCORRECT -> "Your most recent attempt was incorrect"
-        PerformanceFilter.EVER_CORRECT -> "Answered correctly at least once"
-        PerformanceFilter.EVER_INCORRECT -> "Answered incorrectly at least once"
-    }
+private fun PerformanceFilter.description(): String = when (this) {
+    PerformanceFilter.ALL -> "Include all questions regardless of history"
+    PerformanceFilter.UNANSWERED -> "Questions you haven't answered yet"
+    PerformanceFilter.LAST_CORRECT -> "Your most recent attempt was correct"
+    PerformanceFilter.LAST_INCORRECT -> "Your most recent attempt was incorrect"
+    PerformanceFilter.EVER_CORRECT -> "Answered correctly at least once"
+    PerformanceFilter.EVER_INCORRECT -> "Answered incorrectly at least once"
 }
