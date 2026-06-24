@@ -213,9 +213,9 @@ class FilterViewModel(
     }
 
     fun applySelectedSubjects(newSubjectIds: Set<Long>) {
+        val previouslySelectedSystems = filterStateHolder.selectedSystemIds.value
+        filterStateHolder.updateSubjectIds(newSubjectIds)
         viewModelScope.launch {
-            val previouslySelectedSystems = filterStateHolder.selectedSystemIds.value
-            filterStateHolder.updateSubjectIds(newSubjectIds)
             val db = activeDatabaseHolder.databaseProvider.value
             val prunedSelectedSystems = applyFiltersUseCase.pruneSystemsForSubjects(
                 db = db,
@@ -227,6 +227,7 @@ class FilterViewModel(
     }
 
     fun applySelectedSystems(newSystemIds: Set<Long>) {
+        filterStateHolder.updateSystemIds(newSystemIds)
         viewModelScope.launch {
             val db = activeDatabaseHolder.databaseProvider.value
             val normalizedSelection = applyFiltersUseCase.normalizeSelectedSystems(
