@@ -129,13 +129,15 @@ class FilterViewModel(
             .distinctUntilChangedBy { (db, ids) -> "${db?.hashCode()}:${ids}" }
             .flatMapLatest { (db, subjectIds) ->
                 flow {
-                    if (db == null || subjectIds.isEmpty()) {
+                    if (db == null) {
                         emit(Resource.Success(emptyList()))
                         return@flow
                     }
                     emit(Resource.Loading)
                     try {
-                        val systems = withContext(Dispatchers.IO) { db.getSystems(subjectIds.toList()) }
+                        val systems = withContext(Dispatchers.IO) {
+                            db.getSystems(subjectIds.takeIf { it.isNotEmpty() }?.toList())
+                        }
                         emit(Resource.Success(systems))
                     } catch (e: CancellationException) {
                         throw e
