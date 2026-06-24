@@ -1,13 +1,16 @@
 package com.medqb.app.shared.data
 
+import com.medqb.app.shared.di.AppScope
 import com.medqb.app.shared.platform.FileSystemHelper
 import com.medqb.app.shared.platform.StorageProvider
 import com.medqb.app.shared.utils.HtmlUtils
 import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Inject
+@SingleIn(AppScope::class)
 class LocalContentRepository {
 
     suspend fun listDatabases(): List<String> = withContext(Dispatchers.IO) {

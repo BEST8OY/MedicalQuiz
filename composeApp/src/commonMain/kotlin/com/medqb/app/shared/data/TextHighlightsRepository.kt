@@ -28,6 +28,7 @@ import dev.zacsweers.metro.SingleIn
 class TextHighlightsRepository(
     private val userDataManager: UserDataManager
 ) {
+    // Process-scoped: intentionally not cancelled — survives config changes
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private data class HighlightContext(
