@@ -1,12 +1,15 @@
 package com.medqb.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -289,6 +292,7 @@ private fun MorphingMaterialShapeBadge(
 }
 
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AnswerOptions(
     answers: List<Answer>,
@@ -301,6 +305,7 @@ fun AnswerOptions(
     onLinkClick: (String) -> Unit,
     onMediaClick: (String) -> Unit
 ) {
+    val motionScheme = MaterialTheme.motionScheme
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -312,18 +317,34 @@ fun AnswerOptions(
             val isCorrect = answer.answerId.toInt() == correctAnswerId
             val percentage = answerPercentages[answer.answerId]
 
-            AnswerListItem(
-                label = label,
-                html = html,
-                isSelected = isSelected,
-                isCorrect = isCorrect,
-                showResult = answerSubmitted,
-                percentage = percentage,
-                enabled = !answerSubmitted,
-                onClick = { onAnswerSelected(answer.answerId) },
-                onLinkClick = onLinkClick,
-                onMediaClick = onMediaClick
-            )
+            AnimatedVisibility(
+                visible = true,
+                enter = expandVertically(
+                    animationSpec = motionScheme.defaultSpatialSpec(),
+                    initialHeight = { 0 }
+                ) + fadeIn(
+                    animationSpec = motionScheme.defaultEffectsSpec(),
+                    initialAlpha = 0f
+                ),
+                exit = shrinkVertically(
+                    animationSpec = motionScheme.defaultSpatialSpec()
+                ) + fadeOut(
+                    animationSpec = motionScheme.defaultEffectsSpec()
+                )
+            ) {
+                AnswerListItem(
+                    label = label,
+                    html = html,
+                    isSelected = isSelected,
+                    isCorrect = isCorrect,
+                    showResult = answerSubmitted,
+                    percentage = percentage,
+                    enabled = !answerSubmitted,
+                    onClick = { onAnswerSelected(answer.answerId) },
+                    onLinkClick = onLinkClick,
+                    onMediaClick = onMediaClick
+                )
+            }
         }
     }
 }
