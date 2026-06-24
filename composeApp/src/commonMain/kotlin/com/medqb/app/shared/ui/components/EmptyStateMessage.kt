@@ -22,7 +22,7 @@ fun EmptyStateMessage(
             .fillMaxWidth()
             .padding(top = 72.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
     ) {
         Text(
             text = title,

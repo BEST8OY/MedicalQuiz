@@ -1,5 +1,10 @@
 package com.medqb.app.shared.ui.screens.history
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,13 +13,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -54,6 +58,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.QuizSessionRepository
@@ -151,6 +159,7 @@ internal fun HistoryPane(
                         onSelectChanged = {
                             selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
                         },
+                        modifier = Modifier.animateItem(),
                     )
                 }
             }
@@ -217,73 +226,95 @@ internal fun HistoryPane(
         }
 
         if (deleteTargetEntryIds.isNotEmpty()) {
-            AlertDialog(
-                onDismissRequest = { deleteTargetEntryIds = emptySet() },
-                title = { Text("Delete ${deleteTargetEntryIds.size} entr${if (deleteTargetEntryIds.size == 1) "y" else "ies"}?") },
-                text = { Text("This action cannot be undone.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            onDeleteHistoryEntries(deleteTargetEntryIds)
-                            selectedHistoryEntryIds = selectedHistoryEntryIds - deleteTargetEntryIds
-                            if (selectedHistoryEntryIds.isEmpty()) {
-                                isFabMenuExpanded = false
-                            }
-                            deleteTargetEntryIds = emptySet()
-                        },
-                    ) {
-                        Text("Delete")
+            DeleteConfirmDialog(
+                count = deleteTargetEntryIds.size,
+                onConfirm = {
+                    onDeleteHistoryEntries(deleteTargetEntryIds)
+                    selectedHistoryEntryIds = selectedHistoryEntryIds - deleteTargetEntryIds
+                    if (selectedHistoryEntryIds.isEmpty()) {
+                        isFabMenuExpanded = false
                     }
+                    deleteTargetEntryIds = emptySet()
                 },
-                dismissButton = {
-                    TextButton(onClick = { deleteTargetEntryIds = emptySet() }) {
-                        Text("Cancel")
-                    }
-                },
+                onDismiss = { deleteTargetEntryIds = emptySet() },
             )
         }
 
         if (renameTargetId != null) {
-            AlertDialog(
-                onDismissRequest = {
+            RenameDialog(
+                currentName = renameText,
+                onNameChange = { renameText = it },
+                onConfirm = {
+                    val targetId = renameTargetId ?: return@RenameDialog
+                    onRenameHistoryEntry(targetId, renameText)
                     renameTargetId = null
                     renameText = ""
                 },
-                title = { Text("Rename entry") },
-                text = {
-                    OutlinedTextField(
-                        value = renameText,
-                        onValueChange = { renameText = it },
-                        singleLine = true,
-                        label = { Text("Entry name") },
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            val targetId = renameTargetId ?: return@TextButton
-                            onRenameHistoryEntry(targetId, renameText)
-                            renameTargetId = null
-                            renameText = ""
-                        },
-                        enabled = renameText.isNotBlank(),
-                    ) {
-                        Text("Save")
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            renameTargetId = null
-                            renameText = ""
-                        },
-                    ) {
-                        Text("Cancel")
-                    }
+                onDismiss = {
+                    renameTargetId = null
+                    renameText = ""
                 },
             )
         }
     }
+}
+
+@Composable
+private fun DeleteConfirmDialog(
+    count: Int,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val label = if (count == 1) "entry" else "entries"
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete $count $label?") },
+        text = { Text("This action cannot be undone.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
+@Composable
+private fun RenameDialog(
+    currentName: String,
+    onNameChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename entry") },
+        text = {
+            OutlinedTextField(
+                value = currentName,
+                onValueChange = onNameChange,
+                singleLine = true,
+                label = { Text("Entry name") },
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = currentName.isNotBlank(),
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable
@@ -296,6 +327,7 @@ private fun HistoryItemCard(
     onSwipeDelete: () -> Unit,
     onSwipeRename: () -> Unit,
     onSelectChanged: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         positionalThreshold = { totalDistance -> totalDistance * 0.35f },
@@ -310,9 +342,13 @@ private fun HistoryItemCard(
 
     val cardShape = MaterialTheme.shapes.large
 
+    val titleColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    val subtitleColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    val iconTint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+
     SwipeToDismissBox(
         state = dismissState,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(cardShape),
         enableDismissFromStartToEnd = !selectionModeEnabled,
@@ -352,6 +388,13 @@ private fun HistoryItemCard(
                         imageVector = if (isDeleteDirection) Icons.Filled.Delete else Icons.Filled.Edit,
                         contentDescription = null,
                         tint = actionTint,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Text(
+                        text = if (isDeleteDirection) "Delete" else "Rename",
+                        color = actionTint,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(start = 8.dp),
                     )
                 }
             }
@@ -360,7 +403,11 @@ private fun HistoryItemCard(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .combinedClickable(onClick = onClick, onLongClick = onLongPress),
+                .semantics { role = Role.Button }
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongPress,
+                ),
             shape = cardShape,
             colors = CardDefaults.cardColors(
                 containerColor = if (isSelected) {
@@ -378,7 +425,11 @@ private fun HistoryItemCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (selectionModeEnabled) {
+                AnimatedVisibility(
+                    visible = selectionModeEnabled,
+                    enter = scaleIn() + fadeIn(),
+                    exit = scaleOut() + fadeOut(),
+                ) {
                     Checkbox(
                         checked = isSelected,
                         onCheckedChange = { onSelectChanged() },
@@ -386,35 +437,37 @@ private fun HistoryItemCard(
                 }
                 Icon(
                     imageVector = Icons.Filled.History,
-                    contentDescription = null,
-                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    contentDescription = "Quiz history entry",
+                    tint = iconTint,
                     modifier = Modifier.size(28.dp),
                 )
                 val entryDisplayName = entry.displayName()
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
                     Text(
                         text = entryDisplayName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                        color = titleColor,
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
                     if (entryDisplayName != entry.databaseName) {
                         Text(
                             text = "QBank: ${entry.databaseName}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = subtitleColor,
                         )
                     }
                     Text(
                         text = "Question ${entry.currentQuestionIndex + 1}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                        color = titleColor,
                     )
                     Text(
                         text = formatTimestamp(entry.updatedAtEpochMillis),
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = subtitleColor,
                     )
                 }
             }
