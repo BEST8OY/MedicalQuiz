@@ -17,6 +17,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -43,10 +48,7 @@ class FilterViewModel(
 
     private var lastFetchedSubjectIds: List<Long>? = null
     private var initJob: Job? = null
-    private var subjectsJob: Job? = null
-    private var systemsJob: Job? = null
-    private var dbGeneration = 0L
-    private var previewCountJob: Job? = null
+    private var fetchJob: Job? = null
 
     init {
         val restoredDbName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
@@ -84,31 +86,49 @@ class FilterViewModel(
                 savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = subjectIds.toList()
                 val subjectsForSystems = applyFiltersUseCase.subjectsForSystemsFetch(subjectIds)
                 fetchSystemsForSubjects(subjectsForSystems)
-                schedulePreviewCountUpdate()
             }
         }
         viewModelScope.launch {
             filterStateHolder.selectedSystemIds.collect { systemIds ->
                 _state.update { it.copy(selectedSystemIds = systemIds) }
                 savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = systemIds.toList()
-                schedulePreviewCountUpdate()
             }
         }
         viewModelScope.launch {
             filterStateHolder.performanceFilter.collect { filter ->
                 _state.update { it.copy(performanceFilter = filter) }
                 savedStateHandle[KEY_PERFORMANCE_FILTER] = filter.name
-                schedulePreviewCountUpdate()
             }
         }
+
+        combine(
+            filterStateHolder.selectedSubjectIds,
+            filterStateHolder.selectedSystemIds,
+            filterStateHolder.performanceFilter,
+        ) { subjects, systems, perf -> Triple(subjects, systems, perf) }
+            .flatMapLatest { (subjects, systems, perf) ->
+                flow {
+                    val db = activeDatabaseHolder.databaseProvider.value
+                    val count = withContext(Dispatchers.IO) {
+                        runCatching {
+                            applyFiltersUseCase.previewQuestionCount(
+                                db = db,
+                                selectedSubjectIds = subjects,
+                                selectedSystemIds = systems,
+                                performanceFilter = perf,
+                            )
+                        }.getOrDefault(0)
+                    }
+                    emit(count)
+                }
+            }
+            .onEach { count -> _state.update { it.copy(previewQuestionCount = count) } }
+            .launchIn(viewModelScope)
     }
 
     private fun initializeAfterDatabaseSwitch(dbChanged: Boolean) {
         initJob?.cancel()
-        subjectsJob?.cancel()
-        systemsJob?.cancel()
-        previewCountJob?.cancel()
-        dbGeneration++
+        fetchJob?.cancel()
         lastFetchedSubjectIds = null
 
         initJob = viewModelScope.launch {
@@ -140,17 +160,14 @@ class FilterViewModel(
     }
 
     fun fetchSubjects() {
-        subjectsJob?.cancel()
-        val gen = dbGeneration
-        subjectsJob = viewModelScope.launch(Dispatchers.IO) {
+        fetchJob?.cancel()
+        fetchJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(subjectsResource = Resource.Loading) }
             val db = activeDatabaseHolder.databaseProvider.value
             try {
                 val subjects = db?.getSubjects() ?: emptyList()
-                if (dbGeneration != gen) return@launch
                 _state.update { it.copy(subjectsResource = Resource.Success(subjects)) }
             } catch (e: Exception) {
-                if (dbGeneration != gen) return@launch
                 val errorMessage = e.message ?: "Unknown error"
                 _state.update { it.copy(subjectsResource = Resource.Error(errorMessage)) }
                 emitSnackbar("Error fetching subjects: $errorMessage")
@@ -162,17 +179,14 @@ class FilterViewModel(
         if (shouldSkipSystemFetch(subjectIds)) return
         lastFetchedSubjectIds = subjectIds?.toList() ?: emptyList()
 
-        systemsJob?.cancel()
-        val gen = dbGeneration
-        systemsJob = viewModelScope.launch(Dispatchers.IO) {
+        fetchJob?.cancel()
+        fetchJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(systemsResource = Resource.Loading) }
             val db = activeDatabaseHolder.databaseProvider.value
             try {
                 val systems = db?.getSystems(subjectIds) ?: emptyList()
-                if (dbGeneration != gen) return@launch
                 _state.update { it.copy(systemsResource = Resource.Success(systems)) }
             } catch (e: Exception) {
-                if (dbGeneration != gen) return@launch
                 val errorMessage = e.message ?: "Unknown error"
                 _state.update { it.copy(systemsResource = Resource.Error(errorMessage)) }
                 emitSnackbar("Error fetching systems: $errorMessage")
@@ -219,33 +233,6 @@ class FilterViewModel(
 
     fun clearAllFilters() {
         filterStateHolder.reset()
-    }
-
-    private suspend fun updatePreviewQuestionCountInternal() {
-        val gen = dbGeneration
-        val db = activeDatabaseHolder.databaseProvider.value
-        val subjectIds = filterStateHolder.selectedSubjectIds.value
-        val systemIds = filterStateHolder.selectedSystemIds.value
-        val perfFilter = filterStateHolder.performanceFilter.value
-        val count = withContext(Dispatchers.IO) {
-            runCatching {
-                applyFiltersUseCase.previewQuestionCount(
-                    db = db,
-                    selectedSubjectIds = subjectIds,
-                    selectedSystemIds = systemIds,
-                    performanceFilter = perfFilter,
-                )
-            }.getOrDefault(0)
-        }
-        if (dbGeneration != gen) return
-        _state.update { it.copy(previewQuestionCount = count) }
-    }
-
-    private fun schedulePreviewCountUpdate() {
-        previewCountJob?.cancel()
-        previewCountJob = viewModelScope.launch {
-            updatePreviewQuestionCountInternal()
-        }
     }
 
     private fun emitSnackbar(message: String) {
