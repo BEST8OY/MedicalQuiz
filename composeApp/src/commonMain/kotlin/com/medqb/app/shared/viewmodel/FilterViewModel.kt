@@ -14,6 +14,7 @@ import com.medqb.app.shared.ui.state.FilterUiState
 import com.medqb.app.shared.utils.Resource
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,7 +43,7 @@ class FilterViewModel(
     val state: StateFlow<FilterUiState> = _state.asStateFlow()
 
     private var lastFetchedSubjectIds: List<Long>? = null
-    private var isInitializing = false
+    private var initJob: Job? = null
 
     init {
         val restoredDbName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
@@ -98,10 +99,9 @@ class FilterViewModel(
         }
     }
 
-    private suspend fun initializeAfterDatabaseSwitch(dbChanged: Boolean) {
-        if (isInitializing) return
-        isInitializing = true
-        try {
+    private fun initializeAfterDatabaseSwitch(dbChanged: Boolean) {
+        initJob?.cancel()
+        initJob = viewModelScope.launch {
             if (dbChanged) {
                 savedStateHandle.remove<List<Long>>(KEY_SELECTED_SUBJECT_IDS)
                 savedStateHandle.remove<List<Long>>(KEY_SELECTED_SYSTEM_IDS)
@@ -125,8 +125,6 @@ class FilterViewModel(
             }
 
             fetchSubjects()
-        } finally {
-            isInitializing = false
         }
     }
 
@@ -206,6 +204,7 @@ class FilterViewModel(
 
     private suspend fun updatePreviewQuestionCountInternal() {
         val currentState = state.value
+        val dbName = currentState.databaseName
         val db = activeDatabaseHolder.databaseProvider.value
         val count = withContext(Dispatchers.IO) {
             runCatching {
@@ -217,6 +216,7 @@ class FilterViewModel(
                 )
             }.getOrDefault(0)
         }
+        if (_state.value.databaseName != dbName) return
         _state.update { it.copy(previewQuestionCount = count) }
     }
 
