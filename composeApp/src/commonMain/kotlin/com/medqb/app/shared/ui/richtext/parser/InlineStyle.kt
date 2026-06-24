@@ -182,7 +182,7 @@ internal fun AnnotatedString.Builder.appendTextWithStyle(
         color = textColor ?: Color.Unspecified,
         fontSize = when {
             style.superscript || style.subscript -> 0.75.em
-            style.smallText -> 12.sp
+            style.smallText -> 0.85.em
             else -> TextUnit.Unspecified
         },
     )

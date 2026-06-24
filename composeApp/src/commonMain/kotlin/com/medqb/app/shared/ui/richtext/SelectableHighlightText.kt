@@ -41,6 +41,17 @@ import kotlin.math.roundToInt
 private val ANDROID_LONG_PRESS_DRAG_HYSTERESIS = 7.dp
 private val DESKTOP_LONG_PRESS_DRAG_HYSTERESIS = 5.dp
 
+private class SelectableHighlightTextState {
+    var selectionState by mutableStateOf(TextSelectionState())
+    var editingHighlight by mutableStateOf<TextHighlight?>(null)
+    var editPopupAnchor by mutableStateOf(Offset.Zero)
+    var layoutResult by mutableStateOf<TextLayoutResult?>(null)
+    var containerSize by mutableStateOf(IntSize.Zero)
+    var selectionPopupSize by mutableStateOf(IntSize.Zero)
+    var editPopupSize by mutableStateOf(IntSize.Zero)
+    var lastExternalOpenText by mutableStateOf("")
+}
+
 @Composable
 internal fun SelectableHighlightText(
     text: AnnotatedString,
@@ -56,14 +67,7 @@ internal fun SelectableHighlightText(
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    var lastExternalOpenText by remember { mutableStateOf("") }
-    var selectionState by remember { mutableStateOf(TextSelectionState()) }
-    var editingHighlight by remember { mutableStateOf<TextHighlight?>(null) }
-    var editPopupAnchor by remember { mutableStateOf(Offset.Zero) }
-    var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-    var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    var selectionPopupSize by remember { mutableStateOf(IntSize.Zero) }
-    var editPopupSize by remember { mutableStateOf(IntSize.Zero) }
+    val state = remember { SelectableHighlightTextState() }
 
     val platformKind = remember { getPlatformKind() }
     val longPressDragHysteresis = remember(platformKind) {
@@ -81,16 +85,16 @@ internal fun SelectableHighlightText(
         applyHighlightsToText(text, highlights)
     }
     val selectionColor = MaterialTheme.colorScheme.secondaryContainer
-    val displayText = remember(highlightedText, selectionState, selectionColor) {
-        if (selectionState.isSelecting) {
-            applySelectionToText(highlightedText, selectionState.selectionRange, selectionColor)
+    val displayText = remember(highlightedText, state.selectionState, selectionColor) {
+        if (state.selectionState.isSelecting) {
+            applySelectionToText(highlightedText, state.selectionState.selectionRange, selectionColor)
         } else {
             highlightedText
         }
     }
 
     Box(
-        modifier = modifier.onSizeChanged { containerSize = it }
+        modifier = modifier.onSizeChanged { state.containerSize = it }
     ) {
         BasicText(
             text = displayText,
@@ -100,11 +104,11 @@ internal fun SelectableHighlightText(
                     text = text,
                     highlights = highlights,
                     longPressDragHysteresisPx = longPressDragHysteresisPx,
-                    currentLayoutResult = { layoutResult },
-                    currentSelectionState = { selectionState },
-                    setSelectionState = { selectionState = it },
-                    setEditingHighlight = { editingHighlight = it },
-                    setEditPopupAnchor = { editPopupAnchor = it },
+                    currentLayoutResult = { state.layoutResult },
+                    currentSelectionState = { state.selectionState },
+                    setSelectionState = { state.selectionState = it },
+                    setEditingHighlight = { state.editingHighlight = it },
+                    setEditPopupAnchor = { state.editPopupAnchor = it },
                     onLinkClick = onLinkClick,
                     onTooltipClick = onTooltipClick
                 ),
@@ -121,31 +125,31 @@ internal fun SelectableHighlightText(
                     textStyle.fontSize
                 },
             ),
-            onTextLayout = { layoutResult = it }
+            onTextLayout = { state.layoutResult = it }
         )
 
-        if (selectionState.hasSelectionRange) {
+        if (state.selectionState.hasSelectionRange) {
             val safeTextLength = text.length.coerceAtLeast(1)
-            val normalizedStart = minOf(selectionState.startOffset, selectionState.endOffset)
+            val normalizedStart = minOf(state.selectionState.startOffset, state.selectionState.endOffset)
                 .coerceIn(0, safeTextLength - 1)
-            val normalizedEndExclusive = maxOf(selectionState.startOffset, selectionState.endOffset)
+            val normalizedEndExclusive = maxOf(state.selectionState.startOffset, state.selectionState.endOffset)
                 .coerceIn(normalizedStart + 1, safeTextLength)
 
-            if (selectionState.showSelectionToolbar) {
+            if (state.selectionState.showSelectionToolbar) {
                 val toolbarPosition = remember(
-                    selectionState.anchorPosition,
-                    containerSize,
-                    selectionPopupSize,
-                    layoutResult,
+                    state.selectionState.anchorPosition,
+                    state.containerSize,
+                    state.selectionPopupSize,
+                    state.layoutResult,
                     normalizedStart,
                     normalizedEndExclusive
                 ) {
-                    val layout = layoutResult
+                    val layout = state.layoutResult
                     if (layout == null) {
                         calculatePopupPosition(
-                            anchorPosition = selectionState.anchorPosition,
-                            popupSize = selectionPopupSize,
-                            containerSize = containerSize,
+                            anchorPosition = state.selectionState.anchorPosition,
+                            popupSize = state.selectionPopupSize,
+                            containerSize = state.containerSize,
                             preferAbove = true
                         )
                     } else {
@@ -155,9 +159,9 @@ internal fun SelectableHighlightText(
                         val selectionBottom = layout.getLineBottom(maxOf(startLine, endLine))
 
                         calculateSelectionToolbarPosition(
-                            anchorPosition = selectionState.anchorPosition,
-                            popupSize = selectionPopupSize,
-                            containerSize = containerSize,
+                            anchorPosition = state.selectionState.anchorPosition,
+                            popupSize = state.selectionPopupSize,
+                            containerSize = state.containerSize,
                             selectionTop = selectionTop,
                             selectionBottom = selectionBottom
                         )
@@ -175,45 +179,45 @@ internal fun SelectableHighlightText(
                         dismissOnBackPress = true,
                         dismissOnClickOutside = true
                     ),
-                    onDismissRequest = { selectionState = TextSelectionState() }
+                    onDismissRequest = { state.selectionState = TextSelectionState() }
                 ) {
                     Box(
-                        modifier = Modifier.onSizeChanged { selectionPopupSize = it }
+                        modifier = Modifier.onSizeChanged { state.selectionPopupSize = it }
                     ) {
                         SelectionToolbar(
-                            selectedText = selectionState.selectedText,
+                            selectedText = state.selectionState.selectedText,
                             onCopy = {
-                                val copiedText = selectionState.selectedText
+                                val copiedText = state.selectionState.selectedText
                                 if (copiedText.isNotBlank()) {
                                     clipboard.setPlainText(AnnotatedString(copiedText))
                                 }
-                                selectionState = TextSelectionState()
+                                state.selectionState = TextSelectionState()
                             },
                             onOpenExternal = {
-                                if (selectionState.selectedText.isNotBlank()) {
-                                    val opened = TextIntentLauncher.openSelectedText(selectionState.selectedText)
+                                if (state.selectionState.selectedText.isNotBlank()) {
+                                    val opened = TextIntentLauncher.openSelectedText(state.selectionState.selectedText)
                                     if (!opened) {
-                                        lastExternalOpenText = selectionState.selectedText
+                                        state.lastExternalOpenText = state.selectionState.selectedText
                                         coroutineScope.launch {
                                             val result = snackbarHostState.showSnackbar(
                                                 message = "No compatible app found",
                                                 actionLabel = "Copy",
                                                 duration = SnackbarDuration.Short
                                             )
-                                            if (result == SnackbarResult.ActionPerformed && lastExternalOpenText.isNotBlank()) {
-                                                val copiedText = lastExternalOpenText
+                                            if (result == SnackbarResult.ActionPerformed && state.lastExternalOpenText.isNotBlank()) {
+                                                val copiedText = state.lastExternalOpenText
                                                 clipboard.setPlainText(AnnotatedString(copiedText))
                                             }
                                         }
                                         return@SelectionToolbar
                                     }
                                 }
-                                selectionState = TextSelectionState()
+                                state.selectionState = TextSelectionState()
                             },
                             onHighlight = { color ->
-                                val range = selectionState.selectionRange
-                                onHighlightAdd(range.first, range.last + 1, selectionState.selectedText, color)
-                                selectionState = TextSelectionState()
+                                val range = state.selectionState.selectionRange
+                                onHighlightAdd(range.first, range.last + 1, state.selectionState.selectedText, color)
+                                state.selectionState = TextSelectionState()
                             },
                         )
                     }
@@ -221,12 +225,12 @@ internal fun SelectableHighlightText(
             }
         }
 
-        editingHighlight?.let { highlight ->
-            val popupPosition = remember(editPopupAnchor, containerSize, editPopupSize) {
+        state.editingHighlight?.let { highlight ->
+            val popupPosition = remember(state.editPopupAnchor, state.containerSize, state.editPopupSize) {
                 calculatePopupPosition(
-                    anchorPosition = editPopupAnchor,
-                    popupSize = editPopupSize,
-                    containerSize = containerSize,
+                    anchorPosition = state.editPopupAnchor,
+                    popupSize = state.editPopupSize,
+                    containerSize = state.containerSize,
                     preferAbove = true
                 )
             }
@@ -242,20 +246,20 @@ internal fun SelectableHighlightText(
                     dismissOnBackPress = true,
                     dismissOnClickOutside = true
                 ),
-                onDismissRequest = { editingHighlight = null }
+                onDismissRequest = { state.editingHighlight = null }
             ) {
                 Box(
-                    modifier = Modifier.onSizeChanged { editPopupSize = it }
+                    modifier = Modifier.onSizeChanged { state.editPopupSize = it }
                 ) {
                     HighlightEditPopup(
                         highlight = highlight,
                         onColorChange = { color ->
                             onHighlightColorChange(highlight.id, color)
-                            editingHighlight = null
+                            state.editingHighlight = null
                         },
                         onDelete = {
                             onHighlightRemove(highlight.id)
-                            editingHighlight = null
+                            state.editingHighlight = null
                         }
                     )
                 }

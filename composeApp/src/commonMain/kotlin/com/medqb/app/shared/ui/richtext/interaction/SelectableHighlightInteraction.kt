@@ -414,10 +414,9 @@ private fun String.hasWordCoreBefore(index: Int): Boolean {
 private fun Char.isWordCoreChar(): Boolean = isLetterOrDigit() || isCombiningMark()
 
 private fun Char.isCombiningMark(): Boolean {
-    val type = java.lang.Character.getType(this)
-    return type == java.lang.Character.NON_SPACING_MARK.toInt() ||
-        type == java.lang.Character.COMBINING_SPACING_MARK.toInt() ||
-        type == java.lang.Character.ENCLOSING_MARK.toInt()
+    return category == CharCategory.NON_SPACING_MARK ||
+        category == CharCategory.COMBINING_SPACING_MARK ||
+        category == CharCategory.ENCLOSING_MARK
 }
 
 private fun Char.isInfixWordConnector(): Boolean {
@@ -458,16 +457,15 @@ private fun Char.isOpeningBracket(): Boolean = this == '(' || this == '[' || thi
 private fun Char.isClosingBracket(): Boolean = this == ')' || this == ']' || this == '}' || this == '>'
 
 private fun Char.isGeneralPunctuation(): Boolean {
-    val type = java.lang.Character.getType(this)
-    return type == java.lang.Character.DASH_PUNCTUATION.toInt() ||
-        type == java.lang.Character.START_PUNCTUATION.toInt() ||
-        type == java.lang.Character.END_PUNCTUATION.toInt() ||
-        type == java.lang.Character.CONNECTOR_PUNCTUATION.toInt() ||
-        type == java.lang.Character.OTHER_PUNCTUATION.toInt() ||
-        type == java.lang.Character.MATH_SYMBOL.toInt() ||
-        type == java.lang.Character.CURRENCY_SYMBOL.toInt() ||
-        type == java.lang.Character.MODIFIER_SYMBOL.toInt() ||
-        type == java.lang.Character.OTHER_SYMBOL.toInt()
+    return category == CharCategory.DASH_PUNCTUATION ||
+        category == CharCategory.START_PUNCTUATION ||
+        category == CharCategory.END_PUNCTUATION ||
+        category == CharCategory.CONNECTOR_PUNCTUATION ||
+        category == CharCategory.OTHER_PUNCTUATION ||
+        category == CharCategory.MATH_SYMBOL ||
+        category == CharCategory.CURRENCY_SYMBOL ||
+        category == CharCategory.MODIFIER_SYMBOL ||
+        category == CharCategory.OTHER_SYMBOL
 }
 
 internal fun finishSelectionDrag(state: TextSelectionState): TextSelectionState {
