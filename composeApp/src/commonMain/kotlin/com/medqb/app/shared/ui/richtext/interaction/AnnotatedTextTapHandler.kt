@@ -9,7 +9,8 @@ internal fun handleAnnotatedTextTap(
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ): Boolean {
     text.getStringAnnotations("TOOLTIP", offset, offset).firstOrNull()?.let { annotation ->
-        val title = text.text.substring(annotation.start, annotation.end).trim()
+        val rawTitle = text.text.substring(annotation.start, annotation.end).trim()
+        val title = rawTitle.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         onTooltipClick?.invoke(
             RichTextTooltipContent(
                 title = title,

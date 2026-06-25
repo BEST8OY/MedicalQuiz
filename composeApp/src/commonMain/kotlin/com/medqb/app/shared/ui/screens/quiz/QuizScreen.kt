@@ -61,6 +61,7 @@ import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.richtext.HighlightableRichText
 import com.medqb.app.shared.ui.richtext.RichText
+import com.medqb.app.shared.ui.richtext.RichTextPalette
 import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
 import com.medqb.app.shared.ui.screens.quiz.AnswerOptions
 import com.medqb.app.shared.ui.state.QuizUiState
@@ -194,12 +195,25 @@ private fun HintSection(
                     animationSpec = defaultSpatialSpec,
                 )
             ) {
+                val colors = MaterialTheme.colorScheme
+                val hintPalette = remember(colors) {
+                    RichTextPalette(
+                        importantBackground = colors.tertiaryContainer,
+                        importantText = colors.onTertiaryContainer,
+                        selectedBackground = colors.primaryContainer,
+                        selectedText = colors.onPrimaryContainer,
+                        linkText = colors.onTertiaryContainer,
+                        dictionaryText = colors.onTertiaryContainer,
+                        abstractText = colors.onSurfaceVariant
+                    )
+                }
                 RichText(
                     html = hintHtml,
                     modifier = Modifier.padding(top = 8.dp),
                     onLinkClick = linkHandler,
                     onMediaClick = mediaClick,
-                    showSelectedHighlight = showSelectedHighlight
+                    showSelectedHighlight = showSelectedHighlight,
+                    palette = hintPalette
                 )
             }
         }
