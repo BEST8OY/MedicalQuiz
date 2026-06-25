@@ -29,9 +29,9 @@ fun RichText(
     showSelectedHighlight: Boolean = false,
     onLinkClick: ((String) -> Unit)? = null,
     onMediaClick: ((String) -> Unit)? = null,
-    onTooltipClick: ((String) -> Unit)? = null
+    onTooltipClick: ((String) -> Unit)? = null,
+    palette: RichTextPalette = rememberRichTextPalette()
 ) {
-    val palette = rememberRichTextPalette()
     val blocks = rememberRichTextBlocks(html, palette, showSelectedHighlight)
     RichText(
         blocks = blocks,
