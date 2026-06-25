@@ -6,7 +6,7 @@ android-targetSdk = "37"
 androidx-activityCompose = "1.13.0"
 androidx-appcompat = "1.7.1"
 androidx-core-ktx = "1.19.0"
-androidx-lifecycle = "2.11.0-beta01"
+androidx-lifecycle = "2.11.0-beta02"
 androidx-material = "1.14.0"
 androidx-compose-bom = "2026.06.00"
 compose-plugin = "1.12.0-alpha02"
@@ -28,7 +28,7 @@ androidx-test-espresso = "3.7.0"
 
 # Navigation 3
 navigation3 = "1.1.1"
-lifecycle-viewmodel-nav3 = "2.11.0-beta01"
+lifecycle-viewmodel-nav3 = "2.11.0-beta02"
 navigationevent = "1.1.0"
 metro = "1.2.1"
 
