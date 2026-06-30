@@ -329,17 +329,6 @@ private fun QuizQuestionCard(
     var hintExpanded by rememberSaveable(question.id) { mutableStateOf(false) }
     val showHint = hintHtml != null && (state.answerSubmitted || hintExpanded)
 
-    // Create a scroll state that persists across recompositions
-    val scrollState = remember(question.id) {
-        val initialPosition = viewModel.getScrollPosition(question.id)
-        androidx.compose.foundation.ScrollState(initialPosition)
-    }
-
-    // Save scroll position when it changes
-    LaunchedEffect(scrollState.value) {
-        viewModel.saveScrollPosition(question.id, scrollState.value)
-    }
-
     AnimatedContent(
         targetState = question.id,
         transitionSpec = {
@@ -347,7 +336,16 @@ private fun QuizQuestionCard(
                 fadeOut(animationSpec = defaultEffectsSpec)
         },
         label = "question_transition"
-    ) { _ ->
+    ) { targetId ->
+        val scrollState = remember(targetId) {
+            val initialPosition = viewModel.getScrollPosition(targetId)
+            androidx.compose.foundation.ScrollState(initialPosition)
+        }
+
+        LaunchedEffect(scrollState.value) {
+            viewModel.saveScrollPosition(targetId, scrollState.value)
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
