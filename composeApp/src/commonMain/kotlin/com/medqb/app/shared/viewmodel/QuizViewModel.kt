@@ -167,11 +167,12 @@ class QuizViewModel(
     private fun restoreFromSavedState() {
         val savedDatabaseName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
         val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: 0
-        val savedIsLoggingEnabled = savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED)
+        val savedIsLoggingEnabled = filterStateHolder.consumePendingIsLoggingEnabled()
+            ?: savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED)
             ?: settingsRepository.isLoggingEnabled.value
-        val savedSubmissionModeName = savedStateHandle.get<String>(KEY_SUBMISSION_MODE)
-        val savedSubmissionMode = savedSubmissionModeName
-            ?.let { runCatching { SubmissionMode.valueOf(it) }.getOrNull() }
+        val savedSubmissionMode = filterStateHolder.consumePendingSubmissionMode()
+            ?: savedStateHandle.get<String>(KEY_SUBMISSION_MODE)
+                ?.let { runCatching { SubmissionMode.valueOf(it) }.getOrNull() }
             ?: settingsRepository.submissionMode.value
 
         val savedSubjectIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SUBJECT_IDS)?.toSet()
