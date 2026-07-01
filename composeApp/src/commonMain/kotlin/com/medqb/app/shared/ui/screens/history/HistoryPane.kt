@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -32,6 +33,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -39,6 +42,7 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -85,18 +89,28 @@ internal fun HistoryPane(
     val clipboard = LocalClipboard.current
     var selectedHistoryEntryIds by rememberSaveable { mutableStateOf(setOf<String>()) }
     var deleteTargetEntryIds by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    var isFabMenuExpanded by rememberSaveable { mutableStateOf(false) }
     var lastCopiedText by rememberSaveable { mutableStateOf("") }
     var renameTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var renameText by rememberSaveable { mutableStateOf("") }
     val allHistoryEntryIds = remember(historyEntries) { historyEntries.map { it.id }.toSet() }
 
     PlatformBackHandler(
-        enabled = selectedHistoryEntryIds.isNotEmpty(),
-        onBack = { selectedHistoryEntryIds = emptySet() },
+        enabled = selectedHistoryEntryIds.isNotEmpty() || isFabMenuExpanded,
+        onBack = {
+            if (isFabMenuExpanded) {
+                isFabMenuExpanded = false
+            } else {
+                selectedHistoryEntryIds = emptySet()
+            }
+        },
     )
 
     LaunchedEffect(allHistoryEntryIds) {
         selectedHistoryEntryIds = selectedHistoryEntryIds.intersect(allHistoryEntryIds)
+        if (selectedHistoryEntryIds.isEmpty()) {
+            isFabMenuExpanded = false
+        }
     }
 
     LaunchedEffect(selectedHistoryEntryIds) {
@@ -161,53 +175,60 @@ internal fun HistoryPane(
         }
 
         if (selectedHistoryEntryIds.isNotEmpty()) {
-            androidx.compose.material3.TopAppBar(
-                title = { Text("${selectedHistoryEntryIds.size} selected") },
-                navigationIcon = {
-                    androidx.compose.material3.IconButton(onClick = { selectedHistoryEntryIds = emptySet() }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Exit selection")
-                    }
-                },
-                actions = {
-                    if (selectedHistoryEntryIds.size == 1) {
-                        androidx.compose.material3.IconButton(onClick = {
-                            val entryId = selectedHistoryEntryIds.first()
-                            val entry = historyEntries.find { it.id == entryId }
-                            renameTargetId = entryId
-                            renameText = entry?.displayName() ?: ""
-                            selectedHistoryEntryIds = emptySet()
-                        }) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Rename")
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                val horizontalMargin = if (maxWidth >= 840.dp) 24.dp else 16.dp
+                FloatingActionButtonMenu(
+                    expanded = isFabMenuExpanded,
+                    button = {
+                        ToggleFloatingActionButton(
+                            checked = isFabMenuExpanded,
+                            onCheckedChange = { isFabMenuExpanded = it },
+                        ) {
+                            Icon(
+                                imageVector = if (isFabMenuExpanded) Icons.Filled.Close else Icons.Filled.MoreVert,
+                                contentDescription = if (isFabMenuExpanded) "Close actions" else "More actions",
+                            )
                         }
-                    }
-                    androidx.compose.material3.IconButton(onClick = {
-                        selectedHistoryEntryIds = allHistoryEntryIds
-                    }) {
-                        Icon(Icons.Filled.History, contentDescription = "Select all")
-                    }
-                    androidx.compose.material3.IconButton(onClick = {
-                        val selectedEntries = historyEntries
-                            .filter { it.id in selectedHistoryEntryIds }
-                        onCopyAllQids(selectedEntries) { qidsText ->
-                            lastCopiedText = qidsText
-                        }
-                        selectedHistoryEntryIds = emptySet()
-                    }) {
-                        Icon(Icons.Filled.ContentCopy, contentDescription = "Copy QIDs")
-                    }
-                    androidx.compose.material3.IconButton(onClick = {
-                        deleteTargetEntryIds = selectedHistoryEntryIds
-                    }) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Delete")
-                    }
-                },
-                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
-            )
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = horizontalMargin, bottom = 96.dp)
+                        .navigationBarsPadding(),
+                ) {
+                    FloatingActionButtonMenuItem(
+                        onClick = {
+                            selectedHistoryEntryIds = allHistoryEntryIds
+                            isFabMenuExpanded = false
+                        },
+                        text = { Text("Select all") },
+                        icon = { Icon(Icons.Filled.History, contentDescription = null) },
+                    )
+
+                    FloatingActionButtonMenuItem(
+                        onClick = {
+                            val selectedEntries = historyEntries
+                                .filter { it.id in selectedHistoryEntryIds }
+                            onCopyAllQids(selectedEntries) { qidsText ->
+                                lastCopiedText = qidsText
+                            }
+                            isFabMenuExpanded = false
+                        },
+                        text = { Text("Copy QIDs (${selectedHistoryEntryIds.size})") },
+                        icon = { Icon(Icons.Filled.ContentCopy, contentDescription = null) },
+                    )
+
+                    FloatingActionButtonMenuItem(
+                        onClick = {
+                            deleteTargetEntryIds = selectedHistoryEntryIds
+                            isFabMenuExpanded = false
+                        },
+                        text = { Text("Delete (${selectedHistoryEntryIds.size})") },
+                        icon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                    )
+                }
+            }
         }
 
         if (deleteTargetEntryIds.isNotEmpty()) {
@@ -216,6 +237,9 @@ internal fun HistoryPane(
                 onConfirm = {
                     onDeleteHistoryEntries(deleteTargetEntryIds)
                     selectedHistoryEntryIds = selectedHistoryEntryIds - deleteTargetEntryIds
+                    if (selectedHistoryEntryIds.isEmpty()) {
+                        isFabMenuExpanded = false
+                    }
                     deleteTargetEntryIds = emptySet()
                 },
                 onDismiss = { deleteTargetEntryIds = emptySet() },
