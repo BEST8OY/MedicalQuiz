@@ -2,11 +2,13 @@ package com.medqb.app.shared.data
 
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.di.AppScope
+import com.medqb.app.shared.navigation.FilterPane
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 
 /**
@@ -43,6 +45,7 @@ class FilterStateHolder {
         _performanceFilter.value = PerformanceFilter.ALL
         _pendingHistoryEntryId.value = null
         _pendingHistoryQuestionIndex.value = 0
+        _pendingFilterPane.value = null
     }
 
     private val _pendingHistoryEntryId = MutableStateFlow<String?>(null)
@@ -53,12 +56,7 @@ class FilterStateHolder {
     }
 
     fun consumePendingHistoryEntryId(): String? {
-        var id: String? = null
-        _pendingHistoryEntryId.update {
-            id = it
-            null
-        }
-        return id
+        return _pendingHistoryEntryId.getAndUpdate { null }
     }
 
     private val _pendingHistoryQuestionIndex = MutableStateFlow(0)
@@ -69,11 +67,17 @@ class FilterStateHolder {
     }
 
     fun consumePendingHistoryQuestionIndex(): Int {
-        var index = 0
-        _pendingHistoryQuestionIndex.update {
-            index = it
-            0
-        }
-        return index
+        return _pendingHistoryQuestionIndex.getAndUpdate { 0 }
+    }
+
+    private val _pendingFilterPane = MutableStateFlow<FilterPane?>(null)
+    val pendingFilterPane: StateFlow<FilterPane?> = _pendingFilterPane.asStateFlow()
+
+    fun setPendingFilterPane(pane: FilterPane?) {
+        _pendingFilterPane.value = pane
+    }
+
+    fun consumePendingFilterPane(): FilterPane? {
+        return _pendingFilterPane.getAndUpdate { null }
     }
 }

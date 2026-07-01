@@ -1,6 +1,5 @@
 package com.medqb.app.shared.ui.screens.quiz
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -329,31 +328,16 @@ private fun QuizQuestionCard(
     var hintExpanded by rememberSaveable(question.id) { mutableStateOf(false) }
     val showHint = hintHtml != null && (state.answerSubmitted || hintExpanded)
 
-    AnimatedContent(
-        targetState = question.id,
-        transitionSpec = {
-            fadeIn(animationSpec = defaultEffectsSpec) togetherWith
-                fadeOut(animationSpec = defaultEffectsSpec)
-        },
-        label = "question_transition"
-    ) { targetId ->
-        val scrollState = remember(targetId) {
-            val initialPosition = viewModel.getScrollPosition(targetId)
-            androidx.compose.foundation.ScrollState(initialPosition)
-        }
+    val scrollState = rememberScrollState()
 
-        LaunchedEffect(scrollState.value) {
-            viewModel.saveScrollPosition(targetId, scrollState.value)
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp)
-                .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(horizontal = 16.dp)
+            .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         // Question card - elevated primary content
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
@@ -489,10 +473,9 @@ private fun QuizQuestionCard(
             Column {
                 Spacer(modifier = Modifier.height(12.dp))
                 PerformanceCard(performance = state.currentPerformance)
-            }
-        }
         }
     }
+}
 }
 
 @Composable

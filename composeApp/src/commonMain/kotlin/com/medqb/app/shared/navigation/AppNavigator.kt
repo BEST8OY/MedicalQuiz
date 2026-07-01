@@ -48,14 +48,4 @@ class AppNavigator(
             navigateTo(MedQBRoutes.Filter)
         }
     }
-
-    fun returnQuizToHistory() {
-        if (currentRoute is MedQBRoutes.Quiz) {
-            navigateBack()
-        }
-        if (currentRoute !is MedQBRoutes.History) {
-            popToDatabaseSelection()
-            navigateTo(MedQBRoutes.History)
-        }
-    }
 }

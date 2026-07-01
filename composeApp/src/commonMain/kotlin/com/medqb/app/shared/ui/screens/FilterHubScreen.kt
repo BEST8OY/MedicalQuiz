@@ -7,21 +7,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.SubmissionMode
+import com.medqb.app.shared.navigation.FilterPane
 import com.medqb.app.shared.ui.dialogs.PerformanceFilterDialog
 import com.medqb.app.shared.ui.dialogs.SubjectFilterDialog
 import com.medqb.app.shared.ui.dialogs.SystemFilterDialog
-import com.medqb.app.shared.viewmodel.FilterViewModel
+import com.medqb.app.shared.ui.screens.history.HistoryPane
+import com.medqb.app.shared.viewmodel.FilterHubViewModel
 
 @Composable
 internal fun FilterHubScreen(
-    viewModel: FilterViewModel,
-    selectedPane: FilterPane,
-    onPaneSelected: (FilterPane) -> Unit,
+    viewModel: FilterHubViewModel,
     onStartQuiz: () -> Unit,
+    onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
     onLoggingToggle: (Boolean) -> Unit,
     onSubmissionModeToggle: (SubmissionMode) -> Unit,
+    onShowSnackbar: (String) -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val performanceLabel = formatPerformanceLabel(state.performanceFilter)
@@ -30,38 +33,57 @@ internal fun FilterHubScreen(
     var showSystemDialog by rememberSaveable { mutableStateOf(false) }
     var showPerformanceDialog by rememberSaveable { mutableStateOf(false) }
 
+    var historySelectionMode by rememberSaveable { mutableStateOf(false) }
+
     FilterPaneScaffold(
-        selectedPane = selectedPane,
-        onPaneSelected = onPaneSelected,
-        showPaneToolbar = true,
+        selectedPane = state.activePane,
+        onPaneSelected = { viewModel.setActivePane(it) },
+        showPaneToolbar = !historySelectionMode || state.activePane == FilterPane.Filters,
     ) {
-        FilterScreen(
-            databaseName = state.databaseName,
-            subjectCount = state.selectedSubjectIds.size,
-            systemCount = state.selectedSystemIds.size,
-            performanceFilter = state.performanceFilter,
-            performanceLabel = performanceLabel,
-            previewCount = state.previewQuestionCount,
-            isLoggingEnabled = state.isLoggingEnabled,
-            onLoggingToggle = onLoggingToggle,
-            submissionMode = state.submissionMode,
-            onSubmissionModeToggle = onSubmissionModeToggle,
-            bottomContentPadding = 112.dp,
-            onSelectSubjects = {
-                showSubjectDialog = true
-                viewModel.fetchSubjects()
-            },
-            onSelectSystems = {
-                showSystemDialog = true
-                val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-                viewModel.fetchSystemsForSubjects(subjects)
-            },
-            onSelectPerformance = { showPerformanceDialog = true },
-            onStart = onStartQuiz,
-            onClearFilters = {
-                viewModel.clearAllFilters()
+        when (state.activePane) {
+            FilterPane.Filters -> {
+                FilterScreen(
+                    databaseName = state.databaseName,
+                    subjectCount = state.selectedSubjectIds.size,
+                    systemCount = state.selectedSystemIds.size,
+                    performanceFilter = state.performanceFilter,
+                    performanceLabel = performanceLabel,
+                    previewCount = state.previewQuestionCount,
+                    isLoggingEnabled = state.isLoggingEnabled,
+                    onLoggingToggle = onLoggingToggle,
+                    submissionMode = state.submissionMode,
+                    onSubmissionModeToggle = onSubmissionModeToggle,
+                    bottomContentPadding = 112.dp,
+                    onSelectSubjects = {
+                        showSubjectDialog = true
+                        viewModel.fetchSubjects()
+                    },
+                    onSelectSystems = {
+                        showSystemDialog = true
+                        val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+                        viewModel.fetchSystemsForSubjects(subjects)
+                    },
+                    onSelectPerformance = { showPerformanceDialog = true },
+                    onStart = onStartQuiz,
+                    onClearFilters = {
+                        viewModel.clearAllFilters()
+                    }
+                )
             }
-        )
+            FilterPane.History -> {
+                HistoryPane(
+                    historyEntries = state.historyEntries,
+                    onHistorySelected = onHistorySelected,
+                    onDeleteHistoryEntries = { viewModel.deleteHistoryEntries(it) },
+                    onRenameHistoryEntry = { id, name -> viewModel.renameHistoryEntry(id, name) },
+                    onCopyAllQids = { entries, onCopied ->
+                        viewModel.copyQuestionIdsForHistoryEntries(entries, onCopied)
+                    },
+                    onSelectionModeChanged = { historySelectionMode = it },
+                    onShowSnackbar = onShowSnackbar,
+                )
+            }
+        }
     }
 
     if (showSubjectDialog) {

@@ -319,7 +319,11 @@ private fun <T> SelectionListContent(
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
     val allIds = remember(items) { items.map { idProvider(it) }.toSet() }
-    val isAllSelected = currentSelection.size == allIds.size && allIds.isNotEmpty()
+    val effectiveSelectAllIds = remember(allIds, filteredItems, searchQuery) {
+        if (searchQuery.isBlank()) allIds
+        else filteredItems.map { idProvider(it) }.toSet()
+    }
+    val isAllSelected = currentSelection.size == effectiveSelectAllIds.size && effectiveSelectAllIds.isNotEmpty()
 
     val filteredItems = remember(items, searchQuery) {
         if (searchQuery.isBlank()) items
@@ -331,9 +335,15 @@ private fun <T> SelectionListContent(
     val listState = rememberLazyListState()
 
     Column {
+        val subtitle = if (searchQuery.isBlank()) {
+            "${currentSelection.size} of ${items.size} selected"
+        } else {
+            "${currentSelection.size} of ${items.size} selected (${filteredItems.size} shown)"
+        }
+
         DialogHeader(
             title = title,
-            subtitle = "${currentSelection.size} of ${items.size} selected",
+            subtitle = subtitle,
             onClose = onDismiss
         )
 
@@ -378,7 +388,7 @@ private fun <T> SelectionListContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextButton(
-                onClick = { currentSelection = allIds.toMutableSet() },
+                onClick = { currentSelection = effectiveSelectAllIds.toMutableSet() },
                 enabled = !isAllSelected
             ) {
                 Text("Select all")

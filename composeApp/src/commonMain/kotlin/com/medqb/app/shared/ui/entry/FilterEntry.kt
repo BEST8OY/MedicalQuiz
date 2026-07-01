@@ -1,18 +1,19 @@
 package com.medqb.app.shared.ui.entry
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.createSavedStateHandle
+import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.di.AppGraph
 import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.orchestration.AppWorkflowHandle
 import com.medqb.app.shared.ui.screens.FilterHubScreen
-import com.medqb.app.shared.ui.screens.FilterPane
-import com.medqb.app.shared.viewmodel.FilterViewModel
+import com.medqb.app.shared.viewmodel.FilterHubViewModel
 
 @Composable
 fun FilterEntry(
@@ -20,10 +21,10 @@ fun FilterEntry(
     workflow: AppWorkflowHandle,
     navigator: AppNavigator,
 ) {
-    val filterVM = viewModel<FilterViewModel>(
+    val filterVM = viewModel<FilterHubViewModel>(
         factory = viewModelFactory {
             initializer {
-                graph.createFilterViewModel(
+                graph.createFilterHubViewModel(
                     createSavedStateHandle()
                 )
             }
@@ -35,17 +36,34 @@ fun FilterEntry(
         navigator.navigateTo(MedQBRoutes.Quiz)
     }
 
+    val onHistorySelected = remember(filterVM, workflow, navigator, graph) {
+        { entry: QuizSessionRepository.QuizSession ->
+            filterVM.restoreHistoryEntry(
+                entry = entry,
+                onSuccess = { matchingDatabase ->
+                    workflow.onFilterSubjectsSync(
+                        entry.selectedSubjectIds.toSet(),
+                        entry.selectedSystemIds.toSet(),
+                        entry.performanceFilter,
+                    )
+                    graph.filterStateHolder.setPendingHistoryEntryId(entry.id)
+                    graph.filterStateHolder.setPendingHistoryQuestionIndex(entry.currentQuestionIndex)
+                    workflow.onHistoryLaunchPrepared(matchingDatabase)
+                    navigator.navigateTo(MedQBRoutes.Quiz)
+                },
+                onFailure = {
+                    graph.snackbarDispatcher.emitSnackbar("Database files for this entry could not be found.")
+                }
+            )
+        }
+    }
+
     FilterHubScreen(
         viewModel = filterVM,
-        selectedPane = FilterPane.Filters,
-        onPaneSelected = { pane ->
-            when (pane) {
-                FilterPane.Filters -> navigator.switchTo(MedQBRoutes.Filter)
-                FilterPane.History -> navigator.switchTo(MedQBRoutes.History)
-            }
-        },
         onStartQuiz = onStartQuiz,
+        onHistorySelected = onHistorySelected,
         onLoggingToggle = { graph.settingsRepository.setLoggingEnabled(it) },
         onSubmissionModeToggle = { graph.settingsRepository.setSubmissionMode(it) },
+        onShowSnackbar = { message -> graph.snackbarDispatcher.emitSnackbar(message) },
     )
 }
