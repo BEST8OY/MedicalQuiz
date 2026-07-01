@@ -11,7 +11,7 @@ import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
-import com.medqb.app.shared.navigation.FilterPane
+import com.medqb.app.shared.ui.screens.FilterPane
 import com.medqb.app.shared.ui.state.FilterUiState
 import com.medqb.app.shared.utils.Resource
 import dev.zacsweers.metro.Inject
@@ -325,8 +325,8 @@ class FilterHubViewModel(
 
     fun restoreHistoryEntry(
         entry: QuizSessionRepository.QuizSession,
-        onSuccess: (String) -> Unit,
-        onFailure: () -> Unit
+        onSuccess: suspend (String) -> Unit,
+        onFailure: suspend () -> Unit
     ) {
         viewModelScope.launch {
             try {

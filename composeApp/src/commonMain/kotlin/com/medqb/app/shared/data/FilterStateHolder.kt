@@ -2,7 +2,7 @@ package com.medqb.app.shared.data
 
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.di.AppScope
-import com.medqb.app.shared.navigation.FilterPane
+import com.medqb.app.shared.ui.screens.FilterPane
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.MutableStateFlow

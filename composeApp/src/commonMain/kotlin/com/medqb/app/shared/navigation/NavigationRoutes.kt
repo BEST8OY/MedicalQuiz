@@ -43,9 +43,5 @@ enum class QuizLaunchSource {
     History,
 }
 
-@Serializable
-enum class FilterPane {
-    Filters,
-    History,
-}
+
 

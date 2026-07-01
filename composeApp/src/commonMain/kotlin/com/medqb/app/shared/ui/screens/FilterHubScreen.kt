@@ -10,7 +10,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.SubmissionMode
-import com.medqb.app.shared.navigation.FilterPane
+import com.medqb.app.shared.ui.screens.FilterPane
 import com.medqb.app.shared.ui.dialogs.PerformanceFilterDialog
 import com.medqb.app.shared.ui.dialogs.SubjectFilterDialog
 import com.medqb.app.shared.ui.dialogs.SystemFilterDialog
@@ -24,7 +24,7 @@ internal fun FilterHubScreen(
     onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
     onLoggingToggle: (Boolean) -> Unit,
     onSubmissionModeToggle: (SubmissionMode) -> Unit,
-    onShowSnackbar: (String) -> Unit = {},
+    onShowSnackbar: suspend (String) -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val performanceLabel = formatPerformanceLabel(state.performanceFilter)

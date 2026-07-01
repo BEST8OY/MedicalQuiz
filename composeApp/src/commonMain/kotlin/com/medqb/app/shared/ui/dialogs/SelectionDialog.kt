@@ -319,11 +319,6 @@ private fun <T> SelectionListContent(
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
     val allIds = remember(items) { items.map { idProvider(it) }.toSet() }
-    val effectiveSelectAllIds = remember(allIds, filteredItems, searchQuery) {
-        if (searchQuery.isBlank()) allIds
-        else filteredItems.map { idProvider(it) }.toSet()
-    }
-    val isAllSelected = currentSelection.size == effectiveSelectAllIds.size && effectiveSelectAllIds.isNotEmpty()
 
     val filteredItems = remember(items, searchQuery) {
         if (searchQuery.isBlank()) items
@@ -331,6 +326,12 @@ private fun <T> SelectionListContent(
             labelProvider(it).contains(searchQuery, ignoreCase = true)
         }
     }
+
+    val effectiveSelectAllIds = remember(allIds, filteredItems, searchQuery) {
+        if (searchQuery.isBlank()) allIds
+        else filteredItems.map { idProvider(it) }.toSet()
+    }
+    val isAllSelected = currentSelection.size == effectiveSelectAllIds.size && effectiveSelectAllIds.isNotEmpty()
 
     val listState = rememberLazyListState()
 
