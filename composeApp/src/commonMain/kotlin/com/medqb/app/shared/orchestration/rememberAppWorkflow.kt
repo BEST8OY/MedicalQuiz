@@ -5,15 +5,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.navigation.QuizLaunchSource
-import kotlinx.coroutines.launch
 
 private val AppWorkflowStateSaver = Saver<AppWorkflowState, List<Any?>>(
     save = { state ->
@@ -41,8 +38,6 @@ fun rememberAppWorkflow(
     workflowCoordinator: AppWorkflowCoordinator,
     filterStateHolder: FilterStateHolder,
 ): AppWorkflowHandle {
-    val scope = rememberCoroutineScope()
-
     var workflowState by rememberSaveable(stateSaver = AppWorkflowStateSaver) {
         mutableStateOf(workflowCoordinator.initialState())
     }
@@ -66,11 +61,9 @@ fun rememberAppWorkflow(
         }
     }
 
-    val onDatabaseSelectionRequested = remember(workflowCoordinator, scope) {
-        { databaseHolder: ActiveDatabaseHolder ->
+    val onDatabaseSelectionRequested = remember(workflowCoordinator) {
+        { ->
             workflowState = workflowCoordinator.databaseSelectionRequested(workflowState)
-            scope.launch { databaseHolder.closeDatabase() }
-            Unit
         }
     }
 
@@ -129,7 +122,7 @@ fun rememberAppWorkflow(
 class AppWorkflowHandle(
     val state: AppWorkflowState,
     val onDatabaseSelected: (String) -> Unit,
-    val onDatabaseSelectionRequested: (ActiveDatabaseHolder) -> Unit,
+    val onDatabaseSelectionRequested: () -> Unit,
     val onStandardQuizLaunchPrepared: () -> Unit,
     val onHistoryLaunchPrepared: (String) -> Unit,
     val onFilterSubjectsSync: (Set<Long>, Set<Long>, PerformanceFilter) -> Unit,

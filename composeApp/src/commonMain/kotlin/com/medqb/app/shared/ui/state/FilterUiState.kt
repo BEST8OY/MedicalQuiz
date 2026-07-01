@@ -1,9 +1,11 @@
 package com.medqb.app.shared.ui.state
 
+import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.Subject
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.data.models.System
+import com.medqb.app.shared.navigation.FilterPane
 import com.medqb.app.shared.utils.Resource
 
 /**
@@ -19,8 +21,11 @@ data class FilterUiState(
     val previewQuestionCount: Int = 0,
     val isLoggingEnabled: Boolean = false,
     val submissionMode: SubmissionMode = SubmissionMode.INSTANT,
+    val activePane: FilterPane = FilterPane.Filters,
+    val historyEntries: List<QuizSessionRepository.QuizSession> = emptyList(),
 ) {
     companion object {
         val EMPTY = FilterUiState()
     }
 }
+

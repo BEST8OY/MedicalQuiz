@@ -41,8 +41,10 @@ class AppHistoryCoordinator(
         entries: List<QuizSessionRepository.QuizSession>,
     ): String = withContext(Dispatchers.IO) {
         val db = activeDatabaseHolder.databaseProvider.value
+        val activeDbName = activeDatabaseHolder.databaseName.value
         buildString {
             entries.forEach { entry ->
+                if (entry.databaseName != activeDbName) return@forEach
                 val questionIds = db?.getQuestionIds(
                     subjectIds = entry.selectedSubjectIds,
                     systemIds = entry.selectedSystemIds,

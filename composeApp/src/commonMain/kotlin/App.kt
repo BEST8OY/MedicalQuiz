@@ -37,18 +37,20 @@ import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.domain.AppIntent
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.navigation.AppNavigator
+import com.medqb.app.shared.navigation.FilterPane
 import com.medqb.app.shared.orchestration.RequestedFilterPane
 import com.medqb.app.shared.orchestration.rememberAppWorkflow
 import com.medqb.app.shared.ui.theme.AppTheme
 import com.medqb.app.shared.ui.entry.DatabaseSelectionEntry
 import com.medqb.app.shared.ui.entry.FilterEntry
-import com.medqb.app.shared.ui.entry.HistoryEntry
 import com.medqb.app.shared.ui.entry.HtmlViewerEntry
 import com.medqb.app.shared.ui.entry.MediaViewerEntry
 import com.medqb.app.shared.ui.entry.QuizEntry
 import com.medqb.app.shared.ui.entry.SettingsEntry
 import com.medqb.app.shared.ui.media.MediaHandler
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
@@ -59,7 +61,6 @@ private val navConfig = SavedStateConfiguration {
         polymorphic(baseClass = NavKey::class) {
             subclass(serializer = MedQBRoutes.DatabaseSelection.serializer())
             subclass(serializer = MedQBRoutes.Filter.serializer())
-            subclass(serializer = MedQBRoutes.History.serializer())
             subclass(serializer = MedQBRoutes.Quiz.serializer())
             subclass(serializer = MedQBRoutes.Settings.serializer())
             subclass(serializer = MedQBRoutes.MediaViewer.serializer())
@@ -84,10 +85,14 @@ fun App() {
         val scope = rememberCoroutineScope()
         val graph = LocalAppGraph.current
 
+        val appShutdownScope = remember {
+            kotlinx.coroutines.CoroutineScope(
+                kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
+            )
+        }
         DisposableEffect(graph.userDataManager) {
             onDispose {
-                @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
-                kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                appShutdownScope.launch {
                     graph.userDataManager.close()
                     graph.activeDatabaseHolder.closeDatabase()
                 }
@@ -137,7 +142,8 @@ fun App() {
                         }
                         is AppIntent.NavigateToDatabaseSelection -> {
                             navigator.popToDatabaseSelection()
-                            workflow.onDatabaseSelectionRequested(graph.activeDatabaseHolder)
+                            scope.launch { graph.activeDatabaseHolder.closeDatabase() }
+                            workflow.onDatabaseSelectionRequested()
                         }
                     }
                 }
@@ -151,9 +157,13 @@ fun App() {
 
         val returnQuizToFilter: () -> Unit = {
             val targetPane = workflow.onQuizReturn()
-            when (targetPane) {
-                RequestedFilterPane.History -> navigator.returnQuizToHistory()
-                else -> navigator.returnQuizToFilter()
+            navigator.returnQuizToFilter()
+            targetPane?.let {
+                val pane = when (it) {
+                    RequestedFilterPane.Filters -> FilterPane.Filters
+                    RequestedFilterPane.History -> FilterPane.History
+                }
+                graph.filterStateHolder.setPendingFilterPane(pane)
             }
         }
 
@@ -182,13 +192,7 @@ fun App() {
                     )
                 }
 
-                entry<MedQBRoutes.History> {
-                    HistoryEntry(
-                        graph = graph,
-                        workflow = workflow,
-                        navigator = navigator,
-                    )
-                }
+
 
                 entry<MedQBRoutes.Quiz> {
                     QuizEntry(

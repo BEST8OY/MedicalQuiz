@@ -17,8 +17,7 @@ import com.medqb.app.shared.orchestration.AppStartupCoordinator
 import com.medqb.app.shared.orchestration.AppWorkflowCoordinator
 import com.medqb.app.shared.orchestration.MediaNavigationCoordinator
 import com.medqb.app.shared.viewmodel.DatabaseSelectionViewModel
-import com.medqb.app.shared.viewmodel.FilterViewModel
-import com.medqb.app.shared.viewmodel.HistoryViewModel
+import com.medqb.app.shared.viewmodel.FilterHubViewModel
 import com.medqb.app.shared.viewmodel.QuizViewModel
 import com.medqb.app.shared.viewmodel.SettingsViewModel
 
@@ -50,19 +49,14 @@ interface AppGraph {
         )
     }
 
-    fun createFilterViewModel(savedStateHandle: SavedStateHandle): FilterViewModel {
-        return FilterViewModel(
+    fun createFilterHubViewModel(savedStateHandle: SavedStateHandle): FilterHubViewModel {
+        return FilterHubViewModel(
             activeDatabaseHolder = activeDatabaseHolder,
             applyFiltersUseCase = applyFiltersUseCase,
             settingsRepository = settingsRepository,
             snackbarSink = snackbarDispatcher,
             filterStateHolder = filterStateHolder,
             savedStateHandle = savedStateHandle,
-        )
-    }
-
-    fun createHistoryViewModel(): HistoryViewModel {
-        return HistoryViewModel(
             historyCoordinator = historyCoordinator,
             sessionRepository = sessionRepository,
         )

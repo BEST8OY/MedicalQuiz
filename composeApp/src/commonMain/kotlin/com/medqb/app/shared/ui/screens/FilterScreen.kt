@@ -229,7 +229,7 @@ private fun ToggleCard(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (checked) contentColor else MaterialTheme.colorScheme.onSurface
+                    color = contentColor
                 )
                 Text(
                     text = description,
@@ -359,7 +359,7 @@ private fun FilterSelectionCard(
 
     val containerColor by animateColorAsState(
         targetValue = if (isActive)
-            MaterialTheme.colorScheme.primaryContainer
+            MaterialTheme.colorScheme.tertiaryContainer
         else
             MaterialTheme.colorScheme.surfaceContainerLow,
         animationSpec = motionScheme.defaultEffectsSpec()
@@ -367,7 +367,7 @@ private fun FilterSelectionCard(
 
     val contentColor by animateColorAsState(
         targetValue = if (isActive)
-            MaterialTheme.colorScheme.onPrimaryContainer
+            MaterialTheme.colorScheme.onTertiaryContainer
         else
             MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = motionScheme.defaultEffectsSpec()
@@ -375,7 +375,7 @@ private fun FilterSelectionCard(
 
     val iconContainerColor by animateColorAsState(
         targetValue = if (isActive)
-            MaterialTheme.colorScheme.primary
+            MaterialTheme.colorScheme.tertiary
         else
             MaterialTheme.colorScheme.surfaceContainerHighest,
         animationSpec = motionScheme.defaultEffectsSpec()
@@ -383,7 +383,7 @@ private fun FilterSelectionCard(
 
     val iconColor by animateColorAsState(
         targetValue = if (isActive)
-            MaterialTheme.colorScheme.onPrimary
+            MaterialTheme.colorScheme.onTertiary
         else
             MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = motionScheme.defaultEffectsSpec()
@@ -424,7 +424,7 @@ private fun FilterSelectionCard(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (isActive) contentColor else MaterialTheme.colorScheme.onSurface
+                    color = contentColor
                 )
                 Text(
                     text = subtitle,

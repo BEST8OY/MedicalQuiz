@@ -39,8 +39,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-private const val MAX_SCROLL_CACHE_SIZE = 100
-
 @OptIn(ExperimentalCoroutinesApi::class)
 @Inject
 class QuizViewModel(
@@ -72,12 +70,6 @@ class QuizViewModel(
         .map { it.databaseName }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-
-    private val scrollPositionCache = object : LinkedHashMap<Long, Int>(MAX_SCROLL_CACHE_SIZE, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Int>?): Boolean {
-            return size > MAX_SCROLL_CACHE_SIZE
-        }
-    }
 
     private var sessionId: String = ""
     private val loadRequests = MutableSharedFlow<LoadRequest>(extraBufferCapacity = 1)
@@ -440,17 +432,5 @@ class QuizViewModel(
         viewModelScope.launch {
             snackbarSink.emitSnackbar(message)
         }
-    }
-
-    fun saveScrollPosition(questionId: Long, scrollPosition: Int) {
-        scrollPositionCache[questionId] = scrollPosition
-    }
-
-    fun getScrollPosition(questionId: Long): Int {
-        return scrollPositionCache[questionId] ?: 0
-    }
-
-    fun clearScrollPosition(questionId: Long) {
-        scrollPositionCache.remove(questionId)
     }
 }

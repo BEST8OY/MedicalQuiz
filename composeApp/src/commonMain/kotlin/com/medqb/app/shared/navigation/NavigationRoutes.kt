@@ -20,9 +20,6 @@ sealed interface MedQBRoutes : NavKey {
     data object Filter : MedQBRoutes
 
     @Serializable
-    data object History : MedQBRoutes
-
-    @Serializable
     data object Quiz : MedQBRoutes
 
     @Serializable
@@ -45,3 +42,10 @@ enum class QuizLaunchSource {
     Standard,
     History,
 }
+
+@Serializable
+enum class FilterPane {
+    Filters,
+    History,
+}
+
