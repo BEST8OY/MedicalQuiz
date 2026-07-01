@@ -85,6 +85,7 @@ internal fun HistoryPane(
     val clipboard = LocalClipboard.current
     var selectedHistoryEntryIds by rememberSaveable { mutableStateOf(setOf<String>()) }
     var deleteTargetEntryIds by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    var lastCopiedText by rememberSaveable { mutableStateOf("") }
     var renameTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var renameText by rememberSaveable { mutableStateOf("") }
     val allHistoryEntryIds = remember(historyEntries) { historyEntries.map { it.id }.toSet() }
@@ -100,6 +101,14 @@ internal fun HistoryPane(
 
     LaunchedEffect(selectedHistoryEntryIds) {
         onSelectionModeChanged(selectedHistoryEntryIds.isNotEmpty())
+    }
+
+    LaunchedEffect(lastCopiedText) {
+        if (lastCopiedText.isNotBlank()) {
+            clipboard.setPlainText(AnnotatedString(lastCopiedText))
+            onShowSnackbar("Copied QIDs to clipboard")
+            lastCopiedText = ""
+        }
     }
 
     DisposableEffect(Unit) {
@@ -180,10 +189,7 @@ internal fun HistoryPane(
                         val selectedEntries = historyEntries
                             .filter { it.id in selectedHistoryEntryIds }
                         onCopyAllQids(selectedEntries) { qidsText ->
-                            if (qidsText.isNotBlank()) {
-                                clipboard.setPlainText(AnnotatedString(qidsText))
-                                onShowSnackbar("Copied QIDs to clipboard")
-                            }
+                            lastCopiedText = qidsText
                         }
                         selectedHistoryEntryIds = emptySet()
                     }) {

@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.components.PaneToggleButton
 
-internal enum class FilterPane {
+enum class FilterPane {
     Filters,
     History,
 }
