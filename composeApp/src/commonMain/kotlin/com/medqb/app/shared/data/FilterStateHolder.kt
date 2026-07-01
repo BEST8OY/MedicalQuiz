@@ -1,6 +1,7 @@
 package com.medqb.app.shared.data
 
 import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.di.AppScope
 import com.medqb.app.shared.ui.screens.FilterPane
 import dev.zacsweers.metro.Inject
@@ -46,6 +47,8 @@ class FilterStateHolder {
         _pendingHistoryEntryId.value = null
         _pendingHistoryQuestionIndex.value = 0
         _pendingFilterPane.value = null
+        _pendingIsLoggingEnabled.value = null
+        _pendingSubmissionMode.value = null
     }
 
     private val _pendingHistoryEntryId = MutableStateFlow<String?>(null)
@@ -79,5 +82,27 @@ class FilterStateHolder {
 
     fun consumePendingFilterPane(): FilterPane? {
         return _pendingFilterPane.getAndUpdate { null }
+    }
+
+    private val _pendingIsLoggingEnabled = MutableStateFlow<Boolean?>(null)
+    val pendingIsLoggingEnabled: StateFlow<Boolean?> = _pendingIsLoggingEnabled.asStateFlow()
+
+    fun setPendingIsLoggingEnabled(enabled: Boolean) {
+        _pendingIsLoggingEnabled.value = enabled
+    }
+
+    fun consumePendingIsLoggingEnabled(): Boolean? {
+        return _pendingIsLoggingEnabled.getAndUpdate { null }
+    }
+
+    private val _pendingSubmissionMode = MutableStateFlow<SubmissionMode?>(null)
+    val pendingSubmissionMode: StateFlow<SubmissionMode?> = _pendingSubmissionMode.asStateFlow()
+
+    fun setPendingSubmissionMode(mode: SubmissionMode) {
+        _pendingSubmissionMode.value = mode
+    }
+
+    fun consumePendingSubmissionMode(): SubmissionMode? {
+        return _pendingSubmissionMode.getAndUpdate { null }
     }
 }
