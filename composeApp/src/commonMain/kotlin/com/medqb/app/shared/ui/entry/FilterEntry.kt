@@ -48,8 +48,6 @@ fun FilterEntry(
                     )
                     graph.filterStateHolder.setPendingHistoryEntryId(entry.id)
                     graph.filterStateHolder.setPendingHistoryQuestionIndex(entry.currentQuestionIndex)
-                    graph.filterStateHolder.setPendingIsLoggingEnabled(entry.isLoggingEnabled)
-                    graph.filterStateHolder.setPendingSubmissionMode(entry.submissionMode)
                     workflow.onHistoryLaunchPrepared(matchingDatabase)
                     navigator.navigateTo(MedQBRoutes.Quiz)
                 },
