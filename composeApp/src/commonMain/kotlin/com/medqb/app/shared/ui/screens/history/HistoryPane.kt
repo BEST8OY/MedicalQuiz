@@ -47,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.Alignment
@@ -78,7 +79,7 @@ internal fun HistoryPane(
     onRenameHistoryEntry: (String, String) -> Unit,
     onCopyAllQids: (List<QuizSessionRepository.QuizSession>, (String) -> Unit) -> Unit,
     onSelectionModeChanged: (Boolean) -> Unit,
-    onShowSnackbar: (String) -> Unit = {},
+    onShowSnackbar: suspend (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val clipboard = LocalClipboard.current

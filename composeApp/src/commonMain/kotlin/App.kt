@@ -37,7 +37,7 @@ import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.domain.AppIntent
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.navigation.AppNavigator
-import com.medqb.app.shared.navigation.FilterPane
+import com.medqb.app.shared.ui.screens.FilterPane
 import com.medqb.app.shared.orchestration.RequestedFilterPane
 import com.medqb.app.shared.orchestration.rememberAppWorkflow
 import com.medqb.app.shared.ui.theme.AppTheme
