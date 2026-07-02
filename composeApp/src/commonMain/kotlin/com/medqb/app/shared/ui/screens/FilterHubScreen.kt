@@ -1,10 +1,16 @@
 package com.medqb.app.shared.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.QuizSessionRepository
@@ -40,48 +46,74 @@ internal fun FilterHubScreen(
         onPaneSelected = { viewModel.setActivePane(it) },
         showPaneToolbar = !historySelectionMode || state.activePane == FilterPane.Filters,
     ) {
-        when (state.activePane) {
-            FilterPane.Filters -> {
-                FilterScreen(
-                    databaseName = state.databaseName,
-                    subjectCount = state.selectedSubjectIds.size,
-                    systemCount = state.selectedSystemIds.size,
-                    performanceFilter = state.performanceFilter,
-                    performanceLabel = performanceLabel,
-                    previewCount = state.previewQuestionCount,
-                    isLoggingEnabled = state.isLoggingEnabled,
-                    onLoggingToggle = onLoggingToggle,
-                    submissionMode = state.submissionMode,
-                    onSubmissionModeToggle = onSubmissionModeToggle,
-                    bottomContentPadding = 112.dp,
-                    onSelectSubjects = {
-                        showSubjectDialog = true
-                        viewModel.fetchSubjects()
-                    },
-                    onSelectSystems = {
-                        showSystemDialog = true
-                        val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-                        viewModel.fetchSystemsForSubjects(subjects)
-                    },
-                    onSelectPerformance = { showPerformanceDialog = true },
-                    onStart = onStartQuiz,
-                    onClearFilters = {
-                        viewModel.clearAllFilters()
-                    }
-                )
-            }
-            FilterPane.History -> {
-                HistoryPane(
-                    historyEntries = state.historyEntries,
-                    onHistorySelected = onHistorySelected,
-                    onDeleteHistoryEntries = { viewModel.deleteHistoryEntries(it) },
-                    onRenameHistoryEntry = { id, name -> viewModel.renameHistoryEntry(id, name) },
-                    onCopyAllQids = { entries, onCopied ->
-                        viewModel.copyQuestionIdsForHistoryEntries(entries, onCopied)
-                    },
-                    onSelectionModeChanged = { historySelectionMode = it },
-                    onShowSnackbar = onShowSnackbar,
-                )
+        val motionScheme = MaterialTheme.motionScheme
+        AnimatedContent(
+            targetState = state.activePane,
+            transitionSpec = {
+                val enterSpec = motionScheme.defaultSpatialSpec<IntOffset>()
+                val exitSpec = motionScheme.fastSpatialSpec<IntOffset>()
+
+                if (targetState == FilterPane.History) {
+                    slideInHorizontally(
+                        animationSpec = enterSpec,
+                        initialOffsetX = { fullWidth -> fullWidth },
+                    ) togetherWith slideOutHorizontally(
+                        animationSpec = exitSpec,
+                        targetOffsetX = { fullWidth -> -fullWidth / 3 },
+                    )
+                } else {
+                    slideInHorizontally(
+                        animationSpec = enterSpec,
+                        initialOffsetX = { fullWidth -> -fullWidth },
+                    ) togetherWith slideOutHorizontally(
+                        animationSpec = exitSpec,
+                        targetOffsetX = { fullWidth -> fullWidth / 3 },
+                    )
+                }
+            },
+            label = "filter_pane_content",
+        ) { activePane ->
+            when (activePane) {
+                FilterPane.Filters -> {
+                    FilterScreen(
+                        databaseName = state.databaseName,
+                        subjectCount = state.selectedSubjectIds.size,
+                        systemCount = state.selectedSystemIds.size,
+                        performanceFilter = state.performanceFilter,
+                        performanceLabel = performanceLabel,
+                        previewCount = state.previewQuestionCount,
+                        isLoggingEnabled = state.isLoggingEnabled,
+                        onLoggingToggle = onLoggingToggle,
+                        submissionMode = state.submissionMode,
+                        onSubmissionModeToggle = onSubmissionModeToggle,
+                        bottomContentPadding = 112.dp,
+                        onSelectSubjects = {
+                            showSubjectDialog = true
+                            viewModel.fetchSubjects()
+                        },
+                        onSelectSystems = {
+                            showSystemDialog = true
+                            val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+                            viewModel.fetchSystemsForSubjects(subjects)
+                        },
+                        onSelectPerformance = { showPerformanceDialog = true },
+                        onStart = onStartQuiz,
+                        onClearFilters = { viewModel.clearAllFilters() },
+                    )
+                }
+                FilterPane.History -> {
+                    HistoryPane(
+                        historyEntries = state.historyEntries,
+                        onHistorySelected = onHistorySelected,
+                        onDeleteHistoryEntries = { viewModel.deleteHistoryEntries(it) },
+                        onRenameHistoryEntry = { id, name -> viewModel.renameHistoryEntry(id, name) },
+                        onCopyAllQids = { entries, onCopied ->
+                            viewModel.copyQuestionIdsForHistoryEntries(entries, onCopied)
+                        },
+                        onSelectionModeChanged = { historySelectionMode = it },
+                        onShowSnackbar = onShowSnackbar,
+                    )
+                }
             }
         }
     }
