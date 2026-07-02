@@ -1,23 +1,31 @@
 package com.medqb.app.shared.ui.screens
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.medqb.app.shared.ui.components.PaneToggleButton
 
 enum class FilterPane {
     Filters,
@@ -67,18 +75,25 @@ private fun FilterPaneFloatingToolbar(
         modifier = modifier,
         colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
     ) {
-        PaneToggleButton(
-            checked = selectedPane == FilterPane.Filters,
-            label = "Filter",
-            icon = Icons.Filled.FilterAlt,
-            onCheckedChange = { if (it) onPaneSelected(FilterPane.Filters) },
-        )
-
-        PaneToggleButton(
-            checked = selectedPane == FilterPane.History,
-            label = "History",
-            icon = Icons.Filled.History,
-            onCheckedChange = { if (it) onPaneSelected(FilterPane.History) },
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+            ToggleButton(
+                checked = selectedPane == FilterPane.Filters,
+                onCheckedChange = { if (it) onPaneSelected(FilterPane.Filters) },
+                shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
+            ) {
+                Icon(Icons.Filled.FilterAlt, contentDescription = null)
+                Spacer(Modifier.size(ToggleButtonDefaults.IconSpacing))
+                Text("Filter")
+            }
+            ToggleButton(
+                checked = selectedPane == FilterPane.History,
+                onCheckedChange = { if (it) onPaneSelected(FilterPane.History) },
+                shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+            ) {
+                Icon(Icons.Filled.History, contentDescription = null)
+                Spacer(Modifier.size(ToggleButtonDefaults.IconSpacing))
+                Text("History")
+            }
+        }
     }
 }
