@@ -37,6 +37,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -339,70 +340,11 @@ private fun QuizQuestionCard(
             .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Question card - elevated primary content
-        ElevatedCard(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
-            colors = CardDefaults.elevatedCardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer
-            ),
-            elevation = CardDefaults.elevatedCardElevation(
-                defaultElevation = 1.dp
-            )
-        ) {
-            HighlightableRichText(
-                html = questionHtml,
-                section = HighlightSection.QUESTION,
-                highlightsRepository = viewModel.highlightsRepository,
-                showSelectedHighlight = state.answerSubmitted,
-                onLinkClick = linkHandler,
-                onMediaClick = mediaClick,
-                modifier = Modifier.padding(16.dp)
-            )
-        }
-
-        if (hintHtml != null) {
-            HintSection(
-                isVisible = showHint,
-                canToggle = !state.answerSubmitted,
-                onToggle = { hintExpanded = !hintExpanded },
-                hintHtml = hintHtml,
-                linkHandler = linkHandler,
-                mediaClick = mediaClick,
-                showSelectedHighlight = state.answerSubmitted
-            )
-        }
-
-        AnswerOptions(
-            answers = answers,
-            sanitizedAnswers = sanitizedAnswers,
-            selectedAnswerId = state.selectedAnswerId,
-            correctAnswerId = correctAnswerId,
-            answerSubmitted = state.answerSubmitted,
-            answerPercentages = answerPercentages,
-            onAnswerSelected = { answerId ->
-                if (!state.answerSubmitted) {
-                    viewModel.onAnswerSelected(answerId)
-                    if (state.submissionMode == SubmissionMode.INSTANT) {
-                        viewModel.submitAnswer(timeTaken = 0L)
-                    }
-                }
-            },
-            onLinkClick = linkHandler,
-            onMediaClick = mediaClick
-        )
-
-        AnimatedVisibility(
-            visible = state.answerSubmitted && explanationHtml.isNotBlank(),
-            enter = fadeIn(
-                animationSpec = defaultEffectsSpec,
-            ) + expandVertically(
-                animationSpec = defaultSpatialSpec,
-            ),
-        ) {
+        key(state.currentQuestionIndex) {
+            // Question card - elevated primary content
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.elevatedCardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                 ),
@@ -410,55 +352,115 @@ private fun QuizQuestionCard(
                     defaultElevation = 1.dp
                 )
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                HighlightableRichText(
+                    html = questionHtml,
+                    section = HighlightSection.QUESTION,
+                    highlightsRepository = viewModel.highlightsRepository,
+                    showSelectedHighlight = state.answerSubmitted,
+                    onLinkClick = linkHandler,
+                    onMediaClick = mediaClick,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+
+            if (hintHtml != null) {
+                HintSection(
+                    isVisible = showHint,
+                    canToggle = !state.answerSubmitted,
+                    onToggle = { hintExpanded = !hintExpanded },
+                    hintHtml = hintHtml,
+                    linkHandler = linkHandler,
+                    mediaClick = mediaClick,
+                    showSelectedHighlight = state.answerSubmitted
+                )
+            }
+
+            AnswerOptions(
+                answers = answers,
+                sanitizedAnswers = sanitizedAnswers,
+                selectedAnswerId = state.selectedAnswerId,
+                correctAnswerId = correctAnswerId,
+                answerSubmitted = state.answerSubmitted,
+                answerPercentages = answerPercentages,
+                onAnswerSelected = { answerId ->
+                    if (!state.answerSubmitted) {
+                        viewModel.onAnswerSelected(answerId)
+                        if (state.submissionMode == SubmissionMode.INSTANT) {
+                            viewModel.submitAnswer(timeTaken = 0L)
+                        }
+                    }
+                },
+                onLinkClick = linkHandler,
+                onMediaClick = mediaClick
+            )
+
+            AnimatedVisibility(
+                visible = state.answerSubmitted && explanationHtml.isNotBlank(),
+                enter = fadeIn(
+                    animationSpec = defaultEffectsSpec,
+                ) + expandVertically(
+                    animationSpec = defaultSpatialSpec,
+                ),
+            ) {
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    ),
+                    elevation = CardDefaults.elevatedCardElevation(
+                        defaultElevation = 1.dp
+                    )
                 ) {
-                    Text(
-                        text = "Explanation",
-                        style = MaterialTheme.typography.titleMediumEmphasized,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    // Use HighlightableRichText for explanation
-                    HighlightableRichText(
-                        html = explanationHtml,
-                        section = HighlightSection.EXPLANATION,
-                        highlightsRepository = viewModel.highlightsRepository,
-                        showSelectedHighlight = state.answerSubmitted,
-                        onLinkClick = linkHandler,
-                        onMediaClick = mediaClick
-                    )
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Explanation",
+                            style = MaterialTheme.typography.titleMediumEmphasized,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        HighlightableRichText(
+                            html = explanationHtml,
+                            section = HighlightSection.EXPLANATION,
+                            highlightsRepository = viewModel.highlightsRepository,
+                            showSelectedHighlight = state.answerSubmitted,
+                            onLinkClick = linkHandler,
+                            onMediaClick = mediaClick
+                        )
+                    }
                 }
             }
-        }
 
-        // Question metadata - shown after answering (inside scrollable area)
-        AnimatedVisibility(
-            visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
-            enter = fadeIn(
-                animationSpec = defaultEffectsSpec,
-            ) + expandVertically(
-                animationSpec = defaultSpatialSpec,
-            ),
-        ) {
-            Column {
-                Spacer(modifier = Modifier.height(12.dp))
-                QuestionMetadataCard(sections = metadataSections)
+            // Question metadata - shown after answering (inside scrollable area)
+            AnimatedVisibility(
+                visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
+                enter = fadeIn(
+                    animationSpec = defaultEffectsSpec,
+                ) + expandVertically(
+                    animationSpec = defaultSpatialSpec,
+                ),
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    QuestionMetadataCard(sections = metadataSections)
+                }
             }
-        }
 
-        // Performance logs - shown after answering if logs enabled (inside scrollable area)
-        AnimatedVisibility(
-            visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
-            enter = fadeIn(
-                animationSpec = defaultEffectsSpec,
-            ) + expandVertically(
-                animationSpec = defaultSpatialSpec,
-            ),
-        ) {
-            Column {
-                Spacer(modifier = Modifier.height(12.dp))
-                PerformanceCard(performance = state.currentPerformance)
+            // Performance logs - shown after answering if logs enabled (inside scrollable area)
+            AnimatedVisibility(
+                visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
+                enter = fadeIn(
+                    animationSpec = defaultEffectsSpec,
+                ) + expandVertically(
+                    animationSpec = defaultSpatialSpec,
+                ),
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    PerformanceCard(performance = state.currentPerformance)
+                }
             }
         }
     }
