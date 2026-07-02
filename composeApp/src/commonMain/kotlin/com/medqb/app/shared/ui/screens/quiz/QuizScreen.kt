@@ -328,7 +328,7 @@ private fun QuizQuestionCard(
     var hintExpanded by rememberSaveable(question.id) { mutableStateOf(false) }
     val showHint = hintHtml != null && (state.answerSubmitted || hintExpanded)
 
-    val scrollState = rememberScrollState()
+    val scrollState = rememberScrollState(key = state.currentQuestionIndex)
 
     Column(
         modifier = Modifier
