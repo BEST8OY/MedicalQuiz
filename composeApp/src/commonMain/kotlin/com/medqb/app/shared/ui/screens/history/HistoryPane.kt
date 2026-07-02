@@ -70,6 +70,7 @@ import com.medqb.app.shared.ui.richtext.setPlainText
 import com.medqb.app.shared.ui.screens.media.PlatformBackHandler
 import androidx.compose.ui.platform.LocalClipboard
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.Instant
@@ -431,7 +432,7 @@ private fun HistoryItemCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -449,7 +450,7 @@ private fun HistoryItemCard(
                     imageVector = Icons.Filled.History,
                     contentDescription = "Quiz history entry",
                     tint = iconTint,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(24.dp),
                 )
                 val entryDisplayName = entry.displayName()
                 Column(
@@ -464,18 +465,13 @@ private fun HistoryItemCard(
                     )
                     if (entryDisplayName != entry.databaseName) {
                         Text(
-                            text = "QBank: ${entry.databaseName}",
+                            text = entry.databaseName,
                             style = MaterialTheme.typography.bodySmall,
                             color = subtitleColor,
                         )
                     }
                     Text(
-                        text = "Question ${entry.currentQuestionIndex + 1}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = titleColor,
-                    )
-                    Text(
-                        text = formatTimestamp(entry.updatedAtEpochMillis),
+                        text = "Q${entry.currentQuestionIndex + 1} \u00B7 ${relativeTimestamp(entry.updatedAtEpochMillis)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = subtitleColor,
                     )
@@ -491,13 +487,23 @@ private fun QuizSessionRepository.QuizSession.displayName(): String =
 private fun Set<String>.toggle(id: String): Set<String> =
     if (id in this) this - id else this + id
 
-private fun formatTimestamp(epochMillis: Long): String {
-    if (epochMillis <= 0L) return "Unknown time"
-    val localDateTime = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
-    val year = localDateTime.year
-    val month = localDateTime.monthNumber.toString().padStart(2, '0')
-    val day = localDateTime.dayOfMonth.toString().padStart(2, '0')
-    val hour = localDateTime.hour.toString().padStart(2, '0')
-    val minute = localDateTime.minute.toString().padStart(2, '0')
-    return "$year-$month-$day $hour:$minute"
+private fun relativeTimestamp(epochMillis: Long): String {
+    if (epochMillis <= 0L) return "Unknown"
+    val now = Clock.System.now()
+    val then = Instant.fromEpochMilliseconds(epochMillis)
+    val diffMs = now.minus(then).inWholeMilliseconds
+    val diffMin = diffMs / 1000 / 60
+    val diffHr = diffMin / 60
+    val diffDay = diffHr / 24
+    return when {
+        diffMin < 1 -> "Just now"
+        diffMin < 60 -> "${diffMin}m ago"
+        diffHr < 24 -> "${diffHr}h ago"
+        diffDay < 7 -> "${diffDay}d ago"
+        else -> {
+            val ldt = then.toLocalDateTime(TimeZone.currentSystemDefault())
+            val mon = ldt.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
+            "$mon ${ldt.dayOfMonth}, ${ldt.hour}:${ldt.minute.toString().padStart(2, '0')}"
+        }
+    }
 }
