@@ -1,8 +1,8 @@
 package com.medqb.app.shared.ui.screens
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -10,7 +10,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.QuizSessionRepository
@@ -50,26 +49,8 @@ internal fun FilterHubScreen(
         AnimatedContent(
             targetState = state.activePane,
             transitionSpec = {
-                val enterSpec = motionScheme.defaultSpatialSpec<IntOffset>()
-                val exitSpec = motionScheme.fastSpatialSpec<IntOffset>()
-
-                if (targetState == FilterPane.History) {
-                    slideInHorizontally(
-                        animationSpec = enterSpec,
-                        initialOffsetX = { fullWidth -> fullWidth },
-                    ) togetherWith slideOutHorizontally(
-                        animationSpec = exitSpec,
-                        targetOffsetX = { fullWidth -> -fullWidth / 3 },
-                    )
-                } else {
-                    slideInHorizontally(
-                        animationSpec = enterSpec,
-                        initialOffsetX = { fullWidth -> -fullWidth },
-                    ) togetherWith slideOutHorizontally(
-                        animationSpec = exitSpec,
-                        targetOffsetX = { fullWidth -> fullWidth / 3 },
-                    )
-                }
+                fadeIn(animationSpec = motionScheme.defaultEffectsSpec())
+                    .togetherWith(fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
             },
             label = "filter_pane_content",
         ) { activePane ->
