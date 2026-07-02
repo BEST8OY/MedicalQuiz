@@ -329,7 +329,7 @@ private fun QuizQuestionCard(
     val scrollState = rememberScrollState()
 
     LaunchedEffect(state.currentQuestionIndex) {
-        scrollState.animateScrollTo(0)
+        scrollState.scrollTo(0)
     }
 
     Column(
