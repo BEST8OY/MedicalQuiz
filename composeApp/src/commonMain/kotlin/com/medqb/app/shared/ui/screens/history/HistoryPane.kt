@@ -70,10 +70,10 @@ import com.medqb.app.shared.ui.richtext.setPlainText
 import com.medqb.app.shared.ui.screens.media.PlatformBackHandler
 import androidx.compose.ui.platform.LocalClipboard
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.Instant
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -503,7 +503,7 @@ private fun relativeTimestamp(epochMillis: Long): String {
         else -> {
             val ldt = then.toLocalDateTime(TimeZone.currentSystemDefault())
             val mon = ldt.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
-            "$mon ${ldt.dayOfMonth}, ${ldt.hour}:${ldt.minute.toString().padStart(2, '0')}"
+            "$mon ${ldt.day}, ${ldt.hour}:${ldt.minute.toString().padStart(2, '0')}"
         }
     }
 }
