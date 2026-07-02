@@ -5,7 +5,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Lightbulb
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ElevatedCard
@@ -45,6 +43,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,7 +52,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.database.QuestionPerformance
-import com.medqb.app.shared.data.models.Answer
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.Question
 import com.medqb.app.shared.data.models.SubmissionMode
@@ -62,7 +60,6 @@ import com.medqb.app.shared.ui.richtext.HighlightableRichText
 import com.medqb.app.shared.ui.richtext.RichText
 import com.medqb.app.shared.ui.richtext.RichTextPalette
 import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
-import com.medqb.app.shared.ui.screens.quiz.AnswerOptions
 import com.medqb.app.shared.ui.state.QuizUiState
 import com.medqb.app.shared.utils.HtmlUtils
 import com.medqb.app.shared.viewmodel.QuizViewModel
@@ -402,11 +399,6 @@ private fun QuizQuestionCard(
             ) + expandVertically(
                 animationSpec = defaultSpatialSpec,
             ),
-            exit = fadeOut(
-                animationSpec = defaultEffectsSpec,
-            ) + shrinkVertically(
-                animationSpec = defaultSpatialSpec,
-            )
         ) {
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -448,11 +440,6 @@ private fun QuizQuestionCard(
             ) + expandVertically(
                 animationSpec = defaultSpatialSpec,
             ),
-            exit = fadeOut(
-                animationSpec = defaultEffectsSpec,
-            ) + shrinkVertically(
-                animationSpec = defaultSpatialSpec,
-            )
         ) {
             Column {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -468,18 +455,13 @@ private fun QuizQuestionCard(
             ) + expandVertically(
                 animationSpec = defaultSpatialSpec,
             ),
-            exit = fadeOut(
-                animationSpec = defaultEffectsSpec,
-            ) + shrinkVertically(
-                animationSpec = defaultSpatialSpec,
-            )
         ) {
             Column {
                 Spacer(modifier = Modifier.height(12.dp))
                 PerformanceCard(performance = state.currentPerformance)
+            }
         }
     }
-}
 }
 
 @Composable
@@ -647,7 +629,7 @@ private fun PerformanceCard(performance: QuestionPerformance?) {
 private fun PerformanceStat(
     label: String,
     value: String,
-    color: androidx.compose.ui.graphics.Color
+    color: Color
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,

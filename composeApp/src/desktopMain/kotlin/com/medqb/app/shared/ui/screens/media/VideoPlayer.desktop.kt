@@ -109,8 +109,7 @@ actual fun VideoPlayer(
             }
         } else if (vlcDiscovered) {
             SwingPanel(
-                background = Color.Black,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().background(Color.Black),
                 factory = {
                     val component = CallbackMediaPlayerComponent()
                     mediaPlayerComponent = component
