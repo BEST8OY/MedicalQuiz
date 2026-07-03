@@ -50,7 +50,7 @@ internal fun FilterHubScreen(
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val screenHeight = maxHeight
-            val bottomContentPadding = if (screenHeight < 400.dp) 80.dp else 112.dp
+            val bottomContentPadding = if (screenHeight < 400.dp) 64.dp else 88.dp
             val motionScheme = MaterialTheme.motionScheme
             AnimatedContent(
                 targetState = state.activePane,
