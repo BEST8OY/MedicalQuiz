@@ -40,6 +40,9 @@ import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.dialogs.components.DialogActions
 import com.medqb.app.shared.ui.dialogs.components.DialogHeader
 import com.medqb.app.shared.ui.dialogs.components.DialogShell
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Layout
+import com.medqb.app.shared.ui.theme.Spacing
 import kotlin.math.roundToInt
 
 /**
@@ -83,8 +86,8 @@ fun JumpToDialog(
             )
 
             Column(
-                modifier = Modifier.padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                modifier = Modifier.padding(horizontal = Inset.Lg),
+                verticalArrangement = Arrangement.spacedBy(Spacing.MdLg)
             ) {
                 // Number input with stepper buttons
                 Row(
@@ -99,7 +102,7 @@ fun JumpToDialog(
                             inputValue = newValue.toString()
                         },
                         enabled = (inputValue.toIntOrNull() ?: clampedCurrent) > 1,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(Layout.MinTouchTarget)
                     ) {
                         Icon(Icons.Rounded.Remove, "Decrease")
                     }
@@ -111,7 +114,7 @@ fun JumpToDialog(
                         },
                         modifier = Modifier
                             .width(120.dp)
-                            .padding(horizontal = 12.dp),
+                            .padding(horizontal = Spacing.Sm),
                         textStyle = MaterialTheme.typography.titleLarge.copy(
                             textAlign = TextAlign.Center,
                             fontWeight = FontWeight.SemiBold
@@ -144,7 +147,7 @@ fun JumpToDialog(
                             inputValue = newValue.toString()
                         },
                         enabled = (inputValue.toIntOrNull() ?: clampedCurrent) < totalQuestions,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(Layout.MinTouchTarget)
                     ) {
                         Icon(Icons.Rounded.Add, "Increase")
                     }
@@ -152,7 +155,7 @@ fun JumpToDialog(
 
                 // Slider for quick navigation
                 if (totalQuestions > 1) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Xs)) {
                         Slider(
                             value = sliderValue,
                             onValueChange = { newValue ->

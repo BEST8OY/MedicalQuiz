@@ -16,6 +16,9 @@ object Spacing {
     /** Minimal gap: tight text pairs (title + subtitle) */
     val Xxs = 4.dp
 
+    /** Sub-small gap: toolbar elevation, tight icon-to-label proximity */
+    val XxsMd = 6.dp
+
     /** Small gap: list item spacing in dialogs, divider proximity */
     val Xs = 8.dp
 
@@ -24,6 +27,9 @@ object Spacing {
 
     /** Standard gap: card padding, component insets, toolbar items */
     val Md = 16.dp
+
+    /** Medium-large gap: section sub-spacing, button minHeight */
+    val MdLg = 20.dp
 
     /** Section gap: between major content blocks, screen margins */
     val Lg = 24.dp
@@ -57,23 +63,23 @@ object Inset {
  * All values on 4dp grid per M3 guidance.
  */
 object ElementSize {
-    /** Small icon (e.g. Reset button icon) */
-    val IconSm: Dp = 20.dp
-
-    /** Medium icon (e.g. action button icons, swipe action icons) */
+    /** Standard icon (e.g. action button icons, swipe actions) */
     val IconMd: Dp = 20.dp
 
-    /** Standard icon (e.g. history icon, checkbox animated width) */
+    /** Large icon (e.g. history icon, checkbox animated width) */
     val IconLg: Dp = 24.dp
 
-    /** Icon container in DatabaseHeaderCard */
-    val IconContainerCompact: Dp = 40.dp
+    /** Extra-large icon (e.g. rich text toolbar controls) */
+    val IconXl: Dp = 36.dp
 
-    /** Icon container in FilterSelectionCard and ToggleCard */
-    val IconContainerStandard: Dp = 44.dp
+    /** Icon container: medium (badge, leading content) */
+    val IconContainerMd: Dp = 40.dp
 
-    /** Error state icon container */
-    val IconContainerLarge: Dp = 56.dp
+    /** Icon container: large (filter cards, toggle cards) */
+    val IconContainerLg: Dp = 44.dp
+
+    /** Icon container: extra-large (error state) */
+    val IconContainerXl: Dp = 56.dp
 }
 
 /**
@@ -94,16 +100,25 @@ object Layout {
 
     /** Height for loading indicator areas */
     val LoadingAreaHeight: Dp = 200.dp
+
+    /** Width for dialog panels and media containers */
+    val PanelWidth: Dp = 280.dp
+
+    /** Max width for rich text media content */
+    val MediaMaxWidth: Dp = 512.dp
+
+    /** Compact breakpoint for single-column layouts */
+    val CompactBreakpoint: Dp = 600.dp
 }
 
 /**
  * Screen-level layout tokens for breakpoints and clearances.
  */
 object ScreenLayout {
-    /** Breakpoint below which compact padding is applied */
+    /** Height threshold for compact layout adjustments */
     val CompactHeightBreakpoint: Dp = 400.dp
 
-    /** Breakpoint for wide/expanded screen layouts (M3 Expanded class) */
+    /** Width threshold for wide/expanded screen layouts (M3 Expanded class) */
     val WideWidthBreakpoint: Dp = 840.dp
 
     /** Bottom padding for compact screens */

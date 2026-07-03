@@ -35,6 +35,8 @@ import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.platform.PlatformKind
 import com.medqb.app.shared.platform.TextIntentLauncher
 import com.medqb.app.shared.platform.getPlatformKind
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Spacing
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -270,7 +272,7 @@ internal fun SelectableHighlightText(
             hostState = snackbarHostState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = Inset.Md, vertical = Spacing.Sm)
         )
     }
 }

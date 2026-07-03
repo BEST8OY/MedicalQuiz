@@ -26,6 +26,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import com.medqb.app.shared.data.TextHighlightsRepository
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.TextHighlight
@@ -92,7 +94,7 @@ fun HighlightableRichText(
     
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.Sm)
     ) {
         // Track cumulative offset across blocks for proper highlight mapping
         var cumulativeOffset = 0
@@ -245,7 +247,7 @@ private fun HighlightableList(
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     val richTextScale = LocalRichTextScale.current
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Xs)) {
         var itemOffset = baseOffset
 
         items.forEachIndexed { index, itemText ->
@@ -262,7 +264,7 @@ private fun HighlightableList(
                 MaterialText(
                     text = markerProvider(index),
                     style = MaterialTheme.typography.bodyLarge.scaledBy(richTextScale.proseScale),
-                    modifier = Modifier.padding(end = 12.dp),
+                    modifier = Modifier.padding(end = Inset.Sm),
                 )
                 HighlightableListItem(
                     text = itemText,
