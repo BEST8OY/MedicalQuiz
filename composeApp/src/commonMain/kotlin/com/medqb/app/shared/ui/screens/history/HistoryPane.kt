@@ -57,7 +57,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -361,8 +360,7 @@ private fun HistoryItemCard(
     SwipeToDismissBox(
         state = dismissState,
         modifier = modifier
-            .fillMaxWidth()
-            .clip(cardShape),
+            .fillMaxWidth(),
         enableDismissFromStartToEnd = !selectionModeEnabled,
         enableDismissFromEndToStart = !selectionModeEnabled,
         gesturesEnabled = !selectionModeEnabled,
@@ -384,7 +382,6 @@ private fun HistoryItemCard(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(cardShape)
                     .background(backgroundColor)
             ) {
                 Row(
