@@ -44,6 +44,10 @@ import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.SubmissionMode
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Layout
+import com.medqb.app.shared.ui.theme.Spacing
 
 @Composable
 internal fun FilterScreen(
@@ -72,27 +76,27 @@ internal fun FilterScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    start = 24.dp,
-                    top = 40.dp,
-                    end = 24.dp,
-                    bottom = 40.dp + bottomContentPadding,
+                    start = Inset.Lg,
+                    top = Inset.Xl,
+                    end = Inset.Lg,
+                    bottom = Inset.Xl + bottomContentPadding,
                 )
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.Xl)
             ) {
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                    verticalArrangement = Arrangement.spacedBy(Spacing.Xl)
                 ) {
                     DatabaseHeaderCard(databaseName = databaseName)
 
                     FilterPreviewCard(previewCount = previewCount)
 
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Md)) {
                         FilterSelectionCard(
                             title = "Subjects",
                             subtitle = if (subjectCount == 0) "All subjects" else "$subjectCount selected",
@@ -199,14 +203,14 @@ private fun ToggleCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = Inset.Md, vertical = Spacing.Md),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = iconContainerColor,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(ElementSize.IconContainerStandard)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -219,7 +223,7 @@ private fun ToggleCard(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)
             ) {
                 Text(
                     text = title,
@@ -259,14 +263,14 @@ private fun DatabaseHeaderCard(databaseName: String) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = 20.dp, vertical = Spacing.Lg),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(ElementSize.IconContainerCompact)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -324,8 +328,8 @@ private fun FilterPreviewCard(previewCount: Int) {
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(horizontal = Inset.Lg, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.Sm)
         ) {
             Text(
                 text = statusText,
@@ -394,14 +398,14 @@ private fun FilterSelectionCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = Inset.Md, vertical = Spacing.Md),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = iconContainerColor,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(ElementSize.IconContainerStandard)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -414,7 +418,7 @@ private fun FilterSelectionCard(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)
             ) {
                 Text(
                     text = title,
@@ -443,12 +447,12 @@ private fun PrimaryActionButtonGroup(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = Spacing.Sm),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
-                .widthIn(max = 320.dp)
+                .widthIn(max = Layout.MaxContentWidth)
                 .fillMaxWidth()
                 .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
         ) {
@@ -470,7 +474,7 @@ private fun FilterActionControlButtonGroup(
     onStart: () -> Unit,
     onClearFilters: () -> Unit,
 ) {
-    val groupModifier = if (showReset) Modifier.fillMaxWidth() else Modifier.widthIn(min = 176.dp).fillMaxWidth()
+    val groupModifier = if (showReset) Modifier.fillMaxWidth() else Modifier.widthIn(min = Layout.SingleButtonMinWidth).fillMaxWidth()
     val groupArrangement = if (showReset) {
         Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
     } else {
@@ -513,7 +517,7 @@ private fun ButtonGroupScope.StartQuizButtonGroupItem(
             Icon(
                 imageVector = Icons.Filled.PlayArrow,
                 contentDescription = null,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(ElementSize.IconMd),
             )
         },
         enabled = hasPreview,
@@ -532,7 +536,7 @@ private fun ButtonGroupScope.ResetFiltersButtonGroupItem(
             Icon(
                 imageVector = Icons.Filled.FilterAltOff,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(ElementSize.IconSm),
             )
         },
         weight = 1f,

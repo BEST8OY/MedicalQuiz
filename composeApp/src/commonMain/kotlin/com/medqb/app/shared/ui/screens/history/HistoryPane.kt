@@ -65,6 +65,10 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.ScreenLayout
+import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.ui.components.EmptyStateMessage
 import com.medqb.app.shared.ui.richtext.setPlainText
@@ -134,8 +138,8 @@ internal fun HistoryPane(
     Box(modifier = modifier) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 112.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.Md),
+            contentPadding = PaddingValues(start = Spacing.Lg, top = Spacing.Lg, end = Spacing.Lg, bottom = ScreenLayout.HistoryListBottomPadding),
         ) {
             if (historyEntries.isEmpty()) {
                 item {
@@ -180,7 +184,7 @@ internal fun HistoryPane(
             BoxWithConstraints(
                 modifier = Modifier.fillMaxSize(),
             ) {
-                val horizontalMargin = if (maxWidth >= 840.dp) 24.dp else 16.dp
+                val horizontalMargin = if (maxWidth >= ScreenLayout.WideWidthBreakpoint) Spacing.Xl else Spacing.Lg
                 FloatingActionButtonMenu(
                     expanded = isFabMenuExpanded,
                     button = {
@@ -196,7 +200,7 @@ internal fun HistoryPane(
                     },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = horizontalMargin, bottom = 96.dp)
+                        .padding(end = horizontalMargin, bottom = ScreenLayout.FabBottomPadding)
                         .navigationBarsPadding(),
                 ) {
                     FloatingActionButtonMenuItem(
@@ -380,6 +384,7 @@ private fun HistoryItemCard(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .clip(cardShape)
                     .background(backgroundColor)
             ) {
                 Row(
@@ -399,13 +404,13 @@ private fun HistoryItemCard(
                             imageVector = if (isDeleteDirection) Icons.Filled.Delete else Icons.Filled.Edit,
                             contentDescription = null,
                             tint = actionTint,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(ElementSize.IconMd),
                         )
                         Text(
                             text = if (isDeleteDirection) "Delete" else "Rename",
                             color = actionTint,
                             style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.padding(start = 8.dp),
+                            modifier = Modifier.padding(start = Spacing.Sm),
                         )
                     }
                 }
@@ -433,12 +438,12 @@ private fun HistoryItemCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(14.dp),
+                    .padding(Spacing.Md),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.Md),
             ) {
                 val checkboxWidth by animateDpAsState(
-                    targetValue = if (selectionModeEnabled) 24.dp else 0.dp,
+                    targetValue = if (selectionModeEnabled) ElementSize.IconLg else 0.dp,
                     label = "checkboxWidth",
                 )
 
@@ -454,12 +459,12 @@ private fun HistoryItemCard(
                     imageVector = Icons.Filled.History,
                     contentDescription = "Quiz history entry",
                     tint = iconTint,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(ElementSize.IconLg),
                 )
                 val entryDisplayName = entry.displayName()
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.Xxs),
                 ) {
                     Text(
                         text = entryDisplayName,

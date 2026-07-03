@@ -13,7 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.ui.theme.ScreenLayout
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.PerformanceFilter
@@ -50,7 +50,7 @@ internal fun FilterHubScreen(
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val screenHeight = maxHeight
-            val bottomContentPadding = if (screenHeight < 400.dp) 64.dp else 88.dp
+            val bottomContentPadding = if (screenHeight < ScreenLayout.CompactHeightBreakpoint) ScreenLayout.BottomPaddingCompact else ScreenLayout.BottomPaddingDefault
             val motionScheme = MaterialTheme.motionScheme
             AnimatedContent(
                 targetState = state.activePane,

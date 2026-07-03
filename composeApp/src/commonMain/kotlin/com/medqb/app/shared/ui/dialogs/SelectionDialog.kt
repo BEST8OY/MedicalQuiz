@@ -51,6 +51,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Layout
+import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.data.models.Subject
 import com.medqb.app.shared.data.models.System
 import com.medqb.app.shared.ui.dialogs.components.DialogActions
@@ -198,15 +202,15 @@ private fun SelectionLoadingContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp),
+                .height(Layout.LoadingAreaHeight),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.Lg)
             ) {
                 LoadingIndicator(
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(ElementSize.IconContainerCompact)
                 )
                 Text(
                     text = "Loading...",
@@ -232,14 +236,14 @@ private fun SelectionErrorContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(Inset.Lg),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(Spacing.Lg)
         ) {
             Surface(
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.errorContainer,
-                modifier = Modifier.size(56.dp)
+                modifier = Modifier.size(ElementSize.IconContainerLarge)
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
                     Icon(
@@ -259,7 +263,7 @@ private fun SelectionErrorContent(
             )
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(Spacing.Md)
             ) {
                 FilledTonalButton(onClick = onDismiss) {
                     Text("Close")
@@ -284,9 +288,9 @@ private fun SelectionEmptyContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(Inset.Lg),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(Spacing.Lg)
         ) {
             Text(
                 text = message,
@@ -354,7 +358,7 @@ private fun <T> SelectionListContent(
             onValueChange = { searchQuery = it },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = Inset.Lg),
             placeholder = { Text("Search...") },
             leadingIcon = {
                 Icon(
@@ -384,8 +388,8 @@ private fun <T> SelectionListContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = Inset.Lg, vertical = Spacing.Sm),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextButton(
@@ -404,7 +408,7 @@ private fun <T> SelectionListContent(
         }
 
         HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 24.dp),
+            modifier = Modifier.padding(horizontal = Inset.Lg),
             color = MaterialTheme.colorScheme.outlineVariant
         )
 
@@ -413,9 +417,9 @@ private fun <T> SelectionListContent(
             state = listState,
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 320.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+                .heightIn(max = Layout.ItemListMaxHeight),
+            contentPadding = PaddingValues(horizontal = Spacing.Lg, vertical = Spacing.Sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)
         ) {
             items(
                 items = filteredItems,
@@ -440,7 +444,7 @@ private fun <T> SelectionListContent(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(32.dp),
+                            .padding(Inset.Lg),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -485,7 +489,7 @@ private fun SelectionItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(horizontal = Inset.Sm, vertical = Inset.Sm),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -493,7 +497,7 @@ private fun SelectionItem(
                 text = label,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(end = 8.dp),
+                    .padding(end = Spacing.Sm),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isChecked) FontWeight.Medium else FontWeight.Normal,
                 maxLines = 2,
