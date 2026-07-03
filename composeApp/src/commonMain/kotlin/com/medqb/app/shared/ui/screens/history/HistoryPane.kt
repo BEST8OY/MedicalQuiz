@@ -139,7 +139,7 @@ internal fun HistoryPane(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(Spacing.Md),
-            contentPadding = PaddingValues(start = Spacing.Lg, top = Spacing.Lg, end = Spacing.Lg, bottom = ScreenLayout.HistoryListBottomPadding),
+            contentPadding = PaddingValues(top = Spacing.Lg, bottom = ScreenLayout.HistoryListBottomPadding),
         ) {
             if (historyEntries.isEmpty()) {
                 item {
