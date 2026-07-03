@@ -30,8 +30,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButtonMenu
@@ -328,6 +329,7 @@ private fun RenameDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HistoryItemCard(
     entry: QuizSessionRepository.QuizSession,
@@ -350,8 +352,6 @@ private fun HistoryItemCard(
             dismissState.reset()
         }
     }
-
-    val cardShape = MaterialTheme.shapes.large
 
     val titleColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
     val subtitleColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
@@ -414,61 +414,32 @@ private fun HistoryItemCard(
             }
         },
     ) {
-        Card(
+        val entryDisplayName = entry.displayName()
+
+        ListItem(
             modifier = Modifier
-                .fillMaxWidth()
                 .semantics { role = Role.Button }
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongPress,
                 ),
-            shape = cardShape,
-            colors = CardDefaults.cardColors(
+            colors = ListItemDefaults.colors(
                 containerColor = if (isSelected) {
                     MaterialTheme.colorScheme.primaryContainer
                 } else {
                     MaterialTheme.colorScheme.surfaceContainer
                 },
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(Spacing.Md),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Md),
-            ) {
-                val checkboxWidth by animateDpAsState(
-                    targetValue = if (selectionModeEnabled) ElementSize.IconLg else 0.dp,
-                    label = "checkboxWidth",
+            headlineContent = {
+                Text(
+                    text = entryDisplayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = titleColor,
                 )
-
-                Box(modifier = Modifier.size(checkboxWidth)) {
-                    if (selectionModeEnabled) {
-                        Checkbox(
-                            checked = isSelected,
-                            onCheckedChange = { onSelectChanged() },
-                        )
-                    }
-                }
-                Icon(
-                    imageVector = Icons.Filled.History,
-                    contentDescription = "Quiz history entry",
-                    tint = iconTint,
-                    modifier = Modifier.size(ElementSize.IconLg),
-                )
-                val entryDisplayName = entry.displayName()
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.Xxs),
-                ) {
-                    Text(
-                        text = entryDisplayName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = titleColor,
-                    )
+            },
+            supportingContent = {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)) {
                     if (entryDisplayName != entry.databaseName) {
                         Text(
                             text = entry.databaseName,
@@ -482,8 +453,31 @@ private fun HistoryItemCard(
                         color = subtitleColor,
                     )
                 }
-            }
-        }
+            },
+            leadingContent = {
+                val checkboxWidth by animateDpAsState(
+                    targetValue = if (selectionModeEnabled) ElementSize.IconLg else 0.dp,
+                    label = "checkboxWidth",
+                )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(checkboxWidth)) {
+                        if (selectionModeEnabled) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { onSelectChanged() },
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = Icons.Filled.History,
+                        contentDescription = "Quiz history entry",
+                        tint = iconTint,
+                        modifier = Modifier.size(ElementSize.IconLg),
+                    )
+                }
+            },
+        )
     }
 }
 
