@@ -427,7 +427,7 @@ private fun HistoryItemCard(
                 containerColor = if (isSelected) {
                     MaterialTheme.colorScheme.primaryContainer
                 } else {
-                    MaterialTheme.colorScheme.surfaceContainer
+                    MaterialTheme.colorScheme.surface
                 },
             ),
             headlineContent = {
