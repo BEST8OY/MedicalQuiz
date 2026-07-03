@@ -2,10 +2,6 @@ package com.medqb.app.shared.ui.screens
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -450,31 +446,18 @@ private fun PrimaryActionButtonGroup(
             .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
-        val controlsEnterEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-        val controlsExitEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-
         Box(
             modifier = Modifier
                 .widthIn(max = 320.dp)
                 .fillMaxWidth()
                 .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
         ) {
-            AnimatedContent(
-                targetState = hasFilters,
-                contentAlignment = Alignment.CenterStart,
-                transitionSpec = {
-                    fadeIn(animationSpec = controlsEnterEffects)
-                        .togetherWith(fadeOut(animationSpec = controlsExitEffects))
-                },
-                label = "filter_controls_swap",
-            ) { showReset ->
-                FilterActionControlButtonGroup(
-                    hasPreview = hasPreview,
-                    showReset = showReset,
-                    onStart = onStart,
-                    onClearFilters = onClearFilters,
-                )
-            }
+            FilterActionControlButtonGroup(
+                hasPreview = hasPreview,
+                showReset = hasFilters,
+                onStart = onStart,
+                onClearFilters = onClearFilters,
+            )
         }
     }
 }
@@ -504,7 +487,7 @@ private fun FilterActionControlButtonGroup(
             },
             modifier = groupModifier,
             horizontalArrangement = groupArrangement,
-            expandedRatio = ButtonGroupDefaults.ExpandedRatio,
+            expandedRatio = 0f,
         ) {
             StartQuizButtonGroupItem(
                 hasPreview = hasPreview,
@@ -534,7 +517,7 @@ private fun ButtonGroupScope.StartQuizButtonGroupItem(
             )
         },
         enabled = hasPreview,
-        weight = 1.2f,
+        weight = 1.5f,
     )
 }
 

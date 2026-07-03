@@ -4,12 +4,15 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.QuizSessionRepository
@@ -45,55 +48,59 @@ internal fun FilterHubScreen(
         onPaneSelected = { viewModel.setActivePane(it) },
         showPaneToolbar = !historySelectionMode || state.activePane == FilterPane.Filters,
     ) {
-        val motionScheme = MaterialTheme.motionScheme
-        AnimatedContent(
-            targetState = state.activePane,
-            transitionSpec = {
-                fadeIn(animationSpec = motionScheme.defaultEffectsSpec())
-                    .togetherWith(fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
-            },
-            label = "filter_pane_content",
-        ) { activePane ->
-            when (activePane) {
-                FilterPane.Filters -> {
-                    FilterScreen(
-                        databaseName = state.databaseName,
-                        subjectCount = state.selectedSubjectIds.size,
-                        systemCount = state.selectedSystemIds.size,
-                        performanceFilter = state.performanceFilter,
-                        performanceLabel = performanceLabel,
-                        previewCount = state.previewQuestionCount,
-                        isLoggingEnabled = state.isLoggingEnabled,
-                        onLoggingToggle = onLoggingToggle,
-                        submissionMode = state.submissionMode,
-                        onSubmissionModeToggle = onSubmissionModeToggle,
-                        bottomContentPadding = 112.dp,
-                        onSelectSubjects = {
-                            showSubjectDialog = true
-                            viewModel.fetchSubjects()
-                        },
-                        onSelectSystems = {
-                            showSystemDialog = true
-                            val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-                            viewModel.fetchSystemsForSubjects(subjects)
-                        },
-                        onSelectPerformance = { showPerformanceDialog = true },
-                        onStart = onStartQuiz,
-                        onClearFilters = { viewModel.clearAllFilters() },
-                    )
-                }
-                FilterPane.History -> {
-                    HistoryPane(
-                        historyEntries = state.historyEntries,
-                        onHistorySelected = onHistorySelected,
-                        onDeleteHistoryEntries = { viewModel.deleteHistoryEntries(it) },
-                        onRenameHistoryEntry = { id, name -> viewModel.renameHistoryEntry(id, name) },
-                        onCopyAllQids = { entries, onCopied ->
-                            viewModel.copyQuestionIdsForHistoryEntries(entries, onCopied)
-                        },
-                        onSelectionModeChanged = { historySelectionMode = it },
-                        onShowSnackbar = onShowSnackbar,
-                    )
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val screenHeight = maxHeight
+            val bottomContentPadding = if (screenHeight < 400.dp) 80.dp else 112.dp
+            val motionScheme = MaterialTheme.motionScheme
+            AnimatedContent(
+                targetState = state.activePane,
+                transitionSpec = {
+                    fadeIn(animationSpec = motionScheme.defaultEffectsSpec())
+                        .togetherWith(fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
+                },
+                label = "filter_pane_content",
+            ) { activePane ->
+                when (activePane) {
+                    FilterPane.Filters -> {
+                        FilterScreen(
+                            databaseName = state.databaseName,
+                            subjectCount = state.selectedSubjectIds.size,
+                            systemCount = state.selectedSystemIds.size,
+                            performanceFilter = state.performanceFilter,
+                            performanceLabel = performanceLabel,
+                            previewCount = state.previewQuestionCount,
+                            isLoggingEnabled = state.isLoggingEnabled,
+                            onLoggingToggle = onLoggingToggle,
+                            submissionMode = state.submissionMode,
+                            onSubmissionModeToggle = onSubmissionModeToggle,
+                            bottomContentPadding = bottomContentPadding,
+                            onSelectSubjects = {
+                                showSubjectDialog = true
+                                viewModel.fetchSubjects()
+                            },
+                            onSelectSystems = {
+                                showSystemDialog = true
+                                val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
+                                viewModel.fetchSystemsForSubjects(subjects)
+                            },
+                            onSelectPerformance = { showPerformanceDialog = true },
+                            onStart = onStartQuiz,
+                            onClearFilters = { viewModel.clearAllFilters() },
+                        )
+                    }
+                    FilterPane.History -> {
+                        HistoryPane(
+                            historyEntries = state.historyEntries,
+                            onHistorySelected = onHistorySelected,
+                            onDeleteHistoryEntries = { viewModel.deleteHistoryEntries(it) },
+                            onRenameHistoryEntry = { id, name -> viewModel.renameHistoryEntry(id, name) },
+                            onCopyAllQids = { entries, onCopied ->
+                                viewModel.copyQuestionIdsForHistoryEntries(entries, onCopied)
+                            },
+                            onSelectionModeChanged = { historySelectionMode = it },
+                            onShowSnackbar = onShowSnackbar,
+                        )
+                    }
                 }
             }
         }
