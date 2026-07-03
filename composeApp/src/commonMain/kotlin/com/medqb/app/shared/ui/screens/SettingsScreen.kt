@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.medqb.app.shared.data.FontScalePresets
 import com.medqb.app.shared.ui.richtext.scaledBy
+import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -96,15 +98,15 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = Spacing.MdLg, vertical = Spacing.Md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.MdLg)
         ) {
             // Section 1: Quiz Experience
             Text(
                 text = "Quiz Experience",
                 style = MaterialTheme.typography.titleMediumEmphasized,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 4.dp)
+                modifier = Modifier.padding(start = Spacing.Xxs)
             )
 
             Card(
@@ -139,7 +141,7 @@ fun SettingsScreen(
                         headlineColor = MaterialTheme.colorScheme.onSurface,
                         supportingColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
-                    modifier = Modifier.padding(vertical = 4.dp)
+                    modifier = Modifier.padding(vertical = Spacing.Xxs)
                 )
             }
 
@@ -148,7 +150,7 @@ fun SettingsScreen(
                 text = "Appearance & Accessibility",
                 style = MaterialTheme.typography.titleMediumEmphasized,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 4.dp)
+                modifier = Modifier.padding(start = Spacing.Xxs)
             )
 
             Card(
@@ -160,7 +162,7 @@ fun SettingsScreen(
             ) {
                 Column(
                     modifier = Modifier
-                        .padding(bottom = 16.dp)
+                        .padding(bottom = Spacing.Md)
                         .animateContentSize(animationSpec = motionScheme.defaultSpatialSpec())
                 ) {
                     ListItem(
@@ -194,7 +196,7 @@ fun SettingsScreen(
                             headlineColor = MaterialTheme.colorScheme.onSurface,
                             supportingColor = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
-                        modifier = Modifier.padding(vertical = 4.dp)
+                        modifier = Modifier.padding(vertical = Spacing.Xxs)
                     )
 
                     AnimatedVisibility(
@@ -205,8 +207,8 @@ fun SettingsScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                .padding(horizontal = Spacing.Md),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.Sm)
                         ) {
                             Text(
                                 text = "Custom Reading Text Size",
@@ -218,13 +220,13 @@ fun SettingsScreen(
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.Sm)
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.FormatSize,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(Spacing.Md)
                                 )
 
                                 val sliderIndex = scaleToIndex(currentScale)
@@ -243,7 +245,7 @@ fun SettingsScreen(
                                     imageVector = Icons.Outlined.FormatSize,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(28.dp)
+                                    modifier = Modifier.size(Spacing.MdLg)
                                 )
                             }
 
@@ -255,7 +257,7 @@ fun SettingsScreen(
                                 modifier = Modifier.align(Alignment.CenterHorizontally)
                             )
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(Spacing.Xxs))
 
                             LivePreviewCard(currentScale = currentScale)
                         }
@@ -272,15 +274,15 @@ fun SettingsScreen(
                 )
             ) {
                 Row(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(Spacing.Md),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.Sm),
                     verticalAlignment = Alignment.Top
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Info,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(ElementSize.IconMd)
                     )
                     Text(
                         text = "Custom typography sizes apply exclusively to medical questions, answers, and media rich text descriptions.",
@@ -308,8 +310,8 @@ private fun LivePreviewCard(currentScale: Float) {
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(Spacing.Md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.Sm)
         ) {
             Text(
                 text = "LIVE PREVIEW",
@@ -326,15 +328,15 @@ private fun LivePreviewCard(currentScale: Float) {
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.XxsMd)) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.Xs),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Surface(
                         shape = MaterialTheme.shapes.extraSmall,
                         color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(ElementSize.IconMd)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
@@ -353,13 +355,13 @@ private fun LivePreviewCard(currentScale: Float) {
                 }
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.Xs),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Surface(
                         shape = MaterialTheme.shapes.extraSmall,
                         color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(ElementSize.IconMd)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(

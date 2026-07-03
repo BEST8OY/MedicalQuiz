@@ -32,6 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.TextHighlight
+import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.Spacing
 
 @Composable
 internal fun SelectionToolbar(
@@ -42,16 +44,16 @@ internal fun SelectionToolbar(
 ) {
     Surface(
         shape = MaterialTheme.shapes.small,
-        tonalElevation = 6.dp,
-        shadowElevation = 4.dp,
+        tonalElevation = Spacing.XxsMd,
+        shadowElevation = Spacing.Xxs,
         color = MaterialTheme.colorScheme.surfaceContainerHighest
     ) {
-        androidx.compose.foundation.layout.Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Column(
+            modifier = Modifier.padding(horizontal = Spacing.Xs, vertical = Spacing.XxsMd),
+            verticalArrangement = Arrangement.spacedBy(Spacing.Xs)
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.XxsMd),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ToolbarActionButton(
@@ -69,7 +71,7 @@ internal fun SelectionToolbar(
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.XxsMd),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HighlightColor.entries.forEach { color ->
@@ -101,8 +103,8 @@ private fun ToolbarActionButton(
         modifier = Modifier.clickable(enabled = enabled, onClick = onClick)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = Spacing.Xs),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.XxsMd),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -136,13 +138,13 @@ internal fun HighlightEditPopup(
 ) {
     Surface(
         shape = MaterialTheme.shapes.small,
-        tonalElevation = 6.dp,
-        shadowElevation = 4.dp,
+        tonalElevation = Spacing.XxsMd,
+        shadowElevation = Spacing.Xxs,
         color = MaterialTheme.colorScheme.surfaceContainerHighest
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(horizontal = Spacing.Xs, vertical = Spacing.XxsMd),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.XxsMd),
             verticalAlignment = Alignment.CenterVertically
         ) {
             HighlightColor.entries.forEach { color ->
@@ -155,7 +157,7 @@ internal fun HighlightEditPopup(
 
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier.size(ElementSize.IconXl),
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
                     contentColor = MaterialTheme.colorScheme.onErrorContainer
@@ -164,7 +166,7 @@ internal fun HighlightEditPopup(
                 Icon(
                     imageVector = Icons.Rounded.Delete,
                     contentDescription = "Delete highlight",
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(ElementSize.IconMd)
                 )
             }
         }
@@ -187,7 +189,7 @@ private fun HighlightColorChip(
 
     Box(
         modifier = Modifier
-            .size(32.dp)
+            .size(Spacing.Xl)
             .graphicsLayer {
                 clip = true
                 shape = CircleShape

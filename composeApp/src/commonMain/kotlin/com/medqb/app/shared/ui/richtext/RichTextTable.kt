@@ -28,6 +28,8 @@ import androidx.compose.ui.text.TextStyle
 import kotlin.collections.ArrayDeque
 import kotlin.collections.buildList
 import kotlin.math.max
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Spacing
 
 /** Maximum iterations per row to prevent infinite loops from malformed HTML */
 private const val MAX_COLUMN_ITERATIONS = 500
@@ -243,7 +245,7 @@ internal fun TableRowContent(
         modifier = Modifier
             .fillMaxWidth()
             .background(baseBackground)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = Inset.Sm, vertical = Spacing.Xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
         row.cells.forEachIndexed { cellIndex, cell ->
@@ -269,7 +271,7 @@ internal fun TableRowContent(
                 Surface(
                     modifier = Modifier
                         .weight(weight)
-                        .padding(horizontal = 4.dp),
+                        .padding(horizontal = Spacing.Xxs),
                     color = cellBackground,
                     tonalElevation = if (cellBackground == Color.Transparent) 0.dp else 1.dp,
                     shape = MaterialTheme.shapes.extraSmall
@@ -277,7 +279,7 @@ internal fun TableRowContent(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 4.dp)
+                            .padding(horizontal = Spacing.Xxs)
                             .padding(start = cell.cell.paddingStart),
                         contentAlignment = when (cell.cell.alignment) {
                             TextAlign.Center -> Alignment.Center

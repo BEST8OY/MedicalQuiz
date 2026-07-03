@@ -13,6 +13,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.medqb.app.shared.ui.theme.Layout
+import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.HtmlUtils
 
 /**
@@ -43,7 +45,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = Spacing.Xs),
         horizontalAlignment = when (block.alignment) {
             TextAlign.End -> Alignment.End
             TextAlign.Center -> Alignment.CenterHorizontally
@@ -65,14 +67,14 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
                 color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp),
+                    .padding(top = Spacing.Xxs),
                 textAlign = block.alignment
             )
         }
     }
 }
 
-private val MaxEmbeddedImageWidth = 512.dp
+private val MaxEmbeddedImageWidth = Layout.MediaMaxWidth
 
 /**
  * Resolves the media source to a Coil-compatible model.

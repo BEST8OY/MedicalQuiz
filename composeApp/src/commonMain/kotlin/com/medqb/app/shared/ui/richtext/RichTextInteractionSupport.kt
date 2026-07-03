@@ -15,6 +15,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Spacing
 
 internal data class RichTextTooltipSupport(
     val onTooltipClick: (RichTextTooltipContent) -> Unit,
@@ -90,8 +92,8 @@ internal fun RichTextTooltipBottomSheet(
             Column(
                 modifier = androidx.compose.ui.Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(horizontal = Inset.Md, vertical = Spacing.Xxs),
+                verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)
             ) {
                 androidx.compose.material3.Text(
                     text = it.title,

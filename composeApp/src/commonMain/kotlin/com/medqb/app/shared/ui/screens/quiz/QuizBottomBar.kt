@@ -30,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.ui.theme.Layout
+import com.medqb.app.shared.ui.theme.Spacing
 
 data class QuizBottomToolbarUiState(
     val currentQuestionIndex: Int,
@@ -52,13 +54,13 @@ fun QuizFloatingToolbar(
 ) {
     BoxWithConstraints(modifier = modifier) {
         val motionScheme = MaterialTheme.motionScheme
-        val isExpanded = maxWidth >= 600.dp
+        val isExpanded = maxWidth >= Layout.CompactBreakpoint
         val currentQuestionNumber = uiState.currentQuestionIndex + 1
         val questionLabel = "$currentQuestionNumber / ${uiState.totalQuestions}"
 
         HorizontalFloatingToolbar(
             expanded = true,
-            modifier = Modifier.padding(horizontal = if (isExpanded) 24.dp else 16.dp),
+            modifier = Modifier.padding(horizontal = if (isExpanded) Spacing.Lg else Spacing.Md),
             colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
             contentPadding = FloatingToolbarDefaults.ContentPadding,
             leadingContent = {
@@ -66,7 +68,7 @@ fun QuizFloatingToolbar(
                     onClick = onPrevious,
                     enabled = uiState.hasPreviousQuestion,
                     modifier = Modifier
-                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                        .sizeIn(minWidth = Layout.MinTouchTarget, minHeight = Layout.MinTouchTarget)
                         .semantics { contentDescription = "Previous question" },
                 ) {
                     Icon(
@@ -80,7 +82,7 @@ fun QuizFloatingToolbar(
                     onClick = onNext,
                     enabled = uiState.hasNextQuestion,
                     modifier = Modifier
-                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                        .sizeIn(minWidth = Layout.MinTouchTarget, minHeight = Layout.MinTouchTarget)
                         .semantics { contentDescription = "Next question" },
                 ) {
                     Icon(
@@ -90,7 +92,7 @@ fun QuizFloatingToolbar(
                 }
             },
             content = {
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Spacing.Xs))
 
                 AnimatedVisibility(
                     visible = uiState.showSubmitButton,
@@ -103,11 +105,11 @@ fun QuizFloatingToolbar(
                         FilledTonalButton(
                             onClick = onSubmit,
                             enabled = uiState.canSubmit,
-                            modifier = Modifier.sizeIn(minHeight = 40.dp),
+                            modifier = Modifier.sizeIn(minHeight = Spacing.MdLg),
                         ) {
                             Text(text = "Submit")
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(Spacing.Xs))
                     }
                 }
 
@@ -116,13 +118,13 @@ fun QuizFloatingToolbar(
                     shape = MaterialTheme.shapes.extraLarge,
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier
-                        .sizeIn(minHeight = 40.dp)
+                        .sizeIn(minHeight = Spacing.MdLg)
                         .semantics {
                             contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}. Tap to jump."
                         },
                 ) {
                     Box(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(horizontal = Spacing.Md, vertical = Spacing.Xs),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -133,7 +135,7 @@ fun QuizFloatingToolbar(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Spacing.Xs))
             }
         )
     }

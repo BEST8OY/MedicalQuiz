@@ -48,6 +48,8 @@ import androidx.graphics.shapes.RoundedPolygon
 import com.medqb.app.shared.data.models.Answer
 import kotlin.math.min
 import com.medqb.app.shared.ui.richtext.RichText
+import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -138,8 +140,8 @@ private fun AnswerListItem(
         MorphingMaterialShapeBadge(
             targetShape = targetShape,
             backgroundColor = labelContainerColor,
-            size = 40.dp,
-            modifier = Modifier.padding(end = 8.dp)
+            size = ElementSize.IconContainerMd,
+            modifier = Modifier.padding(end = Spacing.Xs)
         ) {
             AnimatedContent(
                 targetState = label,
@@ -181,11 +183,11 @@ private fun AnswerListItem(
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
                         color = trailingTextColor,
-                        modifier = Modifier.padding(start = 8.dp)
+                        modifier = Modifier.padding(start = Spacing.Xs)
                     )
                 }
 
-                else -> Spacer(modifier = Modifier.size(0.dp))
+                else -> Spacer(modifier = Modifier.size(Spacing.Xxs))
             }
         }
     }
@@ -305,7 +307,7 @@ fun AnswerOptions(
     val motionScheme = MaterialTheme.motionScheme
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.Xs)
     ) {
         answers.forEachIndexed { index, answer ->
             val label = ('A'.code + index).toChar().toString()

@@ -51,6 +51,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Spacing
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.models.HighlightSection
@@ -149,10 +151,10 @@ private fun HintSection(
         modifier = Modifier.fillMaxWidth(),
         onClick = if (canToggle) onToggle else ({})
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(Spacing.Sm)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.Xs),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val hintContentColor = if (isVisible) {
@@ -206,7 +208,7 @@ private fun HintSection(
                 }
                 RichText(
                     html = hintHtml,
-                    modifier = Modifier.padding(top = 8.dp),
+                    modifier = Modifier.padding(top = Spacing.Xs),
                     onLinkClick = linkHandler,
                     onMediaClick = mediaClick,
                     showSelectedHighlight = showSelectedHighlight,
@@ -332,9 +334,9 @@ private fun QuizQuestionCard(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp)
-            .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = Spacing.Md)
+            .padding(top = Spacing.Sm, bottom = bottomClearance + Spacing.Md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.Md)
     ) {
         key(state.currentQuestionIndex) {
             // Question card - elevated primary content
@@ -355,7 +357,7 @@ private fun QuizQuestionCard(
                     showSelectedHighlight = state.answerSubmitted,
                     onLinkClick = linkHandler,
                     onMediaClick = mediaClick,
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(Spacing.Md)
                 )
             }
 
@@ -409,8 +411,8 @@ private fun QuizQuestionCard(
                     )
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.padding(Spacing.Md),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.Xs)
                     ) {
                         Text(
                             text = "Explanation",
@@ -439,7 +441,7 @@ private fun QuizQuestionCard(
                 ),
             ) {
                 Column {
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(Spacing.Sm))
                     QuestionMetadataCard(sections = metadataSections)
                 }
             }
@@ -454,7 +456,7 @@ private fun QuizQuestionCard(
                 ),
             ) {
                 Column {
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(Spacing.Sm))
                     PerformanceCard(performance = state.currentPerformance)
                 }
             }
@@ -480,8 +482,8 @@ private fun QuestionMetadataCard(sections: List<MetadataSection>) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = Spacing.Md, vertical = Spacing.Sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.Xs)
         ) {
             sections.forEach { section ->
                 when (section) {
@@ -528,7 +530,7 @@ private fun MetadataChipGroupRow(label: String, values: List<String>) {
     val contentColor = MaterialTheme.colorScheme.onSurfaceVariant
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)
     ) {
         Text(
             text = label,
@@ -537,8 +539,8 @@ private fun MetadataChipGroupRow(label: String, values: List<String>) {
             color = contentColor
         )
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Xs),
+            verticalArrangement = Arrangement.spacedBy(Spacing.Xs)
         ) {
             values.forEach { value ->
                 MetadataTag(text = value)
@@ -555,7 +557,7 @@ private fun MetadataTag(text: String) {
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = Inset.Sm, vertical = Spacing.Xxs),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface,
@@ -598,7 +600,7 @@ private fun PerformanceCard(performance: QuestionPerformance?) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Spacing.Md, vertical = Spacing.Sm),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {

@@ -210,7 +210,7 @@ private fun ToggleCard(
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = iconContainerColor,
-                modifier = Modifier.size(ElementSize.IconContainerStandard)
+                modifier = Modifier.size(ElementSize.IconContainerLg)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -263,14 +263,14 @@ private fun DatabaseHeaderCard(databaseName: String) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = Spacing.Lg),
+                .padding(horizontal = Spacing.MdLg, vertical = Spacing.Lg),
             horizontalArrangement = Arrangement.spacedBy(Spacing.Lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(ElementSize.IconContainerCompact)
+                modifier = Modifier.size(ElementSize.IconContainerMd)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -328,7 +328,7 @@ private fun FilterPreviewCard(previewCount: Int) {
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = Inset.Lg, vertical = 20.dp),
+            modifier = Modifier.padding(horizontal = Inset.Lg, vertical = Spacing.MdLg),
             verticalArrangement = Arrangement.spacedBy(Spacing.Sm)
         ) {
             Text(
@@ -405,7 +405,7 @@ private fun FilterSelectionCard(
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = iconContainerColor,
-                modifier = Modifier.size(ElementSize.IconContainerStandard)
+                modifier = Modifier.size(ElementSize.IconContainerLg)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -536,7 +536,7 @@ private fun ButtonGroupScope.ResetFiltersButtonGroupItem(
             Icon(
                 imageVector = Icons.Filled.FilterAltOff,
                 contentDescription = null,
-                modifier = Modifier.size(ElementSize.IconSm),
+                modifier = Modifier.size(ElementSize.IconMd),
             )
         },
         weight = 1f,

@@ -210,7 +210,7 @@ private fun SelectionLoadingContent(
                 verticalArrangement = Arrangement.spacedBy(Spacing.Lg)
             ) {
                 LoadingIndicator(
-                    modifier = Modifier.size(ElementSize.IconContainerCompact)
+                    modifier = Modifier.size(ElementSize.IconContainerMd)
                 )
                 Text(
                     text = "Loading...",
@@ -243,7 +243,7 @@ private fun SelectionErrorContent(
             Surface(
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.errorContainer,
-                modifier = Modifier.size(ElementSize.IconContainerLarge)
+                modifier = Modifier.size(ElementSize.IconContainerXl)
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
                     Icon(

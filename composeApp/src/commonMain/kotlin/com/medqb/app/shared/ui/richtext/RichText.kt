@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.richtext.parser.RichTextParser
+import com.medqb.app.shared.ui.theme.Spacing
 
 /**
  * Renders HTML content as styled Compose UI elements.
@@ -61,7 +62,7 @@ fun RichText(
     )
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.Sm)
     ) {
         blocks.forEach { block ->
             RichTextBlockRenderer(

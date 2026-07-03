@@ -85,6 +85,10 @@ import com.medqb.app.shared.data.MediaDescription
 import com.medqb.app.shared.ui.media.MediaType
 import com.medqb.app.shared.ui.richtext.RichText
 import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
+import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Layout
+import com.medqb.app.shared.ui.theme.Spacing
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 
@@ -251,7 +255,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .padding(horizontal = Spacing.Xs, vertical = Spacing.Xs),
             ) {
                 FilledIconButton(
                     onClick = onBack,
@@ -275,7 +279,7 @@ private fun SharedTransitionScope.MediaViewerContent(
                     ) {
                         Text(
                             text = "${pagerState.currentPage + 1} / ${mediaFiles.size}",
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = Spacing.Md, vertical = Spacing.Xs),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -306,7 +310,7 @@ private fun SharedTransitionScope.MediaViewerContent(
             resolveControlsLayout(hasOverlay = hasOverlay, hasDescription = hasDescription)
         }
         val hasControls = controlsLayout != MediaControlsLayout.None
-        val controlsWidth = 280.dp
+        val controlsWidth = Layout.PanelWidth
         val controlsEnterEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
         val controlsExitEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
 
@@ -325,7 +329,7 @@ private fun SharedTransitionScope.MediaViewerContent(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(bottom = 24.dp),
+                .padding(bottom = Spacing.Lg),
         ) {
             Box(
                 modifier = Modifier.width(controlsWidth),
@@ -363,7 +367,7 @@ private fun MediaViewerControlButtonGroup(
         MediaControlsLayout.OverlayAndInfo -> Modifier.fillMaxWidth()
         MediaControlsLayout.OverlayOnly,
         MediaControlsLayout.InfoOnly,
-        MediaControlsLayout.None -> Modifier.width(140.dp)
+        MediaControlsLayout.None -> Modifier.width(Layout.PanelWidth)
     }
     val groupArrangement = if (type == MediaControlsLayout.OverlayAndInfo) {
         Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
@@ -473,8 +477,8 @@ private fun ExplanationBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(horizontal = Inset.Lg)
+                .padding(bottom = Spacing.Xl),
         ) {
             Text(
                 text = description.title.ifBlank { "Explanation" },
@@ -482,11 +486,11 @@ private fun ExplanationBottomSheet(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = Spacing.Md),
             )
 
             HorizontalDivider(
-                modifier = Modifier.padding(bottom = 16.dp),
+                modifier = Modifier.padding(bottom = Spacing.Md),
                 color = MaterialTheme.colorScheme.outlineVariant,
             )
 
@@ -691,29 +695,29 @@ private fun UnsupportedContent(fileName: String) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(32.dp),
+            modifier = Modifier.padding(Spacing.Xl),
         ) {
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(80.dp),
+                modifier = Modifier.size(ElementSize.IconContainerXl),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Outlined.Warning,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(ElementSize.IconContainerMd),
                     )
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.Md))
             Text(
                 text = "Unsupported Media",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Spacing.Xs))
             Text(
                 text = fileName,
                 style = MaterialTheme.typography.bodySmall,

@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.components.EmptyStateMessage
 import com.medqb.app.shared.ui.components.MedQBTopBar
 import com.medqb.app.shared.ui.components.SettingsActionButton
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,8 +66,8 @@ fun DatabaseSelectionScreen(
             ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.Sm),
+                    contentPadding = PaddingValues(start = Inset.Md, top = Inset.Md, end = Inset.Md, bottom = Spacing.Lg),
                 ) {
                     if (databases.isEmpty() && !isLoading) {
                         item {
@@ -102,15 +104,15 @@ private fun DatabaseItemCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(Spacing.Md),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Md),
         ) {
             Icon(
                 imageVector = Icons.Filled.Storage,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(Spacing.Xl),
             )
             Text(
                 text = name,
