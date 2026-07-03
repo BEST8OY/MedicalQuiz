@@ -1,0 +1,123 @@
+package com.medqb.app.shared.ui.theme
+
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+/**
+ * M3-aligned spacing tokens on a 4dp base grid.
+ *
+ * Values follow Material Design 3 spacing guidance:
+ * - Component internal padding: 4, 8, 12, 16, 24dp
+ * - Between components: 8, 12, 16, 24dp
+ * - Section spacing: 24, 32, 48dp
+ * - Layout margins: 16dp (compact), 24dp (medium+)
+ */
+object Spacing {
+    /** Minimal gap: tight text pairs (title + subtitle) */
+    val Xxs = 4.dp
+
+    /** Small gap: list item spacing in dialogs, divider proximity */
+    val Xs = 8.dp
+
+    /** Medium gap: card row content, compact list spacing */
+    val Sm = 12.dp
+
+    /** Standard gap: card padding, component insets, toolbar items */
+    val Md = 16.dp
+
+    /** Section gap: between major content blocks, screen margins */
+    val Lg = 24.dp
+
+    /** Large section gap */
+    val Xl = 32.dp
+
+    /** Extra large gap: hero spacing, generous margins */
+    val Xxl = 48.dp
+}
+
+/**
+ * Container inset tokens. Maps to M3 margin/gutter values.
+ */
+object Inset {
+    /** Compact toolbar / selection item padding */
+    val Sm = 12.dp
+
+    /** Standard card and component horizontal padding */
+    val Md = 16.dp
+
+    /** Dialog content, screen-level horizontal padding */
+    val Lg = 24.dp
+
+    /** Outer content padding for screens (compact+) */
+    val Xl = 40.dp
+}
+
+/**
+ * Fixed-dimension tokens for icons and icon containers.
+ * All values on 4dp grid per M3 guidance.
+ */
+object ElementSize {
+    /** Small icon (e.g. Reset button icon) */
+    val IconSm: Dp = 20.dp
+
+    /** Medium icon (e.g. action button icons, swipe action icons) */
+    val IconMd: Dp = 20.dp
+
+    /** Standard icon (e.g. history icon, checkbox animated width) */
+    val IconLg: Dp = 24.dp
+
+    /** Icon container in DatabaseHeaderCard */
+    val IconContainerCompact: Dp = 40.dp
+
+    /** Icon container in FilterSelectionCard and ToggleCard */
+    val IconContainerStandard: Dp = 44.dp
+
+    /** Error state icon container */
+    val IconContainerLarge: Dp = 56.dp
+}
+
+/**
+ * Layout constraint tokens for widths and heights.
+ */
+object Layout {
+    /** Max width for toolbar and button group */
+    val MaxContentWidth: Dp = 320.dp
+
+    /** Minimum width for single-button group */
+    val SingleButtonMinWidth: Dp = 176.dp
+
+    /** Minimum touch target size (M3 accessibility minimum) */
+    val MinTouchTarget: Dp = 48.dp
+
+    /** Max height for selectable item lists in dialogs */
+    val ItemListMaxHeight: Dp = 320.dp
+
+    /** Height for loading indicator areas */
+    val LoadingAreaHeight: Dp = 200.dp
+}
+
+/**
+ * Screen-level layout tokens for breakpoints and clearances.
+ */
+object ScreenLayout {
+    /** Breakpoint below which compact padding is applied */
+    val CompactHeightBreakpoint: Dp = 400.dp
+
+    /** Breakpoint for wide/expanded screen layouts (M3 Expanded class) */
+    val WideWidthBreakpoint: Dp = 840.dp
+
+    /** Bottom padding for compact screens */
+    val BottomPaddingCompact: Dp = 64.dp
+
+    /** Bottom padding for normal screens (accounts for toolbar) */
+    val BottomPaddingDefault: Dp = 88.dp
+
+    /** Bottom padding for FAB menu clearance */
+    val FabBottomPadding: Dp = 96.dp
+
+    /** Total bottom clearance in history list (list padding + FAB) */
+    val HistoryListBottomPadding: Dp = 112.dp
+
+    /** Top padding for empty state messages */
+    val EmptyStateTopPadding: Dp = 72.dp
+}
