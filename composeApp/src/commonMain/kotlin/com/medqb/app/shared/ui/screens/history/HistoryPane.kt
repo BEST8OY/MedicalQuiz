@@ -1,6 +1,7 @@
 package com.medqb.app.shared.ui.screens.history
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -436,15 +437,18 @@ private fun HistoryItemCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                AnimatedVisibility(
-                    visible = selectionModeEnabled,
-                    enter = scaleIn() + fadeIn(),
-                    exit = scaleOut() + fadeOut(),
-                ) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { onSelectChanged() },
-                    )
+                val checkboxWidth by animateDpAsState(
+                    targetValue = if (selectionModeEnabled) 24.dp else 0.dp,
+                    label = "checkboxWidth",
+                )
+
+                Box(modifier = Modifier.size(checkboxWidth)) {
+                    if (selectionModeEnabled) {
+                        Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = { onSelectChanged() },
+                        )
+                    }
                 }
                 Icon(
                     imageVector = Icons.Filled.History,
