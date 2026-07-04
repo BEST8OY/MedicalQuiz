@@ -1,5 +1,6 @@
 package com.medqb.app.shared.ui.screens.quiz
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -25,11 +26,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.LocalActiveSharedElementKey
+import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import com.medqb.app.shared.ui.dialogs.JumpToDialog
 import com.medqb.app.shared.ui.screens.media.PlatformBackHandler
 import com.medqb.app.shared.viewmodel.QuizViewModel
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun QuizRoot(
     viewModel: QuizViewModel,
@@ -61,14 +63,17 @@ fun QuizRoot(
     val isOverlayVisible = showJumpToDialog
 
     // In pre-quiz mode, back button should navigate back to filter screen.
-    // PlatformBackHandler is used here instead of NavDisplay's onBack because:
-    // 1. This is destination-specific logic (only applies to Quiz screen)
-    // 2. We need to check both quiz mode AND dialog overlay state
-    // 3. Navigation 3 pattern: use PlatformBackHandler for complex destination-specific back handling
     PlatformBackHandler(
         enabled = !isQuizMode && !isOverlayVisible,
         onBack = onNavigateBack
     )
+
+    val sharedTransitionScope = LocalSharedTransitionScope.current
+    val overlayModifier = if (sharedTransitionScope != null) {
+        with(sharedTransitionScope) {
+            Modifier.renderInSharedTransitionScopeOverlay(zIndexInOverlay = 1f)
+        }
+    } else Modifier
 
     CompositionLocalProvider(LocalActiveSharedElementKey provides mediaHandler.activeSharedElementKey) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -80,7 +85,8 @@ fun QuizRoot(
                     TopBar(
                         title = title,
                         onResetLogClick = { viewModel.clearCurrentQuestionLog() },
-                        onSettingsClick = onOpenSettingsScreen
+                        onSettingsClick = onOpenSettingsScreen,
+                        modifier = overlayModifier,
                     )
                 },
                 contentWindowInsets = WindowInsets.statusBars
@@ -114,6 +120,7 @@ fun QuizRoot(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPadding + 16.dp)
+                    .then(overlayModifier)
             )
         }
 
