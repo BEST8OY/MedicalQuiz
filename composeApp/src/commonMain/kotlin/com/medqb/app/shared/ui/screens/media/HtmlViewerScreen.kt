@@ -1,7 +1,5 @@
 package com.medqb.app.shared.ui.screens.media
 
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,14 +31,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.navigation3.ui.LocalNavAnimatedContentScope
-import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import com.medqb.app.shared.ui.richtext.RichText
 import com.medqb.app.shared.ui.theme.ElementSize
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
 
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HtmlViewerScreen(
     fileName: String,
@@ -50,18 +46,6 @@ fun HtmlViewerScreen(
     onBack: () -> Unit,
     onLinkClick: ((String) -> Unit)? = null,
 ) {
-    val sharedTransitionScope = LocalSharedTransitionScope.current
-    val animatedVisibilityScope = LocalNavAnimatedContentScope.current
-
-    val contentBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null && !isLoading && !htmlContent.isNullOrBlank() && fileExists) {
-        with(sharedTransitionScope) {
-            Modifier.sharedBounds(
-                sharedContentState = rememberSharedContentState(key = "html_$fileName"),
-                animatedVisibilityScope = animatedVisibilityScope,
-            )
-        }
-    } else Modifier
-
     Surface(
         modifier = Modifier
             .fillMaxSize()
@@ -141,9 +125,7 @@ fun HtmlViewerScreen(
                             .padding(horizontal = Spacing.Md, vertical = Spacing.Sm),
                     ) {
                         Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(contentBoundsModifier),
+                            modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.extraLarge,
                             color = MaterialTheme.colorScheme.surfaceContainer,
                             shadowElevation = 1.dp, // M3 Level 1 elevation
