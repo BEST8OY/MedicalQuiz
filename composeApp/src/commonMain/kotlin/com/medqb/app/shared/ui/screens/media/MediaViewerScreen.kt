@@ -252,11 +252,19 @@ private fun MediaViewerContent(
             }
         }
 
+        val viewerOverlayModifier = if (sharedTransitionScope != null) {
+            with(sharedTransitionScope) {
+                Modifier.renderInSharedTransitionScopeOverlay(zIndexInOverlay = 1f)
+            }
+        } else Modifier
+
         AnimatedVisibility(
             visible = showUI,
             enter = fadeIn() + slideInVertically { -it },
             exit = fadeOut() + slideOutVertically { -it },
-            modifier = Modifier.align(Alignment.TopCenter),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .then(viewerOverlayModifier),
         ) {
             Box(
                 modifier = Modifier
@@ -336,7 +344,8 @@ private fun MediaViewerContent(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(bottom = Spacing.Lg),
+                .padding(bottom = Spacing.Lg)
+                .then(viewerOverlayModifier),
         ) {
             Box(
                 modifier = Modifier.width(controlsWidth),
@@ -350,15 +359,15 @@ private fun MediaViewerContent(
                 )
             }
         }
-    }
 
-    if (showExplanation && currentDescription != null) {
-        ExplanationBottomSheet(
-            description = currentDescription,
-            richTextScale = richTextScale,
-            onDismiss = { showExplanation = false },
-            onLinkClick = onLinkClick,
-        )
+        if (showExplanation && currentDescription != null) {
+            ExplanationBottomSheet(
+                description = currentDescription,
+                richTextScale = richTextScale,
+                onDismiss = { showExplanation = false },
+                onLinkClick = onLinkClick,
+            )
+        }
     }
 }
 
@@ -662,6 +671,10 @@ private fun ImageContent(
         }
     } else Modifier
 
+    val isExitingTransition = animatedVisibilityScope?.transition?.targetState?.let {
+        it == androidx.compose.animation.EnterExitState.PostExit || it == androidx.compose.animation.EnterExitState.PreEnter
+    } ?: false
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -699,7 +712,7 @@ private fun ImageContent(
             }
         }
 
-        if (overlayPath != null && showOverlay) {
+        if (overlayPath != null && showOverlay && !isExitingTransition) {
             AsyncImage(
                 model = overlayPath,
                 contentDescription = "Overlay",
