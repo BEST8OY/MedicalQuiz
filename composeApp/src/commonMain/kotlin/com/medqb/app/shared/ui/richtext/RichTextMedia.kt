@@ -1,5 +1,7 @@
 package com.medqb.app.shared.ui.richtext
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,7 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import coil3.compose.AsyncImage
+import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.HtmlUtils
@@ -23,6 +27,7 @@ import com.medqb.app.shared.utils.HtmlUtils
  * @param block The media block containing source, description, and layout information
  * @param onMediaClick Callback invoked when the media is clicked
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Unit) {
     val mediaModel = remember(block.source, block.mediaRef) {
@@ -42,6 +47,17 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
         }
     }
 
+    val sharedTransitionScope = LocalSharedTransitionScope.current
+    val animatedVisibilityScope = LocalNavAnimatedContentScope.current
+    val sharedElementModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+        with(sharedTransitionScope) {
+            Modifier.sharedElement(
+                sharedContentState = rememberSharedContentState(key = "media_$clickTarget"),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+        }
+    } else Modifier
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -58,6 +74,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
             contentScale = ContentScale.Fit,
             modifier = Modifier
                 .then(imageSizeModifier)
+                .then(sharedElementModifier)
                 .clickable { onMediaClick(clickTarget) },
         )
         block.description?.let {

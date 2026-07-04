@@ -4,7 +4,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -82,9 +81,11 @@ import androidx.compose.runtime.produceState
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.medqb.app.shared.data.MediaDescription
+import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import com.medqb.app.shared.ui.media.MediaType
 import com.medqb.app.shared.ui.richtext.RichText
 import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
+import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import com.medqb.app.shared.ui.theme.ElementSize
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Layout
@@ -124,9 +125,28 @@ fun MediaViewerScreen(
     onLinkClick: ((String) -> Unit)? = null,
     onBack: () -> Unit,
     onSaveMedia: ((String) -> Unit)? = null,
-    sharedTransitionKey: String? = null,
 ) {
-    SharedTransitionLayout {
+    val sharedTransitionScope = LocalSharedTransitionScope.current
+    val animatedVisibilityScope = LocalNavAnimatedContentScope.current
+
+    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+        with(sharedTransitionScope) {
+            MediaViewerContent(
+                mediaFiles = mediaFiles,
+                startIndex = startIndex,
+                mediaDescriptions = mediaDescriptions,
+                richTextScale = richTextScale,
+                resolveMediaFilePath = resolveMediaFilePath,
+                mediaFileExists = mediaFileExists,
+                resolveOverlayPaths = resolveOverlayPaths,
+                onLinkClick = onLinkClick,
+                onBack = onBack,
+                onSaveMedia = onSaveMedia,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+        }
+    } else {
         MediaViewerContent(
             mediaFiles = mediaFiles,
             startIndex = startIndex,
@@ -138,14 +158,15 @@ fun MediaViewerScreen(
             onLinkClick = onLinkClick,
             onBack = onBack,
             onSaveMedia = onSaveMedia,
-            sharedTransitionKey = sharedTransitionKey,
+            sharedTransitionScope = null,
+            animatedVisibilityScope = null,
         )
     }
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SharedTransitionScope.MediaViewerContent(
+private fun MediaViewerContent(
     mediaFiles: List<String>,
     startIndex: Int,
     mediaDescriptions: Map<String, MediaDescription>,
@@ -156,7 +177,8 @@ private fun SharedTransitionScope.MediaViewerContent(
     onLinkClick: ((String) -> Unit)?,
     onBack: () -> Unit,
     onSaveMedia: ((String) -> Unit)?,
-    sharedTransitionKey: String?,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
     if (mediaFiles.isEmpty()) {
         Box(
@@ -241,6 +263,8 @@ private fun SharedTransitionScope.MediaViewerContent(
                     onSingleTap = onToggleUI,
                     overlayPath = if (page == pagerState.currentPage) currentOverlayPath else null,
                     showOverlay = if (page == pagerState.currentPage) showOverlay else true,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
                 )
             }
         }
@@ -518,6 +542,8 @@ private fun MediaContent(
     onSingleTap: () -> Unit,
     overlayPath: String? = null,
     showOverlay: Boolean = true,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
     val mediaType = remember(fileName) { getMediaType(fileName) }
     val filePath = remember(fileName, resolveMediaFilePath) { resolveMediaFilePath(fileName) }
@@ -547,6 +573,8 @@ private fun MediaContent(
                 onSingleTap = onSingleTap,
                 overlayPath = overlayPath,
                 showOverlay = showOverlay,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
             )
             MediaType.VIDEO -> VideoContent(
                 filePath = filePath,
@@ -611,7 +639,7 @@ private fun AudioContent(
     )
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 private fun ImageContent(
     fileName: String,
@@ -621,6 +649,8 @@ private fun ImageContent(
     onSingleTap: () -> Unit,
     overlayPath: String? = null,
     showOverlay: Boolean = true,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
     val filePath = remember(mediaFilePath) { mediaFilePath }
 
@@ -638,6 +668,15 @@ private fun ImageContent(
     LaunchedEffect(zoomState.scale) {
         onZoomChanged(zoomState.scale > MIN_SCALE + 0.01f)
     }
+
+    val sharedElementModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+        with(sharedTransitionScope) {
+            Modifier.sharedElement(
+                sharedContentState = rememberSharedContentState(key = "media_$fileName"),
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+        }
+    } else Modifier
 
     Box(
         modifier = Modifier
@@ -657,7 +696,7 @@ private fun ImageContent(
         AsyncImage(
             model = filePath,
             contentDescription = fileName,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().then(sharedElementModifier),
             contentScale = ContentScale.Fit,
             onState = { state ->
                 isLoading = state is AsyncImagePainter.State.Loading

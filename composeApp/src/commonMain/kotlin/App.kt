@@ -1,5 +1,7 @@
 package com.medqb.app.shared
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -13,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -48,6 +51,7 @@ import com.medqb.app.shared.ui.entry.MediaViewerEntry
 import com.medqb.app.shared.ui.entry.QuizEntry
 import com.medqb.app.shared.ui.entry.SettingsEntry
 import com.medqb.app.shared.ui.media.MediaHandler
+import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -233,33 +237,39 @@ fun App() {
         }
 
         Box {
-            NavDisplay(
-                backStack = backStack,
-                onBack = {
-                    if (navigator.currentRoute is MedQBRoutes.Quiz) {
-                        returnQuizToFilter()
-                    } else {
-                        navigator.navigateBack()
-                    }
-                },
-                entryProvider = entryProvider,
-                entryDecorators = listOf(
-                    rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator()
-                ),
-                transitionSpec = {
-                    slideInHorizontally(initialOffsetX = { it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { -it })
-                },
-                popTransitionSpec = {
-                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { it })
-                },
-                predictivePopTransitionSpec = {
-                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { it })
+            @OptIn(ExperimentalSharedTransitionApi::class)
+            SharedTransitionLayout {
+                CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
+                    NavDisplay(
+                        backStack = backStack,
+                        onBack = {
+                            if (navigator.currentRoute is MedQBRoutes.Quiz) {
+                                returnQuizToFilter()
+                            } else {
+                                navigator.navigateBack()
+                            }
+                        },
+                        entryProvider = entryProvider,
+                        entryDecorators = listOf(
+                            rememberSaveableStateHolderNavEntryDecorator(),
+                            rememberViewModelStoreNavEntryDecorator()
+                        ),
+                        sharedTransitionScope = this@SharedTransitionLayout,
+                        transitionSpec = {
+                            slideInHorizontally(initialOffsetX = { it }) togetherWith
+                                slideOutHorizontally(targetOffsetX = { -it })
+                        },
+                        popTransitionSpec = {
+                            slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                                slideOutHorizontally(targetOffsetX = { it })
+                        },
+                        predictivePopTransitionSpec = {
+                            slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                                slideOutHorizontally(targetOffsetX = { it })
+                        }
+                    )
                 }
-            )
+            }
 
             SnackbarHost(
                 hostState = snackbarHostState,
