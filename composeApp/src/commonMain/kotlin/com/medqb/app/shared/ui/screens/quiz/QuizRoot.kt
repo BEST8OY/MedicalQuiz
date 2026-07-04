@@ -11,6 +11,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.ui.media.MediaHandler
+import com.medqb.app.shared.ui.LocalActiveSharedElementKey
 import com.medqb.app.shared.ui.dialogs.JumpToDialog
 import com.medqb.app.shared.ui.screens.media.PlatformBackHandler
 import com.medqb.app.shared.viewmodel.QuizViewModel
@@ -68,6 +70,7 @@ fun QuizRoot(
         onBack = onNavigateBack
     )
 
+    CompositionLocalProvider(LocalActiveSharedElementKey provides mediaHandler.activeSharedElementKey) {
     Box(modifier = Modifier.fillMaxSize()) {
         val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
@@ -128,5 +131,5 @@ fun QuizRoot(
         )
     }
 
-
+    } // CompositionLocalProvider
 }

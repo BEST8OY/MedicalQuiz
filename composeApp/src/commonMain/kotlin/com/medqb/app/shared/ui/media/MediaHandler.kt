@@ -1,5 +1,6 @@
 package com.medqb.app.shared.ui.media
 
+import androidx.compose.runtime.mutableStateOf
 import com.medqb.app.shared.utils.HtmlUtils
 
 class MediaHandler(
@@ -9,9 +10,12 @@ class MediaHandler(
     private var currentQuestionId: Long? = null
     private var currentMediaFiles: List<String> = emptyList()
 
+    val activeSharedElementKey = mutableStateOf<String?>(null)
+
     fun reset() {
         currentQuestionId = null
         currentMediaFiles = emptyList()
+        activeSharedElementKey.value = null
     }
 
     fun updateMedia(questionId: Long, mediaFiles: List<String>) {
@@ -85,6 +89,7 @@ class MediaHandler(
                 // Don't open an unrelated item when the clicked filename isn't in the current cache.
                 return false
             }
+            activeSharedElementKey.value = fileName
             onOpenMedia(currentMediaFiles, matchingIndex)
             return true
         }

@@ -56,6 +56,7 @@ fun MediaViewerEntry(
             }
         },
         onBack = dropUnlessResumed {
+            mediaHandler.activeSharedElementKey.value = null
             navigator.navigateBack()
             scope.launch {
                 mediaDescriptionsFlow.value = emptyMap()
