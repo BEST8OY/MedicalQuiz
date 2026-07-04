@@ -54,7 +54,6 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     val activeKey = LocalActiveSharedElementKey.current?.value
     val sharedElementModifier = if (
         sharedTransitionScope != null &&
-        animatedVisibilityScope != null &&
         activeKey == clickTarget
     ) {
         with(sharedTransitionScope) {
