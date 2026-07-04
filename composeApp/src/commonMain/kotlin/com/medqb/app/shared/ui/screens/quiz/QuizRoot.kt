@@ -71,65 +71,64 @@ fun QuizRoot(
     )
 
     CompositionLocalProvider(LocalActiveSharedElementKey provides mediaHandler.activeSharedElementKey) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        Box(modifier = Modifier.fillMaxSize()) {
+            val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            topBar = {
-                TopBar(
-                    title = title,
-                    onResetLogClick = { viewModel.clearCurrentQuestionLog() },
-                    onSettingsClick = onOpenSettingsScreen
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                topBar = {
+                    TopBar(
+                        title = title,
+                        onResetLogClick = { viewModel.clearCurrentQuestionLog() },
+                        onSettingsClick = onOpenSettingsScreen
+                    )
+                },
+                contentWindowInsets = WindowInsets.statusBars
+            ) { padding ->
+                QuizScreen(
+                    viewModel = viewModel,
+                    mediaHandler = mediaHandler,
+                    onPrevious = { viewModel.loadPrevious() },
+                    onNext = { viewModel.loadNext() },
+                    onJumpTo = { showJumpToDialog = true },
+                    onOpenSettings = onOpenSettingsScreen,
+                    contentPadding = padding,
+                    bottomClearance = bottomPadding + 80.dp
                 )
-            },
-            contentWindowInsets = WindowInsets.statusBars
-        ) { padding ->
-            QuizScreen(
-                viewModel = viewModel,
-                mediaHandler = mediaHandler,
+            }
+
+            // Floating toolbar - overlays content
+            QuizFloatingToolbar(
+                uiState = QuizBottomToolbarUiState(
+                    currentQuestionIndex = state.currentQuestionIndex,
+                    totalQuestions = state.totalQuestions,
+                    hasPreviousQuestion = state.hasPreviousQuestion,
+                    hasNextQuestion = state.hasNextQuestion,
+                    showSubmitButton = !state.answerSubmitted && state.submissionMode == SubmissionMode.MANUAL,
+                    canSubmit = state.selectedAnswerId != null,
+                ),
                 onPrevious = { viewModel.loadPrevious() },
                 onNext = { viewModel.loadNext() },
                 onJumpTo = { showJumpToDialog = true },
-                onOpenSettings = onOpenSettingsScreen,
-                contentPadding = padding,
-                bottomClearance = bottomPadding + 80.dp
+                onSubmit = { viewModel.submitAnswer(timeTaken = 0L) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = bottomPadding + 16.dp)
             )
         }
 
-        // Floating toolbar - overlays content
-        QuizFloatingToolbar(
-            uiState = QuizBottomToolbarUiState(
-                currentQuestionIndex = state.currentQuestionIndex,
-                totalQuestions = state.totalQuestions,
-                hasPreviousQuestion = state.hasPreviousQuestion,
-                hasNextQuestion = state.hasNextQuestion,
-                showSubmitButton = !state.answerSubmitted && state.submissionMode == SubmissionMode.MANUAL,
-                canSubmit = state.selectedAnswerId != null,
-            ),
-            onPrevious = { viewModel.loadPrevious() },
-            onNext = { viewModel.loadNext() },
-            onJumpTo = { showJumpToDialog = true },
-            onSubmit = { viewModel.submitAnswer(timeTaken = 0L) },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = bottomPadding + 16.dp)
-        )
+        // Dialogs - rendered as overlays
+        if (showJumpToDialog) {
+            JumpToDialog(
+                isVisible = true,
+                totalQuestions = state.questionIds.size,
+                currentIndex = state.currentQuestionIndex,
+                onJumpTo = { index ->
+                    viewModel.loadQuestion(index)
+                    showJumpToDialog = false
+                },
+                onDismiss = { showJumpToDialog = false }
+            )
+        }
     }
-
-    // Dialogs - rendered as overlays
-    if (showJumpToDialog) {
-        JumpToDialog(
-            isVisible = true,
-            totalQuestions = state.questionIds.size,
-            currentIndex = state.currentQuestionIndex,
-            onJumpTo = { index ->
-                viewModel.loadQuestion(index)
-                showJumpToDialog = false
-            },
-            onDismiss = { showJumpToDialog = false }
-        )
-    }
-
-    } // CompositionLocalProvider
 }

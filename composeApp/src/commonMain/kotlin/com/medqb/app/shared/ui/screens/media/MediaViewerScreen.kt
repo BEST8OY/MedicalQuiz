@@ -3,6 +3,7 @@ package com.medqb.app.shared.ui.screens.media
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
@@ -129,39 +130,20 @@ fun MediaViewerScreen(
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalNavAnimatedContentScope.current
 
-    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-        with(sharedTransitionScope) {
-            MediaViewerContent(
-                mediaFiles = mediaFiles,
-                startIndex = startIndex,
-                mediaDescriptions = mediaDescriptions,
-                richTextScale = richTextScale,
-                resolveMediaFilePath = resolveMediaFilePath,
-                mediaFileExists = mediaFileExists,
-                resolveOverlayPaths = resolveOverlayPaths,
-                onLinkClick = onLinkClick,
-                onBack = onBack,
-                onSaveMedia = onSaveMedia,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
-            )
-        }
-    } else {
-        MediaViewerContent(
-            mediaFiles = mediaFiles,
-            startIndex = startIndex,
-            mediaDescriptions = mediaDescriptions,
-            richTextScale = richTextScale,
-            resolveMediaFilePath = resolveMediaFilePath,
-            mediaFileExists = mediaFileExists,
-            resolveOverlayPaths = resolveOverlayPaths,
-            onLinkClick = onLinkClick,
-            onBack = onBack,
-            onSaveMedia = onSaveMedia,
-            sharedTransitionScope = null,
-            animatedVisibilityScope = null,
-        )
-    }
+    MediaViewerContent(
+        mediaFiles = mediaFiles,
+        startIndex = startIndex,
+        mediaDescriptions = mediaDescriptions,
+        richTextScale = richTextScale,
+        resolveMediaFilePath = resolveMediaFilePath,
+        mediaFileExists = mediaFileExists,
+        resolveOverlayPaths = resolveOverlayPaths,
+        onLinkClick = onLinkClick,
+        onBack = onBack,
+        onSaveMedia = onSaveMedia,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
+    )
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -178,7 +160,7 @@ private fun MediaViewerContent(
     onBack: () -> Unit,
     onSaveMedia: ((String) -> Unit)?,
     sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     if (mediaFiles.isEmpty()) {
         Box(
@@ -545,7 +527,7 @@ private fun MediaContent(
     overlayPath: String? = null,
     showOverlay: Boolean = true,
     sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val mediaType = remember(fileName) { getMediaType(fileName) }
     val filePath = remember(fileName, resolveMediaFilePath) { resolveMediaFilePath(fileName) }
@@ -652,7 +634,7 @@ private fun ImageContent(
     overlayPath: String? = null,
     showOverlay: Boolean = true,
     sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val filePath = remember(mediaFilePath) { mediaFilePath }
 
