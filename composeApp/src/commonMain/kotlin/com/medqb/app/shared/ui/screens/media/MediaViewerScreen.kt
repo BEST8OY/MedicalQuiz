@@ -254,6 +254,7 @@ private fun MediaViewerContent(
                 MediaContent(
                     fileName = mediaFiles[page],
                     isActivePage = pagerState.currentPage == page,
+                    isSharedElementPage = page == startIndex,
                     resolveMediaFilePath = resolveMediaFilePath,
                     mediaFileExists = mediaFileExists,
                     onZoomChanged = {
@@ -536,6 +537,7 @@ private fun ExplanationBottomSheet(
 private fun MediaContent(
     fileName: String,
     isActivePage: Boolean,
+    isSharedElementPage: Boolean = false,
     resolveMediaFilePath: (String) -> String,
     mediaFileExists: suspend (String) -> Boolean,
     onZoomChanged: (Boolean) -> Unit,
@@ -573,8 +575,8 @@ private fun MediaContent(
                 onSingleTap = onSingleTap,
                 overlayPath = overlayPath,
                 showOverlay = showOverlay,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
+                sharedTransitionScope = if (isSharedElementPage) sharedTransitionScope else null,
+                animatedVisibilityScope = if (isSharedElementPage) animatedVisibilityScope else null,
             )
             MediaType.VIDEO -> VideoContent(
                 filePath = filePath,
