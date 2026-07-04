@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
@@ -672,7 +673,7 @@ private fun ImageContent(
     } else Modifier
 
     val isExitingTransition = animatedVisibilityScope?.transition?.targetState?.let {
-        it == androidx.compose.animation.EnterExitState.PostExit || it == androidx.compose.animation.EnterExitState.PreEnter
+        it == EnterExitState.PostExit || it == EnterExitState.PreEnter
     } ?: false
 
     Box(
