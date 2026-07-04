@@ -37,7 +37,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     }
     if (mediaModel == null) return
 
-    val clickTarget = block.mediaRef ?: block.source
+    val clickTarget = block.mediaRef ?: extractMediaRef(block.source) ?: block.source
     val imageSizeModifier = remember(block.width, block.height) {
         val w = block.width?.takeIf { it > 0 }
         when {
@@ -80,8 +80,8 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
             contentScale = ContentScale.Fit,
             modifier = Modifier
                 .then(imageSizeModifier)
-                .then(sharedElementModifier)
-                .clickable { onMediaClick(clickTarget) },
+                .clickable { onMediaClick(clickTarget) }
+                .then(sharedElementModifier),
         )
         block.description?.let {
             androidx.compose.material3.Text(
@@ -131,5 +131,6 @@ internal fun extractMediaRef(source: String): String? {
     return source.substringAfterLast('/', "")
         .substringBefore('?')
         .substringBefore('#')
+        .trim()
         .takeIf { it.isNotBlank() }
 }

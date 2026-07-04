@@ -4,7 +4,6 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
-import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import okio.Path.Companion.toPath
 import com.medqb.app.shared.platform.StorageProvider
@@ -26,6 +25,5 @@ fun generateImageLoader(context: PlatformContext): ImageLoader {
                 .maxSizeBytes(100L * 1024 * 1024) // 100 MB
                 .build()
         }
-        .crossfade(true)
         .build()
 }
