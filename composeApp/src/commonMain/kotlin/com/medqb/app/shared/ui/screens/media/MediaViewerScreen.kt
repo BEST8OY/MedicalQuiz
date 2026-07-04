@@ -254,7 +254,7 @@ private fun MediaViewerContent(
                 MediaContent(
                     fileName = mediaFiles[page],
                     isActivePage = pagerState.currentPage == page,
-                    isSharedElementPage = page == startIndex,
+                    isSharedElementPage = page == startIndex && page == pagerState.currentPage,
                     resolveMediaFilePath = resolveMediaFilePath,
                     mediaFileExists = mediaFileExists,
                     onZoomChanged = {
