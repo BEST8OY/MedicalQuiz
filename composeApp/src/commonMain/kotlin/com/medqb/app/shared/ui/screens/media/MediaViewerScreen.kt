@@ -668,14 +668,14 @@ private fun ImageContent(
         contentAlignment = Alignment.Center,
     ) {
         var isLoading by remember { mutableStateOf(true) }
-        var isTransitionComplete by remember { mutableStateOf(animatedVisibilityScope == null) }
+        var isTransitionDone by remember { mutableStateOf(animatedVisibilityScope == null) }
 
         LaunchedEffect(animatedVisibilityScope) {
             if (animatedVisibilityScope != null) {
-                snapshotFlow { animatedVisibilityScope.transition.targetState }
-                    .collect { targetState ->
-                        if (targetState == EnterExitState.Visible) {
-                            isTransitionComplete = true
+                snapshotFlow { animatedVisibilityScope.transition.isRunning }
+                    .collect { running ->
+                        if (!running) {
+                            isTransitionDone = true
                         }
                     }
             }
@@ -703,7 +703,7 @@ private fun ImageContent(
             }
         }
 
-        if (overlayPath != null && showOverlay && !isExitingTransition && isTransitionComplete) {
+        if (overlayPath != null && showOverlay && !isExitingTransition && isTransitionDone) {
             AsyncImage(
                 model = overlayPath,
                 contentDescription = "Overlay",
