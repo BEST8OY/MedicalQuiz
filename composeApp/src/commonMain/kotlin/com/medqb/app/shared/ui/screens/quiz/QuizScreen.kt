@@ -52,8 +52,8 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.Question
@@ -73,16 +73,12 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun QuizScreen(
+    state: QuizUiState,
     viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-    onJumpTo: () -> Unit,
-    onOpenSettings: () -> Unit,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    bottomClearance: Dp = 80.dp
+    bottomClearance: Dp = ScreenLayout.QuizBottomClearance
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
     val fontScalePreference = state.fontScalePreference
 
     RichTextScaleProvider(proseScale = fontScalePreference ?: 1f) {
@@ -232,7 +228,7 @@ private fun QuizQuestionCard(
 
     val question = state.currentQuestion
     val answers = state.currentAnswers
-    val metadataSections = buildMetadataSections(question)
+    val metadataSections = remember(question) { computeMetadataSections(question) }
     val uriHandler = LocalUriHandler.current
     val linkHandler: (String) -> Unit = remember(question?.id, mediaHandler) {
         { url ->
@@ -498,30 +494,27 @@ private sealed interface MetadataSection {
     data class Chips(val label: String, val values: List<String>) : MetadataSection
 }
 
-@Composable
-private fun buildMetadataSections(question: Question?): List<MetadataSection> {
+private fun computeMetadataSections(question: Question?): List<MetadataSection> {
     val currentQuestion = question ?: return emptyList()
 
-    return remember(currentQuestion.id, currentQuestion.subName, currentQuestion.sysName) {
-        val sections = mutableListOf<MetadataSection>()
-        sections += MetadataSection.Chips(label = "ID", values = listOf("#${currentQuestion.id}"))
+    val sections = mutableListOf<MetadataSection>()
+    sections += MetadataSection.Chips(label = "ID", values = listOf("#${currentQuestion.id}"))
 
-        extractMetadataList(currentQuestion.subName)
-            .takeIf { it.isNotEmpty() }
-            ?.let { values ->
-                val label = if (values.size == 1) "Subject" else "Subjects"
-                sections += MetadataSection.Chips(label, values)
-            }
+    extractMetadataList(currentQuestion.subName)
+        .takeIf { it.isNotEmpty() }
+        ?.let { values ->
+            val label = if (values.size == 1) "Subject" else "Subjects"
+            sections += MetadataSection.Chips(label, values)
+        }
 
-        extractMetadataList(currentQuestion.sysName)
-            .takeIf { it.isNotEmpty() }
-            ?.let { values ->
-                val label = if (values.size == 1) "System" else "Systems"
-                sections += MetadataSection.Chips(label, values)
-            }
+    extractMetadataList(currentQuestion.sysName)
+        .takeIf { it.isNotEmpty() }
+        ?.let { values ->
+            val label = if (values.size == 1) "System" else "Systems"
+            sections += MetadataSection.Chips(label, values)
+        }
 
-        sections
-    }
+    return sections
 }
 
 @OptIn(ExperimentalLayoutApi::class)

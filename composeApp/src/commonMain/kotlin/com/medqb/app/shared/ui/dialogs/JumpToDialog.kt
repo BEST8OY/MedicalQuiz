@@ -50,13 +50,12 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun JumpToDialog(
-    isVisible: Boolean,
     totalQuestions: Int,
     currentIndex: Int,
     onJumpTo: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    if (!isVisible || totalQuestions <= 0) return
+    if (totalQuestions <= 0) return
 
     val clampedCurrent = (currentIndex + 1).coerceIn(1, totalQuestions)
     var inputValue by rememberSaveable(totalQuestions, currentIndex) {

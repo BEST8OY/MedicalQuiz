@@ -55,8 +55,8 @@ internal fun FilterHubScreen(
             AnimatedContent(
                 targetState = state.activePane,
                 transitionSpec = {
-                    fadeIn(animationSpec = motionScheme.defaultEffectsSpec())
-                        .togetherWith(fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
+                    fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                        fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                 },
                 label = "filter_pane_content",
             ) { activePane ->

@@ -133,6 +133,9 @@ object ScreenLayout {
     /** Total bottom clearance in history list (list padding + FAB) */
     val HistoryListBottomPadding: Dp = 112.dp
 
+    /** Bottom clearance for quiz screen content above floating toolbar */
+    val QuizBottomClearance: Dp = 80.dp
+
     /** Top padding for empty state messages */
     val EmptyStateTopPadding: Dp = 72.dp
 }

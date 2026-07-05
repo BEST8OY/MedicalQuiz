@@ -14,12 +14,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.models.SubmissionMode
@@ -27,6 +25,8 @@ import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.LocalActiveSharedElementKey
 import com.medqb.app.shared.ui.dialogs.JumpToDialog
 import com.medqb.app.shared.ui.screens.media.PlatformBackHandler
+import com.medqb.app.shared.ui.theme.ScreenLayout
+import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.viewmodel.QuizViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -40,21 +40,6 @@ fun QuizRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
     val isQuizMode = state.questionIds.isNotEmpty() && state.currentQuestion != null
-
-    val uriHandler = LocalUriHandler.current
-    val linkHandler: (String) -> Unit = remember(mediaHandler, uriHandler) {
-        { url ->
-            val normalizedUrl = url.trim()
-            if (normalizedUrl.isEmpty()) return@remember
-            if (!mediaHandler.handleMediaLink(normalizedUrl)) {
-                try {
-                    uriHandler.openUri(normalizedUrl)
-                } catch (_: Exception) {
-                    // Ignore
-                }
-            }
-        }
-    }
 
     // Dialog states - these are overlays within the quiz screen
     var showJumpToDialog by rememberSaveable { mutableStateOf(false) }
@@ -82,14 +67,11 @@ fun QuizRoot(
                 contentWindowInsets = WindowInsets.statusBars
             ) { padding ->
                 QuizScreen(
+                    state = state,
                     viewModel = viewModel,
                     mediaHandler = mediaHandler,
-                    onPrevious = { viewModel.loadPrevious() },
-                    onNext = { viewModel.loadNext() },
-                    onJumpTo = { showJumpToDialog = true },
-                    onOpenSettings = onOpenSettingsScreen,
                     contentPadding = padding,
-                    bottomClearance = bottomPadding + 80.dp
+                    bottomClearance = bottomPadding + ScreenLayout.QuizBottomClearance
                 )
             }
 
@@ -109,14 +91,13 @@ fun QuizRoot(
                 onSubmit = { viewModel.submitAnswer(timeTaken = 0L) },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = bottomPadding + 16.dp)
+                    .padding(bottom = bottomPadding + Spacing.Md)
             )
         }
 
         // Dialogs - rendered as overlays
         if (showJumpToDialog) {
             JumpToDialog(
-                isVisible = true,
                 totalQuestions = state.questionIds.size,
                 currentIndex = state.currentQuestionIndex,
                 onJumpTo = { index ->

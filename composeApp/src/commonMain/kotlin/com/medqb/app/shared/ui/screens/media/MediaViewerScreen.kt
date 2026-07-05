@@ -86,6 +86,7 @@ import coil3.compose.AsyncImagePainter
 import com.medqb.app.shared.data.MediaDescription
 import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import com.medqb.app.shared.ui.media.MediaType
+import com.medqb.app.shared.utils.MediaTypeUtils
 import com.medqb.app.shared.ui.richtext.RichText
 import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
@@ -97,7 +98,6 @@ import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 
 // Animation and interaction constants
-private const val MAX_SCALE = 5f
 private const val DOUBLE_TAP_ZOOM = 2.5f
 private const val MIN_SCALE = 1f
 
@@ -267,8 +267,16 @@ private fun MediaViewerContent(
 
         AnimatedVisibility(
             visible = showUI,
-            enter = fadeIn() + slideInVertically { -it },
-            exit = fadeOut() + slideOutVertically { -it },
+            enter = fadeIn(animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                slideInVertically(
+                    initialOffsetY = { -it },
+                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                ),
+            exit = fadeOut(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec()) +
+                slideOutVertically(
+                    targetOffsetY = { -it },
+                    animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+                ),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .graphicsLayer { alpha = transitionAlpha },
@@ -406,69 +414,32 @@ private fun MediaViewerControlButtonGroup(
         horizontalArrangement = groupArrangement,
         expandedRatio = ButtonGroupDefaults.ExpandedRatio,
     ) {
-        when (type) {
-            MediaControlsLayout.OverlayOnly -> {
-                toggleableItem(
-                    checked = showOverlay,
-                    label = "Overlay",
-                    onCheckedChange = onShowOverlayChange,
-                    weight = 1.1f,
-                    icon = {
-                        Icon(
-                            imageVector = if (showOverlay) {
-                                Icons.Filled.Visibility
-                            } else {
-                                Icons.Filled.VisibilityOff
-                            },
-                            contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                        )
-                    },
-                )
-            }
-            MediaControlsLayout.OverlayAndInfo -> {
-                toggleableItem(
-                    checked = showOverlay,
-                    label = "Overlay",
-                    onCheckedChange = onShowOverlayChange,
-                    weight = 1.1f,
-                    icon = {
-                        Icon(
-                            imageVector = if (showOverlay) {
-                                Icons.Filled.Visibility
-                            } else {
-                                Icons.Filled.VisibilityOff
-                            },
-                            contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
-                        )
-                    },
-                )
-
-                clickableItem(
-                    label = "Info",
-                    onClick = onShowInfo,
-                    weight = 1.0f,
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Filled.Info,
-                            contentDescription = "Show info",
-                        )
-                    },
-                )
-            }
-            MediaControlsLayout.InfoOnly -> {
-                clickableItem(
-                    label = "Info",
-                    onClick = onShowInfo,
-                    weight = 1.0f,
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Filled.Info,
-                            contentDescription = "Show info",
-                        )
-                    },
-                )
-            }
-            else -> Unit
+        if (type == MediaControlsLayout.OverlayOnly || type == MediaControlsLayout.OverlayAndInfo) {
+            toggleableItem(
+                checked = showOverlay,
+                label = "Overlay",
+                onCheckedChange = onShowOverlayChange,
+                weight = 1.1f,
+                icon = {
+                    Icon(
+                        imageVector = if (showOverlay) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                        contentDescription = if (showOverlay) "Hide overlay" else "Show overlay",
+                    )
+                },
+            )
+        }
+        if (type == MediaControlsLayout.InfoOnly || type == MediaControlsLayout.OverlayAndInfo) {
+            clickableItem(
+                label = "Info",
+                onClick = onShowInfo,
+                weight = 1.0f,
+                icon = {
+                    Icon(
+                        imageVector = Icons.Filled.Info,
+                        contentDescription = "Show info",
+                    )
+                },
+            )
         }
     }
 }
@@ -600,7 +571,7 @@ private fun VideoContent(
     mediaFileExists: suspend (String) -> Boolean,
     isActivePage: Boolean,
 ) {
-    val fileExists by produceState(initialValue = true, filePath) {
+    val fileExists by produceState(initialValue = false, filePath) {
         value = mediaFileExists(fileName)
     }
 
@@ -623,7 +594,7 @@ private fun AudioContent(
     mediaFileExists: suspend (String) -> Boolean,
     isActivePage: Boolean,
 ) {
-    val fileExists by produceState(initialValue = true, filePath) {
+    val fileExists by produceState(initialValue = false, filePath) {
         value = mediaFileExists(fileName)
     }
 
@@ -654,7 +625,7 @@ private fun ImageContent(
 ) {
     val filePath = remember(mediaFilePath) { mediaFilePath }
 
-    val fileExists by produceState(initialValue = true, filePath) {
+    val fileExists by produceState(initialValue = false, filePath) {
         value = mediaFileExists(fileName)
     }
 
@@ -774,7 +745,7 @@ private fun UnsupportedContent(fileName: String) {
 }
 
 private fun getMediaType(fileName: String): MediaType {
-    return com.medqb.app.shared.utils.MediaTypeUtils.fromFileName(fileName)
+    return MediaTypeUtils.fromFileName(fileName)
 }
 
 @Composable
