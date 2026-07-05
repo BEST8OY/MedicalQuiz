@@ -1,6 +1,7 @@
 package com.medqb.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -29,12 +30,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.LocalActiveSharedElementKey
+import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import com.medqb.app.shared.ui.dialogs.JumpToDialog
 import com.medqb.app.shared.ui.screens.media.PlatformBackHandler
 import com.medqb.app.shared.viewmodel.QuizViewModel
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun QuizRoot(
     viewModel: QuizViewModel,
@@ -71,6 +73,13 @@ fun QuizRoot(
         onBack = onNavigateBack
     )
 
+    val sharedTransitionScope = LocalSharedTransitionScope.current
+    val overlayModifier = if (sharedTransitionScope != null) {
+        with(sharedTransitionScope) {
+            Modifier.renderInSharedTransitionScopeOverlay(zIndexInOverlay = 1f)
+        }
+    } else Modifier
+
     val animatedVisibilityScope = LocalNavAnimatedContentScope.current
     val transitionAlpha = animatedVisibilityScope?.transition?.animateFloat(
         transitionSpec = { MaterialTheme.motionScheme.defaultEffectsSpec() },
@@ -94,7 +103,7 @@ fun QuizRoot(
                         title = title,
                         onResetLogClick = { viewModel.clearCurrentQuestionLog() },
                         onSettingsClick = onOpenSettingsScreen,
-                        modifier = Modifier.graphicsLayer { alpha = transitionAlpha },
+                        modifier = Modifier.graphicsLayer { alpha = transitionAlpha }.then(overlayModifier),
                     )
                 },
                 contentWindowInsets = WindowInsets.statusBars
@@ -129,6 +138,7 @@ fun QuizRoot(
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPadding + 16.dp)
                     .graphicsLayer { alpha = transitionAlpha }
+                    .then(overlayModifier)
             )
         }
 
