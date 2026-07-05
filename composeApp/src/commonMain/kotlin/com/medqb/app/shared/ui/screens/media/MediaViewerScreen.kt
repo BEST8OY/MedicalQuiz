@@ -1,6 +1,7 @@
 package com.medqb.app.shared.ui.screens.media
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -253,11 +254,16 @@ private fun MediaViewerContent(
             }
         }
 
-        val viewerOverlayModifier = if (sharedTransitionScope != null) {
-            with(sharedTransitionScope) {
-                Modifier.renderInSharedTransitionScopeOverlay(zIndexInOverlay = 1f)
+        val transitionAlpha = animatedVisibilityScope?.transition?.animateFloat(
+            transitionSpec = { MaterialTheme.motionScheme.defaultEffectsSpec() },
+            label = "chromeAlpha"
+        ) { state ->
+            when (state) {
+                EnterExitState.PreEnter -> 0f
+                EnterExitState.Visible -> 1f
+                EnterExitState.PostExit -> 0f
             }
-        } else Modifier
+        }?.value ?: 1f
 
         AnimatedVisibility(
             visible = showUI,
@@ -265,7 +271,7 @@ private fun MediaViewerContent(
             exit = fadeOut() + slideOutVertically { -it },
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .then(viewerOverlayModifier),
+                .graphicsLayer { alpha = transitionAlpha },
         ) {
             Box(
                 modifier = Modifier
@@ -346,7 +352,7 @@ private fun MediaViewerContent(
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(bottom = Spacing.Lg)
-                .then(viewerOverlayModifier),
+                .graphicsLayer { alpha = transitionAlpha },
         ) {
             Box(
                 modifier = Modifier.width(controlsWidth),
