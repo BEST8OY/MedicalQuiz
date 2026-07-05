@@ -98,7 +98,7 @@ fun QuizRoot(
     }?.value ?: 1f
 
     CompositionLocalProvider(LocalActiveSharedElementKey provides mediaHandler.activeSharedElementKey) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = transitionAlpha }) {
             val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
             Scaffold(
@@ -108,7 +108,7 @@ fun QuizRoot(
                         title = title,
                         onResetLogClick = { viewModel.clearCurrentQuestionLog() },
                         onSettingsClick = onOpenSettingsScreen,
-                        modifier = Modifier.graphicsLayer { alpha = transitionAlpha }.then(overlayModifier),
+                        modifier = overlayModifier,
                     )
                 },
                 contentWindowInsets = WindowInsets.statusBars
@@ -142,7 +142,6 @@ fun QuizRoot(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPadding + 16.dp)
-                    .graphicsLayer { alpha = transitionAlpha }
                     .then(overlayModifier)
             )
         }
