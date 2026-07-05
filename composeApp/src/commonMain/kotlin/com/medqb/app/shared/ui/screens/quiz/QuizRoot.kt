@@ -108,7 +108,7 @@ fun QuizRoot(
                         title = title,
                         onResetLogClick = { viewModel.clearCurrentQuestionLog() },
                         onSettingsClick = onOpenSettingsScreen,
-                        modifier = overlayModifier,
+                        modifier = Modifier.graphicsLayer { alpha = transitionAlpha }.then(overlayModifier),
                     )
                 },
                 contentWindowInsets = WindowInsets.statusBars
@@ -142,6 +142,7 @@ fun QuizRoot(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPadding + 16.dp)
+                    .graphicsLayer { alpha = transitionAlpha }
                     .then(overlayModifier)
             )
         }
