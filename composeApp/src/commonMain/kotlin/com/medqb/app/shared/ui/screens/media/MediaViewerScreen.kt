@@ -81,6 +81,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.snapshotFlow
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.medqb.app.shared.data.MediaDescription
@@ -667,6 +668,18 @@ private fun ImageContent(
         contentAlignment = Alignment.Center,
     ) {
         var isLoading by remember { mutableStateOf(true) }
+        var isTransitionComplete by remember { mutableStateOf(animatedVisibilityScope == null) }
+
+        LaunchedEffect(animatedVisibilityScope) {
+            if (animatedVisibilityScope != null) {
+                snapshotFlow { animatedVisibilityScope.transition.targetState }
+                    .collect { targetState ->
+                        if (targetState == EnterExitState.Visible) {
+                            isTransitionComplete = true
+                        }
+                    }
+            }
+        }
 
         AsyncImage(
             model = filePath,
@@ -690,7 +703,7 @@ private fun ImageContent(
             }
         }
 
-        if (overlayPath != null && showOverlay && !isExitingTransition) {
+        if (overlayPath != null && showOverlay && !isExitingTransition && isTransitionComplete) {
             AsyncImage(
                 model = overlayPath,
                 contentDescription = "Overlay",
