@@ -2,10 +2,8 @@ package com.medqb.app.shared
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -223,7 +221,7 @@ fun App() {
                 entry<MedQBRoutes.MediaViewer>(
                     metadata = metadata {
                         put(NavDisplay.TransitionKey) {
-                            scaleIn(initialScale = 0.9f) togetherWith ExitTransition.KeepUntilTransitionsFinished
+                            fadeIn() togetherWith fadeOut()
                         }
                         put(NavDisplay.PopTransitionKey) {
                             fadeIn() togetherWith fadeOut()
