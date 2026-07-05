@@ -73,14 +73,19 @@ fun QuizRoot(
         onBack = onNavigateBack
     )
 
+    val animatedVisibilityScope = LocalNavAnimatedContentScope.current
+    val isBackNavigation = animatedVisibilityScope?.transition?.targetState == EnterExitState.Visible
+
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val overlayModifier = if (sharedTransitionScope != null) {
         with(sharedTransitionScope) {
-            Modifier.renderInSharedTransitionScopeOverlay(zIndexInOverlay = 1f)
+            Modifier.renderInSharedTransitionScopeOverlay(
+                zIndexInOverlay = 1f,
+                renderInOverlay = { isBackNavigation }
+            )
         }
     } else Modifier
 
-    val animatedVisibilityScope = LocalNavAnimatedContentScope.current
     val transitionAlpha = animatedVisibilityScope?.transition?.animateFloat(
         transitionSpec = { MaterialTheme.motionScheme.defaultEffectsSpec() },
         label = "chromeAlpha"
