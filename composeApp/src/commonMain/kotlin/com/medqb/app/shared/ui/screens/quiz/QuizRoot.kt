@@ -1,8 +1,5 @@
 package com.medqb.app.shared.ui.screens.quiz
 
-import androidx.compose.animation.EnterExitState
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -12,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -23,20 +19,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.LocalActiveSharedElementKey
-import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import com.medqb.app.shared.ui.dialogs.JumpToDialog
 import com.medqb.app.shared.ui.screens.media.PlatformBackHandler
 import com.medqb.app.shared.viewmodel.QuizViewModel
-import androidx.navigation3.ui.LocalNavAnimatedContentScope
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun QuizRoot(
     viewModel: QuizViewModel,
@@ -73,32 +66,8 @@ fun QuizRoot(
         onBack = onNavigateBack
     )
 
-    val animatedVisibilityScope = LocalNavAnimatedContentScope.current
-    val isBackNavigation = animatedVisibilityScope?.transition?.targetState == EnterExitState.Visible
-
-    val sharedTransitionScope = LocalSharedTransitionScope.current
-    val overlayModifier = if (sharedTransitionScope != null) {
-        with(sharedTransitionScope) {
-            Modifier.renderInSharedTransitionScopeOverlay(
-                zIndexInOverlay = 1f,
-                renderInOverlay = { isBackNavigation }
-            )
-        }
-    } else Modifier
-
-    val transitionAlpha = animatedVisibilityScope?.transition?.animateFloat(
-        transitionSpec = { MaterialTheme.motionScheme.defaultEffectsSpec() },
-        label = "chromeAlpha"
-    ) { state ->
-        when (state) {
-            EnterExitState.PreEnter -> 0f
-            EnterExitState.Visible -> 1f
-            EnterExitState.PostExit -> 0f
-        }
-    }?.value ?: 1f
-
     CompositionLocalProvider(LocalActiveSharedElementKey provides mediaHandler.activeSharedElementKey) {
-        Box(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = transitionAlpha }) {
+        Box(modifier = Modifier.fillMaxSize()) {
             val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
             Scaffold(
@@ -108,7 +77,6 @@ fun QuizRoot(
                         title = title,
                         onResetLogClick = { viewModel.clearCurrentQuestionLog() },
                         onSettingsClick = onOpenSettingsScreen,
-                        modifier = Modifier.graphicsLayer { alpha = transitionAlpha }.then(overlayModifier),
                     )
                 },
                 contentWindowInsets = WindowInsets.statusBars
@@ -129,7 +97,7 @@ fun QuizRoot(
             QuizFloatingToolbar(
                 uiState = QuizBottomToolbarUiState(
                     currentQuestionIndex = state.currentQuestionIndex,
-                    totalQuestions = state.totalQuestions,
+                    totalQuestions = state.questionIds.size,
                     hasPreviousQuestion = state.hasPreviousQuestion,
                     hasNextQuestion = state.hasNextQuestion,
                     showSubmitButton = !state.answerSubmitted && state.submissionMode == SubmissionMode.MANUAL,
@@ -142,8 +110,6 @@ fun QuizRoot(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPadding + 16.dp)
-                    .graphicsLayer { alpha = transitionAlpha }
-                    .then(overlayModifier)
             )
         }
 
