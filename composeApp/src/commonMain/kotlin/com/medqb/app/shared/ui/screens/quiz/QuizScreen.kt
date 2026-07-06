@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
+import com.medqb.app.shared.ui.theme.Stroke
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.Question
@@ -77,7 +78,7 @@ fun QuizScreen(
     viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    bottomClearance: Dp = ScreenLayout.QuizBottomClearance
+        bottomClearance: Dp = ScreenLayout.BottomClearanceFloating
 ) {
     val fontScalePreference = state.fontScalePreference
 
@@ -471,7 +472,7 @@ private fun QuestionMetadataCard(sections: List<MetadataSection>) {
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
         border = BorderStroke(
-            width = 1.dp,
+            width = Stroke.Thin,
             color = MaterialTheme.colorScheme.outlineVariant,
         )
     ) {
@@ -586,7 +587,7 @@ private fun PerformanceCard(performance: QuestionPerformance?) {
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
         border = BorderStroke(
-            width = 1.dp,
+            width = Stroke.Thin,
             color = MaterialTheme.colorScheme.outlineVariant
         )
     ) {
@@ -626,7 +627,7 @@ private fun PerformanceStat(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.Micro)
     ) {
         Text(
             text = value,

@@ -34,6 +34,7 @@ import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.ui.theme.ElementSize
 import com.medqb.app.shared.ui.theme.Spacing
+import com.medqb.app.shared.ui.theme.Stroke
 
 @Composable
 internal fun SelectionToolbar(
@@ -44,16 +45,16 @@ internal fun SelectionToolbar(
 ) {
     Surface(
         shape = MaterialTheme.shapes.small,
-        tonalElevation = Spacing.XxsMd,
+        tonalElevation = Spacing.XxsPlus,
         shadowElevation = Spacing.Xxs,
         color = MaterialTheme.colorScheme.surfaceContainerHighest
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = Spacing.Xs, vertical = Spacing.XxsMd),
+            modifier = Modifier.padding(horizontal = Spacing.Xs, vertical = Spacing.XxsPlus),
             verticalArrangement = Arrangement.spacedBy(Spacing.Xs)
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.XxsMd),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.XxsPlus),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ToolbarActionButton(
@@ -71,7 +72,7 @@ internal fun SelectionToolbar(
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.XxsMd),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.XxsPlus),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HighlightColor.entries.forEach { color ->
@@ -103,8 +104,8 @@ private fun ToolbarActionButton(
         modifier = Modifier.clickable(enabled = enabled, onClick = onClick)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = Spacing.Xs),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.XxsMd),
+            modifier = Modifier.padding(horizontal = Spacing.Xs, vertical = Spacing.Xs),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.XxsPlus),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -138,13 +139,13 @@ internal fun HighlightEditPopup(
 ) {
     Surface(
         shape = MaterialTheme.shapes.small,
-        tonalElevation = Spacing.XxsMd,
+        tonalElevation = Spacing.XxsPlus,
         shadowElevation = Spacing.Xxs,
         color = MaterialTheme.colorScheme.surfaceContainerHighest
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = Spacing.Xs, vertical = Spacing.XxsMd),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.XxsMd),
+            modifier = Modifier.padding(horizontal = Spacing.Xs, vertical = Spacing.XxsPlus),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.XxsPlus),
             verticalAlignment = Alignment.CenterVertically
         ) {
             HighlightColor.entries.forEach { color ->
@@ -185,7 +186,7 @@ private fun HighlightColorChip(
     } else {
         MaterialTheme.colorScheme.outlineVariant
     }
-    val borderWidth = if (isSelected) 2.5.dp else 1.dp
+    val borderWidth = if (isSelected) Stroke.Thick else Stroke.Thin
 
     Box(
         modifier = Modifier

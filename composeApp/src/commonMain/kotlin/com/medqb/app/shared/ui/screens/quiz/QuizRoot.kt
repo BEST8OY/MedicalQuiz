@@ -71,7 +71,7 @@ fun QuizRoot(
                     viewModel = viewModel,
                     mediaHandler = mediaHandler,
                     contentPadding = padding,
-                    bottomClearance = bottomPadding + ScreenLayout.QuizBottomClearance
+                    bottomClearance = bottomPadding + ScreenLayout.BottomClearanceFloating
                 )
             }
 

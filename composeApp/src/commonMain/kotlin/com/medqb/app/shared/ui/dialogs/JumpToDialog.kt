@@ -86,7 +86,7 @@ fun JumpToDialog(
 
             Column(
                 modifier = Modifier.padding(horizontal = Inset.Lg),
-                verticalArrangement = Arrangement.spacedBy(Spacing.MdLg)
+                verticalArrangement = Arrangement.spacedBy(Spacing.LgSm)
             ) {
                 // Number input with stepper buttons
                 Row(

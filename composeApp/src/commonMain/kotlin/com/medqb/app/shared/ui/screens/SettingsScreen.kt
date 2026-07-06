@@ -50,6 +50,7 @@ import com.medqb.app.shared.data.FontScalePresets
 import com.medqb.app.shared.ui.richtext.scaledBy
 import com.medqb.app.shared.ui.theme.ElementSize
 import com.medqb.app.shared.ui.theme.Spacing
+import com.medqb.app.shared.ui.theme.Stroke
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -98,8 +99,8 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = Spacing.MdLg, vertical = Spacing.Md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.MdLg)
+                .padding(horizontal = Spacing.LgSm, vertical = Spacing.Md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.LgSm)
         ) {
             // Section 1: Quiz Experience
             Text(
@@ -245,7 +246,7 @@ fun SettingsScreen(
                                     imageVector = Icons.Outlined.FormatSize,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(Spacing.MdLg)
+                                    modifier = Modifier.size(Spacing.LgSm)
                                 )
                             }
 
@@ -305,7 +306,7 @@ private fun LivePreviewCard(currentScale: Float) {
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
         ),
         border = BorderStroke(
-            width = 1.dp,
+            width = Stroke.Thin,
             color = MaterialTheme.colorScheme.outlineVariant
         )
     ) {
@@ -328,7 +329,7 @@ private fun LivePreviewCard(currentScale: Float) {
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.XxsMd)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.XxsPlus)) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(Spacing.Xs),
                     verticalAlignment = Alignment.CenterVertically

@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.theme.Layout
+import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
 
 data class QuizBottomToolbarUiState(
@@ -54,7 +55,7 @@ fun QuizFloatingToolbar(
 ) {
     BoxWithConstraints(modifier = modifier) {
         val motionScheme = MaterialTheme.motionScheme
-        val isExpanded = maxWidth >= Layout.CompactBreakpoint
+        val isExpanded = maxWidth >= ScreenLayout.CompactWidthBreakpoint
         val currentQuestionNumber = uiState.currentQuestionIndex + 1
         val questionLabel = "$currentQuestionNumber / ${uiState.totalQuestions}"
 
@@ -105,7 +106,7 @@ fun QuizFloatingToolbar(
                         FilledTonalButton(
                             onClick = onSubmit,
                             enabled = uiState.canSubmit,
-                            modifier = Modifier.sizeIn(minHeight = Spacing.MdLg),
+                            modifier = Modifier.sizeIn(minHeight = Spacing.LgSm),
                         ) {
                             Text(text = "Submit")
                         }
@@ -118,7 +119,7 @@ fun QuizFloatingToolbar(
                     shape = MaterialTheme.shapes.extraLarge,
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier
-                        .sizeIn(minHeight = Spacing.MdLg)
+                        .sizeIn(minHeight = Spacing.LgSm)
                         .semantics {
                             contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}. Tap to jump."
                         },

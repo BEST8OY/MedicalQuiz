@@ -72,7 +72,7 @@ fun DialogHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = Inset.Lg, end = Inset.Sm, top = Spacing.MdLg, bottom = Spacing.Sm),
+            .padding(start = Inset.Lg, end = Inset.Sm, top = Spacing.LgSm, bottom = Spacing.Sm),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
     ) {
@@ -120,7 +120,7 @@ fun DialogActions(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = Inset.Lg, vertical = Spacing.MdLg),
+            .padding(horizontal = Inset.Lg, vertical = Spacing.LgSm),
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically
     ) {

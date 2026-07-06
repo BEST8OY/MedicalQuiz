@@ -17,7 +17,7 @@ object Spacing {
     val Xxs = 4.dp
 
     /** Sub-small gap: toolbar elevation, tight icon-to-label proximity */
-    val XxsMd = 6.dp
+    val XxsPlus = 6.dp
 
     /** Small gap: list item spacing in dialogs, divider proximity */
     val Xs = 8.dp
@@ -29,7 +29,7 @@ object Spacing {
     val Md = 16.dp
 
     /** Medium-large gap: section sub-spacing, button minHeight */
-    val MdLg = 20.dp
+    val LgSm = 20.dp
 
     /** Section gap: between major content blocks, screen margins */
     val Lg = 24.dp
@@ -39,6 +39,9 @@ object Spacing {
 
     /** Extra large gap: hero spacing, generous margins */
     val Xxl = 48.dp
+
+    /** Micro gap: stat items, ultra-tight proximity */
+    val Micro = 2.dp
 }
 
 /**
@@ -80,6 +83,20 @@ object ElementSize {
 
     /** Icon container: extra-large (error state) */
     val IconContainerXl: Dp = 56.dp
+
+    /** Medium-large icon (between IconMd and IconXl) */
+    val IconMdLg: Dp = 28.dp
+}
+
+/**
+ * Border/stroke width tokens.
+ */
+object Stroke {
+    /** Thin stroke: card outlines, table borders */
+    val Thin: Dp = 1.dp
+
+    /** Thick stroke: selection highlight borders */
+    val Thick: Dp = 2.5.dp
 }
 
 /**
@@ -106,9 +123,6 @@ object Layout {
 
     /** Max width for rich text media content */
     val MediaMaxWidth: Dp = 512.dp
-
-    /** Compact breakpoint for single-column layouts */
-    val CompactBreakpoint: Dp = 600.dp
 }
 
 /**
@@ -121,6 +135,9 @@ object ScreenLayout {
     /** Width threshold for wide/expanded screen layouts (M3 Expanded class) */
     val WideWidthBreakpoint: Dp = 840.dp
 
+    /** Width threshold for compact single-column layouts */
+    val CompactWidthBreakpoint: Dp = 600.dp
+
     /** Bottom padding for compact screens */
     val BottomPaddingCompact: Dp = 64.dp
 
@@ -130,12 +147,12 @@ object ScreenLayout {
     /** Bottom padding for FAB menu clearance */
     val FabBottomPadding: Dp = 96.dp
 
-    /** Total bottom clearance in history list (list padding + FAB) */
-    val HistoryListBottomPadding: Dp = 112.dp
+    /** Bottom padding with FAB clearance (list padding + FAB) */
+    val BottomPaddingWithFab: Dp = 112.dp
 
-    /** Bottom clearance for quiz screen content above floating toolbar */
-    val QuizBottomClearance: Dp = 80.dp
+    /** Bottom clearance for content above floating elements */
+    val BottomClearanceFloating: Dp = 80.dp
 
     /** Top padding for empty state messages */
-    val EmptyStateTopPadding: Dp = 72.dp
+    val EmptyStatePadding: Dp = 72.dp
 }

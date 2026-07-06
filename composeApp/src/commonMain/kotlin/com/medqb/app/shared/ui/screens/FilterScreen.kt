@@ -263,7 +263,7 @@ private fun DatabaseHeaderCard(databaseName: String) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Spacing.MdLg, vertical = Spacing.Lg),
+                .padding(horizontal = Spacing.LgSm, vertical = Spacing.Lg),
             horizontalArrangement = Arrangement.spacedBy(Spacing.Lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -328,7 +328,7 @@ private fun FilterPreviewCard(previewCount: Int) {
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = Inset.Lg, vertical = Spacing.MdLg),
+            modifier = Modifier.padding(horizontal = Inset.Lg, vertical = Spacing.LgSm),
             verticalArrangement = Arrangement.spacedBy(Spacing.Sm)
         ) {
             Text(

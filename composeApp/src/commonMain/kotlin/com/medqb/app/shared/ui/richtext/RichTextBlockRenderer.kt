@@ -1,5 +1,6 @@
 package com.medqb.app.shared.ui.richtext
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text as MaterialText
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
+import com.medqb.app.shared.ui.theme.Stroke
 
 @Composable
 internal fun RichTextBlockRenderer(
@@ -223,7 +225,7 @@ private fun AbstractCard(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        border = BorderStroke(Stroke.Thin, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(modifier = Modifier.padding(Inset.Md), verticalArrangement = Arrangement.spacedBy(Spacing.Xs)) {
             block.title?.let {

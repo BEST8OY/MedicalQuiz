@@ -30,6 +30,7 @@ import kotlin.collections.buildList
 import kotlin.math.max
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
+import com.medqb.app.shared.ui.theme.Stroke
 
 /** Maximum iterations per row to prevent infinite loops from malformed HTML */
 private const val MAX_COLUMN_ITERATIONS = 500
@@ -55,7 +56,7 @@ internal fun RichTextTable(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        border = BorderStroke(Stroke.Thin, MaterialTheme.colorScheme.outlineVariant)
     ) {
         BoxWithConstraints {
             val tableWidth = max(minTableWidth, maxWidth)

@@ -703,7 +703,15 @@ private fun ImageContent(
             }
         }
 
-        if (overlayPath != null && showOverlay && !isExitingTransition && isTransitionDone) {
+        AnimatedVisibility(
+            visible = overlayPath != null && showOverlay && !isExitingTransition && isTransitionDone,
+            enter = fadeIn(
+                animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+            ),
+            exit = fadeOut(
+                animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+            ),
+        ) {
             AsyncImage(
                 model = overlayPath,
                 contentDescription = "Overlay",

@@ -139,7 +139,7 @@ internal fun HistoryPane(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(Spacing.Md),
-            contentPadding = PaddingValues(top = Spacing.Lg, bottom = ScreenLayout.HistoryListBottomPadding),
+            contentPadding = PaddingValues(top = Spacing.Lg, bottom = ScreenLayout.BottomPaddingWithFab),
         ) {
             if (historyEntries.isEmpty()) {
                 item {
@@ -387,7 +387,7 @@ private fun HistoryItemCard(
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 20.dp),
+                        .padding(horizontal = Spacing.LgSm),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = if (isDeleteDirection) Arrangement.End else Arrangement.Start,
                 ) {

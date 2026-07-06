@@ -250,7 +250,7 @@ private fun SelectionErrorContent(
                         imageVector = Icons.Outlined.Warning,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(ElementSize.IconMdLg)
                     )
                 }
             }

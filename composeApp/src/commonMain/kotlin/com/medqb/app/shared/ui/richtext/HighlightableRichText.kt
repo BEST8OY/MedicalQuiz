@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.max
 import com.medqb.app.shared.data.TextHighlightsRepository
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
+import com.medqb.app.shared.ui.theme.Stroke
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.TextHighlight
@@ -338,7 +339,7 @@ private fun HighlightableTable(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        border = BorderStroke(Stroke.Thin, MaterialTheme.colorScheme.outlineVariant)
     ) {
         BoxWithConstraints {
             val tableWidth = max(minTableWidth, maxWidth)

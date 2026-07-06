@@ -16,7 +16,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -47,6 +46,8 @@ import com.medqb.app.shared.ui.screens.FilterPane
 import com.medqb.app.shared.orchestration.RequestedFilterPane
 import com.medqb.app.shared.orchestration.rememberAppWorkflow
 import com.medqb.app.shared.ui.theme.AppTheme
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.ui.entry.DatabaseSelectionEntry
 import com.medqb.app.shared.ui.entry.FilterEntry
 import com.medqb.app.shared.ui.entry.HtmlViewerEntry
@@ -290,7 +291,7 @@ fun App() {
                 hostState = snackbarHostState,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = Inset.Md, vertical = Spacing.Sm),
                 snackbar = { data ->
                     Snackbar(
                         snackbarData = data,

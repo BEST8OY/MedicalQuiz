@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -47,9 +46,7 @@ fun HtmlViewerScreen(
     onLinkClick: ((String) -> Unit)? = null,
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .systemBarsPadding(),
+        modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -71,7 +68,7 @@ fun HtmlViewerScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),
             )
 
@@ -96,7 +93,7 @@ fun HtmlViewerScreen(
                             ),
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = Inset.Lg, vertical = Spacing.MdLg),
+                                modifier = Modifier.padding(horizontal = Inset.Lg, vertical = Spacing.LgSm),
                                 verticalArrangement = Arrangement.spacedBy(Spacing.Sm),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
@@ -134,7 +131,7 @@ fun HtmlViewerScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .verticalScroll(rememberScrollState())
-                                    .padding(horizontal = Spacing.Md, vertical = Spacing.MdLg),
+                                    .padding(horizontal = Spacing.Md, vertical = Spacing.LgSm),
                             ) {
                                 Text(
                                     text = "Interactive HTML document",
@@ -173,7 +170,7 @@ private fun EmptyHtmlState(title: String, supportingText: String) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = Spacing.MdLg, vertical = Spacing.Sm),
+                    .padding(horizontal = Spacing.LgSm, vertical = Spacing.Sm),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
