@@ -552,10 +552,13 @@ private fun MetadataTag(text: String) {
         label = {
             Text(
                 text = text,
+                style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         },
+        modifier = Modifier.height(Spacing.Lg),
+        contentPadding = PaddingValues(horizontal = Spacing.XxsPlus),
         colors = SuggestionChipDefaults.suggestionChipColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             labelColor = MaterialTheme.colorScheme.onSurface,
