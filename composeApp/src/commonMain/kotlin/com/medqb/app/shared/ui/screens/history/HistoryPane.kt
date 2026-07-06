@@ -342,9 +342,7 @@ private fun HistoryItemCard(
     onSelectChanged: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        positionalThreshold = { totalDistance -> totalDistance * 0.35f },
-    )
+    val dismissState = rememberSwipeToDismissBoxState()
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(selectionModeEnabled) {
@@ -379,37 +377,32 @@ private fun HistoryItemCard(
                 SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.tertiaryContainer
                 SwipeToDismissBoxValue.Settled -> Color.Transparent
             }
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(backgroundColor)
+                    .padding(horizontal = Spacing.LgSm),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (isDeleteDirection) Arrangement.End else Arrangement.Start,
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = Spacing.LgSm),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = if (isDeleteDirection) Arrangement.End else Arrangement.Start,
-                ) {
-                    if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
-                        val actionTint = if (isDeleteDirection) {
-                            MaterialTheme.colorScheme.onErrorContainer
-                        } else {
-                            MaterialTheme.colorScheme.onTertiaryContainer
-                        }
-                        Icon(
-                            imageVector = if (isDeleteDirection) Icons.Filled.Delete else Icons.Filled.Edit,
-                            contentDescription = null,
-                            tint = actionTint,
-                            modifier = Modifier.size(ElementSize.IconMd),
-                        )
-                        Text(
-                            text = if (isDeleteDirection) "Delete" else "Rename",
-                            color = actionTint,
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.padding(start = Spacing.Sm),
-                        )
+                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
+                    val actionTint = if (isDeleteDirection) {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    } else {
+                        MaterialTheme.colorScheme.onTertiaryContainer
                     }
+                    Icon(
+                        imageVector = if (isDeleteDirection) Icons.Filled.Delete else Icons.Filled.Edit,
+                        contentDescription = null,
+                        tint = actionTint,
+                        modifier = Modifier.size(ElementSize.IconMd),
+                    )
+                    Text(
+                        text = if (isDeleteDirection) "Delete" else "Rename",
+                        color = actionTint,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(start = Spacing.Sm),
+                    )
                 }
             }
         },
