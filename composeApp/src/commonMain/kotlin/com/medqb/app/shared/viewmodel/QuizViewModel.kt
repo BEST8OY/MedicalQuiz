@@ -13,6 +13,7 @@ import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.domain.LoadQuestionUseCase
 import com.medqb.app.shared.domain.SnackbarSink
+import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.ui.state.QuizUiState
 import dev.zacsweers.metro.Inject
@@ -431,7 +432,7 @@ class QuizViewModel(
 
     private fun emitSnackbar(message: String) {
         viewModelScope.launch {
-            snackbarSink.emitSnackbar(message)
+            snackbarSink.emitSnackbar(SnackbarMessage.Simple(message))
         }
     }
 }

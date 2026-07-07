@@ -10,6 +10,7 @@ import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.SnackbarSink
+import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
 import com.medqb.app.shared.ui.screens.FilterPane
 import com.medqb.app.shared.ui.state.FilterUiState
@@ -134,7 +135,7 @@ class FilterHubViewModel(
                     } catch (e: Exception) {
                         val msg = e.message ?: "Unknown error"
                         emit(Resource.Error(msg))
-                        snackbarSink.emitSnackbar("Error fetching subjects: $msg")
+                        snackbarSink.emitSnackbar(SnackbarMessage.Simple("Error fetching subjects: $msg"))
                     }
                 }
             }
@@ -166,7 +167,7 @@ class FilterHubViewModel(
                     } catch (e: Exception) {
                         val msg = e.message ?: "Unknown error"
                         emit(Resource.Error(msg))
-                        snackbarSink.emitSnackbar("Error fetching systems: $msg")
+                        snackbarSink.emitSnackbar(SnackbarMessage.Simple("Error fetching systems: $msg"))
                     }
                 }
             }

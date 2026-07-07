@@ -5,10 +5,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,6 +33,7 @@ import com.medqb.app.shared.platform.TextIntentLauncher
 import com.medqb.app.shared.platform.getPlatformKind
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
+import com.medqb.app.shared.domain.SnackbarMessage
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -64,11 +61,11 @@ internal fun SelectableHighlightText(
     onHighlightRemove: (highlightId: Long) -> Unit,
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: ((String) -> Unit)? = null,
-    onTooltipClick: ((RichTextTooltipContent) -> Unit)? = null
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)? = null,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
 ) {
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
     val state = remember { SelectableHighlightTextState() }
 
     val platformKind = remember { getPlatformKind() }
@@ -201,15 +198,18 @@ internal fun SelectableHighlightText(
                                     if (!opened) {
                                         state.lastExternalOpenText = state.selectionState.selectedText
                                         coroutineScope.launch {
-                                            val result = snackbarHostState.showSnackbar(
-                                                message = "No compatible app found",
-                                                actionLabel = "Copy",
-                                                duration = SnackbarDuration.Short
+                                            onShowSnackbar(
+                                                SnackbarMessage.Action(
+                                                    message = "No compatible app found",
+                                                    actionLabel = "Copy",
+                                                    onActionPerformed = {
+                                                        if (state.lastExternalOpenText.isNotBlank()) {
+                                                            val copiedText = state.lastExternalOpenText
+                                                            clipboard.setPlainText(AnnotatedString(copiedText))
+                                                        }
+                                                    },
+                                                )
                                             )
-                                            if (result == SnackbarResult.ActionPerformed && state.lastExternalOpenText.isNotBlank()) {
-                                                val copiedText = state.lastExternalOpenText
-                                                clipboard.setPlainText(AnnotatedString(copiedText))
-                                            }
                                         }
                                         return@SelectionToolbar
                                     }
@@ -267,12 +267,5 @@ internal fun SelectableHighlightText(
                 }
             }
         }
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = Inset.Md, vertical = Spacing.Sm)
-        )
     }
 }

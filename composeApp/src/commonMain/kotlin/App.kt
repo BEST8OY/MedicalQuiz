@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.Composable
@@ -40,6 +41,7 @@ import coil3.compose.setSingletonImageLoaderFactory
 import com.medqb.app.shared.data.MediaDescription
 import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.domain.AppIntent
+import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.ui.screens.FilterPane
@@ -157,8 +159,22 @@ fun App() {
                 }
             }
             launch {
-                graph.snackbarDispatcher.messages.collect { message ->
-                    snackbarHostState.showSnackbar(message)
+                graph.snackbarDispatcher.messages.collect { snackbarMessage ->
+                    when (snackbarMessage) {
+                        is SnackbarMessage.Simple -> {
+                            snackbarHostState.showSnackbar(snackbarMessage.message)
+                        }
+                        is SnackbarMessage.Action -> {
+                            val result = snackbarHostState.showSnackbar(
+                                message = snackbarMessage.message,
+                                actionLabel = snackbarMessage.actionLabel,
+                                duration = snackbarMessage.duration,
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                snackbarMessage.onActionPerformed()
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -24,6 +24,7 @@ import com.medqb.app.shared.ui.dialogs.SubjectFilterDialog
 import com.medqb.app.shared.ui.dialogs.SystemFilterDialog
 import com.medqb.app.shared.ui.screens.history.HistoryPane
 import com.medqb.app.shared.viewmodel.FilterHubViewModel
+import com.medqb.app.shared.domain.SnackbarMessage
 
 @Composable
 internal fun FilterHubScreen(
@@ -32,7 +33,7 @@ internal fun FilterHubScreen(
     onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
     onLoggingToggle: (Boolean) -> Unit,
     onSubmissionModeToggle: (SubmissionMode) -> Unit,
-    onShowSnackbar: suspend (String) -> Unit = {},
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val performanceLabel = formatPerformanceLabel(state.performanceFilter)

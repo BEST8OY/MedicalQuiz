@@ -37,10 +37,6 @@ import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -72,6 +68,7 @@ import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.ui.components.EmptyStateMessage
 import com.medqb.app.shared.ui.richtext.setPlainText
 import com.medqb.app.shared.ui.screens.media.PlatformBackHandler
+import com.medqb.app.shared.domain.SnackbarMessage
 import androidx.compose.ui.platform.LocalClipboard
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -89,7 +86,7 @@ internal fun HistoryPane(
     onRenameHistoryEntry: (String, String) -> Unit,
     onCopyAllQids: (List<QuizSessionRepository.QuizSession>, (String) -> Unit) -> Unit,
     onSelectionModeChanged: (Boolean) -> Unit,
-    onShowSnackbar: suspend (String) -> Unit = {},
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val clipboard = LocalClipboard.current
@@ -100,7 +97,6 @@ internal fun HistoryPane(
     var renameText by rememberSaveable { mutableStateOf("") }
     val allHistoryEntryIds = remember(historyEntries) { historyEntries.map { it.id }.toSet() }
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     // Pending deletes for undo — entries temporarily removed from the list
     var pendingDeletes by rememberSaveable { mutableStateOf<Map<String, QuizSessionRepository.QuizSession>>(emptyMap()) }
@@ -145,7 +141,7 @@ internal fun HistoryPane(
     LaunchedEffect(lastCopiedText) {
         if (lastCopiedText.isNotBlank()) {
             clipboard.setPlainText(AnnotatedString(lastCopiedText))
-            onShowSnackbar("Copied QIDs to clipboard")
+            onShowSnackbar(SnackbarMessage.Simple("Copied QIDs to clipboard"))
             lastCopiedText = ""
         }
     }
@@ -191,14 +187,13 @@ internal fun HistoryPane(
                                 isFabMenuExpanded = false
                             }
                             scope.launch {
-                                val result = snackbarHostState.showSnackbar(
-                                    message = "Entry deleted",
-                                    actionLabel = "Undo",
-                                    duration = SnackbarDuration.Short,
+                                onShowSnackbar(
+                                    SnackbarMessage.Action(
+                                        message = "Entry deleted",
+                                        actionLabel = "Undo",
+                                        onActionPerformed = { pendingDeletes = pendingDeletes - entry.id },
+                                    )
                                 )
-                                if (result == SnackbarResult.ActionPerformed) {
-                                    pendingDeletes = pendingDeletes - entry.id
-                                }
                             }
                         },
                         onSwipeRename = {
@@ -270,14 +265,13 @@ internal fun HistoryPane(
                             selectedHistoryEntryIds = emptySet()
                             isFabMenuExpanded = false
                             scope.launch {
-                                val result = snackbarHostState.showSnackbar(
-                                    message = "${deletedIds.size} entries deleted",
-                                    actionLabel = "Undo",
-                                    duration = SnackbarDuration.Short,
+                                onShowSnackbar(
+                                    SnackbarMessage.Action(
+                                        message = "${deletedIds.size} entries deleted",
+                                        actionLabel = "Undo",
+                                        onActionPerformed = { pendingDeletes = pendingDeletes - deletedIds },
+                                    )
                                 )
-                                if (result == SnackbarResult.ActionPerformed) {
-                                    pendingDeletes = pendingDeletes - deletedIds
-                                }
                             }
                         },
                         text = { Text("Delete (${selectedHistoryEntryIds.size})") },
@@ -303,11 +297,6 @@ internal fun HistoryPane(
                 },
             )
         }
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
     }
 }
 
