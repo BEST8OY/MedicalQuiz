@@ -83,7 +83,7 @@ import kotlinx.datetime.toLocalDateTime
 internal fun HistoryPane(
     historyEntries: List<QuizSessionRepository.QuizSession>,
     onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
-    onDeleteHistoryEntries: (Set<String>) -> Unit,
+    onDeleteHistoryEntries: suspend (Set<String>) -> Unit,
     onRenameHistoryEntry: (String, String) -> Unit,
     onCopyAllQids: (List<QuizSessionRepository.QuizSession>, (String) -> Unit) -> Unit,
     onSelectionModeChanged: (Boolean) -> Unit,
@@ -100,9 +100,8 @@ internal fun HistoryPane(
     val allHistoryEntryIds = remember(historyEntries) { historyEntries.map { it.id }.toSet() }
     val scope = rememberCoroutineScope()
 
-    // Pending deletes for undo — IDs filter the list visually, full objects stored for re-insertion
+    // Pending deletes are filtered from the list immediately, then restored if Undo is tapped.
     var pendingDeleteIds by rememberSaveable { mutableStateOf(setOf<String>()) }
-    var deletedForUndo by remember { mutableStateOf<List<QuizSessionRepository.QuizSession>>(emptyList()) }
     val visibleEntries = remember(historyEntries, pendingDeleteIds) {
         historyEntries.filter { it.id !in pendingDeleteIds }
     }
@@ -141,7 +140,6 @@ internal fun HistoryPane(
         onDispose {
             onSelectionModeChanged(false)
             pendingDeleteIds = emptySet()
-            deletedForUndo = emptyList()
         }
     }
 
@@ -175,21 +173,20 @@ internal fun HistoryPane(
                             selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
                         },
                         onSwipeDelete = {
-                            pendingDeleteIds = pendingDeleteIds + entry.id
-                            deletedForUndo = deletedForUndo + entry
-                            selectedHistoryEntryIds = selectedHistoryEntryIds - entry.id
+                            val deletedEntryIds = setOf(entry.id)
+                            pendingDeleteIds = pendingDeleteIds + deletedEntryIds
+                            selectedHistoryEntryIds = selectedHistoryEntryIds - deletedEntryIds
                             if (selectedHistoryEntryIds.isEmpty()) {
                                 isFabMenuExpanded = false
                             }
-                            onDeleteHistoryEntries(setOf(entry.id))
                             scope.launch {
+                                onDeleteHistoryEntries(deletedEntryIds)
                                 onShowSnackbar(
                                     SnackbarMessage.Action(
                                         message = "Entry deleted",
                                         actionLabel = "Undo",
                                         onActionPerformed = {
-                                            pendingDeleteIds = pendingDeleteIds - entry.id
-                                            deletedForUndo = deletedForUndo.filter { it.id != entry.id }
+                                            pendingDeleteIds = pendingDeleteIds - deletedEntryIds
                                             scope.launch { onUndoDelete(entry) }
                                         },
                                     )
@@ -256,25 +253,22 @@ internal fun HistoryPane(
 
                     FloatingActionButtonMenuItem(
                         onClick = {
-                            val toDelete = historyEntries
+                            val entriesToDelete = historyEntries
                                 .filter { it.id in selectedHistoryEntryIds }
-                            pendingDeleteIds = pendingDeleteIds + toDelete.map { it.id }.toSet()
-                            deletedForUndo = deletedForUndo + toDelete
-                            val deletedIds = selectedHistoryEntryIds
+                            val deletedEntryIds = entriesToDelete.map { it.id }.toSet()
+                            pendingDeleteIds = pendingDeleteIds + deletedEntryIds
                             selectedHistoryEntryIds = emptySet()
                             isFabMenuExpanded = false
-                            onDeleteHistoryEntries(deletedIds)
                             scope.launch {
+                                onDeleteHistoryEntries(deletedEntryIds)
                                 onShowSnackbar(
                                     SnackbarMessage.Action(
-                                        message = "${deletedIds.size} entries deleted",
+                                        message = "${deletedEntryIds.size} entries deleted",
                                         actionLabel = "Undo",
                                         onActionPerformed = {
-                                            pendingDeleteIds = pendingDeleteIds - deletedIds
-                                            val restored = deletedForUndo.filter { it.id in deletedIds }
-                                            deletedForUndo = deletedForUndo.filter { it.id !in deletedIds }
+                                            pendingDeleteIds = pendingDeleteIds - deletedEntryIds
                                             scope.launch {
-                                                restored.forEach { entry ->
+                                                entriesToDelete.forEach { entry ->
                                                     onUndoDelete(entry)
                                                 }
                                             }

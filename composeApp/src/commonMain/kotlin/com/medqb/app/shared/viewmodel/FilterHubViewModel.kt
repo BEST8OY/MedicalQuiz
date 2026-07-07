@@ -312,10 +312,8 @@ class FilterHubViewModel(
     }
 
     // History Pane logic
-    fun deleteHistoryEntries(entryIds: Set<String>) {
-        viewModelScope.launch {
-            historyCoordinator.deleteHistoryEntries(entryIds)
-        }
+    suspend fun deleteHistoryEntries(entryIds: Set<String>) {
+        historyCoordinator.deleteHistoryEntries(entryIds)
     }
 
     fun renameHistoryEntry(entryId: String, newName: String) {
