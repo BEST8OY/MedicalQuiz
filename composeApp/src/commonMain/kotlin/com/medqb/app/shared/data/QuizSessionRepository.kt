@@ -75,6 +75,7 @@ class QuizSessionRepository(
         isLoggingEnabled: Boolean = false,
         submissionMode: SubmissionMode = SubmissionMode.INSTANT,
         currentSessionId: String = "",
+        entryName: String = "",
     ): String {
         if (databaseName.isBlank()) {
             Logger.e("QuizSession", "Cannot append history: databaseName is blank")
@@ -91,7 +92,7 @@ class QuizSessionRepository(
         db().upsertHistoryEntry(
             sessionId = sessionId,
             databaseName = databaseName,
-            entryName = "",
+            entryName = entryName,
             selectedSubjectIds = selectedSubjectIds.toSortedSet().toList(),
             selectedSystemIds = selectedSystemIds.toSortedSet().toList(),
             performanceFilter = performanceFilter.name,

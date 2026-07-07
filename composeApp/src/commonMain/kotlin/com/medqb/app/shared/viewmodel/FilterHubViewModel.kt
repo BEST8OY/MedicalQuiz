@@ -334,6 +334,7 @@ class FilterHubViewModel(
             isLoggingEnabled = entry.isLoggingEnabled,
             submissionMode = entry.submissionMode,
             currentSessionId = entry.id,
+            entryName = entry.entryName,
         )
     }
 

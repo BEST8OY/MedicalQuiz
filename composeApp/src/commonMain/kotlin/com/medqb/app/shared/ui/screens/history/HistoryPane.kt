@@ -136,7 +136,11 @@ internal fun HistoryPane(
     }
 
     DisposableEffect(Unit) {
-        onDispose { onSelectionModeChanged(false) }
+        onDispose {
+            onSelectionModeChanged(false)
+            pendingDeleteIds = emptySet()
+            deletedForUndo = emptyList()
+        }
     }
 
     Box(modifier = modifier) {

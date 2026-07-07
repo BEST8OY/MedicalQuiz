@@ -10,7 +10,7 @@ sealed interface SnackbarMessage {
     data class Action(
         override val message: String,
         val actionLabel: String,
-        val duration: SnackbarDuration = SnackbarDuration.Short,
+        val duration: SnackbarDuration = SnackbarDuration.Long,
         val onActionPerformed: () -> Unit,
     ) : SnackbarMessage
 }
