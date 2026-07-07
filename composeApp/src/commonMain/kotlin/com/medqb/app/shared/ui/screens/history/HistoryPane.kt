@@ -89,6 +89,7 @@ internal fun HistoryPane(
     onSelectionModeChanged: (Boolean) -> Unit,
     onUndoDelete: suspend (QuizSessionRepository.QuizSession) -> Unit = {},
     onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
+    onDismissSnackbar: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val clipboard = LocalClipboard.current
@@ -172,6 +173,7 @@ internal fun HistoryPane(
 
     DisposableEffect(Unit) {
         onDispose {
+            onDismissSnackbar()
             onSelectionModeChanged(false)
             pendingDeleteIds = emptySet()
         }

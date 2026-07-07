@@ -1,5 +1,6 @@
 package com.medqb.app.shared.ui.entry
 
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.dropUnlessResumed
@@ -20,6 +21,7 @@ fun FilterEntry(
     graph: AppGraph,
     workflow: AppWorkflowHandle,
     navigator: AppNavigator,
+    snackbarHostState: SnackbarHostState,
 ) {
     val filterVM = viewModel<FilterHubViewModel>(
         factory = viewModelFactory {
@@ -67,5 +69,6 @@ fun FilterEntry(
         onLoggingToggle = { graph.settingsRepository.setLoggingEnabled(it) },
         onSubmissionModeToggle = { graph.settingsRepository.setSubmissionMode(it) },
         onShowSnackbar = { message -> graph.snackbarDispatcher.emitSnackbar(message) },
+        onDismissSnackbar = { snackbarHostState.currentSnackbarData?.dismiss() },
     )
 }

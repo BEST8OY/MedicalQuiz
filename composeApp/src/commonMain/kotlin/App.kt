@@ -213,6 +213,7 @@ fun App() {
                         graph = graph,
                         workflow = workflow,
                         navigator = navigator,
+                        snackbarHostState = snackbarHostState,
                     )
                 }
 

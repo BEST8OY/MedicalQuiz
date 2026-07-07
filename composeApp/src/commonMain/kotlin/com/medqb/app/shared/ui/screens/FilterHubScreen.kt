@@ -34,6 +34,7 @@ internal fun FilterHubScreen(
     onLoggingToggle: (Boolean) -> Unit,
     onSubmissionModeToggle: (SubmissionMode) -> Unit,
     onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
+    onDismissSnackbar: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val performanceLabel = formatPerformanceLabel(state.performanceFilter)
@@ -101,6 +102,7 @@ internal fun FilterHubScreen(
                             onSelectionModeChanged = { historySelectionMode = it },
                             onUndoDelete = { viewModel.undoHistoryEntry(it) },
                             onShowSnackbar = onShowSnackbar,
+                            onDismissSnackbar = onDismissSnackbar,
                         )
                     }
                 }
