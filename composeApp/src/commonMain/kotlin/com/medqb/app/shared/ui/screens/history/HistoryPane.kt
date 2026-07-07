@@ -39,6 +39,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.SwipeToDismissBoxValue.EndToStart
+import androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleFloatingActionButton
@@ -379,8 +381,8 @@ private fun HistoryItemCard(
         gesturesEnabled = !selectionModeEnabled,
         onDismiss = { dismissValue ->
             when (dismissValue) {
-                SwipeToDismissBoxValue.EndToStart -> onSwipeDelete()
-                SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
+                EndToStart -> onSwipeDelete()
+                StartToEnd -> onSwipeRename()
                 SwipeToDismissBoxValue.Settled -> Unit
             }
             scope.launch { dismissState.reset() }
@@ -388,15 +390,15 @@ private fun HistoryItemCard(
         backgroundContent = {
             val backgroundColor by animateColorAsState(
                 when (dismissState.targetValue) {
-                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
-                    SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.tertiaryContainer
+                    EndToStart -> MaterialTheme.colorScheme.errorContainer
+                    StartToEnd -> MaterialTheme.colorScheme.tertiaryContainer
                     SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surface
                 }
             )
             val contentColor by animateColorAsState(
                 when (dismissState.targetValue) {
-                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.onErrorContainer
-                    SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.onTertiaryContainer
+                    EndToStart -> MaterialTheme.colorScheme.onErrorContainer
+                    StartToEnd -> MaterialTheme.colorScheme.onTertiaryContainer
                     SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.onSurface
                 }
             )
@@ -407,10 +409,14 @@ private fun HistoryItemCard(
                     .background(backgroundColor)
                     .padding(horizontal = Spacing.LgSm),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Start,
+                horizontalArrangement = if (dismissState.targetValue == EndToStart) {
+                    Arrangement.End
+                } else {
+                    Arrangement.Start
+                },
             ) {
                 Icon(
-                    imageVector = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+                    imageVector = if (dismissState.targetValue == EndToStart) {
                         Icons.Filled.Delete
                     } else {
                         Icons.Filled.Edit
@@ -421,7 +427,7 @@ private fun HistoryItemCard(
                 )
                 Spacer(modifier = Modifier.width(Spacing.Sm))
                 Text(
-                    text = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) "Delete" else "Rename",
+                    text = if (dismissState.targetValue == EndToStart) "Delete" else "Rename",
                     color = contentColor,
                     style = MaterialTheme.typography.labelLarge,
                 )
