@@ -99,6 +99,7 @@ internal fun FilterHubScreen(
                                 viewModel.copyQuestionIdsForHistoryEntries(entries, onCopied)
                             },
                             onSelectionModeChanged = { historySelectionMode = it },
+                            onUndoDelete = { viewModel.undoHistoryEntry(it) },
                             onShowSnackbar = onShowSnackbar,
                         )
                     }

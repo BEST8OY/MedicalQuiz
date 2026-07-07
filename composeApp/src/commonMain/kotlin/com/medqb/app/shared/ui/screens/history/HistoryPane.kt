@@ -70,7 +70,6 @@ import com.medqb.app.shared.ui.richtext.setPlainText
 import com.medqb.app.shared.ui.screens.media.PlatformBackHandler
 import com.medqb.app.shared.domain.SnackbarMessage
 import androidx.compose.ui.platform.LocalClipboard
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -86,6 +85,7 @@ internal fun HistoryPane(
     onRenameHistoryEntry: (String, String) -> Unit,
     onCopyAllQids: (List<QuizSessionRepository.QuizSession>, (String) -> Unit) -> Unit,
     onSelectionModeChanged: (Boolean) -> Unit,
+    onUndoDelete: suspend (QuizSessionRepository.QuizSession) -> Unit = {},
     onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -98,20 +98,11 @@ internal fun HistoryPane(
     val allHistoryEntryIds = remember(historyEntries) { historyEntries.map { it.id }.toSet() }
     val scope = rememberCoroutineScope()
 
-    // Pending deletes for undo — entries temporarily removed from the list
-    var pendingDeletes by rememberSaveable { mutableStateOf<Map<String, QuizSessionRepository.QuizSession>>(emptyMap()) }
-    val visibleEntries = remember(historyEntries, pendingDeletes) {
-        historyEntries.filter { it.id !in pendingDeletes }
-    }
-
-    // Auto-clean pending deletes after 5 seconds (undo window)
-    LaunchedEffect(pendingDeletes) {
-        if (pendingDeletes.isNotEmpty()) {
-            delay(5000)
-            val expiredIds = pendingDeletes.keys
-            pendingDeletes = emptyMap()
-            onDeleteHistoryEntries(expiredIds)
-        }
+    // Pending deletes for undo — IDs filter the list visually, full objects stored for re-insertion
+    var pendingDeleteIds by rememberSaveable { mutableStateOf(setOf<String>()) }
+    var deletedForUndo by remember { mutableStateOf<List<QuizSessionRepository.QuizSession>>(emptyList()) }
+    val visibleEntries = remember(historyEntries, pendingDeleteIds) {
+        historyEntries.filter { it.id !in pendingDeleteIds }
     }
 
     PlatformBackHandler(
@@ -130,8 +121,6 @@ internal fun HistoryPane(
         if (selectedHistoryEntryIds.isEmpty()) {
             isFabMenuExpanded = false
         }
-        // Clear pending deletes for entries that no longer exist in the source list
-        pendingDeletes = pendingDeletes.filterKeys { it in allHistoryEntryIds }
     }
 
     LaunchedEffect(selectedHistoryEntryIds) {
@@ -180,18 +169,23 @@ internal fun HistoryPane(
                             selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
                         },
                         onSwipeDelete = {
-                            // Move to pending — immediately hidden, undo restores, timer commits
-                            pendingDeletes = pendingDeletes + (entry.id to entry)
+                            pendingDeleteIds = pendingDeleteIds + entry.id
+                            deletedForUndo = deletedForUndo + entry
                             selectedHistoryEntryIds = selectedHistoryEntryIds - entry.id
                             if (selectedHistoryEntryIds.isEmpty()) {
                                 isFabMenuExpanded = false
                             }
+                            onDeleteHistoryEntries(setOf(entry.id))
                             scope.launch {
                                 onShowSnackbar(
                                     SnackbarMessage.Action(
                                         message = "Entry deleted",
                                         actionLabel = "Undo",
-                                        onActionPerformed = { pendingDeletes = pendingDeletes - entry.id },
+                                        onActionPerformed = {
+                                            pendingDeleteIds = pendingDeleteIds - entry.id
+                                            deletedForUndo = deletedForUndo.filter { it.id != entry.id }
+                                            scope.launch { onUndoDelete(entry) }
+                                        },
                                     )
                                 )
                             }
@@ -256,20 +250,29 @@ internal fun HistoryPane(
 
                     FloatingActionButtonMenuItem(
                         onClick = {
-                            // Delete selected entries with undo snackbar
                             val toDelete = historyEntries
                                 .filter { it.id in selectedHistoryEntryIds }
-                                .associateBy { it.id }
-                            pendingDeletes = pendingDeletes + toDelete
+                            pendingDeleteIds = pendingDeleteIds + toDelete.map { it.id }.toSet()
+                            deletedForUndo = deletedForUndo + toDelete
                             val deletedIds = selectedHistoryEntryIds
                             selectedHistoryEntryIds = emptySet()
                             isFabMenuExpanded = false
+                            onDeleteHistoryEntries(deletedIds)
                             scope.launch {
                                 onShowSnackbar(
                                     SnackbarMessage.Action(
                                         message = "${deletedIds.size} entries deleted",
                                         actionLabel = "Undo",
-                                        onActionPerformed = { pendingDeletes = pendingDeletes - deletedIds },
+                                        onActionPerformed = {
+                                            pendingDeleteIds = pendingDeleteIds - deletedIds
+                                            val restored = deletedForUndo.filter { it.id in deletedIds }
+                                            deletedForUndo = deletedForUndo.filter { it.id !in deletedIds }
+                                            scope.launch {
+                                                restored.forEach { entry ->
+                                                    onUndoDelete(entry)
+                                                }
+                                            }
+                                        },
                                     )
                                 )
                             }
