@@ -385,15 +385,16 @@ private fun HistoryItemCard(
             }
         },
         backgroundContent = {
+            val dismissDirection = dismissState.dismissDirection
             val backgroundColor by animateColorAsState(
-                when (dismissState.targetValue) {
+                when (dismissDirection) {
                     EndToStart -> MaterialTheme.colorScheme.errorContainer
                     StartToEnd -> MaterialTheme.colorScheme.tertiaryContainer
                     SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surface
                 }
             )
             val contentColor by animateColorAsState(
-                when (dismissState.targetValue) {
+                when (dismissDirection) {
                     EndToStart -> MaterialTheme.colorScheme.onErrorContainer
                     StartToEnd -> MaterialTheme.colorScheme.onTertiaryContainer
                     SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.onSurface
@@ -409,7 +410,7 @@ private fun HistoryItemCard(
                 Row(
                     modifier = Modifier
                         .align(
-                            if (dismissState.targetValue == EndToStart) {
+                            if (dismissDirection == EndToStart) {
                                 Alignment.CenterEnd
                             } else {
                                 Alignment.CenterStart
@@ -418,7 +419,7 @@ private fun HistoryItemCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        imageVector = if (dismissState.targetValue == EndToStart) {
+                        imageVector = if (dismissDirection == EndToStart) {
                             Icons.Filled.Delete
                         } else {
                             Icons.Filled.Edit
@@ -429,7 +430,7 @@ private fun HistoryItemCard(
                     )
                     Spacer(modifier = Modifier.width(Spacing.Sm))
                     Text(
-                        text = if (dismissState.targetValue == EndToStart) "Delete" else "Rename",
+                        text = if (dismissDirection == EndToStart) "Delete" else "Rename",
                         color = contentColor,
                         style = MaterialTheme.typography.labelLarge,
                     )
