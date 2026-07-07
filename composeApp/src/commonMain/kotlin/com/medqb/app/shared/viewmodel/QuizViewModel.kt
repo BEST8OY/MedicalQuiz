@@ -435,4 +435,17 @@ class QuizViewModel(
             snackbarSink.emitSnackbar(SnackbarMessage.Simple(message))
         }
     }
+
+    /**
+     * Public entrypoint for composables nested under this ViewModel to surface a
+     * typed snackbar (e.g. an undo/copy Action) via the shared [SnackbarDispatcher].
+     *
+     * This exists so leaf UI such as [com.medqb.app.shared.ui.richtext.SelectableHighlightText]
+     * can route snackbar requests through the ViewModel's sink without holding the dispatcher.
+     */
+    fun emitSnackbar(message: SnackbarMessage) {
+        viewModelScope.launch {
+            snackbarSink.emitSnackbar(message)
+        }
+    }
 }

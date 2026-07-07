@@ -33,6 +33,7 @@ import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.ui.richtext.parser.RichTextParser
+import com.medqb.app.shared.domain.SnackbarMessage
 import kotlin.math.max
 import androidx.compose.material3.Text as MaterialText
 
@@ -69,7 +70,8 @@ fun HighlightableRichText(
     showSelectedHighlight: Boolean = false,
     onLinkClick: ((String) -> Unit)? = null,
     onMediaClick: ((String) -> Unit)? = null,
-    onTooltipClick: ((String) -> Unit)? = null
+    onTooltipClick: ((String) -> Unit)? = null,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
 ) {
     val palette = rememberRichTextPalette()
     val blocks = remember(html, palette, showSelectedHighlight) {
@@ -116,7 +118,8 @@ fun HighlightableRichText(
                 },
                 onLinkClick = resolvedLinkHandler,
                 onMediaClick = resolvedMediaHandler,
-                onTooltipClick = tooltipSupport.onTooltipClick
+                onTooltipClick = tooltipSupport.onTooltipClick,
+                onShowSnackbar = onShowSnackbar
             )
             
             cumulativeOffset += getBlockTextLength(block) + BLOCK_SEPARATOR_LENGTH
@@ -142,7 +145,8 @@ private fun HighlightableBlockRenderer(
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: (String) -> Unit,
     onMediaClick: (String) -> Unit,
-    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit
 ) {
     when (block) {
         is RichTextBlock.Paragraph -> {
@@ -161,15 +165,16 @@ private fun HighlightableBlockRenderer(
                 onHighlightRemove = onHighlightRemove,
                 onHighlightColorChange = onHighlightColorChange,
                 onLinkClick = onLinkClick,
-                onTooltipClick = onTooltipClick
+                onTooltipClick = onTooltipClick,
+                onShowSnackbar = onShowSnackbar
             )
         }
-        
+
         is RichTextBlock.Heading -> {
             // For now, headings are not highlightable (usually short)
             RichTextBlockRenderer(block, onLinkClick, onMediaClick, onTooltipClick)
         }
-        
+
         is RichTextBlock.BulletList -> {
             // Render each list item as individually highlightable
             HighlightableList(
@@ -181,7 +186,8 @@ private fun HighlightableBlockRenderer(
                 onHighlightRemove = onHighlightRemove,
                 onHighlightColorChange = onHighlightColorChange,
                 onLinkClick = onLinkClick,
-                onTooltipClick = onTooltipClick
+                onTooltipClick = onTooltipClick,
+                onShowSnackbar = onShowSnackbar
             )
         }
 
@@ -196,14 +202,15 @@ private fun HighlightableBlockRenderer(
                 onHighlightRemove = onHighlightRemove,
                 onHighlightColorChange = onHighlightColorChange,
                 onLinkClick = onLinkClick,
-                onTooltipClick = onTooltipClick
+                onTooltipClick = onTooltipClick,
+                onShowSnackbar = onShowSnackbar
             )
         }
-        
+
         is RichTextBlock.CodeBlock -> {
             RichTextBlockRenderer(block, onLinkClick, onMediaClick, onTooltipClick)
         }
-        
+
         is RichTextBlock.Table -> {
             // Render table cells as individually highlightable
             HighlightableTable(
@@ -214,7 +221,8 @@ private fun HighlightableBlockRenderer(
                 onHighlightRemove = onHighlightRemove,
                 onHighlightColorChange = onHighlightColorChange,
                 onLinkClick = onLinkClick,
-                onTooltipClick = onTooltipClick
+                onTooltipClick = onTooltipClick,
+                onShowSnackbar = onShowSnackbar
             )
         }
         
@@ -245,7 +253,8 @@ private fun HighlightableList(
     onHighlightRemove: (highlightId: Long) -> Unit,
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit
 ) {
     val richTextScale = LocalRichTextScale.current
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.Xs)) {
@@ -276,6 +285,7 @@ private fun HighlightableList(
                     onHighlightColorChange = onHighlightColorChange,
                     onLinkClick = onLinkClick,
                     onTooltipClick = onTooltipClick,
+                    onShowSnackbar = onShowSnackbar,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -299,6 +309,7 @@ private fun HighlightableListItem(
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit,
     modifier: Modifier = Modifier
 ) {
     SelectableHighlightText(
@@ -309,6 +320,7 @@ private fun HighlightableListItem(
         onHighlightColorChange = onHighlightColorChange,
         onLinkClick = onLinkClick,
         onTooltipClick = onTooltipClick,
+        onShowSnackbar = onShowSnackbar,
         modifier = modifier
     )
 }
@@ -325,7 +337,8 @@ private fun HighlightableTable(
     onHighlightRemove: (highlightId: Long) -> Unit,
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit
 ) {
     if (block.columnCount == 0) return
 
@@ -381,6 +394,7 @@ private fun HighlightableTable(
                                     onHighlightColorChange = onHighlightColorChange,
                                     onLinkClick = onLinkClick,
                                     onTooltipClick = onTooltipClick,
+                                    onShowSnackbar = onShowSnackbar,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }

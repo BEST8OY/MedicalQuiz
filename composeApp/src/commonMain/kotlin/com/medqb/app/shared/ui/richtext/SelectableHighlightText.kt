@@ -1,5 +1,10 @@
 package com.medqb.app.shared.ui.richtext
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -180,48 +185,57 @@ internal fun SelectableHighlightText(
                     ),
                     onDismissRequest = { state.selectionState = TextSelectionState() }
                 ) {
-                    Box(
-                        modifier = Modifier.onSizeChanged { state.selectionPopupSize = it }
+                    val motionScheme = MaterialTheme.motionScheme
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(motionScheme.defaultEffectsSpec()) +
+                                slideInVertically(motionScheme.defaultSpatialSpec()) { -it / 4 },
+                        exit = fadeOut(motionScheme.fastEffectsSpec()) +
+                               slideOutVertically(motionScheme.fastSpatialSpec()) { -it / 4 }
                     ) {
-                        SelectionToolbar(
-                            selectedText = state.selectionState.selectedText,
-                            onCopy = {
-                                val copiedText = state.selectionState.selectedText
-                                if (copiedText.isNotBlank()) {
-                                    clipboard.setPlainText(AnnotatedString(copiedText))
-                                }
-                                state.selectionState = TextSelectionState()
-                            },
-                            onOpenExternal = {
-                                if (state.selectionState.selectedText.isNotBlank()) {
-                                    val opened = TextIntentLauncher.openSelectedText(state.selectionState.selectedText)
-                                    if (!opened) {
-                                        state.lastExternalOpenText = state.selectionState.selectedText
-                                        coroutineScope.launch {
-                                            onShowSnackbar(
-                                                SnackbarMessage.Action(
-                                                    message = "No compatible app found",
-                                                    actionLabel = "Copy",
-                                                    onActionPerformed = {
-                                                        if (state.lastExternalOpenText.isNotBlank()) {
-                                                            val copiedText = state.lastExternalOpenText
-                                                            clipboard.setPlainText(AnnotatedString(copiedText))
-                                                        }
-                                                    },
-                                                )
-                                            )
-                                        }
-                                        return@SelectionToolbar
+                        Box(
+                            modifier = Modifier.onSizeChanged { state.selectionPopupSize = it }
+                        ) {
+                            SelectionToolbar(
+                                selectedText = state.selectionState.selectedText,
+                                onCopy = {
+                                    val copiedText = state.selectionState.selectedText
+                                    if (copiedText.isNotBlank()) {
+                                        clipboard.setPlainText(AnnotatedString(copiedText))
                                     }
-                                }
-                                state.selectionState = TextSelectionState()
-                            },
-                            onHighlight = { color ->
-                                val range = state.selectionState.selectionRange
-                                onHighlightAdd(range.first, range.last + 1, state.selectionState.selectedText, color)
-                                state.selectionState = TextSelectionState()
-                            },
-                        )
+                                    state.selectionState = TextSelectionState()
+                                },
+                                onOpenExternal = {
+                                    if (state.selectionState.selectedText.isNotBlank()) {
+                                        val opened = TextIntentLauncher.openSelectedText(state.selectionState.selectedText)
+                                        if (!opened) {
+                                            state.lastExternalOpenText = state.selectionState.selectedText
+                                            coroutineScope.launch {
+                                                onShowSnackbar(
+                                                    SnackbarMessage.Action(
+                                                        message = "No compatible app found",
+                                                        actionLabel = "Copy",
+                                                        onActionPerformed = {
+                                                            if (state.lastExternalOpenText.isNotBlank()) {
+                                                                val copiedText = state.lastExternalOpenText
+                                                                clipboard.setPlainText(AnnotatedString(copiedText))
+                                                            }
+                                                        },
+                                                    )
+                                                )
+                                            }
+                                            return@SelectionToolbar
+                                        }
+                                    }
+                                    state.selectionState = TextSelectionState()
+                                },
+                                onHighlight = { color ->
+                                    val range = state.selectionState.selectionRange
+                                    onHighlightAdd(range.first, range.last + 1, state.selectionState.selectedText, color)
+                                    state.selectionState = TextSelectionState()
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -250,20 +264,29 @@ internal fun SelectableHighlightText(
                 ),
                 onDismissRequest = { state.editingHighlight = null }
             ) {
-                Box(
-                    modifier = Modifier.onSizeChanged { state.editPopupSize = it }
+                val motionScheme = MaterialTheme.motionScheme
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn(motionScheme.defaultEffectsSpec()) +
+                            slideInVertically(motionScheme.defaultSpatialSpec()) { -it / 4 },
+                    exit = fadeOut(motionScheme.fastEffectsSpec()) +
+                           slideOutVertically(motionScheme.fastSpatialSpec()) { -it / 4 }
                 ) {
-                    HighlightEditPopup(
-                        highlight = highlight,
-                        onColorChange = { color ->
-                            onHighlightColorChange(highlight.id, color)
-                            state.editingHighlight = null
-                        },
-                        onDelete = {
-                            onHighlightRemove(highlight.id)
-                            state.editingHighlight = null
-                        }
-                    )
+                    Box(
+                        modifier = Modifier.onSizeChanged { state.editPopupSize = it }
+                    ) {
+                        HighlightEditPopup(
+                            highlight = highlight,
+                            onColorChange = { color ->
+                                onHighlightColorChange(highlight.id, color)
+                                state.editingHighlight = null
+                            },
+                            onDelete = {
+                                onHighlightRemove(highlight.id)
+                                state.editingHighlight = null
+                            }
+                        )
+                    }
                 }
             }
         }

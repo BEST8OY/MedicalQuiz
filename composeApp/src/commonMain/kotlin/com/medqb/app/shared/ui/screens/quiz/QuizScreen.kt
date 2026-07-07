@@ -356,6 +356,7 @@ private fun QuizQuestionCard(
                     showSelectedHighlight = state.answerSubmitted,
                     onLinkClick = linkHandler,
                     onMediaClick = mediaClick,
+                    onShowSnackbar = viewModel::emitSnackbar,
                     modifier = Modifier.padding(Spacing.Md)
                 )
             }
@@ -424,7 +425,8 @@ private fun QuizQuestionCard(
                             highlightsRepository = viewModel.highlightsRepository,
                             showSelectedHighlight = state.answerSubmitted,
                             onLinkClick = linkHandler,
-                            onMediaClick = mediaClick
+                            onMediaClick = mediaClick,
+                            onShowSnackbar = viewModel::emitSnackbar
                         )
                     }
                 }
