@@ -1,11 +1,7 @@
 package com.medqb.app.shared.ui.screens.history
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,12 +10,13 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -40,6 +37,10 @@ import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -58,7 +59,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -66,7 +66,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.theme.ElementSize
-import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.data.QuizSessionRepository
@@ -74,6 +73,7 @@ import com.medqb.app.shared.ui.components.EmptyStateMessage
 import com.medqb.app.shared.ui.richtext.setPlainText
 import com.medqb.app.shared.ui.screens.media.PlatformBackHandler
 import androidx.compose.ui.platform.LocalClipboard
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -94,12 +94,29 @@ internal fun HistoryPane(
 ) {
     val clipboard = LocalClipboard.current
     var selectedHistoryEntryIds by rememberSaveable { mutableStateOf(setOf<String>()) }
-    var deleteTargetEntryIds by rememberSaveable { mutableStateOf(emptySet<String>()) }
     var isFabMenuExpanded by rememberSaveable { mutableStateOf(false) }
     var lastCopiedText by rememberSaveable { mutableStateOf("") }
     var renameTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var renameText by rememberSaveable { mutableStateOf("") }
     val allHistoryEntryIds = remember(historyEntries) { historyEntries.map { it.id }.toSet() }
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Pending deletes for undo — entries temporarily removed from the list
+    var pendingDeletes by rememberSaveable { mutableStateOf<Map<String, QuizSessionRepository.QuizSession>>(emptyMap()) }
+    val visibleEntries = remember(historyEntries, pendingDeletes) {
+        historyEntries.filter { it.id !in pendingDeletes }
+    }
+
+    // Auto-clean pending deletes after 5 seconds (undo window)
+    LaunchedEffect(pendingDeletes) {
+        if (pendingDeletes.isNotEmpty()) {
+            delay(5000)
+            val expiredIds = pendingDeletes.keys
+            pendingDeletes = emptyMap()
+            onDeleteHistoryEntries(expiredIds)
+        }
+    }
 
     PlatformBackHandler(
         enabled = selectedHistoryEntryIds.isNotEmpty() || isFabMenuExpanded,
@@ -117,6 +134,8 @@ internal fun HistoryPane(
         if (selectedHistoryEntryIds.isEmpty()) {
             isFabMenuExpanded = false
         }
+        // Clear pending deletes for entries that no longer exist in the source list
+        pendingDeletes = pendingDeletes.filterKeys { it in allHistoryEntryIds }
     }
 
     LaunchedEffect(selectedHistoryEntryIds) {
@@ -141,7 +160,7 @@ internal fun HistoryPane(
             verticalArrangement = Arrangement.spacedBy(Spacing.Md),
             contentPadding = PaddingValues(top = Spacing.Lg, bottom = ScreenLayout.BottomPaddingWithFab),
         ) {
-            if (historyEntries.isEmpty()) {
+            if (visibleEntries.isEmpty()) {
                 item {
                     EmptyStateMessage(
                         title = "No quiz history yet",
@@ -149,7 +168,7 @@ internal fun HistoryPane(
                     )
                 }
             } else {
-                items(historyEntries, key = { it.id }) { entry ->
+                items(visibleEntries, key = { it.id }) { entry ->
                     HistoryItemCard(
                         entry = entry,
                         isSelected = entry.id in selectedHistoryEntryIds,
@@ -165,7 +184,22 @@ internal fun HistoryPane(
                             selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
                         },
                         onSwipeDelete = {
-                            deleteTargetEntryIds = setOf(entry.id)
+                            // Move to pending — immediately hidden, undo restores, timer commits
+                            pendingDeletes = pendingDeletes + (entry.id to entry)
+                            selectedHistoryEntryIds = selectedHistoryEntryIds - entry.id
+                            if (selectedHistoryEntryIds.isEmpty()) {
+                                isFabMenuExpanded = false
+                            }
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = "Entry deleted",
+                                    actionLabel = "Undo",
+                                    duration = SnackbarDuration.Short,
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    pendingDeletes = pendingDeletes - entry.id
+                                }
+                            }
                         },
                         onSwipeRename = {
                             renameTargetId = entry.id
@@ -227,29 +261,30 @@ internal fun HistoryPane(
 
                     FloatingActionButtonMenuItem(
                         onClick = {
-                            deleteTargetEntryIds = selectedHistoryEntryIds
+                            // Delete selected entries with undo snackbar
+                            val toDelete = historyEntries
+                                .filter { it.id in selectedHistoryEntryIds }
+                                .associateBy { it.id }
+                            pendingDeletes = pendingDeletes + toDelete
+                            val deletedIds = selectedHistoryEntryIds
+                            selectedHistoryEntryIds = emptySet()
                             isFabMenuExpanded = false
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = "${deletedIds.size} entries deleted",
+                                    actionLabel = "Undo",
+                                    duration = SnackbarDuration.Short,
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    pendingDeletes = pendingDeletes - deletedIds
+                                }
+                            }
                         },
                         text = { Text("Delete (${selectedHistoryEntryIds.size})") },
                         icon = { Icon(Icons.Filled.Delete, contentDescription = null) },
                     )
                 }
             }
-        }
-
-        if (deleteTargetEntryIds.isNotEmpty()) {
-            DeleteConfirmDialog(
-                count = deleteTargetEntryIds.size,
-                onConfirm = {
-                    onDeleteHistoryEntries(deleteTargetEntryIds)
-                    selectedHistoryEntryIds = selectedHistoryEntryIds - deleteTargetEntryIds
-                    if (selectedHistoryEntryIds.isEmpty()) {
-                        isFabMenuExpanded = false
-                    }
-                    deleteTargetEntryIds = emptySet()
-                },
-                onDismiss = { deleteTargetEntryIds = emptySet() },
-            )
         }
 
         if (renameTargetId != null) {
@@ -268,31 +303,12 @@ internal fun HistoryPane(
                 },
             )
         }
-    }
-}
 
-@Composable
-private fun DeleteConfirmDialog(
-    count: Int,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val label = if (count == 1) "entry" else "entries"
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Delete $count $label?") },
-        text = { Text("This action cannot be undone.") },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Delete")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-    )
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
+    }
 }
 
 @Composable
@@ -358,52 +374,65 @@ private fun HistoryItemCard(
     SwipeToDismissBox(
         state = dismissState,
         modifier = modifier
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Swipe left to delete, right to rename"
+            },
         enableDismissFromStartToEnd = !selectionModeEnabled,
         enableDismissFromEndToStart = !selectionModeEnabled,
         gesturesEnabled = !selectionModeEnabled,
         onDismiss = { dismissValue ->
             when (dismissValue) {
-                SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
                 SwipeToDismissBoxValue.EndToStart -> onSwipeDelete()
+                SwipeToDismissBoxValue.StartToEnd -> onSwipeRename()
                 SwipeToDismissBoxValue.Settled -> Unit
             }
             scope.launch { dismissState.reset() }
         },
         backgroundContent = {
-            val isDeleteDirection = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
-            val backgroundColor = when (dismissState.dismissDirection) {
-                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
-                SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.tertiaryContainer
-                SwipeToDismissBoxValue.Settled -> Color.Transparent
-            }
+            val backgroundColor by animateColorAsState(
+                when (dismissState.targetValue) {
+                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
+                    SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.tertiaryContainer
+                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surface
+                }
+            )
+            val contentColor by animateColorAsState(
+                when (dismissState.targetValue) {
+                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.onErrorContainer
+                    SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.onTertiaryContainer
+                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.onSurface
+                }
+            )
+
             Row(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(backgroundColor)
                     .padding(horizontal = Spacing.LgSm),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = if (isDeleteDirection) Arrangement.End else Arrangement.Start,
+                horizontalArrangement = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+                    Arrangement.End
+                } else {
+                    Arrangement.Start
+                },
             ) {
-                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
-                    val actionTint = if (isDeleteDirection) {
-                        MaterialTheme.colorScheme.onErrorContainer
+                Icon(
+                    imageVector = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+                        Icons.Filled.Delete
                     } else {
-                        MaterialTheme.colorScheme.onTertiaryContainer
-                    }
-                    Icon(
-                        imageVector = if (isDeleteDirection) Icons.Filled.Delete else Icons.Filled.Edit,
-                        contentDescription = null,
-                        tint = actionTint,
-                        modifier = Modifier.size(ElementSize.IconMd),
-                    )
-                    Text(
-                        text = if (isDeleteDirection) "Delete" else "Rename",
-                        color = actionTint,
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(start = Spacing.Sm),
-                    )
-                }
+                        Icons.Filled.Edit
+                    },
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(ElementSize.IconMd),
+                )
+                Spacer(modifier = Modifier.width(Spacing.Sm))
+                Text(
+                    text = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) "Delete" else "Rename",
+                    color = contentColor,
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
         },
     ) {
