@@ -403,11 +403,7 @@ private fun HistoryItemCard(
                     .background(backgroundColor)
                     .padding(horizontal = Spacing.LgSm),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
-                    Arrangement.End
-                } else {
-                    Arrangement.Start
-                },
+                horizontalArrangement = Arrangement.Start,
             ) {
                 Icon(
                     imageVector = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
