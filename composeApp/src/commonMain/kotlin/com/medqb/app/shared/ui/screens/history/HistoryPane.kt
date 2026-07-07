@@ -99,6 +99,7 @@ internal fun HistoryPane(
     var renameText by rememberSaveable { mutableStateOf("") }
     val allHistoryEntryIds = remember(historyEntries) { historyEntries.map { it.id }.toSet() }
     val scope = rememberCoroutineScope()
+    var restoredEntryVersions by rememberSaveable { mutableStateOf<Map<String, Int>>(emptyMap()) }
 
     // Pending deletes are filtered from the list immediately, then restored if Undo is tapped.
     var pendingDeleteIds by rememberSaveable { mutableStateOf(setOf<String>()) }
@@ -130,6 +131,7 @@ internal fun HistoryPane(
                         entriesToDelete.forEach { entry ->
                             onUndoDelete(entry)
                         }
+                        restoredEntryVersions = restoredEntryVersions.withIncrementedVersions(deletedEntryIds)
                         pendingDeleteIds = pendingDeleteIds - deletedEntryIds
                     },
                 )
@@ -189,7 +191,10 @@ internal fun HistoryPane(
                     )
                 }
             } else {
-                items(visibleEntries, key = { it.id }) { entry ->
+                items(
+                    items = visibleEntries,
+                    key = { entry -> "${entry.id}:${restoredEntryVersions[entry.id] ?: 0}" },
+                ) { entry ->
                     HistoryItemCard(
                         entry = entry,
                         isSelected = entry.id in selectedHistoryEntryIds,
@@ -502,6 +507,13 @@ private fun QuizSessionRepository.QuizSession.displayName(): String =
 
 private fun Set<String>.toggle(id: String): Set<String> =
     if (id in this) this - id else this + id
+
+private fun Map<String, Int>.withIncrementedVersions(ids: Set<String>): Map<String, Int> =
+    toMutableMap().apply {
+        ids.forEach { id ->
+            this[id] = (this[id] ?: 0) + 1
+        }
+    }
 
 private fun relativeTimestamp(epochMillis: Long): String {
     if (epochMillis <= 0L) return "Unknown"
