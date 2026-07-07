@@ -186,8 +186,10 @@ internal fun HistoryPane(
                                         message = "Entry deleted",
                                         actionLabel = "Undo",
                                         onActionPerformed = {
-                                            pendingDeleteIds = pendingDeleteIds - deletedEntryIds
-                                            scope.launch { onUndoDelete(entry) }
+                                            scope.launch {
+                                                onUndoDelete(entry)
+                                                pendingDeleteIds = pendingDeleteIds - deletedEntryIds
+                                            }
                                         },
                                     )
                                 )
@@ -266,11 +268,11 @@ internal fun HistoryPane(
                                         message = "${deletedEntryIds.size} entries deleted",
                                         actionLabel = "Undo",
                                         onActionPerformed = {
-                                            pendingDeleteIds = pendingDeleteIds - deletedEntryIds
                                             scope.launch {
                                                 entriesToDelete.forEach { entry ->
                                                     onUndoDelete(entry)
                                                 }
+                                                pendingDeleteIds = pendingDeleteIds - deletedEntryIds
                                             }
                                         },
                                     )
