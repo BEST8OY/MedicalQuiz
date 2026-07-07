@@ -323,17 +323,7 @@ class FilterHubViewModel(
     }
 
     suspend fun undoHistoryEntry(entry: QuizSessionRepository.QuizSession) {
-        sessionRepository.appendToHistory(
-            databaseName = entry.databaseName,
-            selectedSubjectIds = entry.selectedSubjectIds.toSet(),
-            selectedSystemIds = entry.selectedSystemIds.toSet(),
-            performanceFilter = entry.performanceFilter,
-            currentQuestionIndex = entry.currentQuestionIndex,
-            isLoggingEnabled = entry.isLoggingEnabled,
-            submissionMode = entry.submissionMode,
-            currentSessionId = entry.id,
-            entryName = entry.entryName,
-        )
+        sessionRepository.restoreDeletedHistoryEntry(entry)
     }
 
     fun restoreHistoryEntry(

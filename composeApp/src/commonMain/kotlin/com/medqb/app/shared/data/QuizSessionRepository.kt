@@ -119,6 +119,22 @@ class QuizSessionRepository(
         mutationEvents.tryEmit(Unit)
     }
 
+    suspend fun restoreDeletedHistoryEntry(entry: QuizSession) {
+        db().upsertHistoryEntry(
+            sessionId = entry.id,
+            databaseName = entry.databaseName,
+            entryName = entry.entryName,
+            selectedSubjectIds = entry.selectedSubjectIds,
+            selectedSystemIds = entry.selectedSystemIds,
+            performanceFilter = entry.performanceFilter.name,
+            currentQuestionIndex = entry.currentQuestionIndex,
+            updatedAt = entry.updatedAtEpochMillis,
+            isLoggingEnabled = entry.isLoggingEnabled,
+            submissionMode = entry.submissionMode.name,
+        )
+        mutationEvents.tryEmit(Unit)
+    }
+
     suspend fun restoreHistoryEntry(entryId: String): QuizSession? = withContext(Dispatchers.IO) {
         db().getHistoryEntry(entryId)?.toQuizSession()
     }

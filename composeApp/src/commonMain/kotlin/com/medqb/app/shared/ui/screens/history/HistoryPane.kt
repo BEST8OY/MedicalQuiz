@@ -106,6 +106,38 @@ internal fun HistoryPane(
         historyEntries.filter { it.id !in pendingDeleteIds }
     }
 
+    fun deleteHistoryEntries(entriesToDelete: List<QuizSessionRepository.QuizSession>) {
+        if (entriesToDelete.isEmpty()) return
+
+        val deletedEntryIds = entriesToDelete.map { it.id }.toSet()
+        pendingDeleteIds = pendingDeleteIds + deletedEntryIds
+        selectedHistoryEntryIds = selectedHistoryEntryIds - deletedEntryIds
+        if (selectedHistoryEntryIds.isEmpty()) {
+            isFabMenuExpanded = false
+        }
+
+        scope.launch {
+            onDeleteHistoryEntries(deletedEntryIds)
+            onShowSnackbar(
+                SnackbarMessage.Action(
+                    message = if (deletedEntryIds.size == 1) {
+                        "Entry deleted"
+                    } else {
+                        "${deletedEntryIds.size} entries deleted"
+                    },
+                    actionLabel = "Undo",
+                    onActionPerformed = {
+                        entriesToDelete.forEach { entry ->
+                            onUndoDelete(entry)
+                        }
+                        pendingDeleteIds = pendingDeleteIds - deletedEntryIds
+                    },
+                )
+            )
+            pendingDeleteIds = pendingDeleteIds - deletedEntryIds
+        }
+    }
+
     PlatformBackHandler(
         enabled = selectedHistoryEntryIds.isNotEmpty() || isFabMenuExpanded,
         onBack = {
@@ -173,27 +205,7 @@ internal fun HistoryPane(
                             selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
                         },
                         onSwipeDelete = {
-                            val deletedEntryIds = setOf(entry.id)
-                            pendingDeleteIds = pendingDeleteIds + deletedEntryIds
-                            selectedHistoryEntryIds = selectedHistoryEntryIds - deletedEntryIds
-                            if (selectedHistoryEntryIds.isEmpty()) {
-                                isFabMenuExpanded = false
-                            }
-                            scope.launch {
-                                onDeleteHistoryEntries(deletedEntryIds)
-                                onShowSnackbar(
-                                    SnackbarMessage.Action(
-                                        message = "Entry deleted",
-                                        actionLabel = "Undo",
-                                        onActionPerformed = {
-                                            scope.launch {
-                                                onUndoDelete(entry)
-                                                pendingDeleteIds = pendingDeleteIds - deletedEntryIds
-                                            }
-                                        },
-                                    )
-                                )
-                            }
+                            deleteHistoryEntries(listOf(entry))
                         },
                         onSwipeRename = {
                             renameTargetId = entry.id
@@ -257,27 +269,7 @@ internal fun HistoryPane(
                         onClick = {
                             val entriesToDelete = historyEntries
                                 .filter { it.id in selectedHistoryEntryIds }
-                            val deletedEntryIds = entriesToDelete.map { it.id }.toSet()
-                            pendingDeleteIds = pendingDeleteIds + deletedEntryIds
-                            selectedHistoryEntryIds = emptySet()
-                            isFabMenuExpanded = false
-                            scope.launch {
-                                onDeleteHistoryEntries(deletedEntryIds)
-                                onShowSnackbar(
-                                    SnackbarMessage.Action(
-                                        message = "${deletedEntryIds.size} entries deleted",
-                                        actionLabel = "Undo",
-                                        onActionPerformed = {
-                                            scope.launch {
-                                                entriesToDelete.forEach { entry ->
-                                                    onUndoDelete(entry)
-                                                }
-                                                pendingDeleteIds = pendingDeleteIds - deletedEntryIds
-                                            }
-                                        },
-                                    )
-                                )
-                            }
+                            deleteHistoryEntries(entriesToDelete)
                         },
                         text = { Text("Delete (${selectedHistoryEntryIds.size})") },
                         icon = { Icon(Icons.Filled.Delete, contentDescription = null) },
@@ -378,10 +370,12 @@ private fun HistoryItemCard(
         onDismiss = { dismissValue ->
             when (dismissValue) {
                 EndToStart -> onSwipeDelete()
-                StartToEnd -> onSwipeRename()
+                StartToEnd -> {
+                    onSwipeRename()
+                    scope.launch { dismissState.reset() }
+                }
                 SwipeToDismissBoxValue.Settled -> Unit
             }
-            scope.launch { dismissState.reset() }
         },
         backgroundContent = {
             val backgroundColor by animateColorAsState(

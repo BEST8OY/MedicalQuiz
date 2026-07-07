@@ -11,6 +11,6 @@ sealed interface SnackbarMessage {
         override val message: String,
         val actionLabel: String,
         val duration: SnackbarDuration = SnackbarDuration.Long,
-        val onActionPerformed: () -> Unit,
+        val onActionPerformed: suspend () -> Unit,
     ) : SnackbarMessage
 }
