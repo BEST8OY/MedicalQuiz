@@ -241,9 +241,18 @@ private fun Color.luminance(): Float {
 internal fun HighlightColor.toComposeColor(): Color {
     val hex = this.hex.removePrefix("#")
     val colorLong = hex.toLongOrNull(16) ?: return Color.Yellow
-    return Color(
-        red = ((colorLong shr 16) and 0xFF) / 255f,
-        green = ((colorLong shr 8) and 0xFF) / 255f,
-        blue = (colorLong and 0xFF) / 255f
-    )
+    return when (hex.length) {
+        8 -> Color(
+            alpha = ((colorLong shr 24) and 0xFF) / 255f,
+            red = ((colorLong shr 16) and 0xFF) / 255f,
+            green = ((colorLong shr 8) and 0xFF) / 255f,
+            blue = (colorLong and 0xFF) / 255f
+        )
+        6 -> Color(
+            red = ((colorLong shr 16) and 0xFF) / 255f,
+            green = ((colorLong shr 8) and 0xFF) / 255f,
+            blue = (colorLong and 0xFF) / 255f
+        )
+        else -> Color.Yellow
+    }
 }
