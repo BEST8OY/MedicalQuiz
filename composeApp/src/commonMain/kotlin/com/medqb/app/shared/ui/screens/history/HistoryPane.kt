@@ -403,34 +403,40 @@ private fun HistoryItemCard(
                 }
             )
 
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(backgroundColor)
                     .padding(horizontal = Spacing.LgSm),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = if (dismissState.targetValue == EndToStart) {
-                    Arrangement.End
-                } else {
-                    Arrangement.Start
-                },
             ) {
-                Icon(
-                    imageVector = if (dismissState.targetValue == EndToStart) {
-                        Icons.Filled.Delete
-                    } else {
-                        Icons.Filled.Edit
-                    },
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(ElementSize.IconMd),
-                )
-                Spacer(modifier = Modifier.width(Spacing.Sm))
-                Text(
-                    text = if (dismissState.targetValue == EndToStart) "Delete" else "Rename",
-                    color = contentColor,
-                    style = MaterialTheme.typography.labelLarge,
-                )
+                Row(
+                    modifier = Modifier
+                        .align(
+                            if (dismissState.targetValue == EndToStart) {
+                                Alignment.CenterEnd
+                            } else {
+                                Alignment.CenterStart
+                            },
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = if (dismissState.targetValue == EndToStart) {
+                            Icons.Filled.Delete
+                        } else {
+                            Icons.Filled.Edit
+                        },
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier.size(ElementSize.IconMd),
+                    )
+                    Spacer(modifier = Modifier.width(Spacing.Sm))
+                    Text(
+                        text = if (dismissState.targetValue == EndToStart) "Delete" else "Rename",
+                        color = contentColor,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
             }
         },
     ) {
