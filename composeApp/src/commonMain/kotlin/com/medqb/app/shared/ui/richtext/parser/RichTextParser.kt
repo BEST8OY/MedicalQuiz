@@ -202,7 +202,7 @@ private class RichTextDomParser(
     }
 
     private fun parseTextAlign(element: KsoupElement): TextAlign? {
-        return CssParser.parseTextAlign(element.attrIgnoreCase("align"), element.attrIgnoreCase("style"))
+        return CssParser.parseTextAlign(element.attr("align"), element.attr("style"))
     }
 
     private fun handleParagraph(
@@ -541,11 +541,11 @@ private class RichTextDomParser(
         val cellInfos = cellElements.map { cell ->
             val classes = cell.classNames()
             val text = buildAnnotatedBlock(cell) ?: AnnotatedString("")
-            val columnSpan = cell.attrIgnoreCase("colspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
-            val rowSpan = cell.attrIgnoreCase("rowspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
+            val columnSpan = cell.attr("colspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
+            val rowSpan = cell.attr("rowspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
             val alignment = resolveCellAlignment(cell, classes)
-            val width = CssParser.parseWidth(cell.attrIgnoreCase("width"), cell.attrIgnoreCase("style"))
-            val paddingStart = CssParser.parsePaddingStart(cell.attrIgnoreCase("style"))
+            val width = CssParser.parseWidth(cell.attr("width"), cell.attr("style"))
+            val paddingStart = CssParser.parsePaddingStart(cell.attr("style"))
             val hasHeaderTraits = cell.isHeaderCellCandidate(classes)
 
             CellInfo(
