@@ -42,13 +42,12 @@ private const val MAX_COLUMN_ITERATIONS = 500
  * [HighlightableTable] route through this so layout cannot drift between them.
  *
  * @param block The table block to render
- * @param renderRow Renders a single row at [TableRenderedRow] position
- *                  `visibleIndex` (0-based index among visible body rows, used for zebra striping)
+ * @param renderRow Renders a single row
  */
 @Composable
 internal fun RichTextTableShell(
     block: RichTextBlock.Table,
-    renderRow: @Composable (row: TableRenderedRow, visibleIndex: Int) -> Unit
+    renderRow: @Composable (row: TableRenderedRow) -> Unit
 ) {
     val renderModel = remember(block) { block.toRenderModel() }
     if (renderModel.columnCount == 0) return
@@ -67,11 +66,8 @@ internal fun RichTextTableShell(
                     .horizontalScroll(scrollState)
                     .width(tableWidth)
             ) {
-                var visibleIndex = 0
                 renderModel.rows.forEachIndexed { index, row ->
-                    renderRow(row, visibleIndex)
-                    // Only visible (non-hidden, non-empty) body rows participate in zebra counting
-                    if (row.isVisibleRow) visibleIndex++
+                    renderRow(row)
                     if (index != renderModel.rows.lastIndex) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
@@ -80,14 +76,6 @@ internal fun RichTextTableShell(
         }
     }
 }
-
-/**
- * Whether a rendered row represents a visible body row eligible for zebra counting.
- * Hidden spans-only rows and empty rows are skipped so striping stays aligned with
- * what the user actually sees.
- */
-private val TableRenderedRow.isVisibleRow: Boolean
-    get() = !isHeaderRow && cells.any { it.isVisible }
 
 /**
  * Renders a table with support for rowspan/colspan.
@@ -102,11 +90,10 @@ internal fun RichTextTable(
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
-    RichTextTableShell(block) { row, visibleIndex ->
+    RichTextTableShell(block) { row ->
         TableRowContent(
             row = row,
             tableClassNames = block.classNames,
-            visibleRowIndex = visibleIndex,
             onLinkClick = onLinkClick,
             onTooltipClick = onTooltipClick
         )
@@ -271,7 +258,6 @@ internal fun TableRowContent(
     tableClassNames: Set<String>,
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
-    visibleRowIndex: Int = 0,
     customCellContent: (@Composable (cell: TableRenderedCell, textStyle: TextStyle, cellIndex: Int) -> Unit)? = null
 ) {
     val effectiveRowClasses = row.classNames + tableClassNames
@@ -279,9 +265,6 @@ internal fun TableRowContent(
     val baseBackground = when {
         row.isHeaderRow -> MaterialTheme.colorScheme.surfaceContainerHighest
         isAbstractRow -> MaterialTheme.colorScheme.surfaceVariant
-        // Zebra striping: only odd visible rows get the subtle alternating tint,
-        // skipped for abstract rows so their distinct background stays intact.
-        visibleRowIndex % 2 == 1 -> MaterialTheme.colorScheme.surfaceContainerLow
         else -> MaterialTheme.colorScheme.surface
     }
     Row(

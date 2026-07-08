@@ -336,11 +336,10 @@ private fun HighlightableTable(
         buildTableCellBaseOffsets(renderModel, baseOffset)
     }
 
-    RichTextTableShell(block) { row, visibleIndex ->
+    RichTextTableShell(block) { row ->
         TableRowContent(
             row = row,
             tableClassNames = block.classNames,
-            visibleRowIndex = visibleIndex,
             onLinkClick = onLinkClick,
             onTooltipClick = onTooltipClick,
             customCellContent = { cell, cellTextStyle, cellIndex ->
