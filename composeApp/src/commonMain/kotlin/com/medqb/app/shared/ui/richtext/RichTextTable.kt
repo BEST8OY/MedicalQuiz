@@ -29,6 +29,7 @@ import kotlin.collections.ArrayDeque
 import kotlin.collections.buildList
 import kotlin.math.max
 import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.ui.theme.Stroke
 
@@ -36,23 +37,24 @@ import com.medqb.app.shared.ui.theme.Stroke
 private const val MAX_COLUMN_ITERATIONS = 500
 
 /**
- * Renders a table with support for rowspan/colspan.
- * 
- * @param block The table block containing rows and column information
- * @param onLinkClick Callback for link clicks within table cells
- * @param onTooltipClick Optional callback for tooltip interactions
+ * Shared layout shell for tables: a bordered [Surface] containing a horizontally
+ * scrolling column of rows separated by dividers. Both [RichTextTable] and
+ * [HighlightableTable] route through this so layout cannot drift between them.
+ *
+ * @param block The table block to render
+ * @param renderRow Renders a single row at [TableRenderedRow] position
+ *                  `visibleIndex` (0-based index among visible body rows, used for zebra striping)
  */
 @Composable
-internal fun RichTextTable(
+internal fun RichTextTableShell(
     block: RichTextBlock.Table,
-    onLinkClick: (String) -> Unit,
-    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
+    renderRow: @Composable (row: TableRenderedRow, visibleIndex: Int) -> Unit
 ) {
-    if (block.columnCount == 0) return
     val renderModel = remember(block) { block.toRenderModel() }
+    if (renderModel.columnCount == 0) return
     val scrollState = rememberScrollState()
-    val minTableWidth = 120.dp * renderModel.columnCount
-    
+    val minTableWidth = Layout.TableMinCellWidth * renderModel.columnCount
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -65,19 +67,49 @@ internal fun RichTextTable(
                     .horizontalScroll(scrollState)
                     .width(tableWidth)
             ) {
+                var visibleIndex = 0
                 renderModel.rows.forEachIndexed { index, row ->
-                    TableRowContent(
-                        row = row,
-                        tableClassNames = block.classNames,
-                        onLinkClick = onLinkClick,
-                        onTooltipClick = onTooltipClick
-                    )
+                    renderRow(row, visibleIndex)
+                    // Only visible (non-hidden, non-empty) body rows participate in zebra counting
+                    if (row.isVisibleRow) visibleIndex++
                     if (index != renderModel.rows.lastIndex) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Whether a rendered row represents a visible body row eligible for zebra counting.
+ * Hidden spans-only rows and empty rows are skipped so striping stays aligned with
+ * what the user actually sees.
+ */
+private val TableRenderedRow.isVisibleRow: Boolean
+    get() = !isHeaderRow && cells.any { it.isVisible }
+
+/**
+ * Renders a table with support for rowspan/colspan.
+ *
+ * @param block The table block containing rows and column information
+ * @param onLinkClick Callback for link clicks within table cells
+ * @param onTooltipClick Optional callback for tooltip interactions
+ */
+@Composable
+internal fun RichTextTable(
+    block: RichTextBlock.Table,
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
+) {
+    RichTextTableShell(block) { row, visibleIndex ->
+        TableRowContent(
+            row = row,
+            tableClassNames = block.classNames,
+            visibleRowIndex = visibleIndex,
+            onLinkClick = onLinkClick,
+            onTooltipClick = onTooltipClick
+        )
     }
 }
 
@@ -221,12 +253,17 @@ private class TableGridBuilder {
 }
 
 /**
- * Renders a single table row with proper styling based on header status and classes.
- * 
+ * Renders a single table row with proper styling based on header status, classes,
+ * and zebra position. Headers use the neutral surface tier so that
+ * `secondaryContainer`/`tertiaryContainer` remain visually distinct when used by
+ * the "selected"/"wichtig" cell classes.
+ *
  * @param row The rendered row data
  * @param tableClassNames Class names from the parent table element
+ * @param visibleRowIndex 0-based index among visible body rows (for zebra striping)
  * @param onLinkClick Callback for link clicks
  * @param onTooltipClick Optional callback for tooltips
+ * @param customCellContent Optional slot overriding how a visible cell is drawn
  */
 @Composable
 internal fun TableRowContent(
@@ -234,12 +271,17 @@ internal fun TableRowContent(
     tableClassNames: Set<String>,
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
+    visibleRowIndex: Int = 0,
     customCellContent: (@Composable (cell: TableRenderedCell, textStyle: TextStyle, cellIndex: Int) -> Unit)? = null
 ) {
     val effectiveRowClasses = row.classNames + tableClassNames
+    val isAbstractRow = effectiveRowClasses.containsInsensitive("abstract")
     val baseBackground = when {
-        row.isHeaderRow -> MaterialTheme.colorScheme.secondaryContainer
-        effectiveRowClasses.containsInsensitive("abstract") -> MaterialTheme.colorScheme.surfaceVariant
+        row.isHeaderRow -> MaterialTheme.colorScheme.surfaceContainerHighest
+        isAbstractRow -> MaterialTheme.colorScheme.surfaceVariant
+        // Zebra striping: only odd visible rows get the subtle alternating tint,
+        // skipped for abstract rows so their distinct background stays intact.
+        visibleRowIndex % 2 == 1 -> MaterialTheme.colorScheme.surfaceContainerLow
         else -> MaterialTheme.colorScheme.surface
     }
     Row(
@@ -261,7 +303,7 @@ internal fun TableRowContent(
                     cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.onTertiaryContainer
                     else -> tableCellTextColor(
                         isHeaderCell = isHeaderCell,
-                        isAbstractClass = cell.cell.classNames.containsInsensitive("abstract")
+                        isAbstractClass = isAbstractRow || cell.cell.classNames.containsInsensitive("abstract")
                     )
                 }
                 val cellBackground = when {
@@ -274,7 +316,6 @@ internal fun TableRowContent(
                         .weight(weight)
                         .padding(horizontal = Spacing.Xxs),
                     color = cellBackground,
-                    tonalElevation = if (cellBackground == Color.Transparent) 0.dp else 1.dp,
                     shape = MaterialTheme.shapes.extraSmall
                 ) {
                     Box(

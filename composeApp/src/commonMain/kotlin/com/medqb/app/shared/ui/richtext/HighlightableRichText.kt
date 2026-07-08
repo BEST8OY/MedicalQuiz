@@ -1,40 +1,25 @@
 package com.medqb.app.shared.ui.richtext
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.max
 import com.medqb.app.shared.data.TextHighlightsRepository
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
-import com.medqb.app.shared.ui.theme.Stroke
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.ui.richtext.parser.RichTextParser
 import com.medqb.app.shared.domain.SnackbarMessage
-import kotlin.math.max
 import androidx.compose.material3.Text as MaterialText
 
 /**
@@ -350,67 +335,47 @@ private fun HighlightableTable(
     val cellBaseOffsets = remember(renderModel, baseOffset) {
         buildTableCellBaseOffsets(renderModel, baseOffset)
     }
-    val scrollState = rememberScrollState()
-    val minTableWidth = 120.dp * renderModel.columnCount
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(Stroke.Thin, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        BoxWithConstraints {
-            val tableWidth = max(minTableWidth, maxWidth)
+    RichTextTableShell(block) { row, visibleIndex ->
+        TableRowContent(
+            row = row,
+            tableClassNames = block.classNames,
+            visibleRowIndex = visibleIndex,
+            onLinkClick = onLinkClick,
+            onTooltipClick = onTooltipClick,
+            customCellContent = { cell, cellTextStyle, cellIndex ->
+                val rowIndex = renderModel.rows.indexOf(row)
+                val currentCellOffset = if (cell.isVisible) {
+                    cellBaseOffsets.getOrNull(rowIndex)?.getOrNull(cellIndex)
+                } else {
+                    null
+                }
 
-            Column(
-                modifier = Modifier
-                    .horizontalScroll(scrollState)
-                    .width(tableWidth)
-            ) {
-                renderModel.rows.forEachIndexed { rowIndex, row ->
-                    TableRowContent(
-                        row = row,
-                        tableClassNames = block.classNames,
+                if (currentCellOffset != null) {
+                    val cellLength = cell.cell.text.length
+                    val cellHighlights = remember(highlights, currentCellOffset, cellLength) {
+                        mapHighlightsToLocal(
+                            highlights = highlights,
+                            start = currentCellOffset,
+                            end = currentCellOffset + cellLength
+                        )
+                    }
+
+                    SelectableHighlightText(
+                        text = cell.cell.text,
+                        highlights = cellHighlights,
+                        textStyle = cellTextStyle,
+                        onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
+                        onHighlightRemove = onHighlightRemove,
+                        onHighlightColorChange = onHighlightColorChange,
                         onLinkClick = onLinkClick,
                         onTooltipClick = onTooltipClick,
-                        customCellContent = { cell, cellTextStyle, cellIndex ->
-                            val currentCellOffset = if (cell.isVisible) {
-                                cellBaseOffsets.getOrNull(rowIndex)?.getOrNull(cellIndex)
-                            } else {
-                                null
-                            }
-
-                            if (currentCellOffset != null) {
-                                val cellLength = cell.cell.text.length
-                                val cellHighlights = remember(highlights, currentCellOffset, cellLength) {
-                                    mapHighlightsToLocal(
-                                        highlights = highlights,
-                                        start = currentCellOffset,
-                                        end = currentCellOffset + cellLength
-                                    )
-                                }
-
-                                SelectableHighlightText(
-                                    text = cell.cell.text,
-                                    highlights = cellHighlights,
-                                    textStyle = cellTextStyle,
-                                    onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
-                                    onHighlightRemove = onHighlightRemove,
-                                    onHighlightColorChange = onHighlightColorChange,
-                                    onLinkClick = onLinkClick,
-                                    onTooltipClick = onTooltipClick,
-                                    onShowSnackbar = onShowSnackbar,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
+                        onShowSnackbar = onShowSnackbar,
+                        modifier = Modifier.fillMaxWidth()
                     )
-
-                    if (rowIndex != renderModel.rows.lastIndex) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    }
                 }
             }
-        }
+        )
     }
 }
 
@@ -472,7 +437,7 @@ private fun mapHighlightsToLocal(
 ): List<TextHighlight> {
     return getHighlightsForRange(highlights, start, end)
         .mapNotNull { highlight ->
-            val localStart = (max(highlight.startOffset, start) - start).coerceAtLeast(0)
+            val localStart = (kotlin.math.max(highlight.startOffset, start) - start).coerceAtLeast(0)
             val localEnd = (kotlin.math.min(highlight.endOffset, end) - start).coerceAtLeast(localStart)
             if (localEnd <= localStart) return@mapNotNull null
             highlight.copy(

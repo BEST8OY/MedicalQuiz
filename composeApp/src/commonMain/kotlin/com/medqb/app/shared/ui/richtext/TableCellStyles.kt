@@ -22,6 +22,10 @@ internal fun tableCellTextStyle(isHeaderCell: Boolean): TextStyle =
 /**
  * Returns the appropriate text color for a table cell based on its properties.
  *
+ * Headers use the neutral `onSurface` role (paired with `surfaceContainerHighest`)
+ * so that `secondaryContainer`/`tertiaryContainer` stay visually reserved for the
+ * "selected"/"wichtig" cell classes.
+ *
  * @param isHeaderCell Whether this cell is a header
  * @param isAbstractClass Whether the cell has abstract class styling
  * @return Color from the MaterialTheme color scheme
@@ -29,7 +33,7 @@ internal fun tableCellTextStyle(isHeaderCell: Boolean): TextStyle =
 @Composable
 internal fun tableCellTextColor(isHeaderCell: Boolean, isAbstractClass: Boolean = false) =
     when {
-        isHeaderCell -> MaterialTheme.colorScheme.onSecondaryContainer
+        isHeaderCell -> MaterialTheme.colorScheme.onSurface
         isAbstractClass -> MaterialTheme.colorScheme.onSurfaceVariant
         else -> MaterialTheme.colorScheme.onSurface
     }

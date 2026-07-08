@@ -126,6 +126,9 @@ object Layout {
 
     /** Max width for rich text media content */
     val MediaMaxWidth: Dp = 512.dp
+
+    /** Minimum width per table column before horizontal scrolling kicks in */
+    val TableMinCellWidth: Dp = 120.dp
 }
 
 /**

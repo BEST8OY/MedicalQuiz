@@ -327,9 +327,10 @@ Only renders after submission, so only these two states are reachable.
 
 | Cell | Container | Text |
 |------|-----------|------|
-| Header row | `secondaryContainer` | `onSecondaryContainer` |
+| Header row | `surfaceContainerHighest` | `onSurface` |
 | Abstract class row | `surfaceVariant` | `onSurfaceVariant` |
-| Default row | `surface` | `onSurface` |
+| Default row (even) | `surface` | `onSurface` |
+| Default row (odd, zebra) | `surfaceContainerLow` | `onSurface` |
 | "selected" class | `secondaryContainer` | `onSecondaryContainer` |
 | "wichtig" class | `tertiaryContainer` | `onTertiaryContainer` |
 
