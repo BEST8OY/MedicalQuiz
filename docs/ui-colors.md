@@ -343,14 +343,14 @@ Only renders after submission, so only these two states are reachable.
 | Abstract card border | `outlineVariant` |
 | Table border | `outlineVariant` |
 | Table row dividers | `outlineVariant` |
-| Selection toolbar bg | `surfaceContainerHighest` |
+| Selection toolbar bg | `surfaceContainer` (3dp tonal elevation) |
 
-**Toolbar action button**
+**Toolbar action button** (`AssistChip`)
 
-| State | Container | Content |
-|-------|-----------|---------|
-| Enabled | `surfaceContainerHighest` | `onSurface` |
-| Disabled | `surfaceContainer` | `onSurfaceVariant` |
+| State | Container | Label | Icon |
+|-------|-----------|-------|------|
+| Enabled | `surfaceContainerHigh` | `onSurface` | `onSurfaceVariant` |
+| Disabled | M3 `AssistChipDefaults` | M3 defaults | M3 defaults |
 
 **Highlight edit popup delete button** — container: `errorContainer`, content: `onErrorContainer`
 
