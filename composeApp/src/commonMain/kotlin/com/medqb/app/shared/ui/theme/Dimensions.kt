@@ -66,6 +66,9 @@ object Inset {
  * All values on 4dp grid per M3 guidance.
  */
 object ElementSize {
+    /** Small icon (checkmarks, inline indicators) */
+    val IconSm: Dp = 16.dp
+
     /** Standard icon (e.g. action button icons, swipe actions) */
     val IconMd: Dp = 20.dp
 

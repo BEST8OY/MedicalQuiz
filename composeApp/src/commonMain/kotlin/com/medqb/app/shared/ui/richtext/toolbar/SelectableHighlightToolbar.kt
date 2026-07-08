@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -36,10 +37,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.ui.theme.Stroke
 
@@ -51,8 +54,6 @@ internal fun SelectionToolbar(
     onOpenExternal: () -> Unit,
     onHighlight: (HighlightColor) -> Unit,
 ) {
-    val motionScheme = MaterialTheme.motionScheme
-
     Surface(
         shape = MaterialTheme.shapes.extraSmall,
         tonalElevation = 3.dp,
@@ -145,14 +146,14 @@ internal fun HighlightEditPopup(
 
             VerticalDivider(
                 modifier = Modifier
-                    .size(width = Stroke.Thin, height = ElementSize.IconMdLg)
+                    .size(width = Stroke.Thin, height = Layout.MinTouchTarget)
                     .clip(CircleShape),
                 color = MaterialTheme.colorScheme.outlineVariant,
             )
 
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier.size(ElementSize.IconMdLg),
+                modifier = Modifier.size(Layout.MinTouchTarget),
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
                     contentColor = MaterialTheme.colorScheme.onErrorContainer
@@ -213,7 +214,7 @@ private fun HighlightColorChip(
             )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = ripple(),
                 onClick = onClick
             ),
         contentAlignment = Alignment.Center
@@ -222,7 +223,7 @@ private fun HighlightColorChip(
             Icon(
                 imageVector = Icons.Rounded.Check,
                 contentDescription = null,
-                modifier = Modifier.size(14.dp),
+                modifier = Modifier.size(ElementSize.IconSm),
                 tint = contentColorFor(composeColor)
             )
         }
@@ -234,25 +235,35 @@ private fun contentColorFor(backgroundColor: Color): Color {
     return if (backgroundColor.luminance() > 0.5f) Color.Black else Color.White
 }
 
-private fun Color.luminance(): Float {
-    return 0.299f * red + 0.587f * green + 0.114f * blue
-}
-
 internal fun HighlightColor.toComposeColor(): Color {
     val hex = this.hex.removePrefix("#")
-    val colorLong = hex.toLongOrNull(16) ?: return Color.Yellow
-    return when (hex.length) {
-        8 -> Color(
+    val colorLong = hex.toLongOrNull(16)
+    return when {
+        colorLong == null -> Color(0xFFFFEB3B) // HighlightColor.YELLOW fallback
+        hex.length == 8 -> Color(
             alpha = ((colorLong shr 24) and 0xFF) / 255f,
             red = ((colorLong shr 16) and 0xFF) / 255f,
             green = ((colorLong shr 8) and 0xFF) / 255f,
             blue = (colorLong and 0xFF) / 255f
         )
-        6 -> Color(
+        hex.length == 6 -> Color(
             red = ((colorLong shr 16) and 0xFF) / 255f,
             green = ((colorLong shr 8) and 0xFF) / 255f,
             blue = (colorLong and 0xFF) / 255f
         )
-        else -> Color.Yellow
+        // 3-char shorthand: #RGB → #RRGGBB
+        hex.length == 3 -> Color(
+            red = ((colorLong shr 8) and 0xF) * 0x11 / 255f,
+            green = ((colorLong shr 4) and 0xF) * 0x11 / 255f,
+            blue = (colorLong and 0xF) * 0x11 / 255f
+        )
+        // 4-char shorthand: #ARGB → #AARRGGBB
+        hex.length == 4 -> Color(
+            alpha = ((colorLong shr 12) and 0xF) * 0x11 / 255f,
+            red = ((colorLong shr 8) and 0xF) * 0x11 / 255f,
+            green = ((colorLong shr 4) and 0xF) * 0x11 / 255f,
+            blue = (colorLong and 0xF) * 0x11 / 255f
+        )
+        else -> Color(0xFFFFEB3B) // HighlightColor.YELLOW fallback
     }
 }

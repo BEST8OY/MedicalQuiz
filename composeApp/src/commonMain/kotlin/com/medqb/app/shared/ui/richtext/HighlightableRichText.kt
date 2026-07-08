@@ -41,6 +41,10 @@ import androidx.compose.material3.Text as MaterialText
  * Length of the implicit separator between blocks in the global offset space.
  * Must match the separator used during text construction in the parser.
  * Currently each block is separated by a single newline character.
+ *
+ * IMPORTANT: If the parser ever changes separator length (e.g. to "\n\n"),
+ * every highlight offset will silently desync. A mismatch here causes
+ * highlights to drift by N-1 chars per block boundary.
  */
 private const val BLOCK_SEPARATOR_LENGTH = 1
 

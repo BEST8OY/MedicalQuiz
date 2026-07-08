@@ -2,9 +2,7 @@ package com.medqb.app.shared.ui.richtext
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -53,7 +51,6 @@ private class SelectableHighlightTextState {
     var containerSize by mutableStateOf(IntSize.Zero)
     var selectionPopupSize by mutableStateOf(IntSize.Zero)
     var editPopupSize by mutableStateOf(IntSize.Zero)
-    var lastExternalOpenText by mutableStateOf("")
 }
 
 @Composable
@@ -186,12 +183,12 @@ internal fun SelectableHighlightText(
                     onDismissRequest = { state.selectionState = TextSelectionState() }
                 ) {
                     val motionScheme = MaterialTheme.motionScheme
+                    // Enter animation only — exit is instant because Popup removal
+                    // tears down composition before AnimatedVisibility can animate out.
                     AnimatedVisibility(
                         visible = true,
                         enter = fadeIn(motionScheme.defaultEffectsSpec()) +
-                                slideInVertically(motionScheme.defaultSpatialSpec()) { -it / 4 },
-                        exit = fadeOut(motionScheme.fastEffectsSpec()) +
-                               slideOutVertically(motionScheme.fastSpatialSpec()) { -it / 4 }
+                                slideInVertically(motionScheme.defaultSpatialSpec()) { -it / 4 }
                     ) {
                         Box(
                             modifier = Modifier.onSizeChanged { state.selectionPopupSize = it }
@@ -209,16 +206,15 @@ internal fun SelectableHighlightText(
                                     if (state.selectionState.selectedText.isNotBlank()) {
                                         val opened = TextIntentLauncher.openSelectedText(state.selectionState.selectedText)
                                         if (!opened) {
-                                            state.lastExternalOpenText = state.selectionState.selectedText
+                                            val failedText = state.selectionState.selectedText
                                             coroutineScope.launch {
                                                 onShowSnackbar(
                                                     SnackbarMessage.Action(
                                                         message = "No compatible app found",
                                                         actionLabel = "Copy",
                                                         onActionPerformed = {
-                                                            if (state.lastExternalOpenText.isNotBlank()) {
-                                                                val copiedText = state.lastExternalOpenText
-                                                                clipboard.setPlainText(AnnotatedString(copiedText))
+                                                            if (failedText.isNotBlank()) {
+                                                                clipboard.setPlainText(AnnotatedString(failedText))
                                                             }
                                                         },
                                                     )
@@ -265,12 +261,12 @@ internal fun SelectableHighlightText(
                 onDismissRequest = { state.editingHighlight = null }
             ) {
                 val motionScheme = MaterialTheme.motionScheme
+                // Enter animation only — exit is instant because Popup removal
+                // tears down composition before AnimatedVisibility can animate out.
                 AnimatedVisibility(
                     visible = true,
                     enter = fadeIn(motionScheme.defaultEffectsSpec()) +
-                            slideInVertically(motionScheme.defaultSpatialSpec()) { -it / 4 },
-                    exit = fadeOut(motionScheme.fastEffectsSpec()) +
-                           slideOutVertically(motionScheme.fastSpatialSpec()) { -it / 4 }
+                            slideInVertically(motionScheme.defaultSpatialSpec()) { -it / 4 }
                 ) {
                     Box(
                         modifier = Modifier.onSizeChanged { state.editPopupSize = it }

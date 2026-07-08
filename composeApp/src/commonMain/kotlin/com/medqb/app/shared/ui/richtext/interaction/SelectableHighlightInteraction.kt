@@ -498,6 +498,9 @@ internal fun resolveSelectionDragUpdate(
         }
     }
 
+    // Null-anchor fallback: only reachable if layout was null at long-press
+    // but succeeds mid-drag. In practice this path is dead code — the anchor
+    // is always set before entering the drag loop. Kept as defensive guard.
     val movingStartHandle = movedOffset < currentState.startOffset
     return SelectionDragUpdate(
         movingStartHandle = movingStartHandle,

@@ -4,6 +4,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.IntSize
 
+/** Popup placement constants in px. Single-sourced to avoid drift across functions. */
+private const val POPUP_PADDING_PX = 8f
+private const val POPUP_GAP_PX = 12f
+
 internal fun calculateRangeAnchor(
     layoutResult: TextLayoutResult,
     textLength: Int,
@@ -20,7 +24,10 @@ internal fun calculateRangeAnchor(
     val startBox = layoutResult.getBoundingBox(start)
     val endBox = layoutResult.getBoundingBox(end)
 
-    val centerX = (startBox.left + endBox.right) / 2f
+    // Center of the full bounding rect — works correctly for multi-line selections
+    val minLeft = minOf(startBox.left, endBox.left)
+    val maxRight = maxOf(startBox.right, endBox.right)
+    val centerX = (minLeft + maxRight) / 2f
     val anchorY = minOf(startBox.top, endBox.top)
 
     return Offset(
@@ -37,8 +44,8 @@ internal fun calculatePopupPosition(
 ): Offset {
     if (containerSize == IntSize.Zero) return anchorPosition
 
-    val padding = 8f
-    val gap = 12f
+    val padding = POPUP_PADDING_PX
+    val gap = POPUP_GAP_PX
     val popupWidth = popupSize.width.toFloat()
     val popupHeight = popupSize.height.toFloat()
     val containerWidth = containerSize.width.toFloat()
@@ -92,8 +99,8 @@ private fun calculateSelectionAwarePopupPosition(
     )
     if (containerSize == IntSize.Zero || popupSize == IntSize.Zero) return base
 
-    val gap = 12f
-    val padding = 8f
+    val gap = POPUP_GAP_PX
+    val padding = POPUP_PADDING_PX
     val popupHeight = popupSize.height.toFloat()
     val selectionTopWithGap = (selectionTop - gap).coerceAtLeast(padding)
     val selectionBottomWithGap = selectionBottom + gap
@@ -129,13 +136,17 @@ internal fun calculateSelectionToolbarPosition(
     selectionTop: Float,
     selectionBottom: Float
 ): Offset {
-    val gap = 12f
-    val padding = 8f
+    val gap = POPUP_GAP_PX
+    val padding = POPUP_PADDING_PX
     val popupHeight = popupSize.height.toFloat()
 
     val roomAbove = selectionTop - gap - padding
     val roomBelow = containerSize.height.toFloat() - selectionBottom - gap - padding
-    val preferAbove = roomAbove >= popupHeight || roomAbove >= roomBelow
+    val preferAbove = when {
+        roomAbove >= popupHeight -> true   // above fits
+        roomBelow >= popupHeight -> false  // below fits
+        else -> roomAbove >= roomBelow     // neither fits, pick larger side
+    }
 
     return calculateSelectionAwarePopupPosition(
         anchorPosition = anchorPosition,
