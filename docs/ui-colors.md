@@ -361,7 +361,7 @@ Only renders after submission, so only these two states are reachable.
 | Selected | `primary` (2.5dp) |
 | Unselected | `outlineVariant` (1dp) |
 
-**Selection highlight color** (text selection drag) — `secondaryContainer`
+**Selection highlight color** (text selection drag) — `primaryContainer`
 
 ---
 
