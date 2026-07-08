@@ -541,11 +541,11 @@ private class RichTextDomParser(
         val cellInfos = cellElements.map { cell ->
             val classes = cell.classNames()
             val text = buildAnnotatedBlock(cell) ?: AnnotatedString("")
-            val columnSpan = cell.attr("colspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
-            val rowSpan = cell.attr("rowspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
+            val columnSpan = cell.attrIgnoreCase("colspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
+            val rowSpan = cell.attrIgnoreCase("rowspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
             val alignment = resolveCellAlignment(cell, classes)
-            val width = CssParser.parseWidth(cell.attr("width"), cell.attr("style"))
-            val paddingStart = CssParser.parsePaddingStart(cell.attr("style"))
+            val width = CssParser.parseWidth(cell.attrIgnoreCase("width"), cell.attrIgnoreCase("style"))
+            val paddingStart = CssParser.parsePaddingStart(cell.attrIgnoreCase("style"))
             val hasHeaderTraits = cell.isHeaderCellCandidate(classes)
 
             CellInfo(
