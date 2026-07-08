@@ -202,7 +202,7 @@ private class RichTextDomParser(
     }
 
     private fun parseTextAlign(element: KsoupElement): TextAlign? {
-        return CssParser.parseTextAlign(element.attr("align"), element.attr("style"))
+        return CssParser.parseTextAlign(element.attrIgnoreCase("align"), element.attrIgnoreCase("style"))
     }
 
     private fun handleParagraph(

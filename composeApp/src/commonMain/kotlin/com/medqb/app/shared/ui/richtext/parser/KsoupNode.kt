@@ -57,6 +57,15 @@ internal class KsoupElement(
     fun attr(name: String): String = attributes[name] ?: ""
 
     /**
+     * Case-insensitive attribute lookup.
+     * Handles parsers that may store attribute names in non-lowercase form.
+     */
+    fun attrIgnoreCase(name: String): String {
+        val lower = name.lowercase()
+        return attributes.entries.firstOrNull { it.key.lowercase() == lower }?.value ?: ""
+    }
+
+    /**
      * Checks if an attribute exists.
      *
      * @param name The attribute name

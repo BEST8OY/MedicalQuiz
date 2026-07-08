@@ -272,7 +272,7 @@ internal fun TableRowContent(
             .fillMaxWidth()
             .background(baseBackground)
             .padding(horizontal = Inset.Sm, vertical = Spacing.Xs),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = if (row.isHeaderRow) Alignment.CenterVertically else Alignment.Top
     ) {
         row.cells.forEachIndexed { cellIndex, cell ->
             val weight = cell.cell.width ?: cell.columnSpan.coerceAtLeast(1).toFloat()
