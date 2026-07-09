@@ -60,7 +60,7 @@ internal sealed interface TableLayoutItem {
 @Composable
 internal fun RichTextTableShell(
     block: RichTextBlock.Table,
-    renderRow: @Composable (row: TableRenderedRow, isLastRow: Boolean) -> Unit,
+    renderRow: @Composable (row: TableRenderedRow) -> Unit,
     renderAnchorContent: (@Composable (cell: TableRenderedCell, rowIndex: Int, cellIndex: Int) -> Unit)? = null
 ) {
     val renderModel = remember(block) { block.toRenderModel() }
@@ -102,7 +102,10 @@ internal fun RichTextTableShell(
                         .width(tableWidth)
                 ) {
                     renderModel.rows.forEachIndexed { index, row ->
-                        renderRow(row, index == renderModel.rows.lastIndex)
+                        renderRow(row)
+                        if (index != renderModel.rows.lastIndex) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
                     }
                 }
             } else if (renderAnchorContent != null) {
@@ -112,10 +115,22 @@ internal fun RichTextTableShell(
                         .horizontalScroll(scrollState)
                         .width(tableWidth)
                 ) { constraints ->
-                    // Measure all rows
-                    val rowMeasurables = subcompose("rows") {
+                    val layoutItems = buildList {
                         renderModel.rows.forEachIndexed { index, row ->
-                            renderRow(row, index == renderModel.rows.lastIndex)
+                            add(TableLayoutItem.RowItem(index, row))
+                            if (index != renderModel.rows.lastIndex) {
+                                add(TableLayoutItem.DividerItem)
+                            }
+                        }
+                    }
+
+                    // Measure all rows and dividers flat-mapped
+                    val rowMeasurables = subcompose("rows") {
+                        layoutItems.forEach { item ->
+                            when (item) {
+                                is TableLayoutItem.RowItem -> renderRow(item.row)
+                                TableLayoutItem.DividerItem -> HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            }
                         }
                     }
                     val rowPlacements = rowMeasurables.map { it.measure(constraints) }
@@ -125,10 +140,12 @@ internal fun RichTextTableShell(
                     val rowPositions = IntArray(renderModel.rows.size)
                     val rowHeights = IntArray(renderModel.rows.size)
                     var currentY = 0
-                    renderModel.rows.forEachIndexed { index, _ ->
-                        val height = rowPlacements[index].height
-                        rowPositions[index] = currentY
-                        rowHeights[index] = height
+                    layoutItems.forEachIndexed { itemIndex, item ->
+                        val height = rowPlacements[itemIndex].height
+                        if (item is TableLayoutItem.RowItem) {
+                            rowPositions[item.rowIndex] = currentY
+                            rowHeights[item.rowIndex] = height
+                        }
                         currentY += height
                     }
 
@@ -148,23 +165,29 @@ internal fun RichTextTableShell(
                             val usableWidth = tableWidth.toPx() - insetSmPx * 2
                             val cellWidth = (usableWidth * (cellWeight / totalWeight)).toDp()
 
+                            val isAbstractRow = (startRowModel.classNames + block.classNames).containsInsensitive("abstract")
+                            val baseBackground = when {
+                                startRowModel.isHeaderRow -> MaterialTheme.colorScheme.surfaceContainerHighest
+                                isAbstractRow -> MaterialTheme.colorScheme.surfaceVariant
+                                else -> MaterialTheme.colorScheme.surface
+                            }
                             val cellBackground = when {
                                 anchor.cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.secondaryContainer
                                 anchor.cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer
-                                else -> Color.Transparent
+                                else -> baseBackground
                             }
 
                             Surface(
                                 modifier = Modifier
-                                    .width(cellWidth)
-                                    .padding(horizontal = Spacing.Xxs),
+                                    .width(cellWidth),
                                 color = cellBackground,
                                 shape = MaterialTheme.shapes.extraSmall
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = Spacing.Xxs),
+                                        .padding(horizontal = Spacing.Xxs * 2)
+                                        .padding(start = anchor.cell.cell.paddingStart),
                                     contentAlignment = when (anchor.cell.cell.alignment) {
                                         TextAlign.Center -> Alignment.Center
                                         TextAlign.End, TextAlign.Right -> Alignment.CenterEnd
@@ -202,7 +225,7 @@ internal fun RichTextTableShell(
 
                     // Place everything
                     layout(constraints.maxWidth, totalHeight) {
-                        // Place rows
+                        // Place rows and dividers
                         var y = 0
                         rowPlacements.forEach { placement ->
                             placement.place(0, y)
@@ -236,7 +259,10 @@ internal fun RichTextTableShell(
                         .width(tableWidth)
                 ) {
                     renderModel.rows.forEachIndexed { index, row ->
-                        renderRow(row, index == renderModel.rows.lastIndex)
+                        renderRow(row)
+                        if (index != renderModel.rows.lastIndex) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
                     }
                 }
             }
@@ -266,14 +292,13 @@ internal fun RichTextTable(
 ) {
     RichTextTableShell(
         block = block,
-        renderRow = { row, isLastRow ->
+        renderRow = { row ->
             TableRowContent(
                 row = row,
                 tableClassNames = block.classNames,
                 onLinkClick = onLinkClick,
                 onTooltipClick = onTooltipClick,
-                isRowspanOverlayEnabled = true,
-                isLastRow = isLastRow
+                isRowspanOverlayEnabled = true
             )
         },
         renderAnchorContent = { cell, _, _ ->
@@ -464,7 +489,6 @@ internal fun TableRowContent(
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
     isRowspanOverlayEnabled: Boolean = false,
-    isLastRow: Boolean = false,
     customCellContent: (@Composable (cell: TableRenderedCell, textStyle: TextStyle, cellIndex: Int) -> Unit)? = null
 ) {
     val effectiveRowClasses = row.classNames + tableClassNames
@@ -503,61 +527,38 @@ internal fun TableRowContent(
                     cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer
                     else -> Color.Transparent
                 }
-
-                val outlineColor = MaterialTheme.colorScheme.outlineVariant
-                val cellModifier = Modifier.weight(weight)
-                val borderModifier = if (!isLastRow && cell.isRowspanEnd) {
-                    cellModifier.drawWithContent {
-                        drawContent()
-                        val strokeWidth = 1.dp.toPx()
-                        val y = size.height - strokeWidth / 2
-                        drawLine(
-                            color = outlineColor,
-                            start = Offset(0f, y),
-                            end = Offset(size.width, y),
-                            strokeWidth = strokeWidth
-                        )
-                    }
-                } else {
-                    cellModifier
-                }
-
-                Box(
-                    modifier = borderModifier
+                Surface(
+                    modifier = Modifier
+                        .weight(weight)
+                        .padding(horizontal = Spacing.Xxs),
+                    color = cellBackground,
+                    shape = MaterialTheme.shapes.extraSmall
                 ) {
-                    Surface(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = Spacing.Xxs),
-                        color = cellBackground,
-                        shape = MaterialTheme.shapes.extraSmall
+                            .padding(horizontal = Spacing.Xxs)
+                            .padding(start = cell.cell.paddingStart),
+                        contentAlignment = when (cell.cell.alignment) {
+                            TextAlign.Center -> Alignment.Center
+                            TextAlign.End, TextAlign.Right -> Alignment.CenterEnd
+                            else -> Alignment.CenterStart
+                        }
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = Spacing.Xxs)
-                                .padding(start = cell.cell.paddingStart),
-                            contentAlignment = when (cell.cell.alignment) {
-                                TextAlign.Center -> Alignment.Center
-                                TextAlign.End, TextAlign.Right -> Alignment.CenterEnd
-                                else -> Alignment.CenterStart
-                            }
-                        ) {
-                            if (customCellContent != null) {
-                                customCellContent(cell, textStyle, cellIndex)
-                            } else {
-                                InteractiveText(
-                                    text = cell.cell.text,
-                                    modifier = Modifier,
-                                    style = textStyle,
-                                    color = textColor,
-                                    textAlign = cell.cell.alignment,
-                                    onLinkClick = onLinkClick,
-                                    onTooltipClick = onTooltipClick,
-                                    maxLines = Int.MAX_VALUE,
-                                    overflow = TextOverflow.Visible
-                                )
-                            }
+                        if (customCellContent != null) {
+                            customCellContent(cell, textStyle, cellIndex)
+                        } else {
+                            InteractiveText(
+                                text = cell.cell.text,
+                                modifier = Modifier,
+                                style = textStyle,
+                                color = textColor,
+                                textAlign = cell.cell.alignment,
+                                onLinkClick = onLinkClick,
+                                onTooltipClick = onTooltipClick,
+                                maxLines = Int.MAX_VALUE,
+                                overflow = TextOverflow.Visible
+                            )
                         }
                     }
                 }
