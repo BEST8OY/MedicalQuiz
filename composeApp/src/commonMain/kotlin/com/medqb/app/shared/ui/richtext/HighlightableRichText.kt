@@ -336,46 +336,49 @@ private fun HighlightableTable(
         buildTableCellBaseOffsets(renderModel, baseOffset)
     }
 
-    RichTextTableShell(block) { row ->
-        TableRowContent(
-            row = row,
-            tableClassNames = block.classNames,
-            onLinkClick = onLinkClick,
-            onTooltipClick = onTooltipClick,
-            customCellContent = { cell, cellTextStyle, cellIndex ->
-                val rowIndex = renderModel.rows.indexOf(row)
-                val currentCellOffset = if (cell.isVisible) {
-                    cellBaseOffsets.getOrNull(rowIndex)?.getOrNull(cellIndex)
-                } else {
-                    null
-                }
-
-                if (currentCellOffset != null) {
-                    val cellLength = cell.cell.text.length
-                    val cellHighlights = remember(highlights, currentCellOffset, cellLength) {
-                        mapHighlightsToLocal(
-                            highlights = highlights,
-                            start = currentCellOffset,
-                            end = currentCellOffset + cellLength
-                        )
+    RichTextTableShell(
+        block = block,
+        renderRow = { row ->
+            TableRowContent(
+                row = row,
+                tableClassNames = block.classNames,
+                onLinkClick = onLinkClick,
+                onTooltipClick = onTooltipClick,
+                customCellContent = { cell, cellTextStyle, cellIndex ->
+                    val rowIndex = renderModel.rows.indexOf(row)
+                    val currentCellOffset = if (cell.isVisible) {
+                        cellBaseOffsets.getOrNull(rowIndex)?.getOrNull(cellIndex)
+                    } else {
+                        null
                     }
 
-                    SelectableHighlightText(
-                        text = cell.cell.text,
-                        highlights = cellHighlights,
-                        textStyle = cellTextStyle.copy(textAlign = cell.cell.alignment),
-                        onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
-                        onHighlightRemove = onHighlightRemove,
-                        onHighlightColorChange = onHighlightColorChange,
-                        onLinkClick = onLinkClick,
-                        onTooltipClick = onTooltipClick,
-                        onShowSnackbar = onShowSnackbar,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (currentCellOffset != null) {
+                        val cellLength = cell.cell.text.length
+                        val cellHighlights = remember(highlights, currentCellOffset, cellLength) {
+                            mapHighlightsToLocal(
+                                highlights = highlights,
+                                start = currentCellOffset,
+                                end = currentCellOffset + cellLength
+                            )
+                        }
+
+                        SelectableHighlightText(
+                            text = cell.cell.text,
+                            highlights = cellHighlights,
+                            textStyle = cellTextStyle.copy(textAlign = cell.cell.alignment),
+                            onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
+                            onHighlightRemove = onHighlightRemove,
+                            onHighlightColorChange = onHighlightColorChange,
+                            onLinkClick = onLinkClick,
+                            onTooltipClick = onTooltipClick,
+                            onShowSnackbar = onShowSnackbar,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
-            }
-        )
-    }
+            )
+        }
+    )
 }
 
 

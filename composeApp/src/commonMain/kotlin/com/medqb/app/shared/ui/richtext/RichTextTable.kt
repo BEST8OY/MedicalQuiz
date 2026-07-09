@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.unit.max
 import androidx.compose.ui.text.TextStyle
 import kotlin.collections.ArrayDeque
@@ -41,18 +42,41 @@ private const val MAX_COLUMN_ITERATIONS = 500
  * scrolling column of rows separated by dividers. Both [RichTextTable] and
  * [HighlightableTable] route through this so layout cannot drift between them.
  *
+ * Rowspan anchor cells are rendered as overlays that span the full height of
+ * their row range, with content vertically centered.
+ *
  * @param block The table block to render
- * @param renderRow Renders a single row
+ * @param renderRow Renders a single row (anchor cells render as transparent placeholders)
+ * @param renderAnchorContent Renders the actual content for a rowspan anchor cell
  */
 @Composable
 internal fun RichTextTableShell(
     block: RichTextBlock.Table,
-    renderRow: @Composable (row: TableRenderedRow) -> Unit
+    renderRow: @Composable (row: TableRenderedRow) -> Unit,
+    renderAnchorContent: (@Composable (cell: TableRenderedCell) -> Unit)? = null
 ) {
     val renderModel = remember(block) { block.toRenderModel() }
     if (renderModel.columnCount == 0) return
     val scrollState = rememberScrollState()
     val minTableWidth = Layout.TableMinCellWidth * renderModel.columnCount
+
+    // Collect rowspan anchors
+    val anchors = remember(renderModel) {
+        buildList {
+            renderModel.rows.forEachIndexed { rowIndex, row ->
+                row.cells.forEachIndexed { cellIndex, cell ->
+                    if (cell.isVisible && cell.rowSpan > 1) {
+                        add(RowspanAnchorInfo(
+                            cell = cell,
+                            cellIndex = cellIndex,
+                            startRow = rowIndex,
+                            endRow = (rowIndex + cell.rowSpan - 1).coerceAtMost(renderModel.rows.lastIndex)
+                        ))
+                    }
+                }
+            }
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -61,23 +85,135 @@ internal fun RichTextTableShell(
     ) {
         BoxWithConstraints {
             val tableWidth = max(minTableWidth, maxWidth)
-            Column(
-                modifier = Modifier
-                    .horizontalScroll(scrollState)
-                    .width(tableWidth)
-            ) {
-                renderModel.rows.forEachIndexed { index, row ->
-                    renderRow(row)
-                    val isLastRow = index == renderModel.rows.lastIndex
-                    val isRowspanContinuation = row.cells.any { !it.isVisible }
-                    if (!isLastRow && !isRowspanContinuation) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            if (anchors.isEmpty()) {
+                // No rowspan anchors — simple Column
+                Column(
+                    modifier = Modifier
+                        .horizontalScroll(scrollState)
+                        .width(tableWidth)
+                ) {
+                    renderModel.rows.forEachIndexed { index, row ->
+                        renderRow(row)
+                        val isLastRow = index == renderModel.rows.lastIndex
+                        val isRowspanContinuation = row.cells.any { !it.isVisible }
+                        if (!isLastRow && !isRowspanContinuation) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                    }
+                }
+            } else if (renderAnchorContent != null) {
+                // Has rowspan anchors — two-pass SubcomposeLayout
+                SubcomposeLayout(
+                    modifier = Modifier
+                        .horizontalScroll(scrollState)
+                        .width(tableWidth)
+                ) { constraints ->
+                    // Pass 1: Measure rows
+                    val rowMeasurables = subcompose(Unit) {
+                        Column {
+                            renderModel.rows.forEachIndexed { index, row ->
+                                renderRow(row)
+                                val isLastRow = index == renderModel.rows.lastIndex
+                                val isRowspanContinuation = row.cells.any { !it.isVisible }
+                                if (!isLastRow && !isRowspanContinuation) {
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                }
+                            }
+                        }
+                    }
+                    val rowPlaceable = rowMeasurables.first().measure(constraints)
+                    val totalHeight = rowPlaceable.height
+
+                    // Pass 2: Measure anchor overlays
+                    // We need per-row heights. Split the column's children.
+                    val rowChildMeasurables = subcompose("rows") {
+                        renderModel.rows.forEachIndexed { index, row ->
+                            renderRow(row)
+                            val isLastRow = index == renderModel.rows.lastIndex
+                            val isRowspanContinuation = row.cells.any { !it.isVisible }
+                            if (!isLastRow && !isRowspanContinuation) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            }
+                        }
+                    }
+
+                    // Measure each row individually to get heights
+                    val rowPlacements = rowChildMeasurables.map { it.measure(constraints) }
+                    val rowHeights = rowPlacements.map { it.height }
+
+                    // Measure anchor overlays with calculated span heights
+                    val anchorMeasurables = subcompose("anchors") {
+                        anchors.forEach { anchor ->
+                            val spanHeight = (anchor.startRow..anchor.endRow)
+                                .sumOf { rowHeights.getOrElse(it) { 0 } }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = Spacing.Xxs),
+                                contentAlignment = when (anchor.cell.cell.alignment) {
+                                    TextAlign.Center -> Alignment.Center
+                                    TextAlign.End, TextAlign.Right -> Alignment.CenterEnd
+                                    else -> Alignment.CenterStart
+                                }
+                            ) {
+                                renderAnchorContent(anchor.cell)
+                            }
+                        }
+                    }
+                    val anchorPlacements = anchorMeasurables.mapIndexed { i, measurable ->
+                        val anchor = anchors[i]
+                        val spanHeight = (anchor.startRow..anchor.endRow)
+                            .sumOf { rowHeights.getOrElse(it) { 0 } }
+                        measurable.measure(constraints.copy(
+                            minHeight = spanHeight,
+                            maxHeight = spanHeight
+                        ))
+                    }
+
+                    // Place everything
+                    layout(constraints.maxWidth, totalHeight) {
+                        // Place rows
+                        var y = 0
+                        rowPlacements.forEach { placement ->
+                            placement.place(0, y)
+                            y += placement.height
+                        }
+                        // Place anchor overlays
+                        anchors.forEachIndexed { i, anchor ->
+                            val startY = (0 until anchor.startRow)
+                                .sumOf { rowHeights.getOrElse(it) { 0 } }
+                            anchorPlacements[i].place(0, startY)
+                        }
+                    }
+                }
+            } else {
+                // Has anchors but no renderer — simple Column (fallback)
+                Column(
+                    modifier = Modifier
+                        .horizontalScroll(scrollState)
+                        .width(tableWidth)
+                ) {
+                    renderModel.rows.forEachIndexed { index, row ->
+                        renderRow(row)
+                        val isLastRow = index == renderModel.rows.lastIndex
+                        val isRowspanContinuation = row.cells.any { !it.isVisible }
+                        if (!isLastRow && !isRowspanContinuation) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
                     }
                 }
             }
         }
     }
 }
+
+private class RowspanAnchorInfo(
+    val cell: TableRenderedCell,
+    val cellIndex: Int,
+    val startRow: Int,
+    val endRow: Int
+)
 
 /**
  * Renders a table with support for rowspan/colspan.
@@ -92,14 +228,36 @@ internal fun RichTextTable(
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
-    RichTextTableShell(block) { row ->
-        TableRowContent(
-            row = row,
-            tableClassNames = block.classNames,
-            onLinkClick = onLinkClick,
-            onTooltipClick = onTooltipClick
-        )
-    }
+    RichTextTableShell(
+        block = block,
+        renderRow = { row ->
+            TableRowContent(
+                row = row,
+                tableClassNames = block.classNames,
+                onLinkClick = onLinkClick,
+                onTooltipClick = onTooltipClick
+            )
+        },
+        renderAnchorContent = { cell ->
+            val isHeaderCell = cell.cell.isHeader
+            val textStyle = tableCellTextStyle(isHeaderCell)
+            val textColor = tableCellTextColor(
+                isHeaderCell = isHeaderCell,
+                isAbstractClass = false
+            )
+            InteractiveText(
+                text = cell.cell.text,
+                modifier = Modifier,
+                style = textStyle,
+                color = textColor,
+                textAlign = cell.cell.alignment,
+                onLinkClick = onLinkClick,
+                onTooltipClick = onTooltipClick,
+                maxLines = Int.MAX_VALUE,
+                overflow = TextOverflow.Visible
+            )
+        }
+    )
 }
 
 /**
@@ -119,6 +277,7 @@ internal data class TableRenderedRow(
 internal data class TableRenderedCell(
     val cell: RichTextTableCell,
     val columnSpan: Int,
+    val rowSpan: Int,
     val isVisible: Boolean
 )
 
@@ -156,6 +315,7 @@ private class TableGridBuilder {
                     renderedCells += TableRenderedCell(
                         cell = tracker.cell,
                         columnSpan = tracker.spanWidth,
+                        rowSpan = tracker.cell.rowSpan,
                         isVisible = false
                     )
                     tracker.remainingRows -= 1
@@ -179,6 +339,7 @@ private class TableGridBuilder {
                     renderedCells += TableRenderedCell(
                         cell = cell,
                         columnSpan = spanWidth,
+                        rowSpan = cell.rowSpan,
                         isVisible = true
                     )
                     if (cell.rowSpan > 1) {
