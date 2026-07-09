@@ -68,7 +68,9 @@ internal fun RichTextTableShell(
             ) {
                 renderModel.rows.forEachIndexed { index, row ->
                     renderRow(row)
-                    if (index != renderModel.rows.lastIndex) {
+                    val isLastRow = index == renderModel.rows.lastIndex
+                    val isRowspanContinuation = row.cells.any { !it.isVisible }
+                    if (!isLastRow && !isRowspanContinuation) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                 }
@@ -262,7 +264,9 @@ internal fun TableRowContent(
 ) {
     val effectiveRowClasses = row.classNames + tableClassNames
     val isAbstractRow = effectiveRowClasses.containsInsensitive("abstract")
+    val isRowspanContinuation = row.cells.any { !it.isVisible }
     val baseBackground = when {
+        isRowspanContinuation -> Color.Transparent
         row.isHeaderRow -> MaterialTheme.colorScheme.surfaceContainerHighest
         isAbstractRow -> MaterialTheme.colorScheme.surfaceVariant
         else -> MaterialTheme.colorScheme.surface
