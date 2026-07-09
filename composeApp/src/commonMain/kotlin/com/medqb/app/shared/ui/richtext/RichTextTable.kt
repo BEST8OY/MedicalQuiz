@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.unit.max
@@ -58,7 +60,7 @@ internal sealed interface TableLayoutItem {
 @Composable
 internal fun RichTextTableShell(
     block: RichTextBlock.Table,
-    renderRow: @Composable (row: TableRenderedRow) -> Unit,
+    renderRow: @Composable (row: TableRenderedRow, isLastRow: Boolean) -> Unit,
     renderAnchorContent: (@Composable (cell: TableRenderedCell, rowIndex: Int, cellIndex: Int) -> Unit)? = null
 ) {
     val renderModel = remember(block) { block.toRenderModel() }
@@ -100,12 +102,7 @@ internal fun RichTextTableShell(
                         .width(tableWidth)
                 ) {
                     renderModel.rows.forEachIndexed { index, row ->
-                        renderRow(row)
-                        val isLastRow = index == renderModel.rows.lastIndex
-                        val isRowspanContinuation = row.cells.any { !it.isVisible }
-                        if (!isLastRow && !isRowspanContinuation) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        }
+                        renderRow(row, index == renderModel.rows.lastIndex)
                     }
                 }
             } else if (renderAnchorContent != null) {
@@ -115,24 +112,10 @@ internal fun RichTextTableShell(
                         .horizontalScroll(scrollState)
                         .width(tableWidth)
                 ) { constraints ->
-                    val layoutItems = buildList {
-                        renderModel.rows.forEachIndexed { index, row ->
-                            add(TableLayoutItem.RowItem(index, row))
-                            val isLastRow = index == renderModel.rows.lastIndex
-                            val isRowspanContinuation = row.cells.any { !it.isVisible }
-                            if (!isLastRow && !isRowspanContinuation) {
-                                add(TableLayoutItem.DividerItem)
-                            }
-                        }
-                    }
-
-                    // Measure all rows and dividers flat-mapped
+                    // Measure all rows
                     val rowMeasurables = subcompose("rows") {
-                        layoutItems.forEach { item ->
-                            when (item) {
-                                is TableLayoutItem.RowItem -> renderRow(item.row)
-                                TableLayoutItem.DividerItem -> HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            }
+                        renderModel.rows.forEachIndexed { index, row ->
+                            renderRow(row, index == renderModel.rows.lastIndex)
                         }
                     }
                     val rowPlacements = rowMeasurables.map { it.measure(constraints) }
@@ -142,12 +125,10 @@ internal fun RichTextTableShell(
                     val rowPositions = IntArray(renderModel.rows.size)
                     val rowHeights = IntArray(renderModel.rows.size)
                     var currentY = 0
-                    layoutItems.forEachIndexed { itemIndex, item ->
-                        val height = rowPlacements[itemIndex].height
-                        if (item is TableLayoutItem.RowItem) {
-                            rowPositions[item.rowIndex] = currentY
-                            rowHeights[item.rowIndex] = height
-                        }
+                    renderModel.rows.forEachIndexed { index, _ ->
+                        val height = rowPlacements[index].height
+                        rowPositions[index] = currentY
+                        rowHeights[index] = height
                         currentY += height
                     }
 
@@ -198,9 +179,22 @@ internal fun RichTextTableShell(
 
                     val anchorPlacements = anchorMeasurables.mapIndexed { i, measurable ->
                         val anchor = anchors[i]
+
+                        val startRowModel = renderModel.rows[anchor.startRow]
+                        val totalWeight = startRowModel.cells.sumOf {
+                            (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
+                        }.toFloat()
+                        val cellWeight = anchor.cell.cell.width ?: anchor.cell.columnSpan.coerceAtLeast(1).toFloat()
+
+                        val insetSmPx = Inset.Sm.toPx()
+                        val usableWidth = tableWidth.toPx() - insetSmPx * 2
+                        val cellWidthPx = usableWidth * (cellWeight / totalWeight)
+
                         val spanHeight = (anchor.startRow..anchor.endRow)
                             .sumOf { rowHeights.getOrElse(it) { 0 } }
                         measurable.measure(constraints.copy(
+                            minWidth = cellWidthPx.roundToInt(),
+                            maxWidth = cellWidthPx.roundToInt(),
                             minHeight = spanHeight,
                             maxHeight = spanHeight
                         ))
@@ -208,7 +202,7 @@ internal fun RichTextTableShell(
 
                     // Place everything
                     layout(constraints.maxWidth, totalHeight) {
-                        // Place rows and dividers
+                        // Place rows
                         var y = 0
                         rowPlacements.forEach { placement ->
                             placement.place(0, y)
@@ -242,12 +236,7 @@ internal fun RichTextTableShell(
                         .width(tableWidth)
                 ) {
                     renderModel.rows.forEachIndexed { index, row ->
-                        renderRow(row)
-                        val isLastRow = index == renderModel.rows.lastIndex
-                        val isRowspanContinuation = row.cells.any { !it.isVisible }
-                        if (!isLastRow && !isRowspanContinuation) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        }
+                        renderRow(row, index == renderModel.rows.lastIndex)
                     }
                 }
             }
@@ -277,13 +266,14 @@ internal fun RichTextTable(
 ) {
     RichTextTableShell(
         block = block,
-        renderRow = { row ->
+        renderRow = { row, isLastRow ->
             TableRowContent(
                 row = row,
                 tableClassNames = block.classNames,
                 onLinkClick = onLinkClick,
                 onTooltipClick = onTooltipClick,
-                isRowspanOverlayEnabled = true
+                isRowspanOverlayEnabled = true,
+                isLastRow = isLastRow
             )
         },
         renderAnchorContent = { cell, _, _ ->
@@ -326,7 +316,8 @@ internal data class TableRenderedCell(
     val cell: RichTextTableCell,
     val columnSpan: Int,
     val rowSpan: Int,
-    val isVisible: Boolean
+    val isVisible: Boolean,
+    val isRowspanEnd: Boolean = false
 )
 
 /**
@@ -360,11 +351,13 @@ private class TableGridBuilder {
             when (val occupancy = spanSlots.getOrNull(columnIndex)) {
                 is ColumnSpan.Anchor -> {
                     val tracker = occupancy.tracker
+                    val isEnd = tracker.remainingRows == 1
                     renderedCells += TableRenderedCell(
                         cell = tracker.cell,
                         columnSpan = tracker.spanWidth,
                         rowSpan = tracker.cell.rowSpan,
-                        isVisible = false
+                        isVisible = false,
+                        isRowspanEnd = isEnd
                     )
                     tracker.remainingRows -= 1
                     if (tracker.remainingRows == 0) {
@@ -388,7 +381,8 @@ private class TableGridBuilder {
                         cell = cell,
                         columnSpan = spanWidth,
                         rowSpan = cell.rowSpan,
-                        isVisible = true
+                        isVisible = true,
+                        isRowspanEnd = cell.rowSpan == 1
                     )
                     if (cell.rowSpan > 1) {
                         val tracker = RowSpanTracker(
@@ -470,6 +464,7 @@ internal fun TableRowContent(
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
     isRowspanOverlayEnabled: Boolean = false,
+    isLastRow: Boolean = false,
     customCellContent: (@Composable (cell: TableRenderedCell, textStyle: TextStyle, cellIndex: Int) -> Unit)? = null
 ) {
     val effectiveRowClasses = row.classNames + tableClassNames
@@ -508,38 +503,61 @@ internal fun TableRowContent(
                     cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer
                     else -> Color.Transparent
                 }
-                Surface(
-                    modifier = Modifier
-                        .weight(weight)
-                        .padding(horizontal = Spacing.Xxs),
-                    color = cellBackground,
-                    shape = MaterialTheme.shapes.extraSmall
+
+                val outlineColor = MaterialTheme.colorScheme.outlineVariant
+                val cellModifier = Modifier.weight(weight)
+                val borderModifier = if (!isLastRow && cell.isRowspanEnd) {
+                    cellModifier.drawWithContent {
+                        drawContent()
+                        val strokeWidth = 1.dp.toPx()
+                        val y = size.height - strokeWidth / 2
+                        drawLine(
+                            color = outlineColor,
+                            start = Offset(0f, y),
+                            end = Offset(size.width, y),
+                            strokeWidth = strokeWidth
+                        )
+                    }
+                } else {
+                    cellModifier
+                }
+
+                Box(
+                    modifier = borderModifier
                 ) {
-                    Box(
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = Spacing.Xxs)
-                            .padding(start = cell.cell.paddingStart),
-                        contentAlignment = when (cell.cell.alignment) {
-                            TextAlign.Center -> Alignment.Center
-                            TextAlign.End, TextAlign.Right -> Alignment.CenterEnd
-                            else -> Alignment.CenterStart
-                        }
+                            .padding(horizontal = Spacing.Xxs),
+                        color = cellBackground,
+                        shape = MaterialTheme.shapes.extraSmall
                     ) {
-                        if (customCellContent != null) {
-                            customCellContent(cell, textStyle, cellIndex)
-                        } else {
-                            InteractiveText(
-                                text = cell.cell.text,
-                                modifier = Modifier,
-                                style = textStyle,
-                                color = textColor,
-                                textAlign = cell.cell.alignment,
-                                onLinkClick = onLinkClick,
-                                onTooltipClick = onTooltipClick,
-                                maxLines = Int.MAX_VALUE,
-                                overflow = TextOverflow.Visible
-                            )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = Spacing.Xxs)
+                                .padding(start = cell.cell.paddingStart),
+                            contentAlignment = when (cell.cell.alignment) {
+                                TextAlign.Center -> Alignment.Center
+                                TextAlign.End, TextAlign.Right -> Alignment.CenterEnd
+                                else -> Alignment.CenterStart
+                            }
+                        ) {
+                            if (customCellContent != null) {
+                                customCellContent(cell, textStyle, cellIndex)
+                            } else {
+                                InteractiveText(
+                                    text = cell.cell.text,
+                                    modifier = Modifier,
+                                    style = textStyle,
+                                    color = textColor,
+                                    textAlign = cell.cell.alignment,
+                                    onLinkClick = onLinkClick,
+                                    onTooltipClick = onTooltipClick,
+                                    maxLines = Int.MAX_VALUE,
+                                    overflow = TextOverflow.Visible
+                                )
+                            }
                         }
                     }
                 }

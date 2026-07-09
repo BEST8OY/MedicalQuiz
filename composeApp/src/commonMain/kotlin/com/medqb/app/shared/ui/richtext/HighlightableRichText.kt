@@ -338,13 +338,14 @@ private fun HighlightableTable(
 
     RichTextTableShell(
         block = block,
-        renderRow = { row ->
+        renderRow = { row, isLastRow ->
             TableRowContent(
                 row = row,
                 tableClassNames = block.classNames,
                 onLinkClick = onLinkClick,
                 onTooltipClick = onTooltipClick,
                 isRowspanOverlayEnabled = true,
+                isLastRow = isLastRow,
                 customCellContent = { cell, cellTextStyle, cellIndex ->
                     val rowIndex = renderModel.rows.indexOf(row)
                     val currentCellOffset = if (cell.isVisible) {
