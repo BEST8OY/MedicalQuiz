@@ -363,7 +363,7 @@ private fun HighlightableTable(
                     SelectableHighlightText(
                         text = cell.cell.text,
                         highlights = cellHighlights,
-                        textStyle = cellTextStyle,
+                        textStyle = cellTextStyle.copy(textAlign = cell.cell.alignment),
                         onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
                         onHighlightRemove = onHighlightRemove,
                         onHighlightColorChange = onHighlightColorChange,
