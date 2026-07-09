@@ -344,6 +344,7 @@ private fun HighlightableTable(
                 tableClassNames = block.classNames,
                 onLinkClick = onLinkClick,
                 onTooltipClick = onTooltipClick,
+                isRowspanOverlayEnabled = true,
                 customCellContent = { cell, cellTextStyle, cellIndex ->
                     val rowIndex = renderModel.rows.indexOf(row)
                     val currentCellOffset = if (cell.isVisible) {
@@ -377,6 +378,36 @@ private fun HighlightableTable(
                     }
                 }
             )
+        },
+        renderAnchorContent = { cell, rowIndex, cellIndex ->
+            val rowIndexModel = renderModel.rows.getOrNull(rowIndex)
+            val isHeaderRow = rowIndexModel?.isHeaderRow ?: false
+            val isHeaderCell = isHeaderRow || cell.cell.isHeader
+            val textStyle = tableCellTextStyle(isHeaderCell)
+            val currentCellOffset = cellBaseOffsets.getOrNull(rowIndex)?.getOrNull(cellIndex)
+            if (currentCellOffset != null) {
+                val cellLength = cell.cell.text.length
+                val cellHighlights = remember(highlights, currentCellOffset, cellLength) {
+                    mapHighlightsToLocal(
+                        highlights = highlights,
+                        start = currentCellOffset,
+                        end = currentCellOffset + cellLength
+                    )
+                }
+
+                SelectableHighlightText(
+                    text = cell.cell.text,
+                    highlights = cellHighlights,
+                    textStyle = textStyle.copy(textAlign = cell.cell.alignment),
+                    onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
+                    onHighlightRemove = onHighlightRemove,
+                    onHighlightColorChange = onHighlightColorChange,
+                    onLinkClick = onLinkClick,
+                    onTooltipClick = onTooltipClick,
+                    onShowSnackbar = onShowSnackbar,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     )
 }
