@@ -44,9 +44,6 @@ object AppShapes {
     /** Small indicators and badges */
     val IndicatorShape = RoundedCornerShape(4.dp)
 
-    /** Toolbar pill selection indicator */
-    val ToolbarPillShape = RoundedCornerShape(24.dp)
-
     /** Fully rounded for FABs and avatars */
     val FullyRounded = RoundedCornerShape(50)
 }
