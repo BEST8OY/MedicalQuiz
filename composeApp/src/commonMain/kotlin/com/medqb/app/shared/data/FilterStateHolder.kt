@@ -45,6 +45,7 @@ class FilterStateHolder {
         _selectedSystemIds.value = emptySet()
         _performanceFilter.value = PerformanceFilter.ALL
         _pendingHistoryEntryId.value = null
+        _pendingHistoryEntryName.value = ""
         _pendingHistoryQuestionIndex.value = 0
         _pendingFilterPane.value = null
         _pendingIsLoggingEnabled.value = null
@@ -60,6 +61,17 @@ class FilterStateHolder {
 
     fun consumePendingHistoryEntryId(): String? {
         return _pendingHistoryEntryId.getAndUpdate { null }
+    }
+
+    private val _pendingHistoryEntryName = MutableStateFlow<String>("")
+    val pendingHistoryEntryName: StateFlow<String> = _pendingHistoryEntryName.asStateFlow()
+
+    fun setPendingHistoryEntryName(name: String) {
+        _pendingHistoryEntryName.value = name
+    }
+
+    fun consumePendingHistoryEntryName(): String {
+        return _pendingHistoryEntryName.getAndUpdate { "" }
     }
 
     private val _pendingHistoryQuestionIndex = MutableStateFlow(0)

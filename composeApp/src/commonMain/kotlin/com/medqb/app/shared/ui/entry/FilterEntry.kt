@@ -49,6 +49,7 @@ fun FilterEntry(
                         entry.performanceFilter,
                     )
                     graph.filterStateHolder.setPendingHistoryEntryId(entry.id)
+                    graph.filterStateHolder.setPendingHistoryEntryName(entry.entryName)
                     graph.filterStateHolder.setPendingHistoryQuestionIndex(entry.currentQuestionIndex)
                     graph.filterStateHolder.setPendingIsLoggingEnabled(entry.isLoggingEnabled)
                     graph.filterStateHolder.setPendingSubmissionMode(entry.submissionMode)

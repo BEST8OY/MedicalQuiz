@@ -11,6 +11,7 @@ import com.medqb.app.shared.data.models.SubmissionMode
  */
 data class QuizUiState(
     val databaseName: String = "",
+    val entryName: String = "",
     val questionIds: List<Long> = emptyList(),
     val currentQuestionIndex: Int = -1,
     val currentQuestion: Question? = null,

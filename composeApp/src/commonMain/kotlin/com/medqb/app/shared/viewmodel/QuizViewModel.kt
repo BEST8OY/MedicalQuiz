@@ -68,7 +68,7 @@ class QuizViewModel(
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
 
     val toolbarTitle = state
-        .map { it.databaseName }
+        .map { it.entryName.ifBlank { it.databaseName } }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
@@ -97,6 +97,11 @@ class QuizViewModel(
             updateSessionId(restoredId)
         }
 
+        val restoredEntryName = filterStateHolder.consumePendingHistoryEntryName()
+        if (restoredEntryName.isNotBlank()) {
+            _state.update { it.copy(entryName = restoredEntryName) }
+        }
+
         val restoredIndex = filterStateHolder.consumePendingHistoryQuestionIndex()
         if (restoredIndex > 0) {
             _state.update { it.copy(currentQuestionIndex = restoredIndex) }
@@ -106,7 +111,7 @@ class QuizViewModel(
             activeDatabaseHolder.databaseName.collect { dbName ->
                 if (dbName.isNotEmpty() && (dbName != _state.value.databaseName || _state.value.questionIds.isEmpty())) {
                     val startFromBeginning = _state.value.currentQuestionIndex <= 0
-                    _state.update { it.copy(databaseName = dbName, questionIds = emptyList()) }
+                    _state.update { it.copy(databaseName = dbName, entryName = "", questionIds = emptyList()) }
                     loadFilteredQuestionIds(
                         updatePreviewCount = true,
                         startFromBeginning = startFromBeginning
