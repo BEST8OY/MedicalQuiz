@@ -16,6 +16,15 @@ interface DatabaseProvider {
     
     suspend fun getQuestionById(id: Long): Question?
     suspend fun getAnswersForQuestion(questionId: Long): List<Answer>
+    suspend fun getQuestionWithDetails(
+        questionId: Long,
+        loadPerformance: Boolean,
+    ): Triple<Question?, List<Answer>, QuestionPerformance?>
+    suspend fun countQuestionIds(
+        subjectIds: List<Long>?,
+        systemIds: List<Long>?,
+        performanceFilter: PerformanceFilter,
+    ): Int
     
     suspend fun getSubjects(): List<Subject>
     suspend fun getSystems(subjectIds: List<Long>? = null): List<System>

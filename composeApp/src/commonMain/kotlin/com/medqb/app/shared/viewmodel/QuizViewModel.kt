@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -55,6 +56,7 @@ class QuizViewModel(
 
     private companion object {
         const val KEY_DATABASE_NAME = "database_name"
+        const val KEY_ENTRY_NAME = "entry_name"
         const val KEY_CURRENT_QUESTION_INDEX = "current_question_index"
         const val KEY_IS_LOGGING_ENABLED = "is_logging_enabled"
         const val KEY_SUBMISSION_MODE = "submission_mode"
@@ -72,7 +74,8 @@ class QuizViewModel(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
-    private var sessionId: String = ""
+    @Volatile private var sessionId: String = ""
+    private var filteredIdsJob: Job? = null
     private val loadRequests = MutableSharedFlow<LoadRequest>(extraBufferCapacity = 1)
 
     private data class LoadRequest(
@@ -157,11 +160,9 @@ class QuizViewModel(
                         Logger.e("QuizViewModel", "Error loading question $questionId", e)
                         emitSnackbar("Failed to load question: ${e.message}")
                     } finally {
-                        if (currentCoroutineContext()[Job]?.isActive == true) {
-                            if (request.appendToHistory) {
-                                appendToHistory()
-                            }
-                            _state.update { it.copy(isLoading = false) }
+                        _state.update { it.copy(isLoading = false) }
+                        if (currentCoroutineContext()[Job]?.isActive == true && request.appendToHistory) {
+                            appendToHistory()
                         }
                     }
                     emit(Unit)
@@ -199,6 +200,7 @@ class QuizViewModel(
         _state.update {
             it.copy(
                 databaseName = savedDatabaseName,
+                entryName = savedStateHandle.get<String>(KEY_ENTRY_NAME).orEmpty(),
                 currentQuestionIndex = savedQuestionIndex.coerceAtLeast(0),
                 isLoggingEnabled = savedIsLoggingEnabled,
                 submissionMode = savedSubmissionMode,
@@ -207,15 +209,14 @@ class QuizViewModel(
     }
 
     private fun persistStateSnapshot(snapshot: QuizUiState = state.value) {
-        viewModelScope.launch(Dispatchers.Main) {
-            savedStateHandle[KEY_DATABASE_NAME] = snapshot.databaseName
-            savedStateHandle[KEY_CURRENT_QUESTION_INDEX] = snapshot.currentQuestionIndex
-            savedStateHandle[KEY_IS_LOGGING_ENABLED] = snapshot.isLoggingEnabled
-            savedStateHandle[KEY_SUBMISSION_MODE] = snapshot.submissionMode.name
-            savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = filterStateHolder.selectedSubjectIds.value.toList()
-            savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = filterStateHolder.selectedSystemIds.value.toList()
-            savedStateHandle[KEY_PERFORMANCE_FILTER] = filterStateHolder.performanceFilter.value.name
-        }
+        savedStateHandle[KEY_DATABASE_NAME] = snapshot.databaseName
+        savedStateHandle[KEY_ENTRY_NAME] = snapshot.entryName
+        savedStateHandle[KEY_CURRENT_QUESTION_INDEX] = snapshot.currentQuestionIndex
+        savedStateHandle[KEY_IS_LOGGING_ENABLED] = snapshot.isLoggingEnabled
+        savedStateHandle[KEY_SUBMISSION_MODE] = snapshot.submissionMode.name
+        savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = filterStateHolder.selectedSubjectIds.value.toList()
+        savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = filterStateHolder.selectedSystemIds.value.toList()
+        savedStateHandle[KEY_PERFORMANCE_FILTER] = filterStateHolder.performanceFilter.value.name
     }
 
     val highlightsRepository: TextHighlightsRepository
@@ -290,7 +291,9 @@ class QuizViewModel(
         }
 
         if (currentState.answerSubmitted) return
-        _state.update { it.copy(answerSubmitted = true) }
+
+        val wasAlreadySubmitted = _state.getAndUpdate { it.copy(answerSubmitted = true) }.answerSubmitted
+        if (wasAlreadySubmitted) return
 
         viewModelScope.launch(Dispatchers.IO) {
             val db = activeDatabaseHolder.databaseProvider.value
@@ -359,7 +362,8 @@ class QuizViewModel(
         updatePreviewCount: Boolean = true,
         startFromBeginning: Boolean = false,
     ) {
-        viewModelScope.launch(Dispatchers.IO) {
+        filteredIdsJob?.cancel()
+        filteredIdsJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true) }
             val db = activeDatabaseHolder.databaseProvider.value
             try {
@@ -429,6 +433,7 @@ class QuizViewModel(
             settingsRepository.showMetadata,
             settingsRepository.fontScalePreference,
         ) { metadata, fontScale -> metadata to fontScale }
+            .distinctUntilChanged()
             .onEach { (metadata, fontScale) ->
                 _state.update { it.copy(showMetadata = metadata, fontScalePreference = fontScale) }
             }

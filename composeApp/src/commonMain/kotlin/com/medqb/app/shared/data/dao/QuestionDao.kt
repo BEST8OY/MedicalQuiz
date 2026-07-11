@@ -186,6 +186,151 @@ class QuestionDao(
         }
     }
 
+    suspend fun getQuestionWithDetails(
+        questionId: Long,
+        loadPerformance: Boolean,
+    ): Triple<Question?, List<Answer>, QuestionPerformance?> = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val question = run {
+                val sql = """
+                    SELECT id, question, explanation, corrAns, title, mediaName, otherMedias,
+                           pplTaken, corrTaken, subId, sysId
+                    FROM Questions WHERE id = ?
+                """
+                var q: Question? = null
+                getConnection().prepare(sql).use { stmt ->
+                    stmt.bindLong(1, questionId)
+                    if (stmt.step()) {
+                        val subIdStr = if (stmt.isNull(9)) null else stmt.getText(9)
+                        val sysIdStr = if (stmt.isNull(10)) null else stmt.getText(10)
+                        val subName = subIdStr?.let { getSubjectNames(it) }
+                        val sysName = sysIdStr?.let { getSystemNames(it) }
+                        q = Question(
+                            id = stmt.getLong(0),
+                            question = if (stmt.isNull(1)) "" else stmt.getText(1),
+                            explanation = if (stmt.isNull(2)) "" else stmt.getText(2),
+                            corrAns = if (stmt.isNull(3)) -1 else stmt.getLong(3).toInt(),
+                            title = if (stmt.isNull(4)) null else stmt.getText(4),
+                            mediaName = if (stmt.isNull(5)) null else stmt.getText(5),
+                            otherMedias = if (stmt.isNull(6)) null else stmt.getText(6),
+                            pplTaken = if (stmt.isNull(7)) null else stmt.getDouble(7),
+                            corrTaken = if (stmt.isNull(8)) null else stmt.getDouble(8),
+                            subId = subIdStr,
+                            sysId = sysIdStr,
+                            subName = subName,
+                            sysName = sysName,
+                        )
+                    }
+                }
+                q
+            }
+
+            val answers = run {
+                val sql = "SELECT id, answerId, answerText, correctPercentage, qId FROM Answers WHERE qId = ?"
+                val result = mutableListOf<Answer>()
+                getConnection().prepare(sql).use { stmt ->
+                    stmt.bindLong(1, questionId)
+                    while (stmt.step()) {
+                        result.add(Answer(
+                            answerId = if (stmt.isNull(1)) stmt.getLong(0) else stmt.getLong(1),
+                            answerText = if (stmt.isNull(2)) "" else stmt.getText(2),
+                            correctPercentage = if (stmt.isNull(3)) null else stmt.getLong(3).toInt(),
+                            qId = if (stmt.isNull(4)) -1L else stmt.getLong(4),
+                        ))
+                    }
+                }
+                result
+            }
+
+            val performance = if (loadPerformance) {
+                val sql = """
+                    SELECT latest.lastCorrect, agg.everCorrect, agg.everIncorrect,
+                           agg.attempts, agg.correctCount, agg.incorrectCount
+                    FROM (
+                        SELECT qid, (CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as lastCorrect
+                        FROM logs WHERE qid = ? ORDER BY rowid DESC LIMIT 1
+                    ) latest
+                    JOIN (
+                        SELECT qid,
+                            MAX(CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as everCorrect,
+                            MAX(CASE WHEN selectedAnswer != corrAnswer THEN 1 ELSE 0 END) as everIncorrect,
+                            COUNT(*) as attempts,
+                            SUM(CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as correctCount,
+                            SUM(CASE WHEN selectedAnswer != corrAnswer THEN 1 ELSE 0 END) as incorrectCount
+                        FROM logs WHERE qid = ? GROUP BY qid
+                    ) agg ON agg.qid = latest.qid
+                """
+                var perf: QuestionPerformance? = null
+                getConnection().prepare(sql).use { stmt ->
+                    stmt.bindLong(1, questionId)
+                    stmt.bindLong(2, questionId)
+                    if (stmt.step()) {
+                        perf = QuestionPerformance(
+                            qid = questionId,
+                            lastCorrect = stmt.getLong(0) == 1L,
+                            everCorrect = stmt.getLong(1) == 1L,
+                            everIncorrect = stmt.getLong(2) == 1L,
+                            attempts = stmt.getLong(3).toInt(),
+                            correctCount = stmt.getLong(4).toInt(),
+                            incorrectCount = stmt.getLong(5).toInt(),
+                        )
+                    }
+                }
+                perf
+            } else null
+
+            Triple(question, answers, performance)
+        }
+    }
+
+    suspend fun countQuestionIds(
+        subjectIds: List<Long>?,
+        systemIds: List<Long>?,
+        performanceFilter: PerformanceFilter,
+    ): Int = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val args = mutableListOf<Any>()
+            val whereClauses = mutableListOf<String>()
+
+            subjectIds?.takeIf { it.isNotEmpty() }?.let {
+                whereClauses.add(buildMultiValueCondition("q.subId", it, args))
+            }
+            systemIds?.takeIf { it.isNotEmpty() }?.let {
+                whereClauses.add(buildMultiValueCondition("q.sysId", it, args))
+            }
+            buildPerformanceClause(performanceFilter)?.let { whereClauses.add(it) }
+
+            val sql = buildString {
+                append("SELECT COUNT(*) FROM Questions q")
+                if (performanceFilter != PerformanceFilter.ALL) {
+                    append(" LEFT JOIN (")
+                    append("   SELECT l.qid,")
+                    append("     (CASE WHEN l.selectedAnswer = l.corrAnswer THEN 1 ELSE 0 END) as lastCorrect,")
+                    append("     agg.everCorrect,")
+                    append("     agg.everIncorrect")
+                    append("   FROM logs l")
+                    append("   JOIN (")
+                    append("     SELECT qid,")
+                    append("       MAX(CASE WHEN selectedAnswer = corrAnswer THEN 1 ELSE 0 END) as everCorrect,")
+                    append("       MAX(CASE WHEN selectedAnswer != corrAnswer THEN 1 ELSE 0 END) as everIncorrect,")
+                    append("       MAX(rowid) as lastRowId")
+                    append("     FROM logs GROUP BY qid")
+                    append("   ) agg ON agg.qid = l.qid AND agg.lastRowId = l.rowid")
+                    append(" ) ls ON ls.qid = q.id")
+                }
+                if (whereClauses.isNotEmpty()) {
+                    append(" WHERE ")
+                    append(whereClauses.joinToString(" AND "))
+                }
+            }
+
+            getConnection().prepare(sql).use { stmt ->
+                bindArgs(stmt, args)
+                if (stmt.step()) stmt.getLong(0).toInt() else 0
+            }
+        }
+    }
+
     private fun buildMultiValueCondition(
         columnAlias: String,
         ids: List<Long>,

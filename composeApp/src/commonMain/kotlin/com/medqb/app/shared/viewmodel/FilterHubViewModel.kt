@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
@@ -230,6 +231,7 @@ class FilterHubViewModel(
             val cleanDbName = dbName.removeSuffix(".db")
             entries.filter { it.databaseName == cleanDbName }
         }
+        .distinctUntilChanged()
         .onEach { filtered -> _state.update { it.copy(historyEntries = filtered) } }
         .launchIn(viewModelScope)
     }

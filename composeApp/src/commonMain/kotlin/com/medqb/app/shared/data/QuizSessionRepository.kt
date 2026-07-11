@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
@@ -34,6 +36,7 @@ class QuizSessionRepository(
 ) {
     // Process-scoped: intentionally not cancelled — survives config changes
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val refreshMutex = Mutex()
 
     private val _historyEntries = MutableStateFlow<List<QuizSession>>(emptyList())
     val historyEntries: StateFlow<List<QuizSession>> = _historyEntries.asStateFlow()
@@ -56,7 +59,9 @@ class QuizSessionRepository(
         ?: throw IllegalStateException("No active database")
 
     private suspend fun refreshFromDb() {
-        _historyEntries.value = listHistory()
+        refreshMutex.withLock {
+            _historyEntries.value = listHistory()
+        }
     }
 
     suspend fun listHistory(): List<QuizSession> {

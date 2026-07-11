@@ -46,11 +46,11 @@ class ApplyFiltersUseCase {
         selectedSystemIds: Set<Long>,
         performanceFilter: PerformanceFilter,
     ): Int {
-        return db?.getQuestionIds(
+        return db?.countQuestionIds(
             subjectIds = selectedSubjectIds.toList(),
             systemIds = selectedSystemIds.toList(),
             performanceFilter = performanceFilter,
-        )?.size ?: 0
+        ) ?: 0
     }
 
     fun subjectsForSystemsFetch(subjectIds: Set<Long>): List<Long>? =

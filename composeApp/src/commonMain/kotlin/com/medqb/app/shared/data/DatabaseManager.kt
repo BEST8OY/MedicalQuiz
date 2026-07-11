@@ -92,6 +92,17 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
 
     override suspend fun getAnswersForQuestion(questionId: Long): List<Answer> = questionDao.getAnswersForQuestion(questionId)
 
+    override suspend fun getQuestionWithDetails(
+        questionId: Long,
+        loadPerformance: Boolean,
+    ): Triple<Question?, List<Answer>, QuestionPerformance?> = questionDao.getQuestionWithDetails(questionId, loadPerformance)
+
+    override suspend fun countQuestionIds(
+        subjectIds: List<Long>?,
+        systemIds: List<Long>?,
+        performanceFilter: PerformanceFilter,
+    ): Int = questionDao.countQuestionIds(subjectIds, systemIds, performanceFilter)
+
     override suspend fun getSubjects(): List<Subject> = subjectDao.getSubjects()
 
     override suspend fun getSystems(subjectIds: List<Long>?): List<System> = subjectDao.getSystems(subjectIds)

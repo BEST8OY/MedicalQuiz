@@ -1,6 +1,7 @@
 package com.medqb.app.shared.data
 
 import com.medqb.app.shared.di.AppScope
+import com.medqb.app.shared.platform.Logger
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -42,7 +43,8 @@ class MediaDescriptionRepository {
                 )
             }
             cachedDescriptions = entries
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Logger.e("MediaDescriptionRepository", "Failed to load media descriptions", e)
         }
 
         return cachedDescriptions
