@@ -13,8 +13,11 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -61,7 +64,7 @@ internal fun RichTextBlockRenderer(
         )
         is RichTextBlock.CodeBlock -> RichTextCodeBlock(block)
         is RichTextBlock.Table -> RichTextTable(block, onLinkClick, onTooltipClick)
-        is RichTextBlock.AbstractBlock -> AbstractCard(block, onLinkClick, onTooltipClick)
+        is RichTextBlock.AbstractBlock -> AbstractCard(block, onLinkClick, onMediaClick, onTooltipClick)
         is RichTextBlock.Media -> RichMedia(block = block, onMediaClick = onMediaClick)
         RichTextBlock.Divider -> HorizontalDivider()
     }
@@ -111,17 +114,22 @@ internal fun InteractiveText(
     }
     
     val layoutResult = remember { mutableStateOf<TextLayoutResult?>(null) }
-    
+
+    // Use rememberUpdatedState so pointerInput keys only on content, not callback identity.
+    // This prevents gesture coroutine restart if upstream creates fresh lambdas on recomposition.
+    val currentOnLinkClick by rememberUpdatedState(onLinkClick)
+    val currentOnTooltipClick by rememberUpdatedState(onTooltipClick)
+
     val textModifier = if (hasAnnotations) {
-        modifier.pointerInput(text, onLinkClick, onTooltipClick) {
+        modifier.pointerInput(text) {
             detectTapGestures { pos ->
                 layoutResult.value?.let { layout ->
                     val offset = layout.getOffsetForPosition(pos)
                     handleAnnotatedTextTap(
                         text = text,
                         offset = offset,
-                        onLinkClick = onLinkClick,
-                        onTooltipClick = onTooltipClick
+                        onLinkClick = currentOnLinkClick,
+                        onTooltipClick = currentOnTooltipClick
                     )
                 }
             }
@@ -218,6 +226,7 @@ private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
 private fun AbstractCard(
     block: RichTextBlock.AbstractBlock,
     onLinkClick: (String) -> Unit,
+    onMediaClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     val richTextScale = LocalRichTextScale.current
@@ -240,7 +249,7 @@ private fun AbstractCard(
                         RichTextBlockRenderer(
                             block = childBlock,
                             onLinkClick = onLinkClick,
-                            onMediaClick = {},
+                            onMediaClick = onMediaClick,
                             onTooltipClick = onTooltipClick
                         )
                     }
