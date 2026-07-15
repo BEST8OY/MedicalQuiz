@@ -41,8 +41,6 @@ import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.platform.TextIntentLauncher
 import com.medqb.app.shared.domain.SnackbarMessage
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -70,15 +68,12 @@ internal fun SelectableHighlightText(
 ) {
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
-
-    // Initialize state with first-frame content to prevent layout thrashing
     val state = remember { SelectableHighlightTextState(text.text) }
 
-    // Keep highlights reference fresh for the snapshotFlow collector
-    // without restarting the LaunchedEffect when highlights change
-    val currentHighlights by rememberUpdatedState(highlights)
+    // Fresh highlights reference for snapshotFlow without restarting LaunchedEffect
+    val currentHighlights = rememberUpdatedState(highlights)
 
-    // Sync external text modifications with TextFieldState
+    // Sync external text changes
     LaunchedEffect(text.text) {
         state.textFieldState.edit {
             val currentText = toString()
@@ -88,7 +83,7 @@ internal fun SelectableHighlightText(
         }
     }
 
-    // Suppress default system context menu toolbar
+    // Suppress default context menu
     val emptyToolbar = remember {
         object : TextToolbar {
             override fun showMenu(
@@ -105,26 +100,25 @@ internal fun SelectableHighlightText(
         }
     }
 
-    // Dismiss highlight edit popup when highlights change (e.g. after color change)
+    // Dismiss edit popup when highlights change (color change, add, remove)
     LaunchedEffect(highlights) {
         state.editingHighlight = null
     }
 
-    // Performance: observe selection changes outside composition via snapshotFlow
-    // Note: highlights is NOT a key here — including it would restart the collector
-    // on color change/add/remove, causing the toolbar to reappear.
-    // Use currentHighlights (rememberUpdatedState) to always read the latest list.
+    // Observe selection + highlights via snapshotFlow.
+    // Reading currentHighlights.value ensures the collector sees the latest list
+    // without restarting the LaunchedEffect (which caused toolbar reappear bugs).
     LaunchedEffect(state.textFieldState, text.text) {
-        snapshotFlow { state.textFieldState.selection }.collect { selection ->
+        snapshotFlow {
+            state.textFieldState.selection to currentHighlights.value
+        }.collect { (selection, highlightsNow) ->
             if (!selection.collapsed) {
-                // Dismiss highlight edit popup when selection becomes active
                 state.editingHighlight = null
-            } else if (currentHighlights.isNotEmpty()) {
-                // Detect highlight taps: collapsed selection on a highlight offset
+            } else if (highlightsNow.isNotEmpty()) {
                 val offset = selection.min
                 val layout = state.layoutResult
                 if (layout != null && offset in 0 until text.length) {
-                    val tappedHighlight = currentHighlights.firstOrNull { h ->
+                    val tappedHighlight = highlightsNow.firstOrNull { h ->
                         val start = h.startOffset.coerceIn(0, text.length)
                         val endExclusive = h.endOffset.coerceIn(start, text.length)
                         offset in start until endExclusive
@@ -144,12 +138,10 @@ internal fun SelectableHighlightText(
         }
     }
 
-    // Toolbar dismissal via public API — collapses selection without text re-init
     fun dismissToolbar() {
         state.textFieldState.edit { placeCursorAtEnd() }
     }
 
-    // Cache TextStyle transformations to avoid copies on every frame
     val bodyMediumFontSize = MaterialTheme.typography.bodyMedium.fontSize
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val resolvedTextStyle = remember(textStyle, bodyMediumFontSize, onSurfaceColor) {
