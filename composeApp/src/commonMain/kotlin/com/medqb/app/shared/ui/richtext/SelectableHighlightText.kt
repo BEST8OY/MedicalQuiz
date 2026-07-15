@@ -209,10 +209,11 @@ internal fun SelectableHighlightText(
                                 val right = if (line == endLine) {
                                     layout.getHorizontalPosition(endExclusive, true)
                                 } else {
-                                    // Use actual text width on this line, not full container width
-                                    val lineEnd = layout.getLineEnd(line, true)
-                                    if (lineEnd > 0) {
-                                        layout.getHorizontalPosition(lineEnd - 1, true)
+                                    // getLineEnd(line, false) = offset OF last char on line
+                                    // (not after line break like getLineEnd(line, true))
+                                    val lastCharOffset = layout.getLineEnd(line, false) - 1
+                                    if (lastCharOffset >= 0) {
+                                        layout.getHorizontalPosition(lastCharOffset, true)
                                     } else {
                                         size.width
                                     }
