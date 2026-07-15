@@ -114,7 +114,7 @@ class QuizViewModel(
             activeDatabaseHolder.databaseName.collect { dbName ->
                 if (dbName.isNotEmpty() && (dbName != _state.value.databaseName || _state.value.questionIds.isEmpty())) {
                     val startFromBeginning = _state.value.currentQuestionIndex <= 0
-                    _state.update { it.copy(databaseName = dbName, entryName = "", questionIds = emptyList()) }
+                    _state.update { it.copy(databaseName = dbName, questionIds = emptyList()) }
                     loadFilteredQuestionIds(
                         updatePreviewCount = true,
                         startFromBeginning = startFromBeginning
