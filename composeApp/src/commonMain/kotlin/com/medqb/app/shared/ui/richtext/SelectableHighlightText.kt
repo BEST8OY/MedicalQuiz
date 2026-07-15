@@ -3,6 +3,8 @@ package com.medqb.app.shared.ui.richtext
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.BasicTextField
@@ -22,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalTextToolbar
@@ -37,6 +40,8 @@ import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.platform.TextIntentLauncher
 import com.medqb.app.shared.domain.SnackbarMessage
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -46,6 +51,7 @@ private class SelectableHighlightTextState(initialText: String) {
     var editPopupAnchor by mutableStateOf(Offset.Zero)
     var layoutResult by mutableStateOf<TextLayoutResult?>(null)
     var containerSize by mutableStateOf(IntSize.Zero)
+    var isDragging by mutableStateOf(false)
 }
 
 @Composable
@@ -92,6 +98,11 @@ internal fun SelectableHighlightText(
 
             override val status: TextToolbarStatus = TextToolbarStatus.Hidden
         }
+    }
+
+    // Dismiss highlight edit popup when highlights change (e.g. after color change)
+    LaunchedEffect(highlights) {
+        state.editingHighlight = null
     }
 
     // Performance: observe selection changes outside composition via snapshotFlow
@@ -147,7 +158,20 @@ internal fun SelectableHighlightText(
     }
 
     Box(
-        modifier = modifier.onSizeChanged { state.containerSize = it }
+        modifier = modifier
+            .onSizeChanged { state.containerSize = it }
+            // Track pointer down/up to know when user is dragging selection
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    state.isDragging = true
+                    // Wait for all pointers to be released
+                    do {
+                        val event = awaitPointerEvent()
+                    } while (event.changes.any { it.pressed })
+                    state.isDragging = false
+                }
+            }
     ) {
         val highlightColors = remember(highlights) {
             highlights.map { h ->
@@ -185,14 +209,22 @@ internal fun SelectableHighlightText(
                                 val right = if (line == endLine) {
                                     layout.getHorizontalPosition(endExclusive, true)
                                 } else {
-                                    size.width
+                                    // Use actual text width on this line, not full container width
+                                    val lineEnd = layout.getLineEnd(line, true)
+                                    if (lineEnd > 0) {
+                                        layout.getHorizontalPosition(lineEnd - 1, true)
+                                    } else {
+                                        size.width
+                                    }
                                 }
 
-                                drawRect(
-                                    color = color,
-                                    topLeft = Offset(left, lineTop),
-                                    size = Size(right - left, lineHeight)
-                                )
+                                if (right > left) {
+                                    drawRect(
+                                        color = color,
+                                        topLeft = Offset(left, lineTop),
+                                        size = Size(right - left, lineHeight)
+                                    )
+                                }
                             }
                         }
                     },
@@ -207,9 +239,10 @@ internal fun SelectableHighlightText(
             )
         }
 
-        // Selection Toolbar Popup
+        // Selection Toolbar Popup — only show when selection is done (not dragging)
         SelectionToolbarPopup(
             textFieldState = state.textFieldState,
+            isDragging = state.isDragging,
             textLength = text.length,
             text = text.text,
             layoutResult = state.layoutResult,
@@ -265,6 +298,7 @@ internal fun SelectableHighlightText(
 @Composable
 private fun SelectionToolbarPopup(
     textFieldState: TextFieldState,
+    isDragging: Boolean,
     textLength: Int,
     text: String,
     layoutResult: TextLayoutResult?,
@@ -275,7 +309,8 @@ private fun SelectionToolbarPopup(
     onHighlight: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
 ) {
     val selection = textFieldState.selection
-    if (selection.collapsed || layoutResult == null) return
+    // Don't show toolbar if: no selection, or user is still dragging
+    if (selection.collapsed || layoutResult == null || isDragging) return
 
     val safeTextLength = textLength.coerceAtLeast(1)
     val normalizedStart = selection.min.coerceIn(0, safeTextLength - 1)
