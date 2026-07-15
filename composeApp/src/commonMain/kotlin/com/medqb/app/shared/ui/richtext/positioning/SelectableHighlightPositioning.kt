@@ -24,16 +24,37 @@ internal fun calculateRangeAnchor(
     val startBox = layoutResult.getBoundingBox(start)
     val endBox = layoutResult.getBoundingBox(end)
 
-    // Center of the full bounding rect — works correctly for multi-line selections
     val minLeft = minOf(startBox.left, endBox.left)
     val maxRight = maxOf(startBox.right, endBox.right)
     val centerX = (minLeft + maxRight) / 2f
     val anchorY = minOf(startBox.top, endBox.top)
 
-    return Offset(
-        x = centerX,
-        y = anchorY
-    )
+    return Offset(x = centerX, y = anchorY)
+}
+
+/** Anchor at the bottom of the range — used for popups that should appear below the text. */
+internal fun calculateBottomAnchor(
+    layoutResult: TextLayoutResult,
+    textLength: Int,
+    startOffset: Int,
+    endOffset: Int,
+    fallbackAnchor: Offset
+): Offset {
+    if (textLength <= 0) return fallbackAnchor
+
+    val start = minOf(startOffset, endOffset).coerceIn(0, textLength - 1)
+    val endExclusive = maxOf(startOffset, endOffset).coerceIn(start + 1, textLength)
+    val end = (endExclusive - 1).coerceIn(start, textLength - 1)
+
+    val startBox = layoutResult.getBoundingBox(start)
+    val endBox = layoutResult.getBoundingBox(end)
+
+    val minLeft = minOf(startBox.left, endBox.left)
+    val maxRight = maxOf(startBox.right, endBox.right)
+    val centerX = (minLeft + maxRight) / 2f
+    val anchorY = maxOf(startBox.bottom, endBox.bottom)
+
+    return Offset(x = centerX, y = anchorY)
 }
 
 internal fun calculatePopupPosition(

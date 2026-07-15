@@ -126,7 +126,7 @@ internal fun SelectableHighlightText(
                     }
                     if (tappedHighlight != null) {
                         state.editingHighlight = tappedHighlight
-                        state.editPopupAnchor = calculateRangeAnchor(
+                        state.editPopupAnchor = calculateBottomAnchor(
                             layoutResult = layout,
                             textLength = text.length,
                             startOffset = tappedHighlight.startOffset,
@@ -419,7 +419,7 @@ private fun HighlightEditPopupContainer(
             anchorPosition = anchorPosition,
             popupSize = popupSize,
             containerSize = positioningContainerSize,
-            preferAbove = true
+            preferAbove = false
         )
     }
 
