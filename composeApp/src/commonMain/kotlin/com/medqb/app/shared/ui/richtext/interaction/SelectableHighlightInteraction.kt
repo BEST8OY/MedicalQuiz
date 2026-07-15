@@ -10,9 +10,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import com.medqb.app.shared.data.models.TextHighlight
 
-/**
- * State for text selection within SelectableRichText.
- */
 internal data class TextSelectionState(
     val isSelecting: Boolean = false,
     val isDragging: Boolean = false,
@@ -68,8 +65,6 @@ internal fun Modifier.selectableHighlightGestures(
 
                 currentLayoutResult()?.let { layout ->
                     val offset = layout.getOffsetForPosition(longPress.position)
-
-                    // Use TextLayoutResult.getWordBoundary() for accurate, layout-aware word detection
                     val wordRange = layout.getWordBoundary(offset)
                     val start = wordRange.min
                     val end = wordRange.max
@@ -237,40 +232,6 @@ internal fun findTappedHighlight(
 
 private fun TextHighlight.length(): Int = endOffset - startOffset
 
-internal fun expandToWordBoundaries(text: String, offset: Int): Pair<Int, Int> {
-    if (text.isEmpty()) return 0 to 0
-
-    val safeOffset = offset.coerceIn(0, text.lastIndex)
-
-    expandToSpecialCharacterCluster(text, safeOffset)?.let { return it }
-
-    val pivot = findNearestWordPivot(text, safeOffset)
-        ?: return safeOffset to (safeOffset + 1).coerceAtMost(text.length)
-
-    var start = pivot
-    while (start > 0 && text.isWordSelectionCharAt(start - 1)) {
-        start--
-    }
-
-    var end = pivot + 1
-    while (end < text.length && text.isWordSelectionCharAt(end)) {
-        end++
-    }
-
-    while (start < end && text[start].isLeadingTrimChar()) {
-        start++
-    }
-    while (end > start && text[end - 1].isTrailingTrimChar()) {
-        end--
-    }
-
-    if (start >= end) {
-        return pivot to (pivot + 1).coerceAtMost(text.length)
-    }
-
-    return start to end
-}
-
 internal fun snapOffsetToWordBoundary(
     text: String,
     movedOffset: Int,
@@ -279,28 +240,18 @@ internal fun snapOffsetToWordBoundary(
     previousOffset: Int? = null
 ): Int {
     if (text.isEmpty()) return 0
+    if (layoutResult == null) return movedOffset.coerceIn(0, text.length)
 
     val safeMoved = movedOffset.coerceIn(0, text.length)
     val clampedForWord = safeMoved.coerceIn(0, text.lastIndex)
 
-    // Use TextLayoutResult.getWordBoundary() for accurate, layout-aware word detection
-    val wordRange = if (layoutResult != null) {
-        layoutResult.getWordBoundary(clampedForWord)
-    } else {
-        // Fallback to character-class heuristics when layout is unavailable
-        val (ws, we) = expandToWordBoundaries(text, clampedForWord)
-        androidx.compose.ui.text.TextRange(ws, we)
-    }
+    val wordRange = layoutResult.getWordBoundary(clampedForWord)
     val wordStart = wordRange.min
     val wordEnd = wordRange.max
 
     val movingBackward = safeMoved <= fixedOffset
     val primary = if (movingBackward) wordStart else wordEnd
     val secondary = if (movingBackward) wordEnd else wordStart
-
-    if (layoutResult == null) {
-        return primary.coerceIn(0, text.length)
-    }
 
     val movedLine = layoutResult.getLineForOffset(clampedForWord)
 
@@ -327,162 +278,6 @@ internal fun snapOffsetToWordBoundary(
         else -> primary
     }
     return chosen.coerceIn(0, text.length)
-}
-
-private fun expandToSpecialCharacterCluster(text: String, offset: Int): Pair<Int, Int>? {
-    // Selecting punctuation directly should keep intentional marks, such as ellipses,
-    // instead of jumping to a nearby word that the user did not press.
-    if (!text.isSelectableSpecialCharacterAt(offset)) return null
-
-    var start = offset
-    while (start > 0 && text.isMatchingSpecialClusterChar(start - 1, offset)) {
-        start--
-    }
-
-    var end = offset + 1
-    while (end < text.length && text.isMatchingSpecialClusterChar(end, offset)) {
-        end++
-    }
-
-    return start to end
-}
-
-private fun String.isMatchingSpecialClusterChar(index: Int, pivotIndex: Int): Boolean {
-    if (index !in indices || pivotIndex !in indices) return false
-
-    val pivot = this[pivotIndex]
-    val candidate = this[index]
-    return when {
-        pivot == '.' || pivot == '…' -> candidate == '.' || candidate == '…'
-        pivot.isDashCharacter() -> candidate.isDashCharacter()
-        pivot.isQuoteCharacter() -> candidate.isQuoteCharacter()
-        pivot.isBracketCharacter() -> candidate == pivot
-        else -> candidate == pivot
-    }
-}
-
-private fun String.isSelectableSpecialCharacterAt(index: Int): Boolean {
-    if (index !in indices) return false
-    val character = this[index]
-
-    if (character.isLetterOrDigit() || character.isWhitespace()) return false
-    if (isWordSelectionCharAt(index)) return false
-
-    if (character == '.') {
-        val previousIsDigit = (index - 1) in indices && this[index - 1].isDigit()
-        val nextIsDigit = (index + 1) in indices && this[index + 1].isDigit()
-        if (previousIsDigit && nextIsDigit) return false
-    }
-
-    return character.isEllipsisCharacter() ||
-        character.isDashCharacter() ||
-        character.isQuoteCharacter() ||
-        character.isBracketCharacter() ||
-        character.isGeneralPunctuation()
-}
-
-private fun findNearestWordPivot(text: String, offset: Int): Int? {
-    if (text.isWordSelectionCharAt(offset)) return offset
-
-    val left = offset - 1
-    if (left >= 0 && text.isWordSelectionCharAt(left)) return left
-
-    val right = offset + 1
-    if (right < text.length && text.isWordSelectionCharAt(right)) return right
-
-    return null
-}
-
-private fun String.isWordSelectionCharAt(index: Int): Boolean {
-    if (index !in indices) return false
-    val character = this[index]
-    if (character.isLetterOrDigit()) return true
-    if (character.isCombiningMark()) return true
-
-    if (character.isInfixWordConnector()) {
-        val previous = index - 1
-        val next = index + 1
-        return previous in indices && next in indices &&
-            this[previous].isWordCoreChar() && this[next].isWordCoreChar()
-    }
-
-    if (character == ',' || character == ':') {
-        val previous = index - 1
-        val next = index + 1
-        return previous in indices && next in indices &&
-            this[previous].isDigit() && this[next].isDigit()
-    }
-
-    if (character == '+' || character == '#') {
-        return hasWordCoreBefore(index)
-    }
-
-    return false
-}
-
-private fun String.hasWordCoreBefore(index: Int): Boolean {
-    var cursor = index - 1
-    while (cursor in indices && this[cursor] == '+') {
-        cursor--
-    }
-    return cursor in indices && this[cursor].isLetter()
-}
-
-private fun Char.isWordCoreChar(): Boolean = isLetterOrDigit() || isCombiningMark()
-
-private fun Char.isCombiningMark(): Boolean {
-    return category == CharCategory.NON_SPACING_MARK ||
-        category == CharCategory.COMBINING_SPACING_MARK ||
-        category == CharCategory.ENCLOSING_MARK
-}
-
-private fun Char.isInfixWordConnector(): Boolean {
-    return this == '\'' ||
-        this == '’' ||
-        this == '-' ||
-        this == '‐' ||
-        this == '‑' ||
-        this == '–' ||
-        this == '/' ||
-        this == '.'
-}
-
-private fun Char.isLeadingTrimChar(): Boolean = isQuoteCharacter() || isOpeningBracket()
-
-private fun Char.isTrailingTrimChar(): Boolean {
-    return isQuoteCharacter() || isClosingBracket() || isSentencePunctuation()
-}
-
-private fun Char.isSentencePunctuation(): Boolean {
-    return this == '.' || this == ',' || this == ';' || this == ':' || this == '!' || this == '?'
-}
-
-private fun Char.isEllipsisCharacter(): Boolean = this == '.' || this == '…'
-
-private fun Char.isDashCharacter(): Boolean {
-    return this == '-' || this == '‐' || this == '‑' || this == '–' || this == '—'
-}
-
-private fun Char.isQuoteCharacter(): Boolean {
-    return this == '\'' || this == '"' || this == '‘' || this == '’' || this == '“' || this == '”'
-}
-
-private fun Char.isBracketCharacter(): Boolean = isOpeningBracket() || isClosingBracket()
-
-private fun Char.isOpeningBracket(): Boolean = this == '(' || this == '[' || this == '{' || this == '<'
-
-private fun Char.isClosingBracket(): Boolean = this == ')' || this == ']' || this == '}' || this == '>'
-
-private fun Char.isGeneralPunctuation(): Boolean {
-    return category == CharCategory.DASH_PUNCTUATION ||
-        category == CharCategory.START_PUNCTUATION ||
-        category == CharCategory.END_PUNCTUATION ||
-        category == CharCategory.CONNECTOR_PUNCTUATION ||
-        category == CharCategory.OTHER_PUNCTUATION ||
-        category == CharCategory.MATH_SYMBOL ||
-        category == CharCategory.CURRENCY_SYMBOL ||
-        category == CharCategory.MODIFIER_SYMBOL ||
-        category == CharCategory.OTHER_SYMBOL
 }
 
 internal fun finishSelectionDrag(state: TextSelectionState): TextSelectionState {
@@ -515,9 +310,6 @@ internal fun resolveSelectionDragUpdate(
         }
     }
 
-    // Null-anchor fallback: only reachable if layout was null at long-press
-    // but succeeds mid-drag. In practice this path is dead code — the anchor
-    // is always set before entering the drag loop. Kept as defensive guard.
     val movingStartHandle = movedOffset < currentState.startOffset
     return SelectionDragUpdate(
         movingStartHandle = movingStartHandle,
