@@ -6,5 +6,5 @@ import androidx.compose.ui.unit.Density
 
 actual fun Modifier.platformSelectionMagnifier(
     sourceCenter: Density.() -> Offset,
-    magnifierCenter: Density.() -> Offset,
+    magnifierCenter: (Density.() -> Offset)?,
 ): Modifier = this // No-op on Desktop

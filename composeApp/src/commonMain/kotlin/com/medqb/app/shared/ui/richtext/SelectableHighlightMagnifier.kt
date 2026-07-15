@@ -11,5 +11,5 @@ import androidx.compose.ui.unit.Density
  */
 expect fun Modifier.platformSelectionMagnifier(
     sourceCenter: Density.() -> Offset,
-    magnifierCenter: Density.() -> Offset,
+    magnifierCenter: (Density.() -> Offset)? = null,
 ): Modifier
