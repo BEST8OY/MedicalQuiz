@@ -102,9 +102,18 @@ internal fun SelectableHighlightText(
             text = displayText,
             modifier = Modifier
                 .fillMaxWidth()
-                .platformSelectionMagnifier(
-                    sourceCenter = { state.dragPosition },
-                    magnifierCenter = { state.dragPosition }
+                .then(
+                    if (state.selectionState.isDragging) {
+                        Modifier.platformSelectionMagnifier(
+                            sourceCenter = { state.dragPosition },
+                            magnifierCenter = {
+                                // Show magnifier above the finger, not under it
+                                state.dragPosition - Offset(0f, 80f)
+                            }
+                        )
+                    } else {
+                        Modifier
+                    }
                 )
                 .selectableHighlightGestures(
                     text = text,
