@@ -161,16 +161,37 @@ internal fun SelectableHighlightText(
     Box(
         modifier = modifier
             .onSizeChanged { state.containerSize = it }
-            // Track pointer down/up to know when user is dragging selection
             .pointerInput(Unit) {
                 awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val downTime = down.uptimeMillis
                     state.isDragging = true
+
                     // Wait for all pointers to be released
+                    var upChange = down
                     do {
                         val event = awaitPointerEvent()
+                        upChange = event.changes.firstOrNull { !it.pressed } ?: upChange
                     } while (event.changes.any { it.pressed })
                     state.isDragging = false
+
+                    // Detect tap (short press without significant movement)
+                    val duration = upChange.uptimeMillis - downTime
+                    val distance = (upChange.position - down.position).getDistance()
+                    if (duration < viewConfiguration.longPressTimeoutMillis && distance < 10f) {
+                        val layout = state.layoutResult
+                        if (layout != null && (onLinkClick != null || onTooltipClick != null)) {
+                            val offset = layout.getOffsetForPosition(upChange.position)
+                            if (offset in 0 until text.length) {
+                                handleAnnotatedTextTap(
+                                    text = text,
+                                    offset = offset,
+                                    onLinkClick = onLinkClick,
+                                    onTooltipClick = onTooltipClick
+                                )
+                            }
+                        }
+                    }
                 }
             }
     ) {
