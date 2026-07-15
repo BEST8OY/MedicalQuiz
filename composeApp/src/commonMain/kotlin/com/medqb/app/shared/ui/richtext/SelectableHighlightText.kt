@@ -109,14 +109,23 @@ internal fun SelectableHighlightText(
                     if (state.selectionState.isDragging) {
                         Modifier.platformSelectionMagnifier(
                             sourceCenter = {
-                                // Clamp to paragraph bounds so magnifier stays within text
                                 val pos = dragPositionState.value
-                                val w = state.containerSize.width.toFloat()
-                                val h = state.containerSize.height.toFloat()
-                                Offset(
-                                    x = pos.x.coerceIn(0f, if (w > 0f) w else pos.x),
-                                    y = pos.y.coerceIn(0f, if (h > 0f) h else pos.y)
-                                )
+                                val layout = state.layoutResult
+                                if (layout != null) {
+                                    // Tie vertical position to line center, not finger.
+                                    // This makes the magnifier move only horizontally along a line.
+                                    val offset = layout.getOffsetForPosition(pos)
+                                        .coerceIn(0, text.length.coerceAtLeast(1) - 1)
+                                    val line = layout.getLineForOffset(offset)
+                                    val lineCenterY = (layout.getLineTop(line) + layout.getLineBottom(line)) / 2f
+                                    val w = state.containerSize.width.toFloat()
+                                    Offset(
+                                        x = pos.x.coerceIn(0f, if (w > 0f) w else pos.x),
+                                        y = lineCenterY
+                                    )
+                                } else {
+                                    pos
+                                }
                             },
                             magnifierCenter = null,
                         )
