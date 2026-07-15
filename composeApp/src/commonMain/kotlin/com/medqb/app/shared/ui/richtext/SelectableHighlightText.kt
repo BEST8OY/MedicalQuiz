@@ -106,7 +106,9 @@ internal fun SelectableHighlightText(
     }
 
     // Performance: observe selection changes outside composition via snapshotFlow
-    LaunchedEffect(state.textFieldState, highlights, text.text) {
+    // Note: highlights is NOT a key here — including it would restart the collector
+    // on color change/add/remove, causing the toolbar to reappear.
+    LaunchedEffect(state.textFieldState, text.text) {
         snapshotFlow { state.textFieldState.selection }.collect { selection ->
             if (!selection.collapsed) {
                 // Dismiss highlight edit popup when selection becomes active
