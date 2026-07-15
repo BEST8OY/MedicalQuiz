@@ -364,9 +364,9 @@ private fun SelectionToolbarPopup(
             x = toolbarPosition.x.roundToInt(),
             y = toolbarPosition.y.roundToInt()
         ),
-        // Non-focusable so focus stays on text field and selection handles remain visible
+        // Focusable so context menu suppression via LocalTextToolbar works correctly
         properties = PopupProperties(
-            focusable = false,
+            focusable = true,
             dismissOnBackPress = true,
             dismissOnClickOutside = true
         ),
@@ -407,15 +407,18 @@ private fun HighlightEditPopupContainer(
 
     var popupSize by remember { mutableStateOf(IntSize.Zero) }
 
+    // Use unconstrained height for positioning so popup isn't limited to paragraph bounds
+    val positioningContainerSize = IntSize(containerSize.width, Int.MAX_VALUE / 2)
+
     val popupPosition = remember(
         anchorPosition,
-        containerSize,
+        positioningContainerSize,
         popupSize
     ) {
         calculatePopupPosition(
             anchorPosition = anchorPosition,
             popupSize = popupSize,
-            containerSize = containerSize,
+            containerSize = positioningContainerSize,
             preferAbove = true
         )
     }
