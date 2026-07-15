@@ -108,7 +108,16 @@ internal fun SelectableHighlightText(
                 .then(
                     if (state.selectionState.isDragging) {
                         Modifier.platformSelectionMagnifier(
-                            sourceCenter = { dragPositionState.value },
+                            sourceCenter = {
+                                // Clamp to paragraph bounds so magnifier stays within text
+                                val pos = dragPositionState.value
+                                val w = state.containerSize.width.toFloat()
+                                val h = state.containerSize.height.toFloat()
+                                Offset(
+                                    x = pos.x.coerceIn(0f, if (w > 0f) w else pos.x),
+                                    y = pos.y.coerceIn(0f, if (h > 0f) h else pos.y)
+                                )
+                            },
                             magnifierCenter = null,
                         )
                     } else {
