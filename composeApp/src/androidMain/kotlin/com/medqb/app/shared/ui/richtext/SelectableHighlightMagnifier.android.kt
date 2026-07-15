@@ -15,5 +15,5 @@ actual fun Modifier.platformSelectionMagnifier(
     sourceCenter = sourceCenter,
     magnifierCenter = magnifierCenter,
     zoom = 1.5f,
-    cornerRadius = 12.dp,
+    cornerRadius = 24.dp,
 )

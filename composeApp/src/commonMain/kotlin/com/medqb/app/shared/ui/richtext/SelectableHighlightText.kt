@@ -110,7 +110,19 @@ internal fun SelectableHighlightText(
                         Modifier.platformSelectionMagnifier(
                             sourceCenter = { dragPositionState.value },
                             magnifierCenter = {
-                                dragPositionState.value - Offset(0f, 80f)
+                                val layout = state.layoutResult
+                                val sel = state.selectionState
+                                if (layout != null && sel.hasSelectionRange) {
+                                    val start = minOf(sel.startOffset, sel.endOffset)
+                                        .coerceIn(0, text.length - 1)
+                                    val line = layout.getLineForOffset(start)
+                                    val selectionTop = layout.getLineTop(line)
+                                    // Magnifier top edge sits at selection top
+                                    Offset(dragPositionState.value.x, selectionTop - 48f)
+                                } else {
+                                    // Fallback: above finger
+                                    dragPositionState.value - Offset(0f, 100f)
+                                }
                             }
                         )
                     } else {
