@@ -12,6 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import com.medqb.app.shared.data.TextHighlightsRepository
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
@@ -279,8 +280,8 @@ private fun HighlightableList(
                 )
             }
 
-            // Move to next item (+1 for separator)
-            itemOffset += itemLength + 1
+            // Move to next item
+            itemOffset += itemLength + BLOCK_SEPARATOR_LENGTH
         }
     }
 }
@@ -346,36 +347,21 @@ private fun HighlightableTable(
                 onTooltipClick = onTooltipClick,
                 isRowspanOverlayEnabled = true,
                 customCellContent = { cell, cellTextStyle, cellIndex ->
-                    val rowIndex = renderModel.rows.indexOf(row)
-                    val currentCellOffset = if (cell.isVisible) {
-                        cellBaseOffsets.getOrNull(rowIndex)?.getOrNull(cellIndex)
-                    } else {
-                        null
-                    }
-
-                    if (currentCellOffset != null) {
-                        val cellLength = cell.cell.text.length
-                        val cellHighlights = remember(highlights, currentCellOffset, cellLength) {
-                            mapHighlightsToLocal(
-                                highlights = highlights,
-                                start = currentCellOffset,
-                                end = currentCellOffset + cellLength
-                            )
-                        }
-
-                        SelectableHighlightText(
-                            text = cell.cell.text,
-                            highlights = cellHighlights,
-                            textStyle = cellTextStyle.copy(textAlign = cell.cell.alignment),
-                            onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
-                            onHighlightRemove = onHighlightRemove,
-                            onHighlightColorChange = onHighlightColorChange,
-                            onLinkClick = onLinkClick,
-                            onTooltipClick = onTooltipClick,
-                            onShowSnackbar = onShowSnackbar,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                    val rowIndex = renderModel.rows.indexOfFirst { it === row }
+                    HighlightableTableCell(
+                        cell = cell,
+                        cellTextStyle = cellTextStyle,
+                        cellIndex = cellIndex,
+                        rowIndex = rowIndex,
+                        cellBaseOffsets = cellBaseOffsets,
+                        highlights = highlights,
+                        onHighlightAdd = onHighlightAdd,
+                        onHighlightRemove = onHighlightRemove,
+                        onHighlightColorChange = onHighlightColorChange,
+                        onLinkClick = onLinkClick,
+                        onTooltipClick = onTooltipClick,
+                        onShowSnackbar = onShowSnackbar
+                    )
                 }
             )
         },
@@ -384,31 +370,67 @@ private fun HighlightableTable(
             val isHeaderRow = rowIndexModel?.isHeaderRow ?: false
             val isHeaderCell = isHeaderRow || cell.cell.isHeader
             val textStyle = tableCellTextStyle(isHeaderCell)
-            val currentCellOffset = cellBaseOffsets.getOrNull(rowIndex)?.getOrNull(cellIndex)
-            if (currentCellOffset != null) {
-                val cellLength = cell.cell.text.length
-                val cellHighlights = remember(highlights, currentCellOffset, cellLength) {
-                    mapHighlightsToLocal(
-                        highlights = highlights,
-                        start = currentCellOffset,
-                        end = currentCellOffset + cellLength
-                    )
-                }
-
-                SelectableHighlightText(
-                    text = cell.cell.text,
-                    highlights = cellHighlights,
-                    textStyle = textStyle.copy(textAlign = cell.cell.alignment),
-                    onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
-                    onHighlightRemove = onHighlightRemove,
-                    onHighlightColorChange = onHighlightColorChange,
-                    onLinkClick = onLinkClick,
-                    onTooltipClick = onTooltipClick,
-                    onShowSnackbar = onShowSnackbar,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            HighlightableTableCell(
+                cell = cell,
+                cellTextStyle = textStyle,
+                cellIndex = cellIndex,
+                rowIndex = rowIndex,
+                cellBaseOffsets = cellBaseOffsets,
+                highlights = highlights,
+                onHighlightAdd = onHighlightAdd,
+                onHighlightRemove = onHighlightRemove,
+                onHighlightColorChange = onHighlightColorChange,
+                onLinkClick = onLinkClick,
+                onTooltipClick = onTooltipClick,
+                onShowSnackbar = onShowSnackbar
+            )
         }
+    )
+}
+
+/**
+ * Shared highlightable cell rendering for both regular and anchor cells.
+ */
+@Composable
+private fun HighlightableTableCell(
+    cell: TableRenderedCell,
+    cellTextStyle: TextStyle,
+    cellIndex: Int,
+    rowIndex: Int,
+    cellBaseOffsets: List<List<Int?>>,
+    highlights: List<TextHighlight>,
+    onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
+    onHighlightRemove: (highlightId: Long) -> Unit,
+    onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit
+) {
+    if (!cell.isVisible) return
+
+    val currentCellOffset = cellBaseOffsets.getOrNull(rowIndex)?.getOrNull(cellIndex)
+    if (currentCellOffset == null) return
+
+    val cellLength = cell.cell.text.length
+    val cellHighlights = remember(highlights, currentCellOffset, cellLength) {
+        mapHighlightsToLocal(
+            highlights = highlights,
+            start = currentCellOffset,
+            end = currentCellOffset + cellLength
+        )
+    }
+
+    SelectableHighlightText(
+        text = cell.cell.text,
+        highlights = cellHighlights,
+        textStyle = cellTextStyle.copy(textAlign = cell.cell.alignment),
+        onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
+        onHighlightRemove = onHighlightRemove,
+        onHighlightColorChange = onHighlightColorChange,
+        onLinkClick = onLinkClick,
+        onTooltipClick = onTooltipClick,
+        onShowSnackbar = onShowSnackbar,
+        modifier = Modifier.fillMaxWidth()
     )
 }
 
@@ -438,15 +460,15 @@ private fun getBlockTextLength(block: RichTextBlock): Int {
     return when (block) {
         is RichTextBlock.Paragraph -> block.text.length
         is RichTextBlock.Heading -> block.text.length
-        is RichTextBlock.BulletList -> block.items.sumOf { it.length + 1 }
-        is RichTextBlock.OrderedList -> block.items.sumOf { it.length + 1 }
+        is RichTextBlock.BulletList -> block.items.sumOf { it.length + BLOCK_SEPARATOR_LENGTH }
+        is RichTextBlock.OrderedList -> block.items.sumOf { it.length + BLOCK_SEPARATOR_LENGTH }
         is RichTextBlock.CodeBlock -> block.text.length
         is RichTextBlock.Table -> {
             (block.headerRows + block.bodyRows).sumOf { row ->
                 row.cells.sumOf { it.text.length }
             }
         }
-        is RichTextBlock.AbstractBlock -> block.blocks.sumOf { getBlockTextLength(it) + 1 }
+        is RichTextBlock.AbstractBlock -> block.blocks.sumOf { getBlockTextLength(it) + BLOCK_SEPARATOR_LENGTH }
         is RichTextBlock.Media -> 0
         RichTextBlock.Divider -> 0
     }
