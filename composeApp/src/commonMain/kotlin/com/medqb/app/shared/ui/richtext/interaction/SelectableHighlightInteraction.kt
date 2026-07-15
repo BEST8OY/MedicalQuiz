@@ -54,6 +54,7 @@ internal fun Modifier.selectableHighlightGestures(
     setSelectionState: (TextSelectionState) -> Unit,
     setEditingHighlight: (TextHighlight?) -> Unit,
     setEditPopupAnchor: (Offset) -> Unit,
+    setDragPosition: (Offset) -> Unit,
     onLinkClick: ((String) -> Unit)?,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ): Modifier {
@@ -93,6 +94,7 @@ internal fun Modifier.selectableHighlightGestures(
                 }
 
                 var lastProcessedPosition = longPress.position
+                setDragPosition(longPress.position)
                 do {
                     val event = awaitPointerEvent()
                     val position = event.changes.firstOrNull()?.position ?: break
@@ -102,6 +104,7 @@ internal fun Modifier.selectableHighlightGestures(
                         continue
                     }
                     lastProcessedPosition = position
+                    setDragPosition(position)
 
                     currentLayoutResult()?.let { layout ->
                         val selectionState = currentSelectionState()
@@ -148,6 +151,7 @@ internal fun Modifier.selectableHighlightGestures(
                 } while (event.changes.any { it.pressed })
 
                 setSelectionState(finishSelectionDrag(currentSelectionState()))
+                setDragPosition(Offset.Zero)
             } else {
                 val upChange = currentEvent.changes.firstOrNull { !it.pressed } ?: return@awaitEachGesture
                 if (upChange.isConsumed) {

@@ -51,6 +51,7 @@ private class SelectableHighlightTextState {
     var containerSize by mutableStateOf(IntSize.Zero)
     var selectionPopupSize by mutableStateOf(IntSize.Zero)
     var editPopupSize by mutableStateOf(IntSize.Zero)
+    var dragPosition by mutableStateOf(Offset.Zero)
 }
 
 @Composable
@@ -101,6 +102,10 @@ internal fun SelectableHighlightText(
             text = displayText,
             modifier = Modifier
                 .fillMaxWidth()
+                .platformSelectionMagnifier(
+                    sourceCenter = { state.dragPosition },
+                    magnifierCenter = { state.dragPosition }
+                )
                 .selectableHighlightGestures(
                     text = text,
                     highlights = highlights,
@@ -110,6 +115,7 @@ internal fun SelectableHighlightText(
                     setSelectionState = { state.selectionState = it },
                     setEditingHighlight = { state.editingHighlight = it },
                     setEditPopupAnchor = { state.editPopupAnchor = it },
+                    setDragPosition = { state.dragPosition = it },
                     onLinkClick = onLinkClick,
                     onTooltipClick = onTooltipClick
                 ),
