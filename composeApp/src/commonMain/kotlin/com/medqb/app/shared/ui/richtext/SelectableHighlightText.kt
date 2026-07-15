@@ -3,34 +3,25 @@ package com.medqb.app.shared.ui.richtext
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.input.TextFieldState
-import androidx.compose.foundation.text.input.placeCursorAtEnd
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalTextToolbar
-import androidx.compose.ui.platform.TextToolbar
-import androidx.compose.ui.platform.TextToolbarStatus
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.IntOffset
@@ -40,23 +31,31 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.TextHighlight
+import com.medqb.app.shared.platform.PlatformKind
 import com.medqb.app.shared.platform.TextIntentLauncher
+import com.medqb.app.shared.platform.getPlatformKind
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.domain.SnackbarMessage
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-private class SelectableHighlightTextState(initialText: String) {
-    val textFieldState = TextFieldState(initialText)
+private val ANDROID_LONG_PRESS_DRAG_HYSTERESIS = 7.dp
+private val DESKTOP_LONG_PRESS_DRAG_HYSTERESIS = 5.dp
+
+private class SelectableHighlightTextState {
+    var selectionState by mutableStateOf(TextSelectionState())
     var editingHighlight by mutableStateOf<TextHighlight?>(null)
     var editPopupAnchor by mutableStateOf(Offset.Zero)
     var layoutResult by mutableStateOf<TextLayoutResult?>(null)
     var containerSize by mutableStateOf(IntSize.Zero)
-    var isDragging by mutableStateOf(false)
+    var selectionPopupSize by mutableStateOf(IntSize.Zero)
+    var editPopupSize by mutableStateOf(IntSize.Zero)
 }
 
 @Composable
 internal fun SelectableHighlightText(
-    text: androidx.compose.ui.text.AnnotatedString,
+    text: AnnotatedString,
     highlights: List<TextHighlight>,
     modifier: Modifier = Modifier,
     textStyle: TextStyle = MaterialTheme.typography.bodyMedium.scaledBy(LocalRichTextScale.current.proseScale),
@@ -69,414 +68,222 @@ internal fun SelectableHighlightText(
 ) {
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
-    val state = remember { SelectableHighlightTextState(text.text) }
+    val state = remember { SelectableHighlightTextState() }
 
-    // Fresh highlights reference for snapshotFlow without restarting LaunchedEffect
-    val currentHighlights = rememberUpdatedState(highlights)
-
-    // Sync external text changes
-    LaunchedEffect(text.text) {
-        state.textFieldState.edit {
-            val currentText = toString()
-            if (currentText != text.text) {
-                replace(0, currentText.length, text.text)
-            }
+    val platformKind = remember { getPlatformKind() }
+    val longPressDragHysteresis = remember(platformKind) {
+        when (platformKind) {
+            PlatformKind.Android -> ANDROID_LONG_PRESS_DRAG_HYSTERESIS
+            PlatformKind.Desktop -> DESKTOP_LONG_PRESS_DRAG_HYSTERESIS
         }
     }
-
-    // Suppress default context menu
-    val emptyToolbar = remember {
-        object : TextToolbar {
-            override fun showMenu(
-                rect: androidx.compose.ui.geometry.Rect,
-                onCopyRequested: (() -> Unit)?,
-                onPasteRequested: (() -> Unit)?,
-                onCutRequested: (() -> Unit)?,
-                onSelectAllRequested: (() -> Unit)?
-            ) { /* no-op */ }
-
-            override fun hide() { /* no-op */ }
-
-            override val status: TextToolbarStatus = TextToolbarStatus.Hidden
-        }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val longPressDragHysteresisPx = remember(density) {
+        with(density) { longPressDragHysteresis.toPx() }
     }
 
-    // Dismiss edit popup when highlights change (color change, add, remove)
-    LaunchedEffect(highlights) {
-        state.editingHighlight = null
+    val highlightedText = remember(text, highlights) {
+        applyHighlightsToText(text, highlights)
     }
-
-    // Observe selection + highlights via snapshotFlow.
-    // Reading currentHighlights.value ensures the collector sees the latest list
-    // without restarting the LaunchedEffect (which caused toolbar reappear bugs).
-    LaunchedEffect(state.textFieldState, text.text) {
-        snapshotFlow {
-            state.textFieldState.selection to currentHighlights.value
-        }.collect { (selection, highlightsNow) ->
-            if (!selection.collapsed) {
-                state.editingHighlight = null
-            } else if (highlightsNow.isNotEmpty()) {
-                val offset = selection.min
-                val layout = state.layoutResult
-                if (layout != null && offset in 0 until text.length) {
-                    val tappedHighlight = highlightsNow.firstOrNull { h ->
-                        val start = h.startOffset.coerceIn(0, text.length)
-                        val endExclusive = h.endOffset.coerceIn(start, text.length)
-                        offset in start until endExclusive
-                    }
-                    if (tappedHighlight != null) {
-                        state.editingHighlight = tappedHighlight
-                        state.editPopupAnchor = calculateBottomAnchor(
-                            layoutResult = layout,
-                            textLength = text.length,
-                            startOffset = tappedHighlight.startOffset,
-                            endOffset = tappedHighlight.endOffset,
-                            fallbackAnchor = Offset.Zero
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    fun dismissToolbar() {
-        state.textFieldState.edit { placeCursorAtEnd() }
-    }
-
-    val bodyMediumFontSize = MaterialTheme.typography.bodyMedium.fontSize
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-    val resolvedTextStyle = remember(textStyle, bodyMediumFontSize, onSurfaceColor) {
-        val fontSize = if (textStyle.fontSize == androidx.compose.ui.unit.TextUnit.Unspecified) {
-            bodyMediumFontSize
+    val selectionColor = MaterialTheme.colorScheme.primaryContainer
+    val displayText = remember(highlightedText, state.selectionState, selectionColor) {
+        if (state.selectionState.isSelecting) {
+            applySelectionToText(highlightedText, state.selectionState.selectionRange, selectionColor)
         } else {
-            textStyle.fontSize
+            highlightedText
         }
-        textStyle.copy(
-            color = onSurfaceColor,
-            fontSize = fontSize,
-            lineHeight = fontSize * 1.375f
-        )
     }
 
     Box(
-        modifier = modifier
-            .onSizeChanged { state.containerSize = it }
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    val downTime = down.uptimeMillis
-                    state.isDragging = true
-
-                    // Wait for all pointers to be released
-                    var upChange = down
-                    do {
-                        val event = awaitPointerEvent()
-                        upChange = event.changes.firstOrNull { !it.pressed } ?: upChange
-                    } while (event.changes.any { it.pressed })
-                    state.isDragging = false
-
-                    // Detect tap (short press without significant movement)
-                    val duration = upChange.uptimeMillis - downTime
-                    val distance = (upChange.position - down.position).getDistance()
-                    if (duration < viewConfiguration.longPressTimeoutMillis && distance < 10f) {
-                        val layout = state.layoutResult
-                        if (layout != null && (onLinkClick != null || onTooltipClick != null)) {
-                            val offset = layout.getOffsetForPosition(upChange.position)
-                            if (offset in 0 until text.length) {
-                                handleAnnotatedTextTap(
-                                    text = text,
-                                    offset = offset,
-                                    onLinkClick = onLinkClick,
-                                    onTooltipClick = onTooltipClick
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+        modifier = modifier.onSizeChanged { state.containerSize = it }
     ) {
-        val highlightColors = remember(highlights) {
-            highlights.map { h ->
-                h.color.toComposeColor().copy(alpha = 0.4f)
-            }
-        }
+        BasicText(
+            text = displayText,
+            modifier = Modifier
+                .fillMaxWidth()
+                .selectableHighlightGestures(
+                    text = text,
+                    highlights = highlights,
+                    longPressDragHysteresisPx = longPressDragHysteresisPx,
+                    currentLayoutResult = { state.layoutResult },
+                    currentSelectionState = { state.selectionState },
+                    setSelectionState = { state.selectionState = it },
+                    setEditingHighlight = { state.editingHighlight = it },
+                    setEditPopupAnchor = { state.editPopupAnchor = it },
+                    onLinkClick = onLinkClick,
+                    onTooltipClick = onTooltipClick
+                ),
+            style = textStyle.copy(
+                color = if (textStyle.color != Color.Unspecified) textStyle.color else LocalContentColor.current,
+                lineHeight = (if (textStyle.fontSize == androidx.compose.ui.unit.TextUnit.Unspecified) {
+                    MaterialTheme.typography.bodyMedium.fontSize
+                } else {
+                    textStyle.fontSize
+                }) * 1.375f,
+                fontSize = if (textStyle.fontSize == androidx.compose.ui.unit.TextUnit.Unspecified) {
+                    MaterialTheme.typography.bodyMedium.fontSize
+                } else {
+                    textStyle.fontSize
+                },
+            ),
+            onTextLayout = { state.layoutResult = it }
+        )
 
-        CompositionLocalProvider(LocalTextToolbar provides emptyToolbar) {
-            BasicTextField(
-                state = state.textFieldState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .drawBehind {
-                        val layout = state.layoutResult ?: return@drawBehind
-                        highlights.forEachIndexed { index, highlight ->
-                            val start = highlight.startOffset.coerceIn(0, text.length)
-                            val endExclusive = highlight.endOffset.coerceIn(start, text.length)
-                            if (start >= endExclusive) return@forEachIndexed
+        if (state.selectionState.hasSelectionRange) {
+            val safeTextLength = text.length.coerceAtLeast(1)
+            val normalizedStart = minOf(state.selectionState.startOffset, state.selectionState.endOffset)
+                .coerceIn(0, safeTextLength - 1)
+            val normalizedEndExclusive = maxOf(state.selectionState.startOffset, state.selectionState.endOffset)
+                .coerceIn(normalizedStart + 1, safeTextLength)
 
-                            val color = highlightColors.getOrNull(index) ?: return@forEachIndexed
+            if (state.selectionState.showSelectionToolbar) {
+                val toolbarPosition = remember(
+                    state.selectionState.anchorPosition,
+                    state.containerSize,
+                    state.selectionPopupSize,
+                    state.layoutResult,
+                    normalizedStart,
+                    normalizedEndExclusive
+                ) {
+                    val layout = state.layoutResult
+                    if (layout == null) {
+                        calculatePopupPosition(
+                            anchorPosition = state.selectionState.anchorPosition,
+                            popupSize = state.selectionPopupSize,
+                            containerSize = state.containerSize,
+                            preferAbove = true
+                        )
+                    } else {
+                        val startLine = layout.getLineForOffset(normalizedStart)
+                        val endLine = layout.getLineForOffset((normalizedEndExclusive - 1).coerceAtLeast(0))
+                        val selectionTop = layout.getLineTop(minOf(startLine, endLine))
+                        val selectionBottom = layout.getLineBottom(maxOf(startLine, endLine))
 
-                            val startLine = layout.getLineForOffset(start)
-                            val endLine = layout.getLineForOffset((endExclusive - 1).coerceAtLeast(0))
-
-                            for (line in startLine..endLine) {
-                                val lineTop = layout.getLineTop(line)
-                                val lineBottom = layout.getLineBottom(line)
-                                val lineHeight = lineBottom - lineTop
-
-                                val left = if (line == startLine) {
-                                    layout.getHorizontalPosition(start, true)
-                                } else {
-                                    0f
-                                }
-                                val right = if (line == endLine) {
-                                    layout.getHorizontalPosition(endExclusive, true)
-                                } else {
-                                    // getLineEnd(line, false) = offset OF last char on line
-                                    // (not after line break like getLineEnd(line, true))
-                                    val lastCharOffset = layout.getLineEnd(line, false) - 1
-                                    if (lastCharOffset >= 0) {
-                                        layout.getHorizontalPosition(lastCharOffset, true)
-                                    } else {
-                                        size.width
-                                    }
-                                }
-
-                                if (right > left) {
-                                    drawRect(
-                                        color = color,
-                                        topLeft = Offset(left, lineTop),
-                                        size = Size(right - left, lineHeight)
-                                    )
-                                }
-                            }
-                        }
-                    },
-                readOnly = true,
-                textStyle = resolvedTextStyle,
-                onTextLayout = { textLayoutResultProvider ->
-                    val result = textLayoutResultProvider()
-                    if (result != null) {
-                        state.layoutResult = result
+                        calculateSelectionToolbarPosition(
+                            anchorPosition = state.selectionState.anchorPosition,
+                            popupSize = state.selectionPopupSize,
+                            containerSize = state.containerSize,
+                            selectionTop = selectionTop,
+                            selectionBottom = selectionBottom
+                        )
                     }
                 }
-            )
-        }
 
-        // Selection Toolbar Popup — only show when selection is done (not dragging)
-        SelectionToolbarPopup(
-            textFieldState = state.textFieldState,
-            isDragging = state.isDragging,
-            textLength = text.length,
-            text = text.text,
-            layoutResult = state.layoutResult,
-            containerSize = state.containerSize,
-            onDismiss = { dismissToolbar() },
-            onCopy = { selectedText ->
-                if (selectedText.isNotBlank()) {
-                    clipboard.setPlainText(androidx.compose.ui.text.AnnotatedString(selectedText))
-                }
-                dismissToolbar()
-            },
-            onOpenExternal = { selectedText ->
-                if (selectedText.isNotBlank()) {
-                    val opened = TextIntentLauncher.openSelectedText(selectedText)
-                    if (!opened) {
-                        coroutineScope.launch {
-                            onShowSnackbar(
-                                SnackbarMessage.Action(
-                                    message = "No compatible app found",
-                                    actionLabel = "Copy",
-                                    onActionPerformed = {
-                                        if (selectedText.isNotBlank()) {
-                                            clipboard.setPlainText(
-                                                androidx.compose.ui.text.AnnotatedString(selectedText)
-                                            )
+                Popup(
+                    alignment = androidx.compose.ui.Alignment.TopStart,
+                    offset = IntOffset(
+                        x = toolbarPosition.x.roundToInt(),
+                        y = toolbarPosition.y.roundToInt()
+                    ),
+                    properties = PopupProperties(
+                        focusable = true,
+                        dismissOnBackPress = true,
+                        dismissOnClickOutside = true
+                    ),
+                    onDismissRequest = { state.selectionState = TextSelectionState() }
+                ) {
+                    val motionScheme = MaterialTheme.motionScheme
+                    // Enter animation only — exit is instant because Popup removal
+                    // tears down composition before AnimatedVisibility can animate out.
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(motionScheme.defaultEffectsSpec()) +
+                                slideInVertically(motionScheme.defaultSpatialSpec()) { -it / 4 }
+                    ) {
+                        Box(
+                            modifier = Modifier.onSizeChanged { state.selectionPopupSize = it }
+                        ) {
+                            SelectionToolbar(
+                                selectedText = state.selectionState.selectedText,
+                                onCopy = {
+                                    val copiedText = state.selectionState.selectedText
+                                    if (copiedText.isNotBlank()) {
+                                        clipboard.setPlainText(AnnotatedString(copiedText))
+                                    }
+                                    state.selectionState = TextSelectionState()
+                                },
+                                onOpenExternal = {
+                                    if (state.selectionState.selectedText.isNotBlank()) {
+                                        val opened = TextIntentLauncher.openSelectedText(state.selectionState.selectedText)
+                                        if (!opened) {
+                                            val failedText = state.selectionState.selectedText
+                                            coroutineScope.launch {
+                                                onShowSnackbar(
+                                                    SnackbarMessage.Action(
+                                                        message = "No compatible app found",
+                                                        actionLabel = "Copy",
+                                                        onActionPerformed = {
+                                                            if (failedText.isNotBlank()) {
+                                                                clipboard.setPlainText(AnnotatedString(failedText))
+                                                            }
+                                                        },
+                                                    )
+                                                )
+                                            }
+                                            return@SelectionToolbar
                                         }
                                     }
-                                )
+                                    state.selectionState = TextSelectionState()
+                                },
+                                onHighlight = { color ->
+                                    val range = state.selectionState.selectionRange
+                                    onHighlightAdd(range.first, range.last + 1, state.selectionState.selectedText, color)
+                                    state.selectionState = TextSelectionState()
+                                },
                             )
                         }
                     }
                 }
-                dismissToolbar()
-            },
-            onHighlight = { start, end, selected, color ->
-                onHighlightAdd(start, end, selected, color)
-                dismissToolbar()
-            }
-        )
-
-        // Highlight Edit Popup
-        HighlightEditPopupContainer(
-            editingHighlight = state.editingHighlight,
-            anchorPosition = state.editPopupAnchor,
-            containerSize = state.containerSize,
-            onDismiss = { state.editingHighlight = null },
-            onHighlightColorChange = onHighlightColorChange,
-            onHighlightRemove = onHighlightRemove
-        )
-    }
-}
-
-@Composable
-private fun SelectionToolbarPopup(
-    textFieldState: TextFieldState,
-    isDragging: Boolean,
-    textLength: Int,
-    text: String,
-    layoutResult: TextLayoutResult?,
-    containerSize: IntSize,
-    onDismiss: () -> Unit,
-    onCopy: (String) -> Unit,
-    onOpenExternal: (String) -> Unit,
-    onHighlight: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
-) {
-    val selection = textFieldState.selection
-    if (selection.collapsed || layoutResult == null || isDragging) return
-
-    // Use unconstrained height for positioning so toolbar isn't limited to paragraph bounds
-    // The Popup itself renders in a separate window, so this only affects positioning math
-    val positioningContainerSize = IntSize(containerSize.width, Int.MAX_VALUE / 2)
-
-    val safeTextLength = textLength.coerceAtLeast(1)
-    val normalizedStart = selection.min.coerceIn(0, safeTextLength - 1)
-    val normalizedEndExclusive = selection.max.coerceIn(normalizedStart + 1, safeTextLength)
-
-    val selectedText = remember(text, normalizedStart, normalizedEndExclusive) {
-        if (normalizedStart < normalizedEndExclusive && normalizedEndExclusive <= text.length) {
-            text.substring(normalizedStart, normalizedEndExclusive)
-        } else ""
-    }
-
-    var popupSize by remember { mutableStateOf(IntSize.Zero) }
-
-    val toolbarPosition = remember(
-        positioningContainerSize,
-        popupSize,
-        layoutResult,
-        normalizedStart,
-        normalizedEndExclusive
-    ) {
-        val startLine = layoutResult.getLineForOffset(normalizedStart)
-        val endLine = layoutResult.getLineForOffset((normalizedEndExclusive - 1).coerceAtLeast(0))
-        val selectionTop = layoutResult.getLineTop(minOf(startLine, endLine))
-        val selectionBottom = layoutResult.getLineBottom(maxOf(startLine, endLine))
-
-        val anchorPosition = calculateRangeAnchor(
-            layoutResult = layoutResult,
-            textLength = textLength,
-            startOffset = normalizedStart,
-            endOffset = normalizedEndExclusive,
-            fallbackAnchor = Offset.Zero
-        )
-
-        calculateSelectionToolbarPosition(
-            anchorPosition = anchorPosition,
-            popupSize = popupSize,
-            containerSize = positioningContainerSize,
-            selectionTop = selectionTop,
-            selectionBottom = selectionBottom
-        )
-    }
-
-    Popup(
-        alignment = androidx.compose.ui.Alignment.TopStart,
-        offset = IntOffset(
-            x = toolbarPosition.x.roundToInt(),
-            y = toolbarPosition.y.roundToInt()
-        ),
-        // Focusable so context menu suppression via LocalTextToolbar works correctly
-        properties = PopupProperties(
-            focusable = true,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true
-        ),
-        onDismissRequest = onDismiss
-    ) {
-        val motionScheme = MaterialTheme.motionScheme
-        AnimatedVisibility(
-            visible = true,
-            enter = fadeIn(motionScheme.defaultEffectsSpec()) +
-                    slideInVertically(motionScheme.defaultSpatialSpec()) { -it / 4 }
-        ) {
-            Box(
-                modifier = Modifier.onSizeChanged { popupSize = it }
-            ) {
-                SelectionToolbar(
-                    selectedText = selectedText,
-                    onCopy = { onCopy(selectedText) },
-                    onOpenExternal = { onOpenExternal(selectedText) },
-                    onHighlight = { color ->
-                        onHighlight(selection.min, selection.max, selectedText, color)
-                    }
-                )
             }
         }
-    }
-}
 
-@Composable
-private fun HighlightEditPopupContainer(
-    editingHighlight: TextHighlight?,
-    anchorPosition: Offset,
-    containerSize: IntSize,
-    onDismiss: () -> Unit,
-    onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
-    onHighlightRemove: (highlightId: Long) -> Unit,
-) {
-    if (editingHighlight == null) return
-
-    var popupSize by remember { mutableStateOf(IntSize.Zero) }
-
-    // Use unconstrained height for positioning so popup isn't limited to paragraph bounds
-    val positioningContainerSize = IntSize(containerSize.width, Int.MAX_VALUE / 2)
-
-    val popupPosition = remember(
-        anchorPosition,
-        positioningContainerSize,
-        popupSize
-    ) {
-        calculatePopupPosition(
-            anchorPosition = anchorPosition,
-            popupSize = popupSize,
-            containerSize = positioningContainerSize,
-            preferAbove = false
-        )
-    }
-
-    Popup(
-        alignment = androidx.compose.ui.Alignment.TopStart,
-        offset = IntOffset(
-            x = popupPosition.x.roundToInt(),
-            y = popupPosition.y.roundToInt()
-        ),
-        properties = PopupProperties(
-            focusable = true,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true
-        ),
-        onDismissRequest = onDismiss
-    ) {
-        val motionScheme = MaterialTheme.motionScheme
-        AnimatedVisibility(
-            visible = true,
-            enter = fadeIn(motionScheme.defaultEffectsSpec()) +
-                    slideInVertically(motionScheme.defaultSpatialSpec()) { -it / 4 }
-        ) {
-            Box(
-                modifier = Modifier.onSizeChanged { popupSize = it }
-            ) {
-                HighlightEditPopup(
-                    highlight = editingHighlight,
-                    onColorChange = { color ->
-                        onHighlightColorChange(editingHighlight.id, color)
-                        onDismiss()
-                    },
-                    onDelete = {
-                        onHighlightRemove(editingHighlight.id)
-                        onDismiss()
-                    }
+        state.editingHighlight?.let { highlight ->
+            val popupPosition = remember(state.editPopupAnchor, state.containerSize, state.editPopupSize) {
+                calculatePopupPosition(
+                    anchorPosition = state.editPopupAnchor,
+                    popupSize = state.editPopupSize,
+                    containerSize = state.containerSize,
+                    preferAbove = true
                 )
+            }
+
+            Popup(
+                alignment = androidx.compose.ui.Alignment.TopStart,
+                offset = IntOffset(
+                    x = popupPosition.x.roundToInt(),
+                    y = popupPosition.y.roundToInt()
+                ),
+                properties = PopupProperties(
+                    focusable = true,
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = true
+                ),
+                onDismissRequest = { state.editingHighlight = null }
+            ) {
+                val motionScheme = MaterialTheme.motionScheme
+                // Enter animation only — exit is instant because Popup removal
+                // tears down composition before AnimatedVisibility can animate out.
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn(motionScheme.defaultEffectsSpec()) +
+                            slideInVertically(motionScheme.defaultSpatialSpec()) { -it / 4 }
+                ) {
+                    Box(
+                        modifier = Modifier.onSizeChanged { state.editPopupSize = it }
+                    ) {
+                        HighlightEditPopup(
+                            highlight = highlight,
+                            onColorChange = { color ->
+                                onHighlightColorChange(highlight.id, color)
+                                state.editingHighlight = null
+                            },
+                            onDelete = {
+                                onHighlightRemove(highlight.id)
+                                state.editingHighlight = null
+                            }
+                        )
+                    }
+                }
             }
         }
     }
