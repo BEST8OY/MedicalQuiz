@@ -69,7 +69,10 @@ internal fun Modifier.selectableHighlightGestures(
                 currentLayoutResult()?.let { layout ->
                     val offset = layout.getOffsetForPosition(longPress.position)
 
-                    val (start, end) = expandToWordBoundaries(text.text, offset)
+                    // Use TextLayoutResult.getWordBoundary() for accurate, layout-aware word detection
+                    val wordRange = layout.getWordBoundary(offset)
+                    val start = wordRange.min
+                    val end = wordRange.max
                     initialSelectionAnchor = InitialSelectionAnchor(
                         pressOffset = offset,
                         startOffset = start,
@@ -279,7 +282,17 @@ internal fun snapOffsetToWordBoundary(
 
     val safeMoved = movedOffset.coerceIn(0, text.length)
     val clampedForWord = safeMoved.coerceIn(0, text.lastIndex)
-    val (wordStart, wordEnd) = expandToWordBoundaries(text, clampedForWord)
+
+    // Use TextLayoutResult.getWordBoundary() for accurate, layout-aware word detection
+    val wordRange = if (layoutResult != null) {
+        layoutResult.getWordBoundary(clampedForWord)
+    } else {
+        // Fallback to character-class heuristics when layout is unavailable
+        val (ws, we) = expandToWordBoundaries(text, clampedForWord)
+        androidx.compose.ui.text.TextRange(ws, we)
+    }
+    val wordStart = wordRange.min
+    val wordEnd = wordRange.max
 
     val movingBackward = safeMoved <= fixedOffset
     val primary = if (movingBackward) wordStart else wordEnd
