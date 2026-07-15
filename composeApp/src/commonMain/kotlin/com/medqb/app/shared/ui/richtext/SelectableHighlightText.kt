@@ -35,6 +35,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.medqb.app.shared.data.models.HighlightColor
@@ -310,8 +311,11 @@ private fun SelectionToolbarPopup(
     onHighlight: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
 ) {
     val selection = textFieldState.selection
-    // Don't show toolbar if: no selection, or user is still dragging
     if (selection.collapsed || layoutResult == null || isDragging) return
+
+    // Use unconstrained height for positioning so toolbar isn't limited to paragraph bounds
+    // The Popup itself renders in a separate window, so this only affects positioning math
+    val positioningContainerSize = IntSize(containerSize.width, Int.MAX_VALUE / 2)
 
     val safeTextLength = textLength.coerceAtLeast(1)
     val normalizedStart = selection.min.coerceIn(0, safeTextLength - 1)
@@ -326,7 +330,7 @@ private fun SelectionToolbarPopup(
     var popupSize by remember { mutableStateOf(IntSize.Zero) }
 
     val toolbarPosition = remember(
-        containerSize,
+        positioningContainerSize,
         popupSize,
         layoutResult,
         normalizedStart,
@@ -348,7 +352,7 @@ private fun SelectionToolbarPopup(
         calculateSelectionToolbarPosition(
             anchorPosition = anchorPosition,
             popupSize = popupSize,
-            containerSize = containerSize,
+            containerSize = positioningContainerSize,
             selectionTop = selectionTop,
             selectionBottom = selectionBottom
         )
@@ -360,8 +364,9 @@ private fun SelectionToolbarPopup(
             x = toolbarPosition.x.roundToInt(),
             y = toolbarPosition.y.roundToInt()
         ),
+        // Non-focusable so focus stays on text field and selection handles remain visible
         properties = PopupProperties(
-            focusable = true,
+            focusable = false,
             dismissOnBackPress = true,
             dismissOnClickOutside = true
         ),
