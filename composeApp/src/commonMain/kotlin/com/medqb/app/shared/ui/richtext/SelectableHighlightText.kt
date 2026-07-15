@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -73,6 +74,10 @@ internal fun SelectableHighlightText(
     // Initialize state with first-frame content to prevent layout thrashing
     val state = remember { SelectableHighlightTextState(text.text) }
 
+    // Keep highlights reference fresh for the snapshotFlow collector
+    // without restarting the LaunchedEffect when highlights change
+    val currentHighlights by rememberUpdatedState(highlights)
+
     // Sync external text modifications with TextFieldState
     LaunchedEffect(text.text) {
         state.textFieldState.edit {
@@ -108,17 +113,18 @@ internal fun SelectableHighlightText(
     // Performance: observe selection changes outside composition via snapshotFlow
     // Note: highlights is NOT a key here — including it would restart the collector
     // on color change/add/remove, causing the toolbar to reappear.
+    // Use currentHighlights (rememberUpdatedState) to always read the latest list.
     LaunchedEffect(state.textFieldState, text.text) {
         snapshotFlow { state.textFieldState.selection }.collect { selection ->
             if (!selection.collapsed) {
                 // Dismiss highlight edit popup when selection becomes active
                 state.editingHighlight = null
-            } else if (highlights.isNotEmpty()) {
+            } else if (currentHighlights.isNotEmpty()) {
                 // Detect highlight taps: collapsed selection on a highlight offset
                 val offset = selection.min
                 val layout = state.layoutResult
                 if (layout != null && offset in 0 until text.length) {
-                    val tappedHighlight = highlights.firstOrNull { h ->
+                    val tappedHighlight = currentHighlights.firstOrNull { h ->
                         val start = h.startOffset.coerceIn(0, text.length)
                         val endExclusive = h.endOffset.coerceIn(start, text.length)
                         offset in start until endExclusive
