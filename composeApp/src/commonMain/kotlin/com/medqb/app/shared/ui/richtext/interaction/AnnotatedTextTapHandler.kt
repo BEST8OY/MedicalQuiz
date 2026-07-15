@@ -8,23 +8,25 @@ internal fun handleAnnotatedTextTap(
     onLinkClick: ((String) -> Unit)?,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ): Boolean {
-    text.getStringAnnotations("TOOLTIP", offset, offset).firstOrNull()?.let { annotation ->
-        val rawTitle = text.text.substring(annotation.start, annotation.end).trim()
+    // Use offset + 1 so the query covers [offset, offset+1), which correctly
+    // matches the first character of a span at annotation.start == offset.
+    val tooltipAnnotation = text.getStringAnnotations("TOOLTIP", offset, offset + 1).firstOrNull()
+    if (tooltipAnnotation != null && onTooltipClick != null) {
+        val rawTitle = text.text.substring(tooltipAnnotation.start, tooltipAnnotation.end).trim()
         val title = rawTitle.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-        onTooltipClick?.invoke(
+        onTooltipClick(
             RichTextTooltipContent(
                 title = title,
-                message = annotation.item
+                message = tooltipAnnotation.item
             )
         )
         return true
     }
 
-    text.getStringAnnotations("URL", offset, offset).firstOrNull()?.let {
-        if (it.item.isNotBlank()) {
-            onLinkClick?.invoke(it.item)
-            return true
-        }
+    val urlAnnotation = text.getStringAnnotations("URL", offset, offset + 1).firstOrNull()
+    if (urlAnnotation != null && urlAnnotation.item.isNotBlank() && onLinkClick != null) {
+        onLinkClick(urlAnnotation.item)
+        return true
     }
 
     return false

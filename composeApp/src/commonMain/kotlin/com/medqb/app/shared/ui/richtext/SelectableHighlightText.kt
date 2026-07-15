@@ -51,11 +51,8 @@ private class SelectableHighlightTextState {
     var containerSize by mutableStateOf(IntSize.Zero)
     var selectionPopupSize by mutableStateOf(IntSize.Zero)
     var editPopupSize by mutableStateOf(IntSize.Zero)
+    var dragPosition by mutableStateOf(Offset.Zero)
 }
-
-// Isolated from main state — only read by magnifier lambda (draw phase), never during composition.
-// Prevents recomposition cascade when drag position updates on every pointer event.
-private val dragPositionState = mutableStateOf(Offset.Zero)
 
 @Composable
 internal fun SelectableHighlightText(
@@ -109,7 +106,7 @@ internal fun SelectableHighlightText(
                     if (state.selectionState.isDragging) {
                         Modifier.platformSelectionMagnifier(
                             sourceCenter = {
-                                val pos = dragPositionState.value
+                                val pos = state.dragPosition
                                 val layout = state.layoutResult
                                 if (layout != null) {
                                     // Tie vertical position to line center, not finger.
@@ -142,7 +139,7 @@ internal fun SelectableHighlightText(
                     setSelectionState = { state.selectionState = it },
                     setEditingHighlight = { state.editingHighlight = it },
                     setEditPopupAnchor = { state.editPopupAnchor = it },
-                    setDragPosition = { dragPositionState.value = it },
+                    setDragPosition = { state.dragPosition = it },
                     onLinkClick = onLinkClick,
                     onTooltipClick = onTooltipClick
                 ),
