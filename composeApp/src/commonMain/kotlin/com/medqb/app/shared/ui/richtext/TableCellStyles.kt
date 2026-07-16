@@ -39,5 +39,5 @@ internal fun resolveCellTextColor(
 ): Color = when {
     cellClassNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.onSecondaryContainer
     cellClassNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.onTertiaryContainer
-    else -> tableCellTextColor(isHeaderCell, isAbstractRow)
+    else -> tableCellTextColor(isHeaderCell, isAbstractRow || cellClassNames.containsInsensitive("abstract"))
 }

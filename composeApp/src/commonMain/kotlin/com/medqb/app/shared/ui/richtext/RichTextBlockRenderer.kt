@@ -86,7 +86,7 @@ internal fun RichTextParagraph(
         text = text,
         modifier = modifier,
         style = scaledBodyMedium.copy(
-            lineHeight = scaledBodyMedium.fontSize * 1.375f,
+            lineHeight = scaledBodyMedium.fontSize * LINE_HEIGHT_MULTIPLIER,
             lineHeightStyle = LineHeightStyle(
                 alignment = LineHeightStyle.Alignment.Center,
                 trim = LineHeightStyle.Trim.None

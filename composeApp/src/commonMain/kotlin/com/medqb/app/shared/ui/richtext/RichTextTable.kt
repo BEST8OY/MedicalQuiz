@@ -290,6 +290,7 @@ internal fun RichTextTable(
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
+    val renderModel = remember(block) { block.toRenderModel() }
     RichTextTableShell(
         block = block,
         renderRow = { row, _ ->
@@ -301,12 +302,16 @@ internal fun RichTextTable(
                 isRowspanOverlayEnabled = true
             )
         },
-        renderAnchorContent = { cell, _, _ ->
-            val isHeaderCell = cell.cell.isHeader
+        renderAnchorContent = { cell, rowIndex, _ ->
+            val rowIndexModel = renderModel.rows.getOrNull(rowIndex)
+            val isHeaderRow = rowIndexModel?.isHeaderRow ?: false
+            val isHeaderCell = isHeaderRow || cell.cell.isHeader
+            val isAbstractRow = (rowIndexModel?.classNames ?: emptySet()).containsInsensitive("abstract")
             val textStyle = tableCellTextStyle(isHeaderCell)
-            val textColor = tableCellTextColor(
+            val textColor = resolveCellTextColor(
                 isHeaderCell = isHeaderCell,
-                isAbstractClass = false
+                isAbstractRow = isAbstractRow,
+                cellClassNames = cell.cell.classNames
             )
             InteractiveText(
                 text = cell.cell.text,
@@ -514,14 +519,11 @@ internal fun TableRowContent(
             } else {
                 val isHeaderCell = row.isHeaderRow || cell.cell.isHeader
                 val textStyle = tableCellTextStyle(isHeaderCell)
-                val textColor = when {
-                    cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.onSecondaryContainer
-                    cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.onTertiaryContainer
-                    else -> tableCellTextColor(
-                        isHeaderCell = isHeaderCell,
-                        isAbstractClass = isAbstractRow || cell.cell.classNames.containsInsensitive("abstract")
-                    )
-                }
+                val textColor = resolveCellTextColor(
+                    isHeaderCell = isHeaderCell,
+                    isAbstractRow = isAbstractRow,
+                    cellClassNames = cell.cell.classNames
+                )
                 val cellBackground = when {
                     cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.secondaryContainer
                     cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer

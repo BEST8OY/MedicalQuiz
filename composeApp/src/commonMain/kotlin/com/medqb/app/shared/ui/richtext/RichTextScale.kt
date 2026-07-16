@@ -9,6 +9,9 @@ import androidx.compose.ui.unit.TextUnit
 
 private const val TABLE_SCALE_FACTOR = 0.9f
 
+/** Line height multiplier for paragraph/list text blocks. */
+internal const val LINE_HEIGHT_MULTIPLIER = 1.375f
+
 @Immutable
 internal data class RichTextScale(
     val proseScale: Float = 1f,

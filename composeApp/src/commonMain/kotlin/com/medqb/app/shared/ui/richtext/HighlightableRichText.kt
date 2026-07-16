@@ -340,6 +340,7 @@ private fun HighlightableTable(
     RichTextTableShell(
         block = block,
         renderRow = { row, rowIndex ->
+            val isAbstractRow = row.classNames.containsInsensitive("abstract")
             TableRowContent(
                 row = row,
                 tableClassNames = block.classNames,
@@ -359,7 +360,8 @@ private fun HighlightableTable(
                         onHighlightColorChange = onHighlightColorChange,
                         onLinkClick = onLinkClick,
                         onTooltipClick = onTooltipClick,
-                        onShowSnackbar = onShowSnackbar
+                        onShowSnackbar = onShowSnackbar,
+                        isAbstractRow = isAbstractRow
                     )
                 }
             )
@@ -368,6 +370,7 @@ private fun HighlightableTable(
             val rowIndexModel = renderModel.rows.getOrNull(rowIndex)
             val isHeaderRow = rowIndexModel?.isHeaderRow ?: false
             val isHeaderCell = isHeaderRow || cell.cell.isHeader
+            val isAbstractRow = (rowIndexModel?.classNames ?: emptySet()).containsInsensitive("abstract")
             val textStyle = tableCellTextStyle(isHeaderCell)
             HighlightableTableCell(
                 cell = cell,
@@ -381,7 +384,8 @@ private fun HighlightableTable(
                 onHighlightColorChange = onHighlightColorChange,
                 onLinkClick = onLinkClick,
                 onTooltipClick = onTooltipClick,
-                onShowSnackbar = onShowSnackbar
+                onShowSnackbar = onShowSnackbar,
+                isAbstractRow = isAbstractRow
             )
         }
     )
