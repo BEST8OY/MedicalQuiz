@@ -111,18 +111,9 @@ internal fun SelectableHighlightText(
                                 val pos = state.dragPosition
                                 val layout = state.layoutResult
                                 if (layout != null && text.isNotEmpty()) {
-                                    // Direct Y→line lookup instead of pos→offset→line detour
                                     val line = layout.getLineForVerticalPosition(pos.y)
                                     val lineCenterY = (layout.getLineTop(line) + layout.getLineBottom(line)) / 2f
-
-                                    // Clamp X to the line's actual visual bounds, not container width
-                                    val rawLeft = layout.getLineLeft(line)
-                                    val rawRight = layout.getLineRight(line)
-                                    val lo = minOf(rawLeft, rawRight)
-                                    val hi = maxOf(rawLeft, rawRight)
-                                    val clampedX = if (hi > lo) pos.x.coerceIn(lo, hi) else pos.x
-
-                                    Offset(x = clampedX, y = lineCenterY)
+                                    Offset(x = pos.x, y = lineCenterY)
                                 } else {
                                     pos
                                 }
