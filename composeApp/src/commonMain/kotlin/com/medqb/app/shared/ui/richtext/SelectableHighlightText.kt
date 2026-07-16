@@ -119,14 +119,7 @@ internal fun SelectableHighlightText(
                                     val hi = layout.getLineRight(line)
                                     val clampedX = if (hi > lo) pos.x.coerceIn(lo, hi) else pos.x
 
-                                    // Clamp to container bounds so magnifier doesn't clip at edges
-                                    val containerW = state.containerSize.width.toFloat()
-                                    val containerH = state.containerSize.height.toFloat()
-                                    val margin = 16f
-                                    Offset(
-                                        x = clampedX.coerceIn(margin, if (containerW > 0f) containerW - margin else clampedX),
-                                        y = lineCenterY.coerceIn(margin, if (containerH > 0f) containerH - margin else lineCenterY)
-                                    )
+                                    Offset(x = clampedX, y = lineCenterY)
                                 } else {
                                     pos
                                 }
