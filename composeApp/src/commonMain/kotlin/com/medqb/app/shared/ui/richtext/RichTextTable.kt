@@ -60,7 +60,7 @@ internal sealed interface TableLayoutItem {
 @Composable
 internal fun RichTextTableShell(
     block: RichTextBlock.Table,
-    renderRow: @Composable (row: TableRenderedRow) -> Unit,
+    renderRow: @Composable (row: TableRenderedRow, rowIndex: Int) -> Unit,
     renderAnchorContent: (@Composable (cell: TableRenderedCell, rowIndex: Int, cellIndex: Int) -> Unit)? = null
 ) {
     val renderModel = remember(block) { block.toRenderModel() }
@@ -102,7 +102,7 @@ internal fun RichTextTableShell(
                         .width(tableWidth)
                 ) {
                     renderModel.rows.forEachIndexed { index, row ->
-                        renderRow(row)
+                        renderRow(row, index)
                         if (index != renderModel.rows.lastIndex) {
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
@@ -128,7 +128,7 @@ internal fun RichTextTableShell(
                     val rowMeasurables = subcompose("rows") {
                         layoutItems.forEach { item ->
                             when (item) {
-                                is TableLayoutItem.RowItem -> renderRow(item.row)
+                                is TableLayoutItem.RowItem -> renderRow(item.row, item.rowIndex)
                                 TableLayoutItem.DividerItem -> HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             }
                         }
@@ -259,7 +259,7 @@ internal fun RichTextTableShell(
                         .width(tableWidth)
                 ) {
                     renderModel.rows.forEachIndexed { index, row ->
-                        renderRow(row)
+                        renderRow(row, index)
                         if (index != renderModel.rows.lastIndex) {
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
@@ -292,7 +292,7 @@ internal fun RichTextTable(
 ) {
     RichTextTableShell(
         block = block,
-        renderRow = { row ->
+        renderRow = { row, _ ->
             TableRowContent(
                 row = row,
                 tableClassNames = block.classNames,

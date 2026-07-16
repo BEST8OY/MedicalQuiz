@@ -339,7 +339,7 @@ private fun HighlightableTable(
 
     RichTextTableShell(
         block = block,
-        renderRow = { row ->
+        renderRow = { row, rowIndex ->
             TableRowContent(
                 row = row,
                 tableClassNames = block.classNames,
@@ -347,7 +347,6 @@ private fun HighlightableTable(
                 onTooltipClick = onTooltipClick,
                 isRowspanOverlayEnabled = true,
                 customCellContent = { cell, cellTextStyle, cellIndex ->
-                    val rowIndex = renderModel.rows.indexOfFirst { it === row }
                     HighlightableTableCell(
                         cell = cell,
                         cellTextStyle = cellTextStyle,
