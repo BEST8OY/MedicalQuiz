@@ -2,14 +2,11 @@ package com.medqb.app.shared.ui.richtext
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 
 /**
  * Returns the appropriate text style for a table cell based on whether it's a header cell.
- * Used by both RichTextTable and HighlightableTable for consistent styling.
- *
- * @param isHeaderCell Whether this cell should be styled as a header
- * @return TextStyle with smaller font size appropriate for table content
  */
 @Composable
 internal fun tableCellTextStyle(isHeaderCell: Boolean): TextStyle =
@@ -20,15 +17,7 @@ internal fun tableCellTextStyle(isHeaderCell: Boolean): TextStyle =
     }
 
 /**
- * Returns the appropriate text color for a table cell based on its properties.
- *
- * Headers use the neutral `onSurface` role (paired with `surfaceContainerHighest`)
- * so that `secondaryContainer`/`tertiaryContainer` stay visually reserved for the
- * "selected"/"wichtig" cell classes.
- *
- * @param isHeaderCell Whether this cell is a header
- * @param isAbstractClass Whether the cell has abstract class styling
- * @return Color from the MaterialTheme color scheme
+ * Base text color for table cells (header vs abstract vs default).
  */
 @Composable
 internal fun tableCellTextColor(isHeaderCell: Boolean, isAbstractClass: Boolean = false) =
@@ -37,3 +26,18 @@ internal fun tableCellTextColor(isHeaderCell: Boolean, isAbstractClass: Boolean 
         isAbstractClass -> MaterialTheme.colorScheme.onSurfaceVariant
         else -> MaterialTheme.colorScheme.onSurface
     }
+
+/**
+ * Resolves the final text color for a table cell, including "selected"/"wichtig" class tinting.
+ * Shared by both RichTextTable and HighlightableTable to prevent color drift.
+ */
+@Composable
+internal fun resolveCellTextColor(
+    isHeaderCell: Boolean,
+    isAbstractRow: Boolean,
+    cellClassNames: Set<String>
+): Color = when {
+    cellClassNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.onSecondaryContainer
+    cellClassNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.onTertiaryContainer
+    else -> tableCellTextColor(isHeaderCell, isAbstractRow)
+}

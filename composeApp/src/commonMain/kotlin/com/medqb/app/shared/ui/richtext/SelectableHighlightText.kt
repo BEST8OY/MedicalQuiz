@@ -60,6 +60,7 @@ internal fun SelectableHighlightText(
     highlights: List<TextHighlight>,
     modifier: Modifier = Modifier,
     textStyle: TextStyle = MaterialTheme.typography.bodyMedium.scaledBy(LocalRichTextScale.current.proseScale),
+    color: Color = Color.Unspecified,
     onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
     onHighlightRemove: (highlightId: Long) -> Unit,
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
@@ -144,7 +145,7 @@ internal fun SelectableHighlightText(
                     onTooltipClick = onTooltipClick
                 ),
             style = textStyle.copy(
-                color = if (textStyle.color != Color.Unspecified) textStyle.color else LocalContentColor.current,
+                color = if (color != Color.Unspecified) color else if (textStyle.color != Color.Unspecified) textStyle.color else LocalContentColor.current,
                 lineHeight = (if (textStyle.fontSize == androidx.compose.ui.unit.TextUnit.Unspecified) {
                     MaterialTheme.typography.bodyMedium.fontSize
                 } else {

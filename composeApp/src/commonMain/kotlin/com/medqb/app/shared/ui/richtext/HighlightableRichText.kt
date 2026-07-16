@@ -403,12 +403,20 @@ private fun HighlightableTableCell(
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
-    onShowSnackbar: suspend (SnackbarMessage) -> Unit
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit,
+    isAbstractRow: Boolean = false
 ) {
     if (!cell.isVisible) return
 
     val currentCellOffset = cellBaseOffsets.getOrNull(rowIndex)?.getOrNull(cellIndex)
     if (currentCellOffset == null) return
+
+    val isHeaderCell = cell.cell.isHeader
+    val textColor = resolveCellTextColor(
+        isHeaderCell = isHeaderCell,
+        isAbstractRow = isAbstractRow,
+        cellClassNames = cell.cell.classNames
+    )
 
     val cellLength = cell.cell.text.length
     val cellHighlights = remember(highlights, currentCellOffset, cellLength) {
@@ -423,6 +431,7 @@ private fun HighlightableTableCell(
         text = cell.cell.text,
         highlights = cellHighlights,
         textStyle = cellTextStyle.copy(textAlign = cell.cell.alignment),
+        color = textColor,
         onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
         onHighlightRemove = onHighlightRemove,
         onHighlightColorChange = onHighlightColorChange,
