@@ -109,18 +109,19 @@ internal fun SelectableHighlightText(
                             sourceCenter = {
                                 val pos = state.dragPosition
                                 val layout = state.layoutResult
-                                if (layout != null) {
-                                    // Tie vertical position to line center, not finger.
-                                    // This makes the magnifier move only horizontally along a line.
-                                    val offset = layout.getOffsetForPosition(pos)
-                                        .coerceIn(0, text.length.coerceAtLeast(1) - 1)
-                                    val line = layout.getLineForOffset(offset)
+                                if (layout != null && text.isNotEmpty()) {
+                                    // Direct Y→line lookup instead of pos→offset→line detour
+                                    val line = layout.getLineForVerticalPosition(pos.y)
                                     val lineCenterY = (layout.getLineTop(line) + layout.getLineBottom(line)) / 2f
-                                    val w = state.containerSize.width.toFloat()
-                                    Offset(
-                                        x = pos.x.coerceIn(0f, if (w > 0f) w else pos.x),
-                                        y = lineCenterY
-                                    )
+
+                                    // Clamp X to the line's actual visual bounds, not container width
+                                    val rawLeft = layout.getLineLeft(line)
+                                    val rawRight = layout.getLineRight(line)
+                                    val lo = minOf(rawLeft, rawRight)
+                                    val hi = maxOf(rawLeft, rawRight)
+                                    val clampedX = if (hi > lo) pos.x.coerceIn(lo, hi) else pos.x
+
+                                    Offset(x = clampedX, y = lineCenterY)
                                 } else {
                                     pos
                                 }
