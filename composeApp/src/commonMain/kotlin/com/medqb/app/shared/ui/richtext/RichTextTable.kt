@@ -163,7 +163,26 @@ internal fun RichTextTableShell(
 
                             val insetSmPx = Inset.Sm.toPx()
                             val usableWidth = tableWidth.toPx() - insetSmPx * 2
-                            val cellWidth = (usableWidth * (cellWeight / totalWeight)).toDp()
+
+                            val isLeftEdge = startWeight == 0f
+                            val isRightEdge = (startWeight + cellWeight) == totalWeight
+
+                            val leftX = if (isLeftEdge) {
+                                0f
+                            } else {
+                                insetSmPx + usableWidth * (startWeight / totalWeight)
+                            }
+
+                            val rightX = if (isRightEdge) {
+                                tableWidth.toPx()
+                            } else {
+                                insetSmPx + usableWidth * ((startWeight + cellWeight) / totalWeight)
+                            }
+
+                            val cellWidth = (rightX - leftX).toDp()
+
+                            val paddingStart = if (isLeftEdge) Inset.Sm + Spacing.Xxs * 2 else Spacing.Xxs * 2
+                            val paddingEnd = if (isRightEdge) Inset.Sm + Spacing.Xxs * 2 else Spacing.Xxs * 2
 
                             val isAbstractRow = (startRowModel.classNames + block.classNames).containsInsensitive("abstract")
                             val baseBackground = when {
@@ -186,7 +205,7 @@ internal fun RichTextTableShell(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = Spacing.Xxs * 2)
+                                        .padding(start = paddingStart, end = paddingEnd)
                                         .padding(start = anchor.cell.cell.paddingStart),
                                     contentAlignment = when (anchor.cell.cell.alignment) {
                                         TextAlign.Center -> Alignment.Center
@@ -207,11 +226,30 @@ internal fun RichTextTableShell(
                         val totalWeight = startRowModel.cells.sumOf {
                             (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
                         }.toFloat()
+                        val startWeight = startRowModel.cells.take(anchor.cellIndex).sumOf {
+                            (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
+                        }.toFloat()
                         val cellWeight = anchor.cell.cell.width ?: anchor.cell.columnSpan.coerceAtLeast(1).toFloat()
 
                         val insetSmPx = Inset.Sm.toPx()
                         val usableWidth = tableWidth.toPx() - insetSmPx * 2
-                        val cellWidthPx = usableWidth * (cellWeight / totalWeight)
+
+                        val isLeftEdge = startWeight == 0f
+                        val isRightEdge = (startWeight + cellWeight) == totalWeight
+
+                        val leftX = if (isLeftEdge) {
+                            0f
+                        } else {
+                            insetSmPx + usableWidth * (startWeight / totalWeight)
+                        }
+
+                        val rightX = if (isRightEdge) {
+                            tableWidth.toPx()
+                        } else {
+                            insetSmPx + usableWidth * ((startWeight + cellWeight) / totalWeight)
+                        }
+
+                        val cellWidthPx = rightX - leftX
 
                         val spanHeight = (anchor.startRow..anchor.endRow)
                             .sumOf { rowHeights.getOrElse(it) { 0 } }
@@ -245,7 +283,13 @@ internal fun RichTextTableShell(
 
                             val insetSmPx = Inset.Sm.toPx()
                             val usableWidth = tableWidth.toPx() - insetSmPx * 2
-                            val leftX = insetSmPx + usableWidth * (startWeight / totalWeight)
+
+                            val isLeftEdge = startWeight == 0f
+                            val leftX = if (isLeftEdge) {
+                                0f
+                            } else {
+                                insetSmPx + usableWidth * (startWeight / totalWeight)
+                            }
 
                             anchorPlacements[i].place(leftX.roundToInt(), startY)
                         }
