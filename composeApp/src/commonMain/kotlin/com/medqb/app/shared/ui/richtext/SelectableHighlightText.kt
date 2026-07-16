@@ -113,7 +113,13 @@ internal fun SelectableHighlightText(
                                 if (layout != null && text.isNotEmpty()) {
                                     val line = layout.getLineForVerticalPosition(pos.y)
                                     val lineCenterY = (layout.getLineTop(line) + layout.getLineBottom(line)) / 2f
-                                    Offset(x = pos.x, y = lineCenterY)
+
+                                    // Clamp X to line's visual bounds to prevent zooming empty space
+                                    val lo = layout.getLineLeft(line)
+                                    val hi = layout.getLineRight(line)
+                                    val clampedX = if (hi > lo) pos.x.coerceIn(lo, hi) else pos.x
+
+                                    Offset(x = clampedX, y = lineCenterY)
                                 } else {
                                     pos
                                 }
@@ -143,7 +149,7 @@ internal fun SelectableHighlightText(
                     MaterialTheme.typography.bodyMedium.fontSize
                 } else {
                     textStyle.fontSize
-                }) * 1.375f,
+                }) * LINE_HEIGHT_MULTIPLIER,
                 lineHeightStyle = LineHeightStyle(
                     alignment = LineHeightStyle.Alignment.Center,
                     trim = LineHeightStyle.Trim.None
