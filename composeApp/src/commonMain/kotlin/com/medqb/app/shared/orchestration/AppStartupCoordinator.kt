@@ -60,6 +60,7 @@ class AppStartupCoordinator(
         val currentProvider = activeDatabaseHolder.databaseProvider.value
         if (currentName == dbName.removeSuffix(".db") && currentProvider != null) return dbName
 
+        initSessionHistoryDatabase()
         val dbPath = FileSystemHelper.getDatabasePath(dbName)
         val sessionHistoryDao = sessionHistoryDatabase!!.sessionHistoryDao()
         val roomLogDao = userDataManager.logDao()
