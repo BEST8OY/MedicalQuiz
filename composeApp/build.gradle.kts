@@ -104,6 +104,10 @@ kotlin {
     }
 }
 
+dependencies {
+    add("kspCommonMainMetadata", libs.room3.compiler)
+}
+
 room3 {
     schemaDirectory("$projectDir/schemas")
 }
