@@ -1,15 +1,12 @@
 package com.medqb.app.shared.orchestration
 
-import androidx.room3.Room
-import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.DatabaseManager
 import com.medqb.app.shared.data.LocalContentRepository
+import com.medqb.app.shared.data.SessionHistoryManager
 import com.medqb.app.shared.data.UserDataManager
-import com.medqb.app.shared.data.local.SessionHistoryDatabase
 import com.medqb.app.shared.navigation.QuizLaunchSource
 import com.medqb.app.shared.platform.FileSystemHelper
-import com.medqb.app.shared.platform.StorageProvider
 import dev.zacsweers.metro.Inject
 
 /**
@@ -19,15 +16,10 @@ import dev.zacsweers.metro.Inject
 class AppStartupCoordinator(
     private val localContentRepository: LocalContentRepository,
     private val activeDatabaseHolder: ActiveDatabaseHolder,
+    private val sessionHistoryManager: SessionHistoryManager,
 ) {
-    private var sessionHistoryDatabase: SessionHistoryDatabase? = null
-
-    private val sessionHistoryDbPath: String
-        get() = "${StorageProvider.getAppStorageDirectory()}/session_history.db"
-
     suspend fun initializeApp(userDataManager: UserDataManager): List<String> {
         userDataManager.init()
-        initSessionHistoryDatabase()
         return localContentRepository.listDatabases()
     }
 
@@ -48,21 +40,13 @@ class AppStartupCoordinator(
         )
     }
 
-    private fun initSessionHistoryDatabase() {
-        if (sessionHistoryDatabase != null) return
-        sessionHistoryDatabase = Room.databaseBuilder<SessionHistoryDatabase>(sessionHistoryDbPath)
-            .setDriver(BundledSQLiteDriver())
-            .build()
-    }
-
     private suspend fun ensureDatabaseInitialized(dbName: String, userDataManager: UserDataManager): String {
         val currentName = activeDatabaseHolder.databaseName.value
         val currentProvider = activeDatabaseHolder.databaseProvider.value
         if (currentName == dbName.removeSuffix(".db") && currentProvider != null) return dbName
 
-        initSessionHistoryDatabase()
         val dbPath = FileSystemHelper.getDatabasePath(dbName)
-        val sessionHistoryDao = sessionHistoryDatabase!!.sessionHistoryDao()
+        val sessionHistoryDao = sessionHistoryManager.sessionHistoryDao()
         val roomLogDao = userDataManager.logDao()
         val databaseManager = DatabaseManager(dbPath, dbName.removeSuffix(".db"), sessionHistoryDao, roomLogDao)
         databaseManager.init()
