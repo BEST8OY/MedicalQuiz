@@ -105,7 +105,8 @@ kotlin {
 }
 
 dependencies {
-    add("kspCommonMainMetadata", libs.room3.compiler)
+    add("kspAndroid", libs.room3.compiler)
+    add("kspDesktop", libs.room3.compiler)
 }
 
 room3 {

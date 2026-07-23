@@ -7,6 +7,7 @@ import androidx.room3.PrimaryKey
 @Entity(tableName = "quiz_sessions")
 data class QuizSessionEntity(
     @PrimaryKey
+    @ColumnInfo(name = "session_id")
     val sessionId: String,
     @ColumnInfo(name = "created_at")
     val createdAt: String = ""
