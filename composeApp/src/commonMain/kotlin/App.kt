@@ -114,6 +114,7 @@ fun App() {
         val workflow = rememberAppWorkflow(
             workflowCoordinator = graph.workflowCoordinator,
             filterStateHolder = graph.filterStateHolder,
+            userDataManager = graph.userDataManager,
         )
 
         val mediaDescriptionsFlow = remember { MutableStateFlow<Map<String, MediaDescription>>(emptyMap()) }

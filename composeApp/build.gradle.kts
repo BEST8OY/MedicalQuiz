@@ -5,6 +5,8 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.metro)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.room3)
 }
 
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -55,6 +57,9 @@ kotlin {
                 implementation(libs.ksoup.html)
 
                 implementation(libs.sqlite.bundled)
+
+                // Room 3
+                implementation(libs.room3.runtime)
                 
                 // Navigation 3
                 implementation(libs.androidx.navigation3.ui)
@@ -97,6 +102,10 @@ kotlin {
             }
         }
     }
+}
+
+room3 {
+    schemaDirectory("$projectDir/schemas")
 }
 
 compose.desktop {

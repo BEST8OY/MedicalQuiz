@@ -30,6 +30,7 @@ interface DatabaseProvider {
     suspend fun getSystems(subjectIds: List<Long>? = null): List<System>
     
     suspend fun logAnswer(
+        dbName: String,
         qid: Long,
         selectedAnswer: Int,
         corrAnswer: Int,
@@ -37,8 +38,8 @@ interface DatabaseProvider {
         sessionId: String
     )
     
-    suspend fun clearLogForQuestion(qid: Long)
-    suspend fun getQuestionPerformance(qid: Long): QuestionPerformance?
+    suspend fun clearLogForQuestion(dbName: String, qid: Long)
+    suspend fun getQuestionPerformance(dbName: String, qid: Long): QuestionPerformance?
 
     suspend fun upsertHistoryEntry(
         sessionId: String,

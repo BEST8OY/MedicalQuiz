@@ -2,7 +2,6 @@ package com.medqb.app.shared.data
 
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
-import com.medqb.app.shared.data.dao.HistoryDao
 import com.medqb.app.shared.data.dao.LogDao
 import com.medqb.app.shared.data.dao.QuestionDao
 import com.medqb.app.shared.data.dao.SubjectDao
@@ -10,6 +9,9 @@ import com.medqb.app.shared.data.database.DatabaseProvider
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.database.QuizSessionHistoryRow
+import com.medqb.app.shared.data.local.dao.RoomLogDao
+import com.medqb.app.shared.data.local.dao.RoomSessionHistoryDao
+import com.medqb.app.shared.data.local.entity.QuizHistoryEntity
 import com.medqb.app.shared.data.models.Answer
 import com.medqb.app.shared.data.models.Question
 import com.medqb.app.shared.data.models.Subject
@@ -20,7 +22,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-class DatabaseManager(private val dbPath: String) : DatabaseProvider {
+class DatabaseManager(
+    private val dbPath: String,
+    val dbName: String,
+    private val sessionHistoryDao: RoomSessionHistoryDao,
+    private val roomLogDao: RoomLogDao,
+) : DatabaseProvider {
     private val driver = BundledSQLiteDriver()
     private var connection: SQLiteConnection? = null
     private val mutex = Mutex()
@@ -29,14 +36,12 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
     val questionDao: QuestionDao
     val subjectDao: SubjectDao
     val logDao: LogDao
-    val historyDao: HistoryDao
 
     init {
         val connProvider = { getConnection() }
-        questionDao = QuestionDao(connProvider, mutex, { isStringIds }, ::getSubjectNames, ::getSystemNames)
+        questionDao = QuestionDao(connProvider, mutex, { isStringIds }, ::getSubjectNames, ::getSystemNames, roomLogDao)
         subjectDao = SubjectDao(connProvider, mutex)
-        logDao = LogDao(connProvider, mutex)
-        historyDao = HistoryDao(connProvider, mutex)
+        logDao = LogDao(roomLogDao, sessionHistoryDao)
     }
 
     suspend fun init() = withContext(Dispatchers.IO) {
@@ -47,7 +52,6 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
                     stmt.step()
                 }
                 checkSchema()
-                logDao.ensureSessionLoggingSchema()
             } catch (e: Exception) {
                 Logger.e("DatabaseManager", "Error initializing database", e)
                 throw e
@@ -86,7 +90,7 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         subjectIds: List<Long>?,
         systemIds: List<Long>?,
         performanceFilter: PerformanceFilter
-    ): List<Long> = questionDao.getQuestionIds(subjectIds, systemIds, performanceFilter)
+    ): List<Long> = questionDao.getQuestionIds(dbName, subjectIds, systemIds, performanceFilter)
 
     override suspend fun getQuestionById(id: Long): Question? = questionDao.getQuestionById(id)
 
@@ -101,23 +105,36 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         subjectIds: List<Long>?,
         systemIds: List<Long>?,
         performanceFilter: PerformanceFilter,
-    ): Int = questionDao.countQuestionIds(subjectIds, systemIds, performanceFilter)
+    ): Int = questionDao.countQuestionIds(dbName, subjectIds, systemIds, performanceFilter)
 
     override suspend fun getSubjects(): List<Subject> = subjectDao.getSubjects()
 
     override suspend fun getSystems(subjectIds: List<Long>?): List<System> = subjectDao.getSystems(subjectIds)
 
     override suspend fun logAnswer(
+        dbName: String,
         qid: Long,
         selectedAnswer: Int,
         corrAnswer: Int,
         time: Long,
         sessionId: String
-    ) = logDao.logAnswer(qid, selectedAnswer, corrAnswer, time, sessionId)
+    ) = logDao.logAnswer(dbName, qid, selectedAnswer, corrAnswer, time, sessionId)
 
-    override suspend fun clearLogForQuestion(qid: Long) = logDao.clearLogForQuestion(qid)
+    override suspend fun clearLogForQuestion(dbName: String, qid: Long) = logDao.clearLogForQuestion(dbName, qid)
 
-    override suspend fun getQuestionPerformance(qid: Long): QuestionPerformance? = questionDao.getQuestionPerformance(qid)
+    override suspend fun getQuestionPerformance(dbName: String, qid: Long): QuestionPerformance? = withContext(Dispatchers.IO) {
+        roomLogDao.getQuestionPerformance(dbName, qid)?.let {
+            QuestionPerformance(
+                qid = qid,
+                lastCorrect = it.lastCorrect == 1L,
+                everCorrect = it.everCorrect == 1L,
+                everIncorrect = it.everIncorrect == 1L,
+                attempts = it.attempts.toInt(),
+                correctCount = it.correctCount.toInt(),
+                incorrectCount = it.incorrectCount.toInt(),
+            )
+        }
+    }
 
     override suspend fun upsertHistoryEntry(
         sessionId: String,
@@ -130,20 +147,54 @@ class DatabaseManager(private val dbPath: String) : DatabaseProvider {
         updatedAt: Long,
         isLoggingEnabled: Boolean,
         submissionMode: String,
-    ) = historyDao.upsertHistoryEntry(
-        sessionId, databaseName, entryName, selectedSubjectIds, selectedSystemIds,
-        performanceFilter, currentQuestionIndex, updatedAt, isLoggingEnabled, submissionMode
-    )
+    ) = withContext(Dispatchers.IO) {
+        sessionHistoryDao.upsertHistory(
+            QuizHistoryEntity(
+                sessionId = sessionId,
+                databaseName = databaseName,
+                entryName = entryName,
+                selectedSubjectIds = selectedSubjectIds.joinToString(","),
+                selectedSystemIds = selectedSystemIds.joinToString(","),
+                performanceFilter = performanceFilter,
+                currentQuestionIndex = currentQuestionIndex,
+                updatedAt = updatedAt,
+                isLoggingEnabled = isLoggingEnabled,
+                submissionMode = submissionMode,
+            )
+        )
+    }
 
-    override suspend fun listHistoryEntries(): List<QuizSessionHistoryRow> = historyDao.listHistoryEntries()
+    override suspend fun listHistoryEntries(): List<QuizSessionHistoryRow> = withContext(Dispatchers.IO) {
+        sessionHistoryDao.listHistoryOnce().map { it.toDomain() }
+    }
 
-    override suspend fun getHistoryEntry(sessionId: String): QuizSessionHistoryRow? = historyDao.getHistoryEntry(sessionId)
+    override suspend fun getHistoryEntry(sessionId: String): QuizSessionHistoryRow? = withContext(Dispatchers.IO) {
+        sessionHistoryDao.getHistory(sessionId)?.toDomain()
+    }
 
-    override suspend fun deleteHistoryEntries(sessionIds: List<String>) = historyDao.deleteHistoryEntries(sessionIds)
+    override suspend fun deleteHistoryEntries(sessionIds: List<String>) = withContext(Dispatchers.IO) {
+        sessionHistoryDao.deleteHistory(sessionIds)
+        sessionHistoryDao.deleteOrphanedSessions()
+    }
 
-    override suspend fun renameHistoryEntry(sessionId: String, newName: String) = historyDao.renameHistoryEntry(sessionId, newName)
+    override suspend fun renameHistoryEntry(sessionId: String, newName: String) = withContext(Dispatchers.IO) {
+        sessionHistoryDao.renameHistory(sessionId, newName)
+    }
 
     private fun getSubjectNames(idsStr: String): String = subjectDao.getSubjectNames(idsStr)
 
     private fun getSystemNames(idsStr: String): String = subjectDao.getSystemNames(idsStr)
+
+    private fun QuizHistoryEntity.toDomain() = QuizSessionHistoryRow(
+        sessionId = sessionId,
+        databaseName = databaseName,
+        entryName = entryName,
+        selectedSubjectIds = selectedSubjectIds.split(",").mapNotNull { it.trim().toLongOrNull() },
+        selectedSystemIds = selectedSystemIds.split(",").mapNotNull { it.trim().toLongOrNull() },
+        performanceFilter = performanceFilter,
+        currentQuestionIndex = currentQuestionIndex,
+        updatedAt = updatedAt,
+        isLoggingEnabled = isLoggingEnabled,
+        submissionMode = submissionMode,
+    )
 }

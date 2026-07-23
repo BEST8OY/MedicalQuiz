@@ -302,6 +302,7 @@ class QuizViewModel(
                     val correctAnswer = currentState.currentAnswers.getOrNull(question.corrAns - 1)
                     val correctAnswerId = correctAnswer?.answerId?.toInt() ?: -1
                     db.logAnswer(
+                        dbName = activeDatabaseHolder.databaseName.value,
                         qid = question.id,
                         selectedAnswer = selectedAnswerId,
                         corrAnswer = correctAnswerId,
@@ -417,7 +418,7 @@ class QuizViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val db = activeDatabaseHolder.databaseProvider.value
             try {
-                db?.clearLogForQuestion(questionId)
+                db?.clearLogForQuestion(activeDatabaseHolder.databaseName.value, questionId)
                 _state.update { it.copy(currentPerformance = null) }
                 emitSnackbar("Log cleared for current question")
             } catch (e: CancellationException) {

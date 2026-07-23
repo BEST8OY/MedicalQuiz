@@ -1,6 +1,7 @@
 package com.medqb.app.shared.orchestration
 
 import com.medqb.app.shared.data.FilterStateHolder
+import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.navigation.QuizLaunchSource
 import dev.zacsweers.metro.Inject
 
@@ -34,12 +35,14 @@ class AppWorkflowCoordinator(
      */
     suspend fun handleDatabaseSelection(
         state: AppWorkflowState,
+        userDataManager: UserDataManager,
     ): DatabaseSelectionDecision? {
         val dbName = state.selectedDatabase ?: return null
         return startupCoordinator.handleDatabaseSelection(
             selectedDatabase = dbName,
             initializedDatabase = state.initializedDatabase,
             pendingLaunchSource = state.pendingLaunchSource,
+            userDataManager = userDataManager,
         )
     }
 
