@@ -149,18 +149,16 @@ class DatabaseManager(
         submissionMode: String,
     ) = withContext(Dispatchers.IO) {
         sessionHistoryDao.upsertHistory(
-            QuizHistoryEntity(
-                sessionId = sessionId,
-                databaseName = databaseName,
-                entryName = entryName,
-                selectedSubjectIds = selectedSubjectIds.joinToString(","),
-                selectedSystemIds = selectedSystemIds.joinToString(","),
-                performanceFilter = performanceFilter,
-                currentQuestionIndex = currentQuestionIndex,
-                updatedAt = updatedAt,
-                isLoggingEnabled = isLoggingEnabled,
-                submissionMode = submissionMode,
-            )
+            sessionId = sessionId,
+            databaseName = databaseName,
+            entryName = entryName,
+            selectedSubjectIds = selectedSubjectIds.joinToString(","),
+            selectedSystemIds = selectedSystemIds.joinToString(","),
+            performanceFilter = performanceFilter,
+            currentQuestionIndex = currentQuestionIndex,
+            updatedAt = updatedAt,
+            isLoggingEnabled = isLoggingEnabled,
+            submissionMode = submissionMode,
         )
     }
 

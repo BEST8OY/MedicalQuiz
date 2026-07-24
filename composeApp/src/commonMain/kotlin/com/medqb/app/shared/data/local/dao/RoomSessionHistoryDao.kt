@@ -18,8 +18,38 @@ interface RoomSessionHistoryDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertLogLink(link: SessionLogLinkEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertHistory(entry: QuizHistoryEntity)
+    @Query(
+        """
+        INSERT INTO quiz_history
+        (session_id, database_name, entry_name, selected_subject_ids, selected_system_ids,
+         performance_filter, current_question_index, updated_at, is_logging_enabled, submission_mode)
+        VALUES
+        (:sessionId, :databaseName, :entryName, :selectedSubjectIds, :selectedSystemIds,
+         :performanceFilter, :currentQuestionIndex, :updatedAt, :isLoggingEnabled, :submissionMode)
+        ON CONFLICT(session_id) DO UPDATE SET
+            database_name = excluded.database_name,
+            entry_name = CASE WHEN excluded.entry_name = '' THEN quiz_history.entry_name ELSE excluded.entry_name END,
+            selected_subject_ids = excluded.selected_subject_ids,
+            selected_system_ids = excluded.selected_system_ids,
+            performance_filter = excluded.performance_filter,
+            current_question_index = excluded.current_question_index,
+            updated_at = excluded.updated_at,
+            is_logging_enabled = excluded.is_logging_enabled,
+            submission_mode = excluded.submission_mode
+        """
+    )
+    suspend fun upsertHistory(
+        sessionId: String,
+        databaseName: String,
+        entryName: String,
+        selectedSubjectIds: String,
+        selectedSystemIds: String,
+        performanceFilter: String,
+        currentQuestionIndex: Int,
+        updatedAt: Long,
+        isLoggingEnabled: Boolean,
+        submissionMode: String,
+    )
 
     @Query("SELECT * FROM quiz_history ORDER BY updated_at DESC")
     fun listHistory(): Flow<List<QuizHistoryEntity>>
