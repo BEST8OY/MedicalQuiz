@@ -15,6 +15,10 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 kotlin {
     jvmToolchain(21)
 
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     // New Android-KMP plugin DSL (replaces androidTarget() + top-level android { })
     // https://developer.android.com/kotlin/multiplatform/plugin
     android {
@@ -27,12 +31,15 @@ kotlin {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
+        withHostTest {
+            // Enables host unit tests for Android target (androidUnitTest)
+        }
     }
     
     jvm("desktop")
     
     sourceSets {
-        val commonMain by getting {
+        commonMain {
             dependencies {
                 implementation(libs.compose.runtime)
                 implementation(libs.compose.foundation)
@@ -70,7 +77,7 @@ kotlin {
             }
         }
         
-        val androidMain by getting {
+        androidMain {
             dependencies {
                 implementation(libs.compose.preview)
                 implementation(libs.androidx.activity.compose)
@@ -84,7 +91,7 @@ kotlin {
             }
         }
         
-        val desktopMain by getting {
+        getByName("desktopMain") {
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutines.swing)
@@ -95,7 +102,7 @@ kotlin {
             }
         }
 
-        val commonTest by getting {
+        commonTest {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
@@ -160,8 +167,3 @@ compose.desktop {
     }
 }
 
-tasks.withType<KotlinCompilationTask<*>>().configureEach {
-    compilerOptions {
-        freeCompilerArgs.add("-Xexpect-actual-classes")
-    }
-}
