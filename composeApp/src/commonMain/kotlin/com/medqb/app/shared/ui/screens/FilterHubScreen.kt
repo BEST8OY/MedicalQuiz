@@ -47,7 +47,12 @@ internal fun FilterHubScreen(
 
     FilterPaneScaffold(
         selectedPane = state.activePane,
-        onPaneSelected = { viewModel.setActivePane(it) },
+        onPaneSelected = { pane ->
+            if (pane != state.activePane) {
+                onDismissSnackbar()
+                viewModel.setActivePane(pane)
+            }
+        },
         showPaneToolbar = !historySelectionMode || state.activePane == FilterPane.Filters,
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -86,14 +91,20 @@ internal fun FilterHubScreen(
                                 viewModel.fetchSystemsForSubjects(subjects)
                             },
                             onSelectPerformance = { showPerformanceDialog = true },
-                            onStart = onStartQuiz,
+                            onStart = {
+                                onDismissSnackbar()
+                                onStartQuiz()
+                            },
                             onClearFilters = { viewModel.clearAllFilters() },
                         )
                     }
                     FilterPane.History -> {
                         HistoryPane(
                             historyEntries = state.historyEntries,
-                            onHistorySelected = onHistorySelected,
+                            onHistorySelected = { entry ->
+                                onDismissSnackbar()
+                                onHistorySelected(entry)
+                            },
                             onDeleteHistoryEntries = { viewModel.deleteHistoryEntries(it) },
                             onRenameHistoryEntry = { id, name -> viewModel.renameHistoryEntry(id, name) },
                             onCopyAllQids = { entries, onCopied ->

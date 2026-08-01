@@ -34,12 +34,14 @@ fun FilterEntry(
     )
 
     val onStartQuiz = dropUnlessResumed {
+        snackbarHostState.currentSnackbarData?.dismiss()
         workflow.onStandardQuizLaunchPrepared()
         navigator.navigateTo(MedQBRoutes.Quiz)
     }
 
-    val onHistorySelected = remember(filterVM, workflow, navigator, graph) {
+    val onHistorySelected = remember(filterVM, workflow, navigator, graph, snackbarHostState) {
         { entry: QuizSessionRepository.QuizSession ->
+            snackbarHostState.currentSnackbarData?.dismiss()
             filterVM.restoreHistoryEntry(
                 entry = entry,
                 onSuccess = { matchingDatabase ->

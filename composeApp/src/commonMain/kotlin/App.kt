@@ -9,7 +9,9 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.navigation3.runtime.metadata
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -277,6 +279,7 @@ fun App() {
                     NavDisplay(
                         backStack = backStack,
                         onBack = {
+                            snackbarHostState.currentSnackbarData?.dismiss()
                             if (navigator.currentRoute is MedQBRoutes.Quiz) {
                                 returnQuizToFilter()
                             } else {
@@ -305,11 +308,17 @@ fun App() {
                 }
             }
 
+            val isFilterRoute = navigator.currentRoute is MedQBRoutes.Filter
             SnackbarHost(
                 hostState = snackbarHostState,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(horizontal = Inset.Md, vertical = Spacing.Sm),
+                    .navigationBarsPadding()
+                    .padding(
+                        start = Inset.Md,
+                        end = Inset.Md,
+                        bottom = if (isFilterRoute) 80.dp else Spacing.Sm,
+                    ),
                 snackbar = { data ->
                     Snackbar(
                         snackbarData = data,
