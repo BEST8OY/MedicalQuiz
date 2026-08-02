@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -90,62 +92,66 @@ internal fun FilterScreen(
                     )
             ) {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(Spacing.Xl)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.Xl)
-                    ) {
-                        DatabaseHeaderCard(databaseName = databaseName)
+                    DatabaseHeaderCard(databaseName = databaseName)
 
-                        FilterPreviewCard(previewCount = previewCount)
+                    FilterPreviewCard(previewCount = previewCount)
 
-                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.Md)) {
-                            FilterSelectionCard(
-                                title = "Subjects",
-                                subtitle = if (subjectCount == 0) "All subjects" else "$subjectCount selected",
-                                icon = Icons.Filled.Category,
-                                isActive = subjectCount > 0,
-                                onClick = onSelectSubjects
-                            )
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Md)) {
+                        FilterSelectionCard(
+                            title = "Subjects",
+                            subtitle = if (subjectCount == 0) "All subjects" else "$subjectCount selected",
+                            icon = Icons.Filled.Category,
+                            isActive = subjectCount > 0,
+                            onClick = onSelectSubjects
+                        )
 
-                            FilterSelectionCard(
-                                title = "Systems",
-                                subtitle = if (systemCount == 0) "All systems" else "$systemCount selected",
-                                icon = Icons.Filled.Layers,
-                                isActive = systemCount > 0,
-                                onClick = onSelectSystems
-                            )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.Md)
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                FilterSelectionCard(
+                                    title = "Systems",
+                                    subtitle = if (systemCount == 0) "All systems" else "$systemCount selected",
+                                    icon = Icons.Filled.Layers,
+                                    isActive = systemCount > 0,
+                                    onClick = onSelectSystems
+                                )
+                            }
 
-                            FilterSelectionCard(
-                                title = "Performance",
-                                subtitle = performanceLabel,
-                                icon = Icons.AutoMirrored.Filled.TrendingUp,
-                                isActive = performanceFilter != PerformanceFilter.ALL,
-                                onClick = onSelectPerformance
-                            )
-
-                            ToggleCard(
-                                icon = Icons.Filled.Edit,
-                                title = "Manual Submission",
-                                description = "Review your answer before submitting",
-                                checked = submissionMode == SubmissionMode.MANUAL,
-                                onCheckedChange = { checked ->
-                                    onSubmissionModeToggle(if (checked) SubmissionMode.MANUAL else SubmissionMode.INSTANT)
-                                }
-                            )
-
-                            ToggleCard(
-                                icon = Icons.Filled.History,
-                                title = "Track Session Progress",
-                                description = "Record answer logs for historical tracking",
-                                checked = isLoggingEnabled,
-                                onCheckedChange = onLoggingToggle
-                            )
+                            Box(modifier = Modifier.weight(1f)) {
+                                ToggleCard(
+                                    icon = Icons.Filled.History,
+                                    title = "Track History",
+                                    description = "Record progress logs",
+                                    checked = isLoggingEnabled,
+                                    onCheckedChange = onLoggingToggle
+                                )
+                            }
                         }
+
+                        FilterSelectionCard(
+                            title = "Performance",
+                            subtitle = performanceLabel,
+                            icon = Icons.AutoMirrored.Filled.TrendingUp,
+                            isActive = performanceFilter != PerformanceFilter.ALL,
+                            onClick = onSelectPerformance
+                        )
+
+                        ToggleCard(
+                            icon = Icons.Filled.Edit,
+                            title = "Manual Submission",
+                            description = "Review your answer before submitting",
+                            checked = submissionMode == SubmissionMode.MANUAL,
+                            onCheckedChange = { checked ->
+                                onSubmissionModeToggle(if (checked) SubmissionMode.MANUAL else SubmissionMode.INSTANT)
+                            }
+                        )
                     }
 
                     PrimaryActionButtonGroup(
@@ -154,6 +160,8 @@ internal fun FilterScreen(
                         onStart = onStart,
                         onClearFilters = onClearFilters
                     )
+
+                    Spacer(modifier = Modifier.height(Spacing.Lg))
                 }
             }
         }
