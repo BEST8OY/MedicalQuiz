@@ -60,11 +60,12 @@ internal fun SelectionToolbar(
         shadowElevation = 2.dp,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = Spacing.Sm + Spacing.Xs, vertical = Spacing.Sm),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Xs)
+            modifier = Modifier.padding(horizontal = Spacing.Md, vertical = Spacing.Sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.Xs),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Xs),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AssistChip(
@@ -106,7 +107,7 @@ internal fun SelectionToolbar(
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Xs),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HighlightColor.entries.forEach { color ->
@@ -134,8 +135,8 @@ internal fun HighlightEditPopup(
         shadowElevation = 2.dp,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = Spacing.Sm, vertical = Spacing.Xs),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Xs),
+            modifier = Modifier.padding(horizontal = Spacing.Sm + Spacing.Xs, vertical = Spacing.Xs),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
             HighlightColor.entries.forEach { color ->
