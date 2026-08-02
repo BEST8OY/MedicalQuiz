@@ -155,3 +155,17 @@ object ScreenLayout {
     /** Top padding for empty state messages */
     val EmptyStatePadding: Dp = 72.dp
 }
+
+/**
+ * Responsive dialog layout tokens.
+ */
+object DialogLayout {
+    /** Fraction of screen width for compact viewports */
+    const val CompactWidthFraction: Float = 0.92f
+
+    /** Fraction of screen width for expanded viewports (tablets/desktop) */
+    const val ExpandedWidthFraction: Float = 0.65f
+
+    /** Safety margin subtracted from screen height for dialog container max height */
+    val MaxHeightInset: Dp get() = Spacing.Xl
+}

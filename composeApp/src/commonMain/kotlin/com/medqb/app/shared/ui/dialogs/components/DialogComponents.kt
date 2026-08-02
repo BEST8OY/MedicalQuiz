@@ -30,12 +30,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.medqb.app.shared.ui.theme.DialogLayout
 import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
 
 /**
  * Base dialog shell with consistent styling for all dialogs.
  */
+
 @Composable
 fun DialogShell(
     onDismiss: () -> Unit,
@@ -53,8 +56,8 @@ fun DialogShell(
         BoxWithConstraints {
             Surface(
                 modifier = Modifier
-                    .fillMaxWidth(if (maxWidth >= 600.dp) 0.65f else 0.92f)
-                    .heightIn(max = maxHeight - 32.dp)
+                    .fillMaxWidth(if (maxWidth >= ScreenLayout.CompactWidthBreakpoint) DialogLayout.ExpandedWidthFraction else DialogLayout.CompactWidthFraction)
+                    .heightIn(max = maxHeight - DialogLayout.MaxHeightInset)
                     .clip(MaterialTheme.shapes.extraLarge),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
