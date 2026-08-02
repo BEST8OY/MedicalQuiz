@@ -1,10 +1,10 @@
 package com.medqb.app.shared.ui.entry
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.dropUnlessResumed
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.MediaDescription
 import com.medqb.app.shared.di.AppGraph
@@ -27,6 +27,13 @@ fun MediaViewerEntry(
     val mediaDescriptions by mediaDescriptionsFlow.collectAsStateWithLifecycle()
     val fontScalePreference = graph.settingsRepository.fontScalePreference
         .collectAsStateWithLifecycle(null).value
+
+    DisposableEffect(Unit) {
+        onDispose {
+            mediaHandler.activeSharedElementKey.value = null
+            mediaDescriptionsFlow.value = emptyMap()
+        }
+    }
 
     MediaViewerScreen(
         mediaFiles = key.files,
@@ -55,12 +62,8 @@ fun MediaViewerEntry(
                 }
             }
         },
-        onBack = dropUnlessResumed {
-            mediaHandler.activeSharedElementKey.value = null
+        onBack = {
             navigator.navigateBack()
-            scope.launch {
-                mediaDescriptionsFlow.value = emptyMap()
-            }
         }
     )
 }
