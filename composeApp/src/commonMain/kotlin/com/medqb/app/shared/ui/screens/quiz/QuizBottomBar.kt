@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -65,16 +67,18 @@ fun QuizFloatingToolbar(
             colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
             contentPadding = FloatingToolbarDefaults.ContentPadding,
             leadingContent = {
-                IconButton(
+                Surface(
                     onClick = onPrevious,
                     enabled = uiState.hasPreviousQuestion,
-                    modifier = Modifier
-                        .sizeIn(minWidth = Layout.MinTouchTarget, minHeight = Layout.MinTouchTarget)
-                        .semantics { contentDescription = "Previous question" },
+                    shape = CircleShape,
+                    color = Color.Transparent,
+                    modifier = Modifier.semantics { contentDescription = "Previous question" },
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = if (isExpanded) Spacing.Xs else 0.dp)
+                        modifier = Modifier
+                            .sizeIn(minWidth = Layout.MinTouchTarget, minHeight = Layout.MinTouchTarget)
+                            .padding(horizontal = if (isExpanded) Spacing.Sm else Spacing.Xs)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
@@ -91,16 +95,18 @@ fun QuizFloatingToolbar(
                 }
             },
             trailingContent = {
-                IconButton(
+                Surface(
                     onClick = onNext,
                     enabled = uiState.hasNextQuestion,
-                    modifier = Modifier
-                        .sizeIn(minWidth = Layout.MinTouchTarget, minHeight = Layout.MinTouchTarget)
-                        .semantics { contentDescription = "Next question" },
+                    shape = CircleShape,
+                    color = Color.Transparent,
+                    modifier = Modifier.semantics { contentDescription = "Next question" },
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = if (isExpanded) Spacing.Xs else 0.dp)
+                        modifier = Modifier
+                            .sizeIn(minWidth = Layout.MinTouchTarget, minHeight = Layout.MinTouchTarget)
+                            .padding(horizontal = if (isExpanded) Spacing.Sm else Spacing.Xs)
                     ) {
                         if (isExpanded) {
                             Text(
