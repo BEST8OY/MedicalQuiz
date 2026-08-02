@@ -53,6 +53,7 @@ actual fun VideoPlayer(
                 useController = true
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                 setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+                setSurfaceType(PlayerView.SURFACE_TYPE_TEXTURE_VIEW)
                 // Enable Compose surface sync workaround for Android 14+ (API 34+)
                 // See: https://developer.android.com/media/media3/ui/surface
                 setEnableComposeSurfaceSyncWorkaround(true)

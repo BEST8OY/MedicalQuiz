@@ -2,7 +2,6 @@ package com.medqb.app.shared.ui.richtext
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -22,6 +21,9 @@ import com.medqb.app.shared.ui.LocalActiveSharedElementKey
 import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.HtmlUtils
+
+import net.engawapg.lib.zoomable.rememberZoomState
+import net.engawapg.lib.zoomable.snapBackZoomable
 
 /**
  * Renders a media element (image) with optional description.
@@ -48,6 +50,8 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
                 .widthIn(max = MaxEmbeddedImageWidth)
         }
     }
+
+    val zoomState = rememberZoomState()
 
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalNavAnimatedContentScope.current
@@ -80,7 +84,10 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
             contentScale = ContentScale.Fit,
             modifier = Modifier
                 .then(imageSizeModifier)
-                .clickable { onMediaClick(clickTarget) }
+                .snapBackZoomable(
+                    zoomState = zoomState,
+                    onTap = { onMediaClick(clickTarget) },
+                )
                 .then(sharedElementModifier),
         )
         block.description?.let {
