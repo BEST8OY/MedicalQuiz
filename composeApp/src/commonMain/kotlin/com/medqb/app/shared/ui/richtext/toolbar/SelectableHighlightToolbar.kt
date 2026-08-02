@@ -9,7 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,11 +22,13 @@ import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -46,7 +48,7 @@ import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.ui.theme.Stroke
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
 internal fun SelectionToolbar(
     selectedText: String,
@@ -54,85 +56,84 @@ internal fun SelectionToolbar(
     onOpenExternal: () -> Unit,
     onHighlight: (HighlightColor) -> Unit,
 ) {
-    Surface(
-        shape = MaterialTheme.shapes.extraSmall,
-        tonalElevation = 3.dp,
-        shadowElevation = 0.dp,
+    HorizontalFloatingToolbar(
+        expanded = true,
+        colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
+        contentPadding = FloatingToolbarDefaults.ContentPadding,
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = Spacing.Sm, vertical = Spacing.Xs),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Xs)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Xs),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Xs),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AssistChip(
-                    onClick = onCopy,
-                    label = { androidx.compose.material3.Text("Copy") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Rounded.ContentCopy,
-                            contentDescription = null,
-                            modifier = Modifier.size(ElementSize.IconMd)
-                        )
-                    },
-                    enabled = selectedText.isNotBlank(),
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        labelColor = MaterialTheme.colorScheme.onSurface,
-                        leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                )
-                AssistChip(
-                    onClick = onOpenExternal,
-                    label = { androidx.compose.material3.Text("Dictionary") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
-                            contentDescription = null,
-                            modifier = Modifier.size(ElementSize.IconMd)
-                        )
-                    },
-                    enabled = selectedText.isNotBlank(),
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        labelColor = MaterialTheme.colorScheme.onSurface,
-                        leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                )
-            }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Xs),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                HighlightColor.entries.forEach { color ->
-                    HighlightColorChip(
-                        color = color,
-                        isSelected = false,
-                        onClick = { onHighlight(color) }
+            AssistChip(
+                onClick = onCopy,
+                label = { androidx.compose.material3.Text("Copy", style = MaterialTheme.typography.labelMedium) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Rounded.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(ElementSize.IconMd)
                     )
-                }
+                },
+                enabled = selectedText.isNotBlank(),
+                shape = CircleShape,
+                colors = AssistChipDefaults.assistChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
+                    leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            )
+            AssistChip(
+                onClick = onOpenExternal,
+                label = { androidx.compose.material3.Text("Dictionary", style = MaterialTheme.typography.labelMedium) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
+                        contentDescription = null,
+                        modifier = Modifier.size(ElementSize.IconMd)
+                    )
+                },
+                enabled = selectedText.isNotBlank(),
+                shape = CircleShape,
+                colors = AssistChipDefaults.assistChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
+                    leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            )
+
+            VerticalDivider(
+                modifier = Modifier
+                    .padding(vertical = Spacing.Xs)
+                    .size(width = Stroke.Thin, height = Layout.MinTouchTarget)
+                    .clip(CircleShape),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+
+            HighlightColor.entries.forEach { color ->
+                HighlightColorChip(
+                    color = color,
+                    isSelected = false,
+                    onClick = { onHighlight(color) }
+                )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun HighlightEditPopup(
     highlight: TextHighlight,
     onColorChange: (HighlightColor) -> Unit,
     onDelete: () -> Unit
 ) {
-    Surface(
-        shape = MaterialTheme.shapes.extraSmall,
-        tonalElevation = 3.dp,
-        shadowElevation = 0.dp,
+    HorizontalFloatingToolbar(
+        expanded = true,
+        colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
+        contentPadding = FloatingToolbarDefaults.ContentPadding,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = Spacing.Sm, vertical = Spacing.Xs),
             horizontalArrangement = Arrangement.spacedBy(Spacing.Xs),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -146,6 +147,7 @@ internal fun HighlightEditPopup(
 
             VerticalDivider(
                 modifier = Modifier
+                    .padding(vertical = Spacing.Xs)
                     .size(width = Stroke.Thin, height = Layout.MinTouchTarget)
                     .clip(CircleShape),
                 color = MaterialTheme.colorScheme.outlineVariant,
@@ -153,7 +155,9 @@ internal fun HighlightEditPopup(
 
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier.size(Layout.MinTouchTarget),
+                modifier = Modifier
+                    .size(Layout.MinTouchTarget)
+                    .clip(CircleShape),
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
                     contentColor = MaterialTheme.colorScheme.onErrorContainer
