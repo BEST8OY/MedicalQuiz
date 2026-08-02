@@ -88,7 +88,7 @@ internal fun FilterScreen(
                         start = Inset.Lg,
                         top = Inset.Xl,
                         end = Inset.Lg,
-                        bottom = Inset.Xl + bottomContentPadding,
+                        bottom = Spacing.Lg,
                     )
             ) {
                 Column(
@@ -102,18 +102,20 @@ internal fun FilterScreen(
                     FilterPreviewCard(previewCount = previewCount)
 
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.Md)) {
-                        FilterSelectionCard(
-                            title = "Subjects",
-                            subtitle = if (subjectCount == 0) "All subjects" else "$subjectCount selected",
-                            icon = Icons.Filled.Category,
-                            isActive = subjectCount > 0,
-                            onClick = onSelectSubjects
-                        )
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(Spacing.Md)
                         ) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                FilterSelectionCard(
+                                    title = "Subjects",
+                                    subtitle = if (subjectCount == 0) "All subjects" else "$subjectCount selected",
+                                    icon = Icons.Filled.Category,
+                                    isActive = subjectCount > 0,
+                                    onClick = onSelectSubjects
+                                )
+                            }
+
                             Box(modifier = Modifier.weight(1f)) {
                                 FilterSelectionCard(
                                     title = "Systems",
@@ -121,16 +123,6 @@ internal fun FilterScreen(
                                     icon = Icons.Filled.Layers,
                                     isActive = systemCount > 0,
                                     onClick = onSelectSystems
-                                )
-                            }
-
-                            Box(modifier = Modifier.weight(1f)) {
-                                ToggleCard(
-                                    icon = Icons.Filled.History,
-                                    title = "Track History",
-                                    description = "Record progress logs",
-                                    checked = isLoggingEnabled,
-                                    onCheckedChange = onLoggingToggle
                                 )
                             }
                         }
@@ -141,6 +133,14 @@ internal fun FilterScreen(
                             icon = Icons.AutoMirrored.Filled.TrendingUp,
                             isActive = performanceFilter != PerformanceFilter.ALL,
                             onClick = onSelectPerformance
+                        )
+
+                        ToggleCard(
+                            icon = Icons.Filled.History,
+                            title = "Track Session Progress",
+                            description = "Record answer logs for historical tracking",
+                            checked = isLoggingEnabled,
+                            onCheckedChange = onLoggingToggle
                         )
 
                         ToggleCard(
@@ -160,8 +160,6 @@ internal fun FilterScreen(
                         onStart = onStart,
                         onClearFilters = onClearFilters
                     )
-
-                    Spacer(modifier = Modifier.height(Spacing.Lg))
                 }
             }
         }
