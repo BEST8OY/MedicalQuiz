@@ -39,13 +39,13 @@ class AppNavigator(
         }
     }
 
-    fun returnQuizToFilter() {
+    fun returnQuizToFilter(targetPaneName: String? = null) {
         if (currentRoute is MedQBRoutes.Quiz) {
             navigateBack()
         }
         if (currentRoute !is MedQBRoutes.Filter) {
             popToDatabaseSelection()
-            navigateTo(MedQBRoutes.Filter)
+            navigateTo(MedQBRoutes.Filter(initialPaneName = targetPaneName))
         }
     }
 }

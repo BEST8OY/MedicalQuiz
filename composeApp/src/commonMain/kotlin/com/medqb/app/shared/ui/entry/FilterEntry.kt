@@ -36,7 +36,7 @@ fun FilterEntry(
     val onStartQuiz = dropUnlessResumed {
         snackbarHostState.currentSnackbarData?.dismiss()
         workflow.onStandardQuizLaunchPrepared()
-        navigator.navigateTo(MedQBRoutes.Quiz)
+        navigator.navigateTo(MedQBRoutes.Quiz())
     }
 
     val onHistorySelected = remember(filterVM, workflow, navigator, graph, snackbarHostState) {
@@ -50,13 +50,16 @@ fun FilterEntry(
                         entry.selectedSystemIds.toSet(),
                         entry.performanceFilter,
                     )
-                    graph.filterStateHolder.setPendingHistoryEntryId(entry.id)
-                    graph.filterStateHolder.setPendingHistoryEntryName(entry.entryName)
-                    graph.filterStateHolder.setPendingHistoryQuestionIndex(entry.currentQuestionIndex)
-                    graph.filterStateHolder.setPendingIsLoggingEnabled(entry.isLoggingEnabled)
-                    graph.filterStateHolder.setPendingSubmissionMode(entry.submissionMode)
                     workflow.onHistoryLaunchPrepared(matchingDatabase)
-                    navigator.navigateTo(MedQBRoutes.Quiz)
+                    navigator.navigateTo(
+                        MedQBRoutes.Quiz(
+                            sessionId = entry.id,
+                            entryName = entry.entryName,
+                            initialQuestionIndex = entry.currentQuestionIndex,
+                            isLoggingEnabled = entry.isLoggingEnabled,
+                            submissionMode = entry.submissionMode.name,
+                        )
+                    )
                 },
                 onFailure = {
                     graph.snackbarDispatcher.emitSnackbar("Database files for this entry could not be found.")

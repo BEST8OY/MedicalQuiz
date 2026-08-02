@@ -71,7 +71,8 @@ class FilterHubViewModel(
             _state.update { it.copy(databaseName = restoredDbName) }
         }
 
-        val restoredPaneStr = savedStateHandle.get<String>(KEY_ACTIVE_PANE).orEmpty()
+        val restoredPaneStr = savedStateHandle.get<String>("initialPaneName")?.takeIf { it.isNotBlank() }
+            ?: savedStateHandle.get<String>(KEY_ACTIVE_PANE).orEmpty()
         if (restoredPaneStr.isNotEmpty()) {
             runCatching { FilterPane.valueOf(restoredPaneStr) }.getOrNull()?.let { pane ->
                 _state.update { it.copy(activePane = pane) }
@@ -85,13 +86,24 @@ class FilterHubViewModel(
         setupSettingsCollectors()
         setupFilterSelectionSync()
         setupHistoryEntriesFlow()
-        setupPendingFilterPaneSync()
+        setupInitialPaneCollector()
         restoreSavedFilters()
     }
 
     fun setActivePane(pane: FilterPane) {
         _state.update { it.copy(activePane = pane) }
         savedStateHandle[KEY_ACTIVE_PANE] = pane.name
+    }
+
+    private fun setupInitialPaneCollector() {
+        savedStateHandle.getStateFlow<String?>("initialPaneName", null)
+            .filterNotNull()
+            .onEach { paneName ->
+                runCatching { FilterPane.valueOf(paneName) }.getOrNull()?.let { pane ->
+                    setActivePane(pane)
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun setupDatabaseNameTracking() {
@@ -118,8 +130,7 @@ class FilterHubViewModel(
     private fun setupSubjectsFlow() {
         combine(
             activeDatabaseHolder.databaseProvider,
-            _subjectsRetry.map { activeDatabaseHolder.databaseProvider.value }
-                .onStart { emit(activeDatabaseHolder.databaseProvider.value) },
+            _subjectsRetry.onStart { emit(Unit) },
         ) { db, _ -> db }
             .flatMapLatest { db ->
                 flow {
@@ -148,8 +159,7 @@ class FilterHubViewModel(
         combine(
             activeDatabaseHolder.databaseProvider,
             filterStateHolder.selectedSubjectIds,
-            _systemsRetry.map { filterStateHolder.selectedSubjectIds.value }
-                .onStart { emit(filterStateHolder.selectedSubjectIds.value) },
+            _systemsRetry.onStart { emit(Unit) },
         ) { db, subjectIds, _ -> db to subjectIds }
             .flatMapLatest { (db, subjectIds) ->
                 flow {
@@ -234,16 +244,6 @@ class FilterHubViewModel(
         .distinctUntilChanged()
         .onEach { filtered -> _state.update { it.copy(historyEntries = filtered) } }
         .launchIn(viewModelScope)
-    }
-
-    private fun setupPendingFilterPaneSync() {
-        filterStateHolder.pendingFilterPane
-            .filterNotNull()
-            .onEach { pane ->
-                setActivePane(pane)
-                filterStateHolder.consumePendingFilterPane()
-            }
-            .launchIn(viewModelScope)
     }
 
     private fun restoreSavedFilters() {

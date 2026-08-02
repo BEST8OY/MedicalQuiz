@@ -75,122 +75,75 @@ class QuestionDao(
     }
 
     suspend fun getQuestionById(id: Long): Question? = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            val sql = """
-                SELECT id, question, explanation, corrAns, title, mediaName, otherMedias, 
-                       pplTaken, corrTaken, subId, sysId 
-                FROM Questions WHERE id = ?
-            """
-
-            var question: Question? = null
-            getConnection().prepare(sql).use { stmt ->
-                stmt.bindLong(1, id)
-                if (stmt.step()) {
-                    val subIdStr = if (stmt.isNull(9)) null else stmt.getText(9)
-                    val sysIdStr = if (stmt.isNull(10)) null else stmt.getText(10)
-
-                    val subName = subIdStr?.let { getSubjectNames(it) }
-                    val sysName = sysIdStr?.let { getSystemNames(it) }
-
-                    question = Question(
-                        id = stmt.getLong(0),
-                        question = if (stmt.isNull(1)) "" else stmt.getText(1),
-                        explanation = if (stmt.isNull(2)) "" else stmt.getText(2),
-                        corrAns = if (stmt.isNull(3)) -1 else stmt.getLong(3).toInt(),
-                        title = if (stmt.isNull(4)) null else stmt.getText(4),
-                        mediaName = if (stmt.isNull(5)) null else stmt.getText(5),
-                        otherMedias = if (stmt.isNull(6)) null else stmt.getText(6),
-                        pplTaken = if (stmt.isNull(7)) null else stmt.getDouble(7),
-                        corrTaken = if (stmt.isNull(8)) null else stmt.getDouble(8),
-                        subId = subIdStr,
-                        sysId = sysIdStr,
-                        subName = subName,
-                        sysName = sysName
-                    )
-                }
-            }
-            question
-        }
+        mutex.withLock { getQuestionByIdInternal(id) }
     }
 
     suspend fun getAnswersForQuestion(questionId: Long): List<Answer> = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            val sql = "SELECT id, answerId, answerText, correctPercentage, qId FROM Answers WHERE qId = ?"
-            val answers = mutableListOf<Answer>()
-            getConnection().prepare(sql).use { stmt ->
-                stmt.bindLong(1, questionId)
-                while (stmt.step()) {
-                    answers.add(Answer(
-                        answerId = if (stmt.isNull(1)) stmt.getLong(0) else stmt.getLong(1),
-                        answerText = if (stmt.isNull(2)) "" else stmt.getText(2),
-                        correctPercentage = if (stmt.isNull(3)) null else stmt.getLong(3).toInt(),
-                        qId = if (stmt.isNull(4)) -1L else stmt.getLong(4)
-                    ))
-                }
-            }
-            answers
-        }
+        mutex.withLock { getAnswersForQuestionInternal(questionId) }
     }
 
     suspend fun getQuestionWithDetails(
         questionId: Long,
-        loadPerformance: Boolean,
     ): Triple<Question?, List<Answer>, QuestionPerformance?> = withContext(Dispatchers.IO) {
         mutex.withLock {
-            val question = run {
-                val sql = """
-                    SELECT id, question, explanation, corrAns, title, mediaName, otherMedias,
-                           pplTaken, corrTaken, subId, sysId
-                    FROM Questions WHERE id = ?
-                """
-                var q: Question? = null
-                getConnection().prepare(sql).use { stmt ->
-                    stmt.bindLong(1, questionId)
-                    if (stmt.step()) {
-                        val subIdStr = if (stmt.isNull(9)) null else stmt.getText(9)
-                        val sysIdStr = if (stmt.isNull(10)) null else stmt.getText(10)
-                        val subName = subIdStr?.let { getSubjectNames(it) }
-                        val sysName = sysIdStr?.let { getSystemNames(it) }
-                        q = Question(
-                            id = stmt.getLong(0),
-                            question = if (stmt.isNull(1)) "" else stmt.getText(1),
-                            explanation = if (stmt.isNull(2)) "" else stmt.getText(2),
-                            corrAns = if (stmt.isNull(3)) -1 else stmt.getLong(3).toInt(),
-                            title = if (stmt.isNull(4)) null else stmt.getText(4),
-                            mediaName = if (stmt.isNull(5)) null else stmt.getText(5),
-                            otherMedias = if (stmt.isNull(6)) null else stmt.getText(6),
-                            pplTaken = if (stmt.isNull(7)) null else stmt.getDouble(7),
-                            corrTaken = if (stmt.isNull(8)) null else stmt.getDouble(8),
-                            subId = subIdStr,
-                            sysId = sysIdStr,
-                            subName = subName,
-                            sysName = sysName,
-                        )
-                    }
-                }
-                q
-            }
-
-            val answers = run {
-                val sql = "SELECT id, answerId, answerText, correctPercentage, qId FROM Answers WHERE qId = ?"
-                val result = mutableListOf<Answer>()
-                getConnection().prepare(sql).use { stmt ->
-                    stmt.bindLong(1, questionId)
-                    while (stmt.step()) {
-                        result.add(Answer(
-                            answerId = if (stmt.isNull(1)) stmt.getLong(0) else stmt.getLong(1),
-                            answerText = if (stmt.isNull(2)) "" else stmt.getText(2),
-                            correctPercentage = if (stmt.isNull(3)) null else stmt.getLong(3).toInt(),
-                            qId = if (stmt.isNull(4)) -1L else stmt.getLong(4),
-                        ))
-                    }
-                }
-                result
-            }
-
-            // Performance is now loaded separately via DatabaseManager.getQuestionPerformance()
+            val question = getQuestionByIdInternal(questionId)
+            val answers = if (question != null) getAnswersForQuestionInternal(questionId) else emptyList()
             Triple(question, answers, null)
         }
+    }
+
+    private fun getQuestionByIdInternal(id: Long): Question? {
+        val sql = """
+            SELECT id, question, explanation, corrAns, title, mediaName, otherMedias, 
+                   pplTaken, corrTaken, subId, sysId 
+            FROM Questions WHERE id = ?
+        """
+
+        var question: Question? = null
+        getConnection().prepare(sql).use { stmt ->
+            stmt.bindLong(1, id)
+            if (stmt.step()) {
+                val subIdStr = if (stmt.isNull(9)) null else stmt.getText(9)
+                val sysIdStr = if (stmt.isNull(10)) null else stmt.getText(10)
+
+                val subName = subIdStr?.let { getSubjectNames(it) }
+                val sysName = sysIdStr?.let { getSystemNames(it) }
+
+                question = Question(
+                    id = stmt.getLong(0),
+                    question = if (stmt.isNull(1)) "" else stmt.getText(1),
+                    explanation = if (stmt.isNull(2)) "" else stmt.getText(2),
+                    corrAns = if (stmt.isNull(3)) -1 else stmt.getLong(3).toInt(),
+                    title = if (stmt.isNull(4)) null else stmt.getText(4),
+                    mediaName = if (stmt.isNull(5)) null else stmt.getText(5),
+                    otherMedias = if (stmt.isNull(6)) null else stmt.getText(6),
+                    pplTaken = if (stmt.isNull(7)) null else stmt.getDouble(7),
+                    corrTaken = if (stmt.isNull(8)) null else stmt.getDouble(8),
+                    subId = subIdStr,
+                    sysId = sysIdStr,
+                    subName = subName,
+                    sysName = sysName
+                )
+            }
+        }
+        return question
+    }
+
+    private fun getAnswersForQuestionInternal(questionId: Long): List<Answer> {
+        val sql = "SELECT id, answerId, answerText, correctPercentage, qId FROM Answers WHERE qId = ?"
+        val answers = mutableListOf<Answer>()
+        getConnection().prepare(sql).use { stmt ->
+            stmt.bindLong(1, questionId)
+            while (stmt.step()) {
+                answers.add(Answer(
+                    answerId = if (stmt.isNull(1)) stmt.getLong(0) else stmt.getLong(1),
+                    answerText = if (stmt.isNull(2)) "" else stmt.getText(2),
+                    correctPercentage = if (stmt.isNull(3)) null else stmt.getLong(3).toInt(),
+                    qId = if (stmt.isNull(4)) -1L else stmt.getLong(4)
+                ))
+            }
+        }
+        return answers
     }
 
     suspend fun countQuestionIds(

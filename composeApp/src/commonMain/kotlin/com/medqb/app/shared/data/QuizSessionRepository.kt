@@ -1,7 +1,7 @@
 package com.medqb.app.shared.data
 
 import com.medqb.app.shared.data.database.PerformanceFilter
-import com.medqb.app.shared.data.database.QuizSessionHistoryRow
+import com.medqb.app.shared.data.local.entity.QuizHistoryEntity
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.di.AppScope
 import com.medqb.app.shared.platform.Logger
@@ -10,65 +10,37 @@ import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
 /**
- * Manages quiz session history persistence via the active SQLite database.
+ * Manages quiz session history persistence directly via [SessionHistoryManager].
  *
- * Automatically refreshes the in-memory history cache when:
- * - A database is first selected (observes [ActiveDatabaseHolder.databaseProvider])
- * - A mutation occurs (append/delete/rename via [mutationEvents])
+ * Uses Room's reactive Flow to automatically keep [historyEntries] in sync.
  */
 @Inject
 @SingleIn(AppScope::class)
 class QuizSessionRepository(
-    private val activeDatabaseHolder: ActiveDatabaseHolder,
+    private val sessionHistoryManager: SessionHistoryManager,
 ) {
     // Process-scoped: intentionally not cancelled — survives config changes
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val refreshMutex = Mutex()
 
-    private val _historyEntries = MutableStateFlow<List<QuizSession>>(emptyList())
-    val historyEntries: StateFlow<List<QuizSession>> = _historyEntries.asStateFlow()
+    val historyEntries: StateFlow<List<QuizSession>> = sessionHistoryManager.sessionHistoryDao()
+        .listHistory()
+        .map { entities -> entities.map { it.toQuizSession() } }
+        .stateIn(
+            scope = scope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
 
-    private val mutationEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-
-    init {
-        scope.launch {
-            activeDatabaseHolder.databaseProvider
-                .filterNotNull()
-                .distinctUntilChanged()
-                .collect { refreshFromDb() }
-        }
-        scope.launch {
-            mutationEvents.collect { refreshFromDb() }
-        }
-    }
-
-    private suspend fun db() = activeDatabaseHolder.databaseProvider.value
-        ?: throw IllegalStateException("No active database")
-
-    private suspend fun refreshFromDb() {
-        refreshMutex.withLock {
-            _historyEntries.value = listHistory()
-        }
-    }
-
-    suspend fun listHistory(): List<QuizSession> {
-        val provider = activeDatabaseHolder.databaseProvider.value ?: return emptyList()
-        return withContext(Dispatchers.IO) {
-            provider.listHistoryEntries().map { it.toQuizSession() }
-        }
+    suspend fun listHistory(): List<QuizSession> = withContext(Dispatchers.IO) {
+        sessionHistoryManager.sessionHistoryDao().listHistoryOnce().map { it.toQuizSession() }
     }
 
     suspend fun appendToHistory(
@@ -94,54 +66,54 @@ class QuizSessionRepository(
             buildSessionId(databaseName, now)
         }
 
-        db().upsertHistoryEntry(
-            sessionId = sessionId,
-            databaseName = databaseName,
-            entryName = entryName,
-            selectedSubjectIds = selectedSubjectIds.toSortedSet().toList(),
-            selectedSystemIds = selectedSystemIds.toSortedSet().toList(),
-            performanceFilter = performanceFilter.name,
-            currentQuestionIndex = currentQuestionIndex,
-            updatedAt = now,
-            isLoggingEnabled = isLoggingEnabled,
-            submissionMode = submissionMode.name,
-        )
+        withContext(Dispatchers.IO) {
+            sessionHistoryManager.sessionHistoryDao().upsertHistory(
+                sessionId = sessionId,
+                databaseName = databaseName,
+                entryName = entryName,
+                selectedSubjectIds = selectedSubjectIds.toSortedSet().joinToString(","),
+                selectedSystemIds = selectedSystemIds.toSortedSet().joinToString(","),
+                performanceFilter = performanceFilter.name,
+                currentQuestionIndex = currentQuestionIndex,
+                updatedAt = now,
+                isLoggingEnabled = isLoggingEnabled,
+                submissionMode = submissionMode.name,
+            )
+        }
 
-        mutationEvents.tryEmit(Unit)
         return sessionId
     }
 
-    suspend fun deleteHistoryEntries(entryIds: Set<String>) {
-        if (entryIds.isEmpty()) return
-        db().deleteHistoryEntries(entryIds.toList())
-        mutationEvents.tryEmit(Unit)
+    suspend fun deleteHistoryEntries(entryIds: Set<String>) = withContext(Dispatchers.IO) {
+        if (entryIds.isEmpty()) return@withContext
+        val dao = sessionHistoryManager.sessionHistoryDao()
+        dao.deleteHistory(entryIds.toList())
+        dao.deleteOrphanedSessions()
     }
 
-    suspend fun renameHistoryEntry(entryId: String, newName: String) {
+    suspend fun renameHistoryEntry(entryId: String, newName: String) = withContext(Dispatchers.IO) {
         val trimmedName = newName.trim()
-        if (trimmedName.isBlank()) return
-        db().renameHistoryEntry(entryId, trimmedName)
-        mutationEvents.tryEmit(Unit)
+        if (trimmedName.isBlank()) return@withContext
+        sessionHistoryManager.sessionHistoryDao().renameHistory(entryId, trimmedName)
     }
 
-    suspend fun restoreDeletedHistoryEntry(entry: QuizSession) {
-        db().upsertHistoryEntry(
+    suspend fun restoreDeletedHistoryEntry(entry: QuizSession) = withContext(Dispatchers.IO) {
+        sessionHistoryManager.sessionHistoryDao().upsertHistory(
             sessionId = entry.id,
             databaseName = entry.databaseName,
             entryName = entry.entryName,
-            selectedSubjectIds = entry.selectedSubjectIds,
-            selectedSystemIds = entry.selectedSystemIds,
+            selectedSubjectIds = entry.selectedSubjectIds.joinToString(","),
+            selectedSystemIds = entry.selectedSystemIds.joinToString(","),
             performanceFilter = entry.performanceFilter.name,
             currentQuestionIndex = entry.currentQuestionIndex,
             updatedAt = entry.updatedAtEpochMillis,
             isLoggingEnabled = entry.isLoggingEnabled,
             submissionMode = entry.submissionMode.name,
         )
-        mutationEvents.tryEmit(Unit)
     }
 
     suspend fun restoreHistoryEntry(entryId: String): QuizSession? = withContext(Dispatchers.IO) {
-        db().getHistoryEntry(entryId)?.toQuizSession()
+        sessionHistoryManager.sessionHistoryDao().getHistory(entryId)?.toQuizSession()
     }
 
     private fun buildSessionId(databaseName: String, now: Long): String = "$databaseName-$now"
@@ -160,12 +132,12 @@ class QuizSessionRepository(
     )
 }
 
-private fun QuizSessionHistoryRow.toQuizSession() = QuizSessionRepository.QuizSession(
+private fun QuizHistoryEntity.toQuizSession() = QuizSessionRepository.QuizSession(
     id = sessionId,
     databaseName = databaseName,
     entryName = entryName,
-    selectedSubjectIds = selectedSubjectIds,
-    selectedSystemIds = selectedSystemIds,
+    selectedSubjectIds = selectedSubjectIds.split(",").mapNotNull { it.trim().toLongOrNull() },
+    selectedSystemIds = selectedSystemIds.split(",").mapNotNull { it.trim().toLongOrNull() },
     performanceFilter = runCatching { PerformanceFilter.valueOf(performanceFilter) }.getOrDefault(PerformanceFilter.ALL),
     currentQuestionIndex = currentQuestionIndex,
     updatedAtEpochMillis = updatedAt,

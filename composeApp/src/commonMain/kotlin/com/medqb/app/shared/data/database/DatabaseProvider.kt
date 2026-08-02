@@ -40,22 +40,4 @@ interface DatabaseProvider {
     
     suspend fun clearLogForQuestion(dbName: String, qid: Long)
     suspend fun getQuestionPerformance(dbName: String, qid: Long): QuestionPerformance?
-
-    suspend fun upsertHistoryEntry(
-        sessionId: String,
-        databaseName: String,
-        entryName: String,
-        selectedSubjectIds: List<Long>,
-        selectedSystemIds: List<Long>,
-        performanceFilter: String,
-        currentQuestionIndex: Int,
-        updatedAt: Long,
-        isLoggingEnabled: Boolean,
-        submissionMode: String,
-    )
-
-    suspend fun listHistoryEntries(): List<QuizSessionHistoryRow>
-    suspend fun getHistoryEntry(sessionId: String): QuizSessionHistoryRow?
-    suspend fun deleteHistoryEntries(sessionIds: List<String>)
-    suspend fun renameHistoryEntry(sessionId: String, newName: String)
 }

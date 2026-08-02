@@ -183,17 +183,15 @@ fun App() {
             }
         }
 
-        val returnQuizToFilter: () -> Unit = remember(workflow, navigator, graph) {
+        val returnQuizToFilter: () -> Unit = remember(workflow, navigator) {
             {
                 val targetPane = workflow.onQuizReturn()
-                navigator.returnQuizToFilter()
-                targetPane?.let {
-                    val pane = when (it) {
-                        RequestedFilterPane.Filters -> FilterPane.Filters
-                        RequestedFilterPane.History -> FilterPane.History
-                    }
-                    graph.filterStateHolder.setPendingFilterPane(pane)
+                val paneName = when (targetPane) {
+                    RequestedFilterPane.Filters -> FilterPane.Filters.name
+                    RequestedFilterPane.History -> FilterPane.History.name
+                    null -> null
                 }
+                navigator.returnQuizToFilter(paneName)
             }
         }
 

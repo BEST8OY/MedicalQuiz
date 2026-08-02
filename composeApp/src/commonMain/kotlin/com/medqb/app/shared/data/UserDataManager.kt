@@ -79,7 +79,7 @@ class UserDataManager {
         dbName: String, questionId: Long, section: HighlightSection,
         startOffset: Int, endOffset: Int, highlightedText: String, color: HighlightColor
     ): TextHighlight = withContext(Dispatchers.IO) {
-        val now = System.currentTimeMillis()
+        val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
         val entity = TextHighlightEntity(
             dbName = dbName,
             questionId = questionId,
@@ -118,7 +118,7 @@ class UserDataManager {
         removeHighlightIds: List<Long>, startOffset: Int, endOffset: Int,
         highlightedText: String, color: HighlightColor
     ): TextHighlight = withContext(Dispatchers.IO) {
-        val now = System.currentTimeMillis()
+        val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
         val insertEntity = TextHighlightEntity(
             dbName = dbName,
             questionId = questionId,

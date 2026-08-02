@@ -8,10 +8,8 @@ import com.medqb.app.shared.data.dao.SubjectDao
 import com.medqb.app.shared.data.database.DatabaseProvider
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.database.QuestionPerformance
-import com.medqb.app.shared.data.database.QuizSessionHistoryRow
 import com.medqb.app.shared.data.local.dao.RoomLogDao
 import com.medqb.app.shared.data.local.dao.RoomSessionHistoryDao
-import com.medqb.app.shared.data.local.entity.QuizHistoryEntity
 import com.medqb.app.shared.data.models.Answer
 import com.medqb.app.shared.data.models.Question
 import com.medqb.app.shared.data.models.Subject
@@ -99,7 +97,13 @@ class DatabaseManager(
     override suspend fun getQuestionWithDetails(
         questionId: Long,
         loadPerformance: Boolean,
-    ): Triple<Question?, List<Answer>, QuestionPerformance?> = questionDao.getQuestionWithDetails(questionId, loadPerformance)
+    ): Triple<Question?, List<Answer>, QuestionPerformance?> {
+        val (question, answers, _) = questionDao.getQuestionWithDetails(questionId)
+        val performance = if (loadPerformance && question != null) {
+            getQuestionPerformance(dbName, questionId)
+        } else null
+        return Triple(question, answers, performance)
+    }
 
     override suspend fun countQuestionIds(
         subjectIds: List<Long>?,
@@ -136,63 +140,7 @@ class DatabaseManager(
         }
     }
 
-    override suspend fun upsertHistoryEntry(
-        sessionId: String,
-        databaseName: String,
-        entryName: String,
-        selectedSubjectIds: List<Long>,
-        selectedSystemIds: List<Long>,
-        performanceFilter: String,
-        currentQuestionIndex: Int,
-        updatedAt: Long,
-        isLoggingEnabled: Boolean,
-        submissionMode: String,
-    ) = withContext(Dispatchers.IO) {
-        sessionHistoryDao.upsertHistory(
-            sessionId = sessionId,
-            databaseName = databaseName,
-            entryName = entryName,
-            selectedSubjectIds = selectedSubjectIds.joinToString(","),
-            selectedSystemIds = selectedSystemIds.joinToString(","),
-            performanceFilter = performanceFilter,
-            currentQuestionIndex = currentQuestionIndex,
-            updatedAt = updatedAt,
-            isLoggingEnabled = isLoggingEnabled,
-            submissionMode = submissionMode,
-        )
-    }
-
-    override suspend fun listHistoryEntries(): List<QuizSessionHistoryRow> = withContext(Dispatchers.IO) {
-        sessionHistoryDao.listHistoryOnce().map { it.toDomain() }
-    }
-
-    override suspend fun getHistoryEntry(sessionId: String): QuizSessionHistoryRow? = withContext(Dispatchers.IO) {
-        sessionHistoryDao.getHistory(sessionId)?.toDomain()
-    }
-
-    override suspend fun deleteHistoryEntries(sessionIds: List<String>) = withContext(Dispatchers.IO) {
-        sessionHistoryDao.deleteHistory(sessionIds)
-        sessionHistoryDao.deleteOrphanedSessions()
-    }
-
-    override suspend fun renameHistoryEntry(sessionId: String, newName: String) = withContext(Dispatchers.IO) {
-        sessionHistoryDao.renameHistory(sessionId, newName)
-    }
-
     private fun getSubjectNames(idsStr: String): String = subjectDao.getSubjectNames(idsStr)
 
     private fun getSystemNames(idsStr: String): String = subjectDao.getSystemNames(idsStr)
-
-    private fun QuizHistoryEntity.toDomain() = QuizSessionHistoryRow(
-        sessionId = sessionId,
-        databaseName = databaseName,
-        entryName = entryName,
-        selectedSubjectIds = selectedSubjectIds.split(",").mapNotNull { it.trim().toLongOrNull() },
-        selectedSystemIds = selectedSystemIds.split(",").mapNotNull { it.trim().toLongOrNull() },
-        performanceFilter = performanceFilter,
-        currentQuestionIndex = currentQuestionIndex,
-        updatedAt = updatedAt,
-        isLoggingEnabled = isLoggingEnabled,
-        submissionMode = submissionMode,
-    )
 }
