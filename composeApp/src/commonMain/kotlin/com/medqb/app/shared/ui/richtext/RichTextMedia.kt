@@ -22,6 +22,7 @@ import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.HtmlUtils
 
+import androidx.compose.ui.zIndex
 import net.engawapg.lib.zoomable.rememberZoomState
 import net.engawapg.lib.zoomable.snapBackZoomable
 
@@ -52,6 +53,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     }
 
     val zoomState = rememberZoomState()
+    val isZoomed = zoomState.scale > 1.001f
 
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalNavAnimatedContentScope.current
@@ -71,6 +73,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .zIndex(if (isZoomed) 10f else 0f)
             .padding(vertical = Spacing.Xs),
         horizontalAlignment = when (block.alignment) {
             TextAlign.End -> Alignment.End
@@ -83,6 +86,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
             contentDescription = block.description,
             contentScale = ContentScale.Fit,
             modifier = Modifier
+                .zIndex(if (isZoomed) 1f else 0f)
                 .then(imageSizeModifier)
                 .snapBackZoomable(
                     zoomState = zoomState,
