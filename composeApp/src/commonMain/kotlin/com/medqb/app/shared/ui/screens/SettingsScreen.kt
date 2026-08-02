@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import com.medqb.app.shared.data.FontScalePresets
 import com.medqb.app.shared.ui.richtext.scaledBy
 import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.ui.theme.Stroke
 
@@ -94,14 +96,20 @@ fun SettingsScreen(
             )
         },
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Spacing.LgSm, vertical = Spacing.Md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.LgSm)
+                .padding(padding),
+            contentAlignment = Alignment.TopCenter,
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = ScreenLayout.WideWidthBreakpoint)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = Spacing.LgSm, vertical = Spacing.Md),
+                verticalArrangement = Arrangement.spacedBy(Spacing.LgSm)
+            ) {
             // Section 1: Quiz Experience
             Text(
                 text = "Quiz Experience",
@@ -295,6 +303,7 @@ fun SettingsScreen(
             }
         }
     }
+}
 }
 
 @Composable

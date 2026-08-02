@@ -1,5 +1,7 @@
 package com.medqb.app.shared.ui.dialogs.components
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -56,7 +58,7 @@ fun DialogShell(
                     .clip(MaterialTheme.shapes.extraLarge),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     content()
                 }
             }
