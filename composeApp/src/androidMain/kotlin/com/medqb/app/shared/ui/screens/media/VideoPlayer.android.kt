@@ -16,6 +16,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import android.view.LayoutInflater
+import com.medqb.app.shared.R
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -35,7 +37,6 @@ actual fun VideoPlayer(
             this.playWhenReady = playWhenReady
             repeatMode = Player.REPEAT_MODE_OFF
             // Force initial frame to render by seeking to start
-            // This workaround fixes SurfaceView rendering issues in Compose
             seekTo(0)
         }
     }
@@ -49,11 +50,10 @@ actual fun VideoPlayer(
 
     AndroidView(
         factory = { ctx ->
-            PlayerView(ctx).apply {
+            (LayoutInflater.from(ctx).inflate(R.layout.media3_player_view, null) as PlayerView).apply {
                 useController = true
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                 setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
-                setSurfaceType(PlayerView.SURFACE_TYPE_TEXTURE_VIEW)
                 // Enable Compose surface sync workaround for Android 14+ (API 34+)
                 // See: https://developer.android.com/media/media3/ui/surface
                 setEnableComposeSurfaceSyncWorkaround(true)
