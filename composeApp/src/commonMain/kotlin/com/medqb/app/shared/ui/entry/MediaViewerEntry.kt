@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.dropUnlessResumed
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.MediaDescription
 import com.medqb.app.shared.di.AppGraph
@@ -55,12 +54,8 @@ fun MediaViewerEntry(
                 }
             }
         },
-        onBack = dropUnlessResumed {
-            mediaHandler.activeSharedElementKey.value = null
+        onBack = {
             navigator.navigateBack()
-            scope.launch {
-                mediaDescriptionsFlow.value = emptyMap()
-            }
         }
     )
 }
