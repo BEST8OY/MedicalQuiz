@@ -55,12 +55,12 @@ class QuizViewModel(
 ) : ViewModel() {
 
     private companion object {
-        const val KEY_DATABASE_NAME = "database_name"
-        const val KEY_ENTRY_NAME = "entry_name"
-        const val KEY_CURRENT_QUESTION_INDEX = "current_question_index"
-        const val KEY_IS_LOGGING_ENABLED = "is_logging_enabled"
-        const val KEY_SUBMISSION_MODE = "submission_mode"
-        const val KEY_SESSION_ID = "session_id"
+        const val KEY_DATABASE_NAME = "databaseName"
+        const val KEY_ENTRY_NAME = "entryName"
+        const val KEY_CURRENT_QUESTION_INDEX = "currentQuestionIndex"
+        const val KEY_IS_LOGGING_ENABLED = "isLoggingEnabled"
+        const val KEY_SUBMISSION_MODE = "submissionMode"
+        const val KEY_SESSION_ID = "sessionId"
     }
 
     private val _state = MutableStateFlow(QuizUiState.EMPTY)
@@ -90,8 +90,7 @@ class QuizViewModel(
         restoreFromSavedState()
         observeSettings()
 
-        sessionId = savedStateHandle.get<String>("sessionId")?.takeIf { it.isNotBlank() }
-            ?: savedStateHandle.get<String>(KEY_SESSION_ID).orEmpty()
+        sessionId = savedStateHandle.get<String>(KEY_SESSION_ID).orEmpty()
 
         viewModelScope.launch {
             activeDatabaseHolder.databaseName.collect { dbName ->
@@ -156,15 +155,11 @@ class QuizViewModel(
 
     private fun restoreFromSavedState() {
         val savedDatabaseName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
-        val savedEntryName = savedStateHandle.get<String>("entryName")?.takeIf { it.isNotBlank() }
-            ?: savedStateHandle.get<String>(KEY_ENTRY_NAME).orEmpty()
-        val savedQuestionIndex = savedStateHandle.get<Int>("initialQuestionIndex")
-            ?: savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: 0
-        val savedIsLoggingEnabled = savedStateHandle.get<Boolean>("isLoggingEnabled")
-            ?: savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED)
+        val savedEntryName = savedStateHandle.get<String>(KEY_ENTRY_NAME).orEmpty()
+        val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: 0
+        val savedIsLoggingEnabled = savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED)
             ?: settingsRepository.isLoggingEnabled.value
-        val savedSubmissionModeStr = savedStateHandle.get<String>("submissionMode")
-            ?: savedStateHandle.get<String>(KEY_SUBMISSION_MODE)
+        val savedSubmissionModeStr = savedStateHandle.get<String>(KEY_SUBMISSION_MODE)
         val savedSubmissionMode = savedSubmissionModeStr
             ?.let { runCatching { SubmissionMode.valueOf(it) }.getOrNull() }
             ?: settingsRepository.submissionMode.value
@@ -202,6 +197,7 @@ class QuizViewModel(
                 isLoggingEnabled = state.value.isLoggingEnabled,
                 submissionMode = state.value.submissionMode,
                 currentSessionId = sessionId,
+                entryName = state.value.entryName,
             )
             if (newSessionId.isNotBlank()) {
                 updateSessionId(newSessionId)

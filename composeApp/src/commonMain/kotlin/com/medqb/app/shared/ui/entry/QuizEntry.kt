@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.first
 
 @Composable
 fun QuizEntry(
+    route: MedQBRoutes.Quiz,
     graph: AppGraph,
     workflow: AppWorkflowHandle,
     navigator: AppNavigator,
@@ -26,11 +27,16 @@ fun QuizEntry(
     onReturnToFilter: () -> Unit,
 ) {
     val quizVM = viewModel<QuizViewModel>(
+        key = route.sessionId.ifEmpty { "default_quiz" },
         factory = viewModelFactory {
             initializer {
-                graph.createQuizViewModel(
-                    createSavedStateHandle()
-                )
+                val handle = createSavedStateHandle()
+                if (route.sessionId.isNotBlank()) handle["sessionId"] = route.sessionId
+                if (route.entryName.isNotBlank()) handle["entryName"] = route.entryName
+                handle["currentQuestionIndex"] = route.initialQuestionIndex
+                route.isLoggingEnabled?.let { handle["isLoggingEnabled"] = it }
+                route.submissionMode?.let { handle["submissionMode"] = it }
+                graph.createQuizViewModel(handle)
             }
         }
     )

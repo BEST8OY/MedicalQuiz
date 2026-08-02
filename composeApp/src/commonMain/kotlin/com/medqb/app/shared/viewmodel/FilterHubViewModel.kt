@@ -54,7 +54,7 @@ class FilterHubViewModel(
         const val KEY_SELECTED_SUBJECT_IDS = "selected_subject_ids"
         const val KEY_SELECTED_SYSTEM_IDS = "selected_system_ids"
         const val KEY_PERFORMANCE_FILTER = "performance_filter"
-        const val KEY_ACTIVE_PANE = "active_pane"
+        const val KEY_ACTIVE_PANE = "activePane"
 
         private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
     }
@@ -71,8 +71,7 @@ class FilterHubViewModel(
             _state.update { it.copy(databaseName = restoredDbName) }
         }
 
-        val restoredPaneStr = savedStateHandle.get<String>("initialPaneName")?.takeIf { it.isNotBlank() }
-            ?: savedStateHandle.get<String>(KEY_ACTIVE_PANE).orEmpty()
+        val restoredPaneStr = savedStateHandle.get<String>(KEY_ACTIVE_PANE).orEmpty()
         if (restoredPaneStr.isNotEmpty()) {
             runCatching { FilterPane.valueOf(restoredPaneStr) }.getOrNull()?.let { pane ->
                 _state.update { it.copy(activePane = pane) }
@@ -96,7 +95,7 @@ class FilterHubViewModel(
     }
 
     private fun setupInitialPaneCollector() {
-        savedStateHandle.getStateFlow<String?>("initialPaneName", null)
+        savedStateHandle.getStateFlow<String?>(KEY_ACTIVE_PANE, null)
             .filterNotNull()
             .onEach { paneName ->
                 runCatching { FilterPane.valueOf(paneName) }.getOrNull()?.let { pane ->

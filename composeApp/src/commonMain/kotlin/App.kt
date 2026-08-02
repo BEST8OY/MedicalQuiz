@@ -212,8 +212,9 @@ fun App() {
                     )
                 }
 
-                entry<MedQBRoutes.Filter> {
+                entry<MedQBRoutes.Filter> { route ->
                     FilterEntry(
+                        route = route,
                         graph = graph,
                         workflow = workflow,
                         navigator = navigator,
@@ -221,10 +222,9 @@ fun App() {
                     )
                 }
 
-
-
-                entry<MedQBRoutes.Quiz> {
+                entry<MedQBRoutes.Quiz> { route ->
                     QuizEntry(
+                        route = route,
                         graph = graph,
                         workflow = workflow,
                         navigator = navigator,

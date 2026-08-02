@@ -18,6 +18,7 @@ import com.medqb.app.shared.viewmodel.FilterHubViewModel
 
 @Composable
 fun FilterEntry(
+    route: MedQBRoutes.Filter,
     graph: AppGraph,
     workflow: AppWorkflowHandle,
     navigator: AppNavigator,
@@ -26,9 +27,9 @@ fun FilterEntry(
     val filterVM = viewModel<FilterHubViewModel>(
         factory = viewModelFactory {
             initializer {
-                graph.createFilterHubViewModel(
-                    createSavedStateHandle()
-                )
+                val handle = createSavedStateHandle()
+                route.initialPaneName?.let { handle["activePane"] = it }
+                graph.createFilterHubViewModel(handle)
             }
         }
     )
