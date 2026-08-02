@@ -1,10 +1,12 @@
 package com.medqb.app.shared.ui.dialogs.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -46,14 +48,17 @@ fun DialogShell(
         onDismissRequest = onDismiss,
         properties = properties
     ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .clip(MaterialTheme.shapes.extraLarge),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh
-        ) {
-            Column {
-                content()
+        BoxWithConstraints {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth(if (maxWidth >= 600.dp) 0.65f else 0.92f)
+                    .heightIn(max = maxHeight - 32.dp)
+                    .clip(MaterialTheme.shapes.extraLarge),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
+            ) {
+                Column {
+                    content()
+                }
             }
         }
     }

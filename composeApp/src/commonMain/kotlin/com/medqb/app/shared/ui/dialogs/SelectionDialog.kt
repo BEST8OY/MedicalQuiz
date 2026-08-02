@@ -417,6 +417,7 @@ private fun <T> SelectionListContent(
             state = listState,
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f, fill = false)
                 .heightIn(max = Layout.ItemListMaxHeight),
             contentPadding = PaddingValues(horizontal = Spacing.Lg, vertical = Spacing.Sm),
             verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)

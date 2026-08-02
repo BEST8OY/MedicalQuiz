@@ -52,7 +52,9 @@ fun PerformanceFilterDialog(
             )
 
             LazyColumn(
-                modifier = Modifier.padding(horizontal = Inset.Lg),
+                modifier = Modifier
+                    .padding(horizontal = Inset.Lg)
+                    .weight(1f, fill = false),
                 verticalArrangement = Arrangement.spacedBy(Spacing.Xs)
             ) {
                 items(filters) { filter ->

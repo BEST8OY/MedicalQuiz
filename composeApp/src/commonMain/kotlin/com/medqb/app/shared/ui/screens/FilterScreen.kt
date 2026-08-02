@@ -160,6 +160,8 @@ internal fun FilterScreen(
                         onStart = onStart,
                         onClearFilters = onClearFilters
                     )
+
+                    Spacer(modifier = Modifier.height(bottomContentPadding + Spacing.Lg))
                 }
             }
         }
