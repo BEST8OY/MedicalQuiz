@@ -38,7 +38,7 @@ fun QuizEntry(
     QuizRoot(
         viewModel = quizVM,
         mediaHandler = mediaHandler,
-        onNavigateBack = {
+        onNavigateBack = dropUnlessResumed {
             onReturnToFilter()
         },
         onOpenSettingsScreen = dropUnlessResumed {
