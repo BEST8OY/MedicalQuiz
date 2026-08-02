@@ -72,10 +72,22 @@ fun QuizFloatingToolbar(
                         .sizeIn(minWidth = Layout.MinTouchTarget, minHeight = Layout.MinTouchTarget)
                         .semantics { contentDescription = "Previous question" },
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = null,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = if (isExpanded) Spacing.Xs else 0.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = null,
+                        )
+                        if (isExpanded) {
+                            Spacer(modifier = Modifier.width(Spacing.Xxs))
+                            Text(
+                                text = "Prev",
+                                style = MaterialTheme.typography.labelLargeEmphasized,
+                            )
+                        }
+                    }
                 }
             },
             trailingContent = {
@@ -86,10 +98,22 @@ fun QuizFloatingToolbar(
                         .sizeIn(minWidth = Layout.MinTouchTarget, minHeight = Layout.MinTouchTarget)
                         .semantics { contentDescription = "Next question" },
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                        contentDescription = null,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = if (isExpanded) Spacing.Xs else 0.dp)
+                    ) {
+                        if (isExpanded) {
+                            Text(
+                                text = "Next",
+                                style = MaterialTheme.typography.labelLargeEmphasized,
+                            )
+                            Spacer(modifier = Modifier.width(Spacing.Xxs))
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                            contentDescription = null,
+                        )
+                    }
                 }
             },
             content = {

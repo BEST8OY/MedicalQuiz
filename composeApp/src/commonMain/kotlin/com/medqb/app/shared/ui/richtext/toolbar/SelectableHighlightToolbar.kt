@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -54,68 +55,132 @@ internal fun SelectionToolbar(
     onOpenExternal: () -> Unit,
     onHighlight: (HighlightColor) -> Unit,
 ) {
-    Surface(
-        shape = MaterialTheme.shapes.extraLarge,
-        tonalElevation = 3.dp,
-        shadowElevation = 2.dp,
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = Spacing.Md, vertical = Spacing.Sm),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Xs),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AssistChip(
-                    onClick = onCopy,
-                    label = { androidx.compose.material3.Text("Copy") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Rounded.ContentCopy,
-                            contentDescription = null,
-                            modifier = Modifier.size(ElementSize.IconMd)
-                        )
-                    },
-                    enabled = selectedText.isNotBlank(),
-                    shape = CircleShape,
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        labelColor = MaterialTheme.colorScheme.onSurface,
-                        leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                )
-                AssistChip(
-                    onClick = onOpenExternal,
-                    label = { androidx.compose.material3.Text("Dictionary") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
-                            contentDescription = null,
-                            modifier = Modifier.size(ElementSize.IconMd)
-                        )
-                    },
-                    enabled = selectedText.isNotBlank(),
-                    shape = CircleShape,
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        labelColor = MaterialTheme.colorScheme.onSurface,
-                        leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                )
-            }
+    BoxWithConstraints {
+        val isSingleRow = maxWidth >= 400.dp
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                HighlightColor.entries.forEach { color ->
-                    HighlightColorChip(
-                        color = color,
-                        isSelected = false,
-                        onClick = { onHighlight(color) }
+        Surface(
+            shape = if (isSingleRow) CircleShape else MaterialTheme.shapes.extraLarge,
+            tonalElevation = 3.dp,
+            shadowElevation = 2.dp,
+        ) {
+            if (isSingleRow) {
+                Row(
+                    modifier = Modifier.padding(horizontal = Spacing.Sm + Spacing.Xs, vertical = Spacing.Xs),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AssistChip(
+                        onClick = onCopy,
+                        label = { androidx.compose.material3.Text("Copy") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Rounded.ContentCopy,
+                                contentDescription = null,
+                                modifier = Modifier.size(ElementSize.IconMd)
+                            )
+                        },
+                        enabled = selectedText.isNotBlank(),
+                        shape = CircleShape,
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            labelColor = MaterialTheme.colorScheme.onSurface,
+                            leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
                     )
+                    AssistChip(
+                        onClick = onOpenExternal,
+                        label = { androidx.compose.material3.Text("Dictionary") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
+                                contentDescription = null,
+                                modifier = Modifier.size(ElementSize.IconMd)
+                            )
+                        },
+                        enabled = selectedText.isNotBlank(),
+                        shape = CircleShape,
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            labelColor = MaterialTheme.colorScheme.onSurface,
+                            leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    )
+
+                    VerticalDivider(
+                        modifier = Modifier
+                            .size(width = Stroke.Thin, height = Layout.MinTouchTarget)
+                            .clip(CircleShape),
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                    )
+
+                    HighlightColor.entries.forEach { color ->
+                        HighlightColorChip(
+                            color = color,
+                            isSelected = false,
+                            onClick = { onHighlight(color) }
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier.padding(horizontal = Spacing.Md, vertical = Spacing.Sm),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.Xs),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.CenterHorizontally),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AssistChip(
+                            onClick = onCopy,
+                            label = { androidx.compose.material3.Text("Copy") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.ContentCopy,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(ElementSize.IconMd)
+                                )
+                            },
+                            enabled = selectedText.isNotBlank(),
+                            shape = CircleShape,
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                labelColor = MaterialTheme.colorScheme.onSurface,
+                                leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
+                        )
+                        AssistChip(
+                            onClick = onOpenExternal,
+                            label = { androidx.compose.material3.Text("Dictionary") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(ElementSize.IconMd)
+                                )
+                            },
+                            enabled = selectedText.isNotBlank(),
+                            shape = CircleShape,
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                labelColor = MaterialTheme.colorScheme.onSurface,
+                                leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
+                        )
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.CenterHorizontally),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        HighlightColor.entries.forEach { color ->
+                            HighlightColorChip(
+                                color = color,
+                                isSelected = false,
+                                onClick = { onHighlight(color) }
+                            )
+                        }
+                    }
                 }
             }
         }

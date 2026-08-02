@@ -21,29 +21,3 @@ val Shapes = Shapes(
     extraLargeIncreased = ShapeDefaults.ExtraLargeIncreased,
     extraExtraLarge = ShapeDefaults.ExtraExtraLarge,
 )
-
-/**
- * Component-specific shape values for consistent UI
- */
-object AppShapes {
-    /** Cards and elevated surfaces */
-    val CardShape = RoundedCornerShape(16.dp)
-
-    /** Buttons and interactive elements */
-    val ButtonShape = RoundedCornerShape(12.dp)
-
-    /** Chips and tags */
-    val ChipShape = RoundedCornerShape(28.dp)
-
-    /** Bottom sheets and dialogs */
-    val BottomSheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-
-    /** Text fields and input surfaces */
-    val InputShape = RoundedCornerShape(8.dp)
-
-    /** Small indicators and badges */
-    val IndicatorShape = RoundedCornerShape(4.dp)
-
-    /** Fully rounded for FABs and avatars */
-    val FullyRounded = RoundedCornerShape(50)
-}

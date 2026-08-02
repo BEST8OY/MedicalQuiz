@@ -45,20 +45,13 @@ object Spacing {
 }
 
 /**
- * Container inset tokens. Maps to M3 margin/gutter values.
+ * Container inset tokens. Direct aliases to M3 spacing guidance.
  */
 object Inset {
-    /** Compact toolbar / selection item padding */
-    val Sm = 12.dp
-
-    /** Standard card and component horizontal padding */
-    val Md = 16.dp
-
-    /** Dialog content, screen-level horizontal padding */
-    val Lg = 24.dp
-
-    /** Outer content padding for screens (compact+) */
-    val Xl = 40.dp
+    val Sm: Dp get() = Spacing.Sm
+    val Md: Dp get() = Spacing.Md
+    val Lg: Dp get() = Spacing.Lg
+    val Xl: Dp = 40.dp
 }
 
 /**
