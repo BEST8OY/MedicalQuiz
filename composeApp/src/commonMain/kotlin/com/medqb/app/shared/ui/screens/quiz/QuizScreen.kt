@@ -248,7 +248,7 @@ private fun QuizQuestionCard(
     }
     val mediaClick: (String) -> Unit = remember(mediaHandler) { { ref -> mediaHandler.handleMediaLink(ref) } }
 
-    LaunchedEffect(question?.id) {
+    LaunchedEffect(question?.id, question != null) {
         if (question != null) {
             // Run regex-heavy media collection off the main thread
             val mediaFiles = withContext(Dispatchers.IO) {

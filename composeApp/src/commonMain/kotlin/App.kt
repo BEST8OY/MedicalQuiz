@@ -24,6 +24,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -182,15 +183,17 @@ fun App() {
             }
         }
 
-        val returnQuizToFilter: () -> Unit = {
-            val targetPane = workflow.onQuizReturn()
-            navigator.returnQuizToFilter()
-            targetPane?.let {
-                val pane = when (it) {
-                    RequestedFilterPane.Filters -> FilterPane.Filters
-                    RequestedFilterPane.History -> FilterPane.History
+        val returnQuizToFilter: () -> Unit = remember(workflow, navigator, graph) {
+            {
+                val targetPane = workflow.onQuizReturn()
+                navigator.returnQuizToFilter()
+                targetPane?.let {
+                    val pane = when (it) {
+                        RequestedFilterPane.Filters -> FilterPane.Filters
+                        RequestedFilterPane.History -> FilterPane.History
+                    }
+                    graph.filterStateHolder.setPendingFilterPane(pane)
                 }
-                graph.filterStateHolder.setPendingFilterPane(pane)
             }
         }
 
@@ -308,7 +311,9 @@ fun App() {
                 }
             }
 
-            val isFilterRoute = navigator.currentRoute is MedQBRoutes.Filter
+            val isFilterRoute by remember(backStack) {
+                derivedStateOf { navigator.currentRoute is MedQBRoutes.Filter }
+            }
             SnackbarHost(
                 hostState = snackbarHostState,
                 modifier = Modifier
