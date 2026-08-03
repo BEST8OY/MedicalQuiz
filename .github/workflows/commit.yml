@@ -80,7 +80,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ needs.validate-commit.outputs.commit_sha }}
 
-      - uses: gradle/actions/wrapper-validation@v6
+      - uses: gradle/actions/wrapper-validation@v6.2.0
 
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v5
@@ -89,7 +89,7 @@ jobs:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.2.0
         with:
           cache-read-only: true
           add-job-summary: on-failure
@@ -130,7 +130,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ needs.validate-commit.outputs.commit_sha }}
 
-      - uses: gradle/actions/wrapper-validation@v6
+      - uses: gradle/actions/wrapper-validation@v6.2.0
 
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v5
@@ -139,7 +139,7 @@ jobs:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.2.0
         with:
           cache-read-only: true
           add-job-summary: on-failure
