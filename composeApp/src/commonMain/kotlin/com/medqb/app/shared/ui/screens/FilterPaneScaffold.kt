@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.zIndex
 import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 
@@ -74,7 +75,8 @@ internal fun FilterPaneScaffold(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(Spacing.Large)
-                    .navigationBarsPadding(),
+                    .navigationBarsPadding()
+                    .zIndex(1f),
             )
         }
     }

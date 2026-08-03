@@ -89,7 +89,7 @@ internal fun FilterScreen(
                         start = Inset.Large,
                         top = Inset.ExtraLarge,
                         end = Inset.Large,
-                        bottom = Spacing.Large,
+                        bottom = Spacing.None,
                     )
             ) {
                 Column(
@@ -162,7 +162,7 @@ internal fun FilterScreen(
                         onClearFilters = onClearFilters
                     )
 
-                    Spacer(modifier = Modifier.height(bottomContentPadding + Spacing.Large))
+                    Spacer(modifier = Modifier.height(bottomContentPadding + Spacing.Medium))
                 }
             }
         }
