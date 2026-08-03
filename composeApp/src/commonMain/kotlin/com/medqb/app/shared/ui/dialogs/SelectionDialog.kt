@@ -148,6 +148,8 @@ private fun <T> SelectionDialog(
             dismissOnClickOutside = true
         )
     ) {
+        DialogHeader(title = title, onClose = onDismiss)
+
         AnimatedContent(
             targetState = resource,
             transitionSpec = {
@@ -157,9 +159,8 @@ private fun <T> SelectionDialog(
             label = "selection_dialog_content"
         ) { currentResource ->
             when (currentResource) {
-                Resource.Loading -> SelectionLoadingContent(title = title, onDismiss = onDismiss)
-                is Resource.Error -> SelectionErrorContent(
-                    title = title,
+                Resource.Loading -> SelectionLoadingBody()
+                is Resource.Error -> SelectionErrorBody(
                     message = currentResource.message,
                     onRetry = onRetry,
                     onDismiss = onDismiss
@@ -167,14 +168,12 @@ private fun <T> SelectionDialog(
                 is Resource.Success -> {
                     val data = currentResource.data
                     if (data.isEmpty()) {
-                        SelectionEmptyContent(
-                            title = title,
+                        SelectionEmptyBody(
                             message = emptyMessage,
                             onDismiss = onDismiss
                         )
                     } else {
-                        SelectionListContent(
-                            title = title,
+                        SelectionListBody(
                             items = data,
                             selectedIds = selectedIds,
                             labelProvider = labelProvider,
@@ -192,123 +191,105 @@ private fun <T> SelectionDialog(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SelectionLoadingContent(
-    title: String,
-    onDismiss: () -> Unit
-) {
-    Column {
-        DialogHeader(title = title, onClose = onDismiss)
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(Layout.LoadingAreaHeight),
-            contentAlignment = Alignment.Center
+private fun SelectionLoadingBody() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(Layout.LoadingAreaHeight),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Spacing.Lg)
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(Spacing.Lg)
-            ) {
-                LoadingIndicator(
-                    modifier = Modifier.size(ElementSize.IconContainerMd)
-                )
-                Text(
-                    text = "Loading...",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            LoadingIndicator(
+                modifier = Modifier.size(ElementSize.IconContainerMd)
+            )
+            Text(
+                text = "Loading...",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SelectionErrorContent(
-    title: String,
+private fun SelectionErrorBody(
     message: String,
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    Column {
-        DialogHeader(title = title, onClose = onDismiss)
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Inset.Lg),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(Spacing.Lg)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(Inset.Lg),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Spacing.Lg)
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.errorContainer,
+            modifier = Modifier.size(ElementSize.IconContainerXl)
         ) {
-            Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.errorContainer,
-                modifier = Modifier.size(ElementSize.IconContainerXl)
-            ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
-                    Icon(
-                        imageVector = Icons.Outlined.Warning,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(ElementSize.IconMdLg)
-                    )
-                }
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
+                Icon(
+                    imageVector = Icons.Outlined.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(ElementSize.IconMdLg)
+                )
             }
+        }
 
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Md)
-            ) {
-                FilledTonalButton(onClick = onDismiss) {
-                    Text("Close")
-                }
-                Button(onClick = onRetry) {
-                    Text("Retry")
-                }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Md)
+        ) {
+            FilledTonalButton(onClick = onDismiss) {
+                Text("Close")
+            }
+            Button(onClick = onRetry) {
+                Text("Retry")
             }
         }
     }
 }
 
 @Composable
-private fun SelectionEmptyContent(
-    title: String,
+private fun SelectionEmptyBody(
     message: String,
     onDismiss: () -> Unit
 ) {
-    Column {
-        DialogHeader(title = title, onClose = onDismiss)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(Inset.Lg),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Spacing.Lg)
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Inset.Lg),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(Spacing.Lg)
-        ) {
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-
-            Button(onClick = onDismiss) {
-                Text("Close")
-            }
+        Button(onClick = onDismiss) {
+            Text("Close")
         }
     }
 }
 
 @Composable
-private fun <T> SelectionListContent(
-    title: String,
+private fun <T> SelectionListBody(
     items: List<T>,
     selectedIds: Set<Long>,
     labelProvider: (T) -> String,
@@ -346,10 +327,11 @@ private fun <T> SelectionListContent(
             "${currentSelection.size} of ${items.size} selected (${filteredItems.size} shown)"
         }
 
-        DialogHeader(
-            title = title,
-            subtitle = subtitle,
-            onClose = onDismiss
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = Inset.Lg, vertical = Spacing.Xxs)
         )
 
         // Search bar
