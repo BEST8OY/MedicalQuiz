@@ -91,7 +91,7 @@ fun QuizRoot(
                 onSubmit = { viewModel.submitAnswer(timeTaken = 0L) },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = bottomPadding + Spacing.Md)
+                    .padding(bottom = bottomPadding + Spacing.Medium)
             )
         }
 

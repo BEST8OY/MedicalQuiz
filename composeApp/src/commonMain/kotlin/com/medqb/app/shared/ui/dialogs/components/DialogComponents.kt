@@ -85,7 +85,7 @@ fun DialogHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = Inset.Lg, end = Inset.Sm, top = Spacing.LgSm, bottom = Spacing.Sm),
+            .padding(start = Inset.Large, end = Inset.Small, top = Spacing.MediumLarge, bottom = Spacing.MediumSmall),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
     ) {
@@ -101,7 +101,7 @@ fun DialogHeader(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = Spacing.Xs)
+                    modifier = Modifier.padding(top = Spacing.ExtraSmall)
                 )
             }
         }
@@ -133,8 +133,8 @@ fun DialogActions(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = Inset.Lg, vertical = Spacing.LgSm),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.End),
+            .padding(horizontal = Inset.Large, vertical = Spacing.MediumLarge),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.Small, Alignment.End),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (secondaryText != null && onSecondary != null) {

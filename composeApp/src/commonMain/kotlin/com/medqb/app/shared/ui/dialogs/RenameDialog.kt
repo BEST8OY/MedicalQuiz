@@ -42,7 +42,7 @@ fun RenameDialog(
             )
 
             Column(
-                modifier = Modifier.padding(horizontal = Inset.Lg, vertical = Spacing.Sm)
+                modifier = Modifier.padding(horizontal = Inset.Large, vertical = Spacing.MediumSmall)
             ) {
                 OutlinedTextField(
                     value = currentName,

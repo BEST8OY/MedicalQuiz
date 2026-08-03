@@ -318,9 +318,9 @@ fun App() {
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
                     .padding(
-                        start = Inset.Md,
-                        end = Inset.Md,
-                        bottom = if (isFilterRoute) 80.dp else Spacing.Sm,
+                        start = Inset.Medium,
+                        end = Inset.Medium,
+                        bottom = if (isFilterRoute) 80.dp else Spacing.MediumSmall,
                     ),
                 snackbar = { data ->
                     Snackbar(

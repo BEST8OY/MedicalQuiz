@@ -63,7 +63,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.IconSize
 import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.data.QuizSessionRepository
@@ -190,8 +190,8 @@ internal fun HistoryPane(
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(Spacing.Md),
-                contentPadding = PaddingValues(top = Spacing.Lg, bottom = ScreenLayout.BottomPaddingWithFab),
+                verticalArrangement = Arrangement.spacedBy(Spacing.Medium),
+                contentPadding = PaddingValues(top = Spacing.Large, bottom = ScreenLayout.BottomPaddingWithFab),
             ) {
             if (visibleEntries.isEmpty()) {
                 item {
@@ -239,7 +239,7 @@ internal fun HistoryPane(
             BoxWithConstraints(
                 modifier = Modifier.fillMaxSize(),
             ) {
-                val horizontalMargin = if (maxWidth >= ScreenLayout.WideWidthBreakpoint) Spacing.Xl else Spacing.Lg
+                val horizontalMargin = if (maxWidth >= ScreenLayout.WideWidthBreakpoint) Spacing.ExtraLarge else Spacing.Large
                 FloatingActionButtonMenu(
                     expanded = isFabMenuExpanded,
                     button = {
@@ -380,7 +380,7 @@ private fun HistoryItemCard(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(backgroundColor)
-                    .padding(horizontal = Spacing.LgSm),
+                    .padding(horizontal = Spacing.MediumLarge),
             ) {
                 Row(
                     modifier = Modifier
@@ -401,9 +401,9 @@ private fun HistoryItemCard(
                         },
                         contentDescription = null,
                         tint = contentColor,
-                        modifier = Modifier.size(ElementSize.IconMd),
+                        modifier = Modifier.size(IconSize.Medium),
                     )
-                    Spacer(modifier = Modifier.width(Spacing.Sm))
+                    Spacer(modifier = Modifier.width(Spacing.MediumSmall))
                     Text(
                         text = if (dismissDirection == EndToStart) "Delete" else "Rename",
                         color = contentColor,
@@ -438,7 +438,7 @@ private fun HistoryItemCard(
                 )
             },
             supportingContent = {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)) {
                     if (entryDisplayName != entry.databaseName) {
                         Text(
                             text = entry.databaseName,
@@ -455,7 +455,7 @@ private fun HistoryItemCard(
             },
             leadingContent = {
                 val checkboxWidth by animateDpAsState(
-                    targetValue = if (selectionModeEnabled) ElementSize.IconLg else 0.dp,
+                    targetValue = if (selectionModeEnabled) IconSize.Large else 0.dp,
                     label = "checkboxWidth",
                 )
 
@@ -472,7 +472,7 @@ private fun HistoryItemCard(
                         imageVector = Icons.Filled.History,
                         contentDescription = "Quiz history entry",
                         tint = iconTint,
-                        modifier = Modifier.size(ElementSize.IconLg),
+                        modifier = Modifier.size(IconSize.Large),
                     )
                 }
             },

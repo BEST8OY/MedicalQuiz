@@ -91,7 +91,7 @@ import com.medqb.app.shared.utils.MediaTypeUtils
 import com.medqb.app.shared.ui.richtext.RichText
 import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
-import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.ContainerSize
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
@@ -286,7 +286,7 @@ private fun MediaViewerContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(horizontal = Spacing.Xs, vertical = Spacing.Xs),
+                    .padding(horizontal = Spacing.Small, vertical = Spacing.Small),
             ) {
                 FilledIconButton(
                     onClick = onBack,
@@ -310,7 +310,7 @@ private fun MediaViewerContent(
                     ) {
                         Text(
                             text = "${pagerState.currentPage + 1} / ${mediaFiles.size}",
-                            modifier = Modifier.padding(horizontal = Spacing.Md, vertical = Spacing.Xs),
+                            modifier = Modifier.padding(horizontal = Spacing.Medium, vertical = Spacing.Small),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -360,7 +360,7 @@ private fun MediaViewerContent(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(bottom = Spacing.Lg)
+                .padding(bottom = Spacing.Large)
                 .graphicsLayer { alpha = transitionAlpha },
         ) {
             Box(
@@ -472,8 +472,8 @@ private fun ExplanationBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Lg)
-                .padding(bottom = Spacing.Xl),
+                .padding(horizontal = Inset.Large)
+                .padding(bottom = Spacing.ExtraLarge),
         ) {
             Text(
                 text = description.title.ifBlank { "Explanation" },
@@ -481,11 +481,11 @@ private fun ExplanationBottomSheet(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = Spacing.Md),
+                    .padding(bottom = Spacing.Medium),
             )
 
             HorizontalDivider(
-                modifier = Modifier.padding(bottom = Spacing.Md),
+                modifier = Modifier.padding(bottom = Spacing.Medium),
                 color = MaterialTheme.colorScheme.outlineVariant,
             )
 
@@ -730,29 +730,29 @@ private fun UnsupportedContent(fileName: String) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(Spacing.Xl),
+            modifier = Modifier.padding(Spacing.ExtraLarge),
         ) {
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(ElementSize.IconContainerXl),
+                modifier = Modifier.size(ContainerSize.ExtraLarge),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Outlined.Warning,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(ElementSize.IconContainerMd),
+                        modifier = Modifier.size(ContainerSize.Medium),
                     )
                 }
             }
-            Spacer(Modifier.height(Spacing.Md))
+            Spacer(Modifier.height(Spacing.Medium))
             Text(
                 text = "Unsupported Media",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            Spacer(Modifier.height(Spacing.Xs))
+            Spacer(Modifier.height(Spacing.Small))
             Text(
                 text = fileName,
                 style = MaterialTheme.typography.bodySmall,

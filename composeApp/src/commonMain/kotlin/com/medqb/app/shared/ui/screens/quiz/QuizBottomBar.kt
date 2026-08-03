@@ -63,7 +63,7 @@ fun QuizFloatingToolbar(
 
         HorizontalFloatingToolbar(
             expanded = true,
-            modifier = Modifier.padding(horizontal = if (isExpanded) Spacing.Lg else Spacing.Md),
+            modifier = Modifier.padding(horizontal = if (isExpanded) Spacing.Large else Spacing.Medium),
             colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
             contentPadding = FloatingToolbarDefaults.ContentPadding,
             leadingContent = {
@@ -78,14 +78,14 @@ fun QuizFloatingToolbar(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .sizeIn(minWidth = Layout.MinTouchTarget, minHeight = Layout.MinTouchTarget)
-                            .padding(horizontal = if (isExpanded) Spacing.Sm else Spacing.Xs)
+                            .padding(horizontal = if (isExpanded) Spacing.MediumSmall else Spacing.Small)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = null,
                         )
                         if (isExpanded) {
-                            Spacer(modifier = Modifier.width(Spacing.Xxs))
+                            Spacer(modifier = Modifier.width(Spacing.ExtraSmall))
                             Text(
                                 text = "Prev",
                                 style = MaterialTheme.typography.labelLargeEmphasized,
@@ -106,14 +106,14 @@ fun QuizFloatingToolbar(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .sizeIn(minWidth = Layout.MinTouchTarget, minHeight = Layout.MinTouchTarget)
-                            .padding(horizontal = if (isExpanded) Spacing.Sm else Spacing.Xs)
+                            .padding(horizontal = if (isExpanded) Spacing.MediumSmall else Spacing.Small)
                     ) {
                         if (isExpanded) {
                             Text(
                                 text = "Next",
                                 style = MaterialTheme.typography.labelLargeEmphasized,
                             )
-                            Spacer(modifier = Modifier.width(Spacing.Xxs))
+                            Spacer(modifier = Modifier.width(Spacing.ExtraSmall))
                         }
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
@@ -123,7 +123,7 @@ fun QuizFloatingToolbar(
                 }
             },
             content = {
-                Spacer(modifier = Modifier.width(Spacing.Xs))
+                Spacer(modifier = Modifier.width(Spacing.Small))
 
                 AnimatedVisibility(
                     visible = uiState.showSubmitButton,
@@ -136,11 +136,11 @@ fun QuizFloatingToolbar(
                         FilledTonalButton(
                             onClick = onSubmit,
                             enabled = uiState.canSubmit,
-                            modifier = Modifier.sizeIn(minHeight = Spacing.LgSm),
+                            modifier = Modifier.sizeIn(minHeight = Spacing.MediumLarge),
                         ) {
                             Text(text = "Submit")
                         }
-                        Spacer(modifier = Modifier.width(Spacing.Xs))
+                        Spacer(modifier = Modifier.width(Spacing.Small))
                     }
                 }
 
@@ -149,13 +149,13 @@ fun QuizFloatingToolbar(
                     shape = MaterialTheme.shapes.extraLarge,
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier
-                        .sizeIn(minHeight = Spacing.LgSm)
+                        .sizeIn(minHeight = Spacing.MediumLarge)
                         .semantics {
                             contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}. Tap to jump."
                         },
                 ) {
                     Box(
-                        modifier = Modifier.padding(horizontal = Spacing.Md, vertical = Spacing.Xs),
+                        modifier = Modifier.padding(horizontal = Spacing.Medium, vertical = Spacing.Small),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -166,7 +166,7 @@ fun QuizFloatingToolbar(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(Spacing.Xs))
+                Spacer(modifier = Modifier.width(Spacing.Small))
             }
         )
     }

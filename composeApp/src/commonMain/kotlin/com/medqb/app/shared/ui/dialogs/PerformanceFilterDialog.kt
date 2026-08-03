@@ -53,9 +53,9 @@ fun PerformanceFilterDialog(
 
             LazyColumn(
                 modifier = Modifier
-                    .padding(horizontal = Inset.Lg)
+                    .padding(horizontal = Inset.Large)
                     .weight(1f, fill = false),
-                verticalArrangement = Arrangement.spacedBy(Spacing.Xs)
+                verticalArrangement = Arrangement.spacedBy(Spacing.Small)
             ) {
                 items(filters) { filter ->
                     PerformanceFilterItem(
@@ -99,7 +99,7 @@ private fun PerformanceFilterItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Sm, vertical = Spacing.Sm),
+                .padding(horizontal = Inset.Small, vertical = Spacing.MediumSmall),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start
         ) {
@@ -114,7 +114,7 @@ private fun PerformanceFilterItem(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = Spacing.Xs, end = Spacing.Sm)
+                    .padding(start = Spacing.Small, end = Spacing.MediumSmall)
             ) {
                 Text(
                     text = filter.displayName(),

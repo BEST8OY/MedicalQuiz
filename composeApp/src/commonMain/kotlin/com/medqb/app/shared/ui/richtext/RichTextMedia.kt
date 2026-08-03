@@ -74,7 +74,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
         modifier = Modifier
             .fillMaxWidth()
             .zIndex(if (isZoomed) 10f else 0f)
-            .padding(vertical = Spacing.Xs),
+            .padding(vertical = Spacing.Small),
         horizontalAlignment = when (block.alignment) {
             TextAlign.End -> Alignment.End
             TextAlign.Center -> Alignment.CenterHorizontally
@@ -101,7 +101,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
                 color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = Spacing.Xxs),
+                    .padding(top = Spacing.ExtraSmall),
                 textAlign = block.alignment
             )
         }

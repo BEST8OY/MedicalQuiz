@@ -71,8 +71,8 @@ fun DatabaseSelectionScreen(
             ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.Sm),
-                    contentPadding = PaddingValues(start = Inset.Md, top = Inset.Md, end = Inset.Md, bottom = Spacing.Lg),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall),
+                    contentPadding = PaddingValues(start = Inset.Medium, top = Inset.Medium, end = Inset.Medium, bottom = Spacing.Large),
                 ) {
                     if (databases.isEmpty() && !isLoading) {
                         item {
@@ -109,15 +109,15 @@ private fun DatabaseItemCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(Spacing.Md),
+                .padding(Spacing.Medium),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Md),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Medium),
         ) {
             Icon(
                 imageVector = Icons.Filled.Storage,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(Spacing.Xl),
+                modifier = Modifier.size(Spacing.ExtraLarge),
             )
             Text(
                 text = name,

@@ -73,7 +73,7 @@ internal fun FilterPaneScaffold(
                 onPaneSelected = onPaneSelected,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(Spacing.Lg)
+                    .padding(Spacing.Large)
                     .navigationBarsPadding(),
             )
         }

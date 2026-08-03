@@ -92,8 +92,8 @@ internal fun RichTextTooltipBottomSheet(
             Column(
                 modifier = androidx.compose.ui.Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = Inset.Md, vertical = Spacing.Xxs),
-                verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)
+                    .padding(horizontal = Inset.Medium, vertical = Spacing.ExtraSmall),
+                verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)
             ) {
                 androidx.compose.material3.Text(
                     text = it.title,

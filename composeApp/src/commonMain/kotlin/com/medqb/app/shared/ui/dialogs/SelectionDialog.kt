@@ -56,8 +56,9 @@ import com.medqb.app.shared.utils.Resource
 import com.medqb.app.shared.ui.dialogs.components.DialogActions
 import com.medqb.app.shared.ui.dialogs.components.DialogHeader
 import com.medqb.app.shared.ui.dialogs.components.DialogShell
+import com.medqb.app.shared.ui.theme.ContainerSize
 import com.medqb.app.shared.ui.theme.DialogLayout
-import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.IconSize
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
 
@@ -134,7 +135,7 @@ private fun <T> SelectionDialog(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .weight(1f, fill = false)
         ) {
             when (resource) {
                 Resource.Loading -> SelectionLoadingBody()
@@ -176,10 +177,10 @@ private fun SelectionLoadingBody() {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(Spacing.Lg)
+            verticalArrangement = Arrangement.spacedBy(Spacing.Large)
         ) {
             LoadingIndicator(
-                modifier = Modifier.size(ElementSize.IconContainerMd)
+                modifier = Modifier.size(ContainerSize.Medium)
             )
             Text(
                 text = "Loading...",
@@ -200,21 +201,21 @@ private fun SelectionErrorBody(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(Inset.Lg),
+            .padding(Inset.Large),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Surface(
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.errorContainer,
-            modifier = Modifier.size(ElementSize.IconContainerXl)
+            modifier = Modifier.size(ContainerSize.ExtraLarge)
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
                 Icon(
                     imageVector = Icons.Outlined.Warning,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(ElementSize.IconMdLg)
+                    modifier = Modifier.size(IconSize.MediumLarge)
                 )
             }
         }
@@ -224,11 +225,11 @@ private fun SelectionErrorBody(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = Modifier.padding(vertical = Spacing.Md)
+            modifier = Modifier.padding(vertical = Spacing.Medium)
         )
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Md)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Medium)
         ) {
             FilledTonalButton(onClick = onDismiss) {
                 Text("Close")
@@ -248,7 +249,7 @@ private fun SelectionEmptyBody(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(Inset.Lg),
+            .padding(Inset.Large),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -257,7 +258,7 @@ private fun SelectionEmptyBody(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = Modifier.padding(bottom = Spacing.Lg)
+            modifier = Modifier.padding(bottom = Spacing.Large)
         )
 
         Button(onClick = onDismiss) {
@@ -320,26 +321,26 @@ private fun <T> SelectionListBody(
                 onValueChange = { searchQuery = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = Inset.Lg, vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.Xxs),
+                    .padding(horizontal = Inset.Large, vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.ExtraSmall),
                 placeholder = { Text("Search...", style = if (isCompactHeight) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Rounded.Search,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = if (isCompactHeight) Modifier.size(ElementSize.IconSm) else Modifier.size(ElementSize.IconMd)
+                        modifier = if (isCompactHeight) Modifier.size(IconSize.Small) else Modifier.size(IconSize.Medium)
                     )
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(
                             onClick = { searchQuery = "" },
-                            modifier = if (isCompactHeight) Modifier.size(ElementSize.IconLg) else Modifier
+                            modifier = if (isCompactHeight) Modifier.size(IconSize.Large) else Modifier
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Close,
                                 contentDescription = "Clear search",
-                                modifier = Modifier.size(ElementSize.IconSm)
+                                modifier = Modifier.size(IconSize.Small)
                             )
                         }
                     }
@@ -357,7 +358,7 @@ private fun <T> SelectionListBody(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = Inset.Lg, vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.Xxs),
+                    .padding(horizontal = Inset.Large, vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.ExtraSmall),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -366,11 +367,11 @@ private fun <T> SelectionListBody(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.Xxs)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)) {
                     TextButton(
                         onClick = { currentSelection = effectiveSelectAllIds.toMutableSet() },
                         enabled = !isAllSelected,
-                        contentPadding = PaddingValues(horizontal = Spacing.Xs, vertical = 0.dp)
+                        contentPadding = PaddingValues(horizontal = Spacing.Small, vertical = 0.dp)
                     ) {
                         Text(selectAllLabel, style = MaterialTheme.typography.labelSmall)
                     }
@@ -378,7 +379,7 @@ private fun <T> SelectionListBody(
                     TextButton(
                         onClick = { currentSelection = mutableSetOf() },
                         enabled = currentSelection.isNotEmpty(),
-                        contentPadding = PaddingValues(horizontal = Spacing.Xs, vertical = 0.dp)
+                        contentPadding = PaddingValues(horizontal = Spacing.Small, vertical = 0.dp)
                     ) {
                         Text("Clear", style = MaterialTheme.typography.labelSmall)
                     }
@@ -386,7 +387,7 @@ private fun <T> SelectionListBody(
             }
 
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = Inset.Lg),
+                modifier = Modifier.padding(horizontal = Inset.Large),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
 
@@ -397,10 +398,10 @@ private fun <T> SelectionListBody(
                     .fillMaxWidth()
                     .weight(1f, fill = false),
                 contentPadding = PaddingValues(
-                    horizontal = Inset.Lg,
-                    vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.Sm
+                    horizontal = Inset.Large,
+                    vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.MediumSmall
                 ),
-                verticalArrangement = Arrangement.spacedBy(if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.Xxs)
+                verticalArrangement = Arrangement.spacedBy(if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.ExtraSmall)
             ) {
                 items(
                     items = filteredItems,
@@ -426,7 +427,7 @@ private fun <T> SelectionListBody(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(Inset.Lg),
+                                .padding(Inset.Large),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -474,8 +475,8 @@ private fun SelectionItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    horizontal = Inset.Sm,
-                    vertical = if (compactMode) DialogLayout.CompactItemPadding else Inset.Sm
+                    horizontal = Inset.Small,
+                    vertical = if (compactMode) DialogLayout.CompactItemPadding else Inset.Small
                 ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start
@@ -483,14 +484,14 @@ private fun SelectionItem(
             Checkbox(
                 checked = isChecked,
                 onCheckedChange = onCheckedChange,
-                modifier = if (compactMode) Modifier.size(ElementSize.IconLg) else Modifier
+                modifier = if (compactMode) Modifier.size(IconSize.Large) else Modifier
             )
 
             Text(
                 text = label,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = Spacing.Sm),
+                    .padding(start = Spacing.MediumSmall),
                 style = if (compactMode) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isChecked) FontWeight.Medium else FontWeight.Normal,
                 maxLines = 2,

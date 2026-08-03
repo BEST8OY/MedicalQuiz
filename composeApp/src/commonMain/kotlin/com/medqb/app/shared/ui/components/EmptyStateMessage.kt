@@ -24,7 +24,7 @@ fun EmptyStateMessage(
             .fillMaxWidth()
             .padding(top = ScreenLayout.EmptyStatePadding),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.Sm, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall, Alignment.CenterVertically),
     ) {
         Text(
             text = title,

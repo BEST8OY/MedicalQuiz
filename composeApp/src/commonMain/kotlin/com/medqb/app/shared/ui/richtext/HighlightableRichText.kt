@@ -87,7 +87,7 @@ fun HighlightableRichText(
     
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(Spacing.Sm)
+        verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)
     ) {
         // Track cumulative offset across blocks for proper highlight mapping
         var cumulativeOffset = 0
@@ -247,7 +247,7 @@ private fun HighlightableList(
     onShowSnackbar: suspend (SnackbarMessage) -> Unit
 ) {
     val richTextScale = LocalRichTextScale.current
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Xs)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
         var itemOffset = baseOffset
 
         items.forEachIndexed { index, itemText ->
@@ -264,7 +264,7 @@ private fun HighlightableList(
                 MaterialText(
                     text = markerProvider(index),
                     style = MaterialTheme.typography.bodyLarge.scaledBy(richTextScale.proseScale),
-                    modifier = Modifier.padding(end = Inset.Sm),
+                    modifier = Modifier.padding(end = Inset.Small),
                 )
                 HighlightableListItem(
                     text = itemText,

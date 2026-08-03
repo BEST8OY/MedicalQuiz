@@ -11,9 +11,11 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Check
@@ -42,8 +44,9 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.TextHighlight
-import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.ContainerSize
 import com.medqb.app.shared.ui.theme.HighlightToolbar
+import com.medqb.app.shared.ui.theme.IconSize
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.ui.theme.Stroke
@@ -64,13 +67,15 @@ internal fun SelectionToolbar(
         border = BorderStroke(width = Stroke.Thin, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = Spacing.Sm, vertical = Spacing.Xs),
-            verticalArrangement = Arrangement.spacedBy(Spacing.XxsPlus),
+            modifier = Modifier
+                .width(IntrinsicSize.Max)
+                .padding(horizontal = Spacing.MediumSmall, vertical = Spacing.MediumSmall),
+            verticalArrangement = Arrangement.spacedBy(Spacing.Small),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Row 1: Action Items (Copy & Dictionary)
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.Small, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ToolbarActionItem(
@@ -89,13 +94,13 @@ internal fun SelectionToolbar(
             }
 
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = Spacing.Xs),
+                modifier = Modifier.padding(horizontal = Spacing.Small),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             )
 
             // Row 2: Color Swatches
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.MediumSmall, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HighlightColor.entries.forEach { color ->
@@ -129,15 +134,15 @@ private fun ToolbarActionItem(
         modifier = Modifier.clip(MaterialTheme.shapes.medium)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = Spacing.Sm, vertical = Spacing.Xxs),
+            modifier = Modifier.padding(horizontal = Spacing.MediumSmall, vertical = Spacing.Small),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Spacing.XxsPlus)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.SubSmall)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconColor,
-                modifier = Modifier.size(ElementSize.IconMd)
+                modifier = Modifier.size(IconSize.Medium)
             )
             Text(
                 text = label,
@@ -162,12 +167,12 @@ internal fun HighlightEditPopup(
         border = BorderStroke(width = Stroke.Thin, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = Inset.Md, vertical = Spacing.Sm),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Md, Alignment.CenterHorizontally),
+            modifier = Modifier.padding(horizontal = Inset.Medium, vertical = Spacing.MediumSmall),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Medium, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Sm, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.MediumSmall, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HighlightColor.entries.forEach { color ->
@@ -187,7 +192,7 @@ internal fun HighlightEditPopup(
             IconButton(
                 onClick = onDelete,
                 modifier = Modifier
-                    .size(ElementSize.IconContainerMd)
+                    .size(ContainerSize.Medium)
                     .clip(MaterialTheme.shapes.medium),
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -197,7 +202,7 @@ internal fun HighlightEditPopup(
                 Icon(
                     imageVector = Icons.Rounded.Delete,
                     contentDescription = "Delete highlight",
-                    modifier = Modifier.size(ElementSize.IconMd)
+                    modifier = Modifier.size(IconSize.Medium)
                 )
             }
         }
@@ -258,7 +263,7 @@ private fun HighlightColorChip(
             Icon(
                 imageVector = Icons.Rounded.Check,
                 contentDescription = null,
-                modifier = Modifier.size(ElementSize.IconMd),
+                modifier = Modifier.size(IconSize.Medium),
                 tint = contentColorFor(composeColor)
             )
         }

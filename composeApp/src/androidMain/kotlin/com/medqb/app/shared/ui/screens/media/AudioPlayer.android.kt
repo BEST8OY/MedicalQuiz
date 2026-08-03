@@ -104,7 +104,7 @@ actual fun AudioPlayer(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = Spacing.Md, vertical = Spacing.Lg),
+            .padding(horizontal = Spacing.Medium, vertical = Spacing.Large),
         verticalArrangement = Arrangement.Center,
     ) {
         Slider(
@@ -139,7 +139,7 @@ actual fun AudioPlayer(
             )
         }
 
-        Spacer(modifier = Modifier.height(Spacing.Md))
+        Spacer(modifier = Modifier.height(Spacing.Medium))
 
         Button(
             onClick = {
@@ -160,7 +160,7 @@ actual fun AudioPlayer(
                 imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                 contentDescription = null,
             )
-            Spacer(modifier = Modifier.width(Spacing.Xs))
+            Spacer(modifier = Modifier.width(Spacing.Small))
             Text(if (isPlaying) "Pause" else "Play")
         }
     }

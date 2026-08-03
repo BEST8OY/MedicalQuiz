@@ -161,7 +161,7 @@ internal fun RichTextTableShell(
                             }.toFloat()
                             val cellWeight = anchor.cell.cell.width ?: anchor.cell.columnSpan.coerceAtLeast(1).toFloat()
 
-                            val insetSmPx = Inset.Sm.toPx()
+                            val insetSmPx = Inset.Small.toPx()
                             val usableWidth = tableWidth.toPx() - insetSmPx * 2
 
                             val isLeftEdge = startWeight == 0f
@@ -181,8 +181,8 @@ internal fun RichTextTableShell(
 
                             val cellWidth = (rightX - leftX).toDp()
 
-                            val paddingStart = if (isLeftEdge) Inset.Sm + Spacing.Xxs * 2 else Spacing.Xxs * 2
-                            val paddingEnd = if (isRightEdge) Inset.Sm + Spacing.Xxs * 2 else Spacing.Xxs * 2
+                            val paddingStart = if (isLeftEdge) Inset.Small + Spacing.ExtraSmall * 2 else Spacing.ExtraSmall * 2
+                            val paddingEnd = if (isRightEdge) Inset.Small + Spacing.ExtraSmall * 2 else Spacing.ExtraSmall * 2
 
                             val isAbstractRow = (startRowModel.classNames + block.classNames).containsInsensitive("abstract")
                             val baseBackground = when {
@@ -231,7 +231,7 @@ internal fun RichTextTableShell(
                         }.toFloat()
                         val cellWeight = anchor.cell.cell.width ?: anchor.cell.columnSpan.coerceAtLeast(1).toFloat()
 
-                        val insetSmPx = Inset.Sm.toPx()
+                        val insetSmPx = Inset.Small.toPx()
                         val usableWidth = tableWidth.toPx() - insetSmPx * 2
 
                         val isLeftEdge = startWeight == 0f
@@ -281,7 +281,7 @@ internal fun RichTextTableShell(
                                 (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
                             }.toFloat()
 
-                            val insetSmPx = Inset.Sm.toPx()
+                            val insetSmPx = Inset.Small.toPx()
                             val usableWidth = tableWidth.toPx() - insetSmPx * 2
 
                             val isLeftEdge = startWeight == 0f
@@ -553,7 +553,7 @@ internal fun TableRowContent(
         modifier = Modifier
             .fillMaxWidth()
             .background(baseBackground)
-            .padding(horizontal = Inset.Sm, vertical = Spacing.Xs),
+            .padding(horizontal = Inset.Small, vertical = Spacing.Small),
         verticalAlignment = Alignment.CenterVertically
     ) {
         row.cells.forEachIndexed { cellIndex, cell ->
@@ -576,14 +576,14 @@ internal fun TableRowContent(
                 Surface(
                     modifier = Modifier
                         .weight(weight)
-                        .padding(horizontal = Spacing.Xxs),
+                        .padding(horizontal = Spacing.ExtraSmall),
                     color = cellBackground,
                     shape = MaterialTheme.shapes.extraSmall
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = Spacing.Xxs)
+                            .padding(horizontal = Spacing.ExtraSmall)
                             .padding(start = cell.cell.paddingStart),
                         contentAlignment = when (cell.cell.alignment) {
                             TextAlign.Center -> Alignment.Center

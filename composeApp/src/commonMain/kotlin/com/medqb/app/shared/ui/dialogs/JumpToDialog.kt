@@ -87,8 +87,8 @@ fun JumpToDialog(
             )
 
             Column(
-                modifier = Modifier.padding(horizontal = Inset.Lg),
-                verticalArrangement = Arrangement.spacedBy(Spacing.LgSm)
+                modifier = Modifier.padding(horizontal = Inset.Large),
+                verticalArrangement = Arrangement.spacedBy(Spacing.MediumLarge)
             ) {
                 // Number input with stepper buttons
                 Row(
@@ -116,7 +116,7 @@ fun JumpToDialog(
                         },
                         modifier = Modifier
                             .width(120.dp)
-                            .padding(horizontal = Spacing.Sm),
+                            .padding(horizontal = Spacing.MediumSmall),
                         textStyle = MaterialTheme.typography.titleLarge.copy(
                             textAlign = TextAlign.Center,
                             fontWeight = FontWeight.SemiBold
@@ -157,7 +157,7 @@ fun JumpToDialog(
 
                 // Slider for quick navigation
                 if (totalQuestions > 1) {
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Xs)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
                         val sliderSteps = if (totalQuestions > 50) 0 else (totalQuestions - 2).coerceAtLeast(0)
                         Slider(
                             value = sliderValue,

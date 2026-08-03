@@ -47,7 +47,8 @@ import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.SubmissionMode
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.ContainerSize
+import com.medqb.app.shared.ui.theme.IconSize
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.ScreenLayout
@@ -85,26 +86,26 @@ internal fun FilterScreen(
                     .fillMaxSize()
                     .widthIn(max = ScreenLayout.WideWidthBreakpoint)
                     .padding(
-                        start = Inset.Lg,
-                        top = Inset.Xl,
-                        end = Inset.Lg,
-                        bottom = Spacing.Lg,
+                        start = Inset.Large,
+                        top = Inset.ExtraLarge,
+                        end = Inset.Large,
+                        bottom = Spacing.Large,
                     )
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.Xl)
+                    verticalArrangement = Arrangement.spacedBy(Spacing.ExtraLarge)
                 ) {
                     DatabaseHeaderCard(databaseName = databaseName)
 
                     FilterPreviewCard(previewCount = previewCount)
 
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Md)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Medium)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.Md)
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.Medium)
                         ) {
                             Box(modifier = Modifier.weight(1f)) {
                                 FilterSelectionCard(
@@ -161,7 +162,7 @@ internal fun FilterScreen(
                         onClearFilters = onClearFilters
                     )
 
-                    Spacer(modifier = Modifier.height(bottomContentPadding + Spacing.Lg))
+                    Spacer(modifier = Modifier.height(bottomContentPadding + Spacing.Large))
                 }
             }
         }
@@ -219,14 +220,14 @@ private fun ToggleCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Md, vertical = Spacing.Md),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Lg),
+                .padding(horizontal = Inset.Medium, vertical = Spacing.Medium),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Large),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = iconContainerColor,
-                modifier = Modifier.size(ElementSize.IconContainerLg)
+                modifier = Modifier.size(ContainerSize.Large)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -239,7 +240,7 @@ private fun ToggleCard(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)
+                verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)
             ) {
                 Text(
                     text = title,
@@ -279,14 +280,14 @@ private fun DatabaseHeaderCard(databaseName: String) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Spacing.LgSm, vertical = Spacing.Lg),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Lg),
+                .padding(horizontal = Spacing.MediumLarge, vertical = Spacing.Large),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Large),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(ElementSize.IconContainerMd)
+                modifier = Modifier.size(ContainerSize.Medium)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -344,8 +345,8 @@ private fun FilterPreviewCard(previewCount: Int) {
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = Inset.Lg, vertical = Spacing.LgSm),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Sm)
+            modifier = Modifier.padding(horizontal = Inset.Large, vertical = Spacing.MediumLarge),
+            verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)
         ) {
             Text(
                 text = statusText,
@@ -414,14 +415,14 @@ private fun FilterSelectionCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Md, vertical = Spacing.Md),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Lg),
+                .padding(horizontal = Inset.Medium, vertical = Spacing.Medium),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Large),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = iconContainerColor,
-                modifier = Modifier.size(ElementSize.IconContainerLg)
+                modifier = Modifier.size(ContainerSize.Large)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -434,7 +435,7 @@ private fun FilterSelectionCard(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)
+                verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)
             ) {
                 Text(
                     text = title,
@@ -463,7 +464,7 @@ private fun PrimaryActionButtonGroup(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.Sm),
+            .padding(horizontal = Spacing.MediumSmall),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -533,7 +534,7 @@ private fun ButtonGroupScope.StartQuizButtonGroupItem(
             Icon(
                 imageVector = Icons.Filled.PlayArrow,
                 contentDescription = null,
-                modifier = Modifier.size(ElementSize.IconMd),
+                modifier = Modifier.size(IconSize.Medium),
             )
         },
         enabled = hasPreview,
@@ -552,7 +553,7 @@ private fun ButtonGroupScope.ResetFiltersButtonGroupItem(
             Icon(
                 imageVector = Icons.Filled.FilterAltOff,
                 contentDescription = null,
-                modifier = Modifier.size(ElementSize.IconMd),
+                modifier = Modifier.size(IconSize.Medium),
             )
         },
         weight = 1f,

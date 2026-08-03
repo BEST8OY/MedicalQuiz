@@ -62,7 +62,7 @@ fun RichText(
     )
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(Spacing.Sm)
+        verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)
     ) {
         blocks.forEach { block ->
             RichTextBlockRenderer(

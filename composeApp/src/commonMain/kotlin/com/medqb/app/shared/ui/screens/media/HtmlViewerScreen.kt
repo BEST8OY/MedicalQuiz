@@ -31,7 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.richtext.RichText
-import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.IconSize
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
 
@@ -84,7 +84,7 @@ fun HtmlViewerScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = Inset.Lg),
+                            .padding(horizontal = Inset.Large),
                         contentAlignment = Alignment.Center,
                     ) {
                         Card(
@@ -93,11 +93,11 @@ fun HtmlViewerScreen(
                             ),
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = Inset.Lg, vertical = Spacing.LgSm),
-                                verticalArrangement = Arrangement.spacedBy(Spacing.Sm),
+                                modifier = Modifier.padding(horizontal = Inset.Large, vertical = Spacing.MediumLarge),
+                                verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                LoadingIndicator(modifier = Modifier.size(ElementSize.IconXl))
+                                LoadingIndicator(modifier = Modifier.size(IconSize.ExtraLarge))
                                 Text(
                                     text = "Loading HTML content…",
                                     style = MaterialTheme.typography.bodyLargeEmphasized,
@@ -119,7 +119,7 @@ fun HtmlViewerScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = Spacing.Md, vertical = Spacing.Sm),
+                            .padding(horizontal = Spacing.Medium, vertical = Spacing.MediumSmall),
                     ) {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
@@ -131,14 +131,14 @@ fun HtmlViewerScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .verticalScroll(rememberScrollState())
-                                    .padding(horizontal = Spacing.Md, vertical = Spacing.LgSm),
+                                    .padding(horizontal = Spacing.Medium, vertical = Spacing.MediumLarge),
                             ) {
                                 Text(
                                     text = "Interactive HTML document",
                                     style = MaterialTheme.typography.labelLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                Spacer(modifier = Modifier.height(Spacing.Sm))
+                                Spacer(modifier = Modifier.height(Spacing.MediumSmall))
                                 RichText(
                                     html = htmlContent.orEmpty(),
                                     modifier = Modifier.fillMaxWidth(),
@@ -159,7 +159,7 @@ private fun EmptyHtmlState(title: String, supportingText: String) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = Inset.Lg),
+            .padding(horizontal = Inset.Large),
         contentAlignment = Alignment.Center,
     ) {
         Card(
@@ -170,7 +170,7 @@ private fun EmptyHtmlState(title: String, supportingText: String) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = Spacing.LgSm, vertical = Spacing.Sm),
+                    .padding(horizontal = Spacing.MediumLarge, vertical = Spacing.MediumSmall),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
@@ -178,7 +178,7 @@ private fun EmptyHtmlState(title: String, supportingText: String) {
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                Spacer(modifier = Modifier.height(Spacing.Xs))
+                Spacer(modifier = Modifier.height(Spacing.Small))
                 Text(
                     text = supportingText,
                     style = MaterialTheme.typography.bodyMediumEmphasized,
