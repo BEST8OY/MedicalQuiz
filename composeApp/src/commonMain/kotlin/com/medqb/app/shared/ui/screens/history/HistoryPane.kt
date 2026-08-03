@@ -27,7 +27,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -295,7 +294,7 @@ internal fun HistoryPane(
         }
 
         if (renameTargetId != null) {
-            RenameDialog(
+            com.medqb.app.shared.ui.dialogs.RenameDialog(
                 currentName = renameText,
                 onNameChange = { renameText = it },
                 onConfirm = {
@@ -312,40 +311,6 @@ internal fun HistoryPane(
         }
     }
 }
-}
-
-@Composable
-private fun RenameDialog(
-    currentName: String,
-    onNameChange: (String) -> Unit,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Rename entry") },
-        text = {
-            OutlinedTextField(
-                value = currentName,
-                onValueChange = onNameChange,
-                singleLine = true,
-                label = { Text("Entry name") },
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                enabled = currentName.isNotBlank(),
-            ) {
-                Text("Save")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

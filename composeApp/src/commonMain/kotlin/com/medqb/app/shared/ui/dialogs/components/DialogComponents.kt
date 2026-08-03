@@ -134,7 +134,7 @@ fun DialogActions(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = Inset.Lg, vertical = Spacing.LgSm),
-        horizontalArrangement = Arrangement.End,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.End),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (secondaryText != null && onSecondary != null) {

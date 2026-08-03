@@ -1,6 +1,5 @@
 package com.medqb.app.shared.ui.dialogs
 
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,15 +7,15 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material.icons.rounded.Close
@@ -45,7 +44,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -58,7 +59,6 @@ import com.medqb.app.shared.ui.dialogs.components.DialogShell
 import com.medqb.app.shared.ui.theme.DialogLayout
 import com.medqb.app.shared.ui.theme.ElementSize
 import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 
 /**
@@ -66,16 +66,13 @@ import com.medqb.app.shared.ui.theme.Spacing
  */
 @Composable
 fun SubjectFilterDialog(
-    isVisible: Boolean,
     resource: Resource<List<Subject>>,
     selectedIds: Set<Long>,
     onApply: (Set<Long>) -> Unit,
-    onClear: () -> Unit,
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
     SelectionDialog(
-        isVisible = isVisible,
         title = "Select subjects",
         resource = resource,
         selectedIds = selectedIds,
@@ -83,7 +80,6 @@ fun SubjectFilterDialog(
         idProvider = { it.id },
         emptyMessage = "No subjects found",
         onApply = onApply,
-        onClear = onClear,
         onRetry = onRetry,
         onDismiss = onDismiss
     )
@@ -94,16 +90,13 @@ fun SubjectFilterDialog(
  */
 @Composable
 fun SystemFilterDialog(
-    isVisible: Boolean,
     resource: Resource<List<System>>,
     selectedIds: Set<Long>,
     onApply: (Set<Long>) -> Unit,
-    onClear: () -> Unit,
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
     SelectionDialog(
-        isVisible = isVisible,
         title = "Select systems",
         resource = resource,
         selectedIds = selectedIds,
@@ -111,7 +104,6 @@ fun SystemFilterDialog(
         idProvider = { it.id },
         emptyMessage = "No systems found",
         onApply = onApply,
-        onClear = onClear,
         onRetry = onRetry,
         onDismiss = onDismiss
     )
@@ -119,7 +111,6 @@ fun SystemFilterDialog(
 
 @Composable
 private fun <T> SelectionDialog(
-    isVisible: Boolean,
     title: String,
     resource: Resource<List<T>>,
     selectedIds: Set<Long>,
@@ -127,14 +118,9 @@ private fun <T> SelectionDialog(
     idProvider: (T) -> Long,
     emptyMessage: String,
     onApply: (Set<Long>) -> Unit,
-    onClear: () -> Unit,
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    if (!isVisible) return
-
-    val fastEffectsSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-
     DialogShell(
         onDismiss = onDismiss,
         properties = DialogProperties(
@@ -150,36 +136,29 @@ private fun <T> SelectionDialog(
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            Crossfade(
-                targetState = resource,
-                animationSpec = fastEffectsSpec,
-                label = "selection_dialog_crossfade"
-            ) { currentResource ->
-                when (currentResource) {
-                    Resource.Loading -> SelectionLoadingBody()
-                    is Resource.Error -> SelectionErrorBody(
-                        message = currentResource.message,
-                        onRetry = onRetry,
-                        onDismiss = onDismiss
-                    )
-                    is Resource.Success -> {
-                        val data = currentResource.data
-                        if (data.isEmpty()) {
-                            SelectionEmptyBody(
-                                message = emptyMessage,
-                                onDismiss = onDismiss
-                            )
-                        } else {
-                            SelectionListBody(
-                                items = data,
-                                selectedIds = selectedIds,
-                                labelProvider = labelProvider,
-                                idProvider = idProvider,
-                                onApply = onApply,
-                                onClear = onClear,
-                                onDismiss = onDismiss
-                            )
-                        }
+            when (resource) {
+                Resource.Loading -> SelectionLoadingBody()
+                is Resource.Error -> SelectionErrorBody(
+                    message = resource.message,
+                    onRetry = onRetry,
+                    onDismiss = onDismiss
+                )
+                is Resource.Success -> {
+                    val data = resource.data
+                    if (data.isEmpty()) {
+                        SelectionEmptyBody(
+                            message = emptyMessage,
+                            onDismiss = onDismiss
+                        )
+                    } else {
+                        SelectionListBody(
+                            items = data,
+                            selectedIds = selectedIds,
+                            labelProvider = labelProvider,
+                            idProvider = idProvider,
+                            onApply = onApply,
+                            onDismiss = onDismiss
+                        )
                     }
                 }
             }
@@ -294,13 +273,13 @@ private fun <T> SelectionListBody(
     labelProvider: (T) -> String,
     idProvider: (T) -> Long,
     onApply: (Set<Long>) -> Unit,
-    onClear: () -> Unit,
     onDismiss: () -> Unit
 ) {
     var currentSelection by remember(selectedIds) {
         mutableStateOf(selectedIds.toMutableSet())
     }
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
 
     val allIds = remember(items) { items.map { idProvider(it) }.toSet() }
 
@@ -329,6 +308,12 @@ private fun <T> SelectionListBody(
                 "${currentSelection.size} of ${items.size} selected (${filteredItems.size} shown)"
             }
 
+            val selectAllLabel = if (searchQuery.isNotBlank()) {
+                "Select visible (${effectiveSelectAllIds.size})"
+            } else {
+                "Select all"
+            }
+
             if (isCompactHeight) {
                 // Compact Landscape Row: Subtitle + Action Buttons
                 Row(
@@ -349,7 +334,7 @@ private fun <T> SelectionListBody(
                             enabled = !isAllSelected,
                             contentPadding = PaddingValues(horizontal = Spacing.Xs, vertical = 0.dp)
                         ) {
-                            Text("Select all", style = MaterialTheme.typography.labelSmall)
+                            Text(selectAllLabel, style = MaterialTheme.typography.labelSmall)
                         }
 
                         TextButton(
@@ -393,6 +378,8 @@ private fun <T> SelectionListBody(
                         }
                     },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline
@@ -433,6 +420,8 @@ private fun <T> SelectionListBody(
                         }
                     },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline
@@ -451,7 +440,7 @@ private fun <T> SelectionListBody(
                         onClick = { currentSelection = effectiveSelectAllIds.toMutableSet() },
                         enabled = !isAllSelected
                     ) {
-                        Text("Select all")
+                        Text(selectAllLabel)
                     }
 
                     TextButton(
@@ -475,7 +464,7 @@ private fun <T> SelectionListBody(
                     .fillMaxWidth()
                     .weight(1f),
                 contentPadding = PaddingValues(
-                    horizontal = Spacing.Lg,
+                    horizontal = Inset.Lg,
                     vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.Sm
                 ),
                 verticalArrangement = Arrangement.spacedBy(if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.Xxs)
@@ -556,24 +545,25 @@ private fun SelectionItem(
                     vertical = if (compactMode) DialogLayout.CompactItemPadding else Inset.Sm
                 ),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.Start
         ) {
-            Text(
-                text = label,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = Spacing.Sm),
-                style = if (compactMode) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isChecked) FontWeight.Medium else FontWeight.Normal,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
             Checkbox(
                 checked = isChecked,
                 onCheckedChange = onCheckedChange,
                 modifier = if (compactMode) Modifier.size(ElementSize.IconLg) else Modifier
             )
+
+            Text(
+                text = label,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = Spacing.Sm),
+                style = if (compactMode) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                fontWeight = if (isChecked) FontWeight.Medium else FontWeight.Normal,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
+

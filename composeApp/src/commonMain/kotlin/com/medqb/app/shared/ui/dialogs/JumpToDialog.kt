@@ -108,10 +108,11 @@ fun JumpToDialog(
                         Icon(Icons.Rounded.Remove, "Decrease")
                     }
 
+                    val maxDigits = totalQuestions.toString().length
                     OutlinedTextField(
                         value = inputValue,
                         onValueChange = { value ->
-                            inputValue = value.filter { it.isDigit() }.take(4)
+                            inputValue = value.filter { it.isDigit() }.take(maxDigits)
                         },
                         modifier = Modifier
                             .width(120.dp)
@@ -157,6 +158,7 @@ fun JumpToDialog(
                 // Slider for quick navigation
                 if (totalQuestions > 1) {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.Xs)) {
+                        val sliderSteps = if (totalQuestions > 50) 0 else (totalQuestions - 2).coerceAtLeast(0)
                         Slider(
                             value = sliderValue,
                             onValueChange = { newValue ->
@@ -165,7 +167,7 @@ fun JumpToDialog(
                                 inputValue = snapped.toString()
                             },
                             valueRange = 1f..totalQuestions.toFloat(),
-                            steps = (totalQuestions - 2).coerceAtLeast(0),
+                            steps = sliderSteps,
                             colors = SliderDefaults.colors(
                                 thumbColor = MaterialTheme.colorScheme.primary,
                                 activeTrackColor = MaterialTheme.colorScheme.primary

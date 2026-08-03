@@ -123,16 +123,11 @@ internal fun FilterHubScreen(
 
     if (showSubjectDialog) {
         SubjectFilterDialog(
-            isVisible = true,
             resource = state.subjectsResource,
             selectedIds = state.selectedSubjectIds,
             onRetry = { viewModel.fetchSubjects() },
             onApply = { selected ->
                 viewModel.applySelectedSubjects(selected)
-                showSubjectDialog = false
-            },
-            onClear = {
-                viewModel.applySelectedSubjects(emptySet())
                 showSubjectDialog = false
             },
             onDismiss = { showSubjectDialog = false }
@@ -141,7 +136,6 @@ internal fun FilterHubScreen(
 
     if (showSystemDialog) {
         SystemFilterDialog(
-            isVisible = true,
             resource = state.systemsResource,
             selectedIds = state.selectedSystemIds,
             onRetry = {
@@ -150,10 +144,6 @@ internal fun FilterHubScreen(
             },
             onApply = { selected ->
                 viewModel.applySelectedSystems(selected)
-                showSystemDialog = false
-            },
-            onClear = {
-                viewModel.applySelectedSystems(emptySet())
                 showSystemDialog = false
             },
             onDismiss = { showSystemDialog = false }

@@ -99,11 +99,23 @@ private fun PerformanceFilterItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Md, vertical = Spacing.Md),
+                .padding(horizontal = Inset.Sm, vertical = Spacing.Sm),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.Start
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            RadioButton(
+                selected = isSelected,
+                onClick = onSelected,
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = MaterialTheme.colorScheme.primary
+                )
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = Spacing.Xs, end = Spacing.Sm)
+            ) {
                 Text(
                     text = filter.displayName(),
                     style = MaterialTheme.typography.bodyLarge,
@@ -122,14 +134,6 @@ private fun PerformanceFilterItem(
                         MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            RadioButton(
-                selected = isSelected,
-                onClick = onSelected,
-                colors = RadioButtonDefaults.colors(
-                    selectedColor = MaterialTheme.colorScheme.primary
-                )
-            )
         }
     }
 }
