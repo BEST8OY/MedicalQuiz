@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.ui.media.MediaHandler
@@ -92,6 +93,7 @@ fun QuizRoot(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPadding + Spacing.Medium)
+                    .zIndex(1f)
             )
         }
 

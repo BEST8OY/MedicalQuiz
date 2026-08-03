@@ -5,8 +5,6 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -17,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingToolbarDefaults
@@ -24,11 +23,9 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -61,17 +58,9 @@ fun QuizFloatingToolbar(
         val currentQuestionNumber = uiState.currentQuestionIndex + 1
         val questionLabel = "$currentQuestionNumber / ${uiState.totalQuestions}"
 
-        val toolbarInteractionSource = remember { MutableInteractionSource() }
-
         HorizontalFloatingToolbar(
             expanded = true,
-            modifier = Modifier
-                .padding(horizontal = if (isExpanded) Spacing.Large else Spacing.Medium)
-                .clickable(
-                    interactionSource = toolbarInteractionSource,
-                    indication = null,
-                    onClick = { /* Consume touches on empty toolbar space to prevent passthrough */ }
-                ),
+            modifier = Modifier.padding(horizontal = if (isExpanded) Spacing.Large else Spacing.Medium),
             colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
             contentPadding = FloatingToolbarDefaults.ContentPadding,
             leadingContent = {
@@ -152,26 +141,20 @@ fun QuizFloatingToolbar(
                     }
                 }
 
-                Surface(
+                FilledTonalButton(
                     onClick = onJumpTo,
-                    shape = MaterialTheme.shapes.extraLarge,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier
-                        .sizeIn(minHeight = Spacing.MediumLarge)
-                        .semantics {
-                            contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}. Tap to jump."
-                        },
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    ),
+                    modifier = Modifier.semantics {
+                        contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}. Tap to jump."
+                    },
                 ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = Spacing.Medium, vertical = Spacing.Small),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = questionLabel,
-                            style = MaterialTheme.typography.labelLargeEmphasized,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                    }
+                    Text(
+                        text = questionLabel,
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                    )
                 }
 
                 Spacer(modifier = Modifier.width(Spacing.Small))
