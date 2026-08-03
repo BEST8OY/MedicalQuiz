@@ -1,5 +1,7 @@
 package com.medqb.app.shared.ui.dialogs
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -77,7 +79,7 @@ fun JumpToDialog(
     }
 
     DialogShell(onDismiss = onDismiss) {
-        Column {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             DialogHeader(
                 title = "Jump to question",
                 subtitle = "Currently on $clampedCurrent of $totalQuestions",

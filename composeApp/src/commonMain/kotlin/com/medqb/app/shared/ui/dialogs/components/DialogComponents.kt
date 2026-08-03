@@ -61,7 +61,7 @@ fun DialogShell(
                     .clip(MaterialTheme.shapes.extraLarge),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Column {
                     content()
                 }
             }
