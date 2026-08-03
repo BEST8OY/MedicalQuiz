@@ -64,8 +64,8 @@ internal fun SelectionToolbar(
         border = BorderStroke(width = Stroke.Thin, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = Spacing.Sm, vertical = Spacing.Sm),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Xs),
+            modifier = Modifier.padding(horizontal = Spacing.Sm, vertical = Spacing.Xs),
+            verticalArrangement = Arrangement.spacedBy(Spacing.XxsPlus),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Row 1: Action Items (Copy & Dictionary)
@@ -95,7 +95,7 @@ internal fun SelectionToolbar(
 
             // Row 2: Color Swatches
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Sm, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HighlightColor.entries.forEach { color ->
@@ -129,7 +129,7 @@ private fun ToolbarActionItem(
         modifier = Modifier.clip(MaterialTheme.shapes.medium)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = Spacing.Sm, vertical = Spacing.Xs),
+            modifier = Modifier.padding(horizontal = Spacing.Sm, vertical = Spacing.Xxs),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.XxsPlus)
         ) {

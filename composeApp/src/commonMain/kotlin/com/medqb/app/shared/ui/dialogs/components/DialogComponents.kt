@@ -58,7 +58,7 @@ fun DialogShell(
                 modifier = Modifier
                     .fillMaxWidth(if (maxWidth >= ScreenLayout.CompactWidthBreakpoint) DialogLayout.ExpandedWidthFraction else DialogLayout.CompactWidthFraction)
                     .heightIn(
-                        min = minOf(DialogLayout.MinContainerHeight, maxHeight * DialogLayout.MinHeightFraction),
+                        min = DialogLayout.MinContainerHeight,
                         max = maxHeight - DialogLayout.MaxHeightInset
                     )
                     .clip(MaterialTheme.shapes.extraLarge),

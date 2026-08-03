@@ -170,7 +170,7 @@ object DialogLayout {
     val MaxHeightInset: Dp get() = Spacing.Xl
 
     /** Minimum structural container height for dialog shell */
-    val MinContainerHeight: Dp = 280.dp
+    val MinContainerHeight: Dp = 200.dp
 
     /** Fraction of screen height used for structural min height bound */
     const val MinHeightFraction: Float = 0.75f
@@ -190,10 +190,10 @@ object DialogLayout {
  */
 object HighlightToolbar {
     /** Diameter for highlight color swatches */
-    val ColorChipSize: Dp = 38.dp
+    val ColorChipSize: Dp = 32.dp
 
     /** Height of vertical divider separating controls */
-    val DividerHeight: Dp = 32.dp
+    val DividerHeight: Dp = 24.dp
 
     /** Tonal elevation for floating toolbar surface */
     val TonalElevation: Dp = 6.dp

@@ -298,10 +298,10 @@ private fun <T> SelectionListBody(
 
     val listState = rememberLazyListState()
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val isCompactHeight = maxHeight < DialogLayout.CompactHeightThreshold
 
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             val subtitle = if (searchQuery.isBlank()) {
                 "${currentSelection.size} of ${items.size} selected"
             } else {
@@ -314,140 +314,73 @@ private fun <T> SelectionListBody(
                 "Select all"
             }
 
-            if (isCompactHeight) {
-                // Compact Landscape Row: Subtitle + Action Buttons
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = Inset.Lg, vertical = DialogLayout.CompactInputPadding),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            // Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Inset.Lg, vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.Xxs),
+                placeholder = { Text("Search...", style = if (isCompactHeight) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Rounded.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = if (isCompactHeight) Modifier.size(ElementSize.IconSm) else Modifier.size(ElementSize.IconMd)
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.Xxs)) {
-                        TextButton(
-                            onClick = { currentSelection = effectiveSelectAllIds.toMutableSet() },
-                            enabled = !isAllSelected,
-                            contentPadding = PaddingValues(horizontal = Spacing.Xs, vertical = 0.dp)
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(
+                            onClick = { searchQuery = "" },
+                            modifier = if (isCompactHeight) Modifier.size(ElementSize.IconLg) else Modifier
                         ) {
-                            Text(selectAllLabel, style = MaterialTheme.typography.labelSmall)
-                        }
-
-                        TextButton(
-                            onClick = { currentSelection = mutableSetOf() },
-                            enabled = currentSelection.isNotEmpty(),
-                            contentPadding = PaddingValues(horizontal = Spacing.Xs, vertical = 0.dp)
-                        ) {
-                            Text("Clear", style = MaterialTheme.typography.labelSmall)
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = "Clear search",
+                                modifier = Modifier.size(ElementSize.IconSm)
+                            )
                         }
                     }
-                }
-
-                // Compact Search Bar
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = Inset.Lg, vertical = DialogLayout.CompactInputPadding),
-                    placeholder = { Text("Search...", style = MaterialTheme.typography.bodySmall) },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(ElementSize.IconSm)
-                        )
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(
-                                onClick = { searchQuery = "" },
-                                modifier = Modifier.size(ElementSize.IconLg)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = "Clear search",
-                                    modifier = Modifier.size(ElementSize.IconSm)
-                                )
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    )
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                shape = MaterialTheme.shapes.medium,
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
                 )
-            } else {
-                // Portrait Standard Layout
+            )
+
+            // Consolidated Row: Subtitle (Left) + Actions (Right)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Inset.Lg, vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.Xxs),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = Inset.Lg, vertical = Spacing.Xxs)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
-                // Search bar
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = Inset.Lg),
-                    placeholder = { Text("Search...") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = "Clear search"
-                                )
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    )
-                )
-
-                // Select all / Clear
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = Inset.Lg, vertical = Spacing.Sm),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.Sm),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.Xxs)) {
                     TextButton(
                         onClick = { currentSelection = effectiveSelectAllIds.toMutableSet() },
-                        enabled = !isAllSelected
+                        enabled = !isAllSelected,
+                        contentPadding = PaddingValues(horizontal = Spacing.Xs, vertical = 0.dp)
                     ) {
-                        Text(selectAllLabel)
+                        Text(selectAllLabel, style = MaterialTheme.typography.labelSmall)
                     }
 
                     TextButton(
                         onClick = { currentSelection = mutableSetOf() },
-                        enabled = currentSelection.isNotEmpty()
+                        enabled = currentSelection.isNotEmpty(),
+                        contentPadding = PaddingValues(horizontal = Spacing.Xs, vertical = 0.dp)
                     ) {
-                        Text("Clear")
+                        Text("Clear", style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -462,7 +395,7 @@ private fun <T> SelectionListBody(
                 state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .weight(1f, fill = false),
                 contentPadding = PaddingValues(
                     horizontal = Inset.Lg,
                     vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.Sm
