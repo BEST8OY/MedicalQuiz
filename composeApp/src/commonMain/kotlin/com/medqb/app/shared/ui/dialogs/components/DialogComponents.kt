@@ -57,7 +57,10 @@ fun DialogShell(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth(if (maxWidth >= ScreenLayout.CompactWidthBreakpoint) DialogLayout.ExpandedWidthFraction else DialogLayout.CompactWidthFraction)
-                    .heightIn(max = maxHeight - DialogLayout.MaxHeightInset)
+                    .heightIn(
+                        min = minOf(DialogLayout.MinContainerHeight, maxHeight * DialogLayout.MinHeightFraction),
+                        max = maxHeight - DialogLayout.MaxHeightInset
+                    )
                     .clip(MaterialTheme.shapes.extraLarge),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {

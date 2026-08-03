@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -20,8 +19,6 @@ import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
@@ -43,10 +40,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.HighlightToolbar
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.ui.theme.Stroke
@@ -62,83 +59,44 @@ internal fun SelectionToolbar(
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 6.dp,
-        shadowElevation = 8.dp,
+        tonalElevation = HighlightToolbar.TonalElevation,
+        shadowElevation = HighlightToolbar.ShadowElevation,
         border = BorderStroke(width = Stroke.Thin, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = Inset.Md, vertical = Spacing.Sm),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Sm),
+            modifier = Modifier.padding(horizontal = Spacing.Sm, vertical = Spacing.Sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.Xs),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Row 1: Action Controls (Copy & Dictionary)
+            // Row 1: Action Items (Copy & Dictionary)
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Sm, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.Xs, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AssistChip(
-                    onClick = onCopy,
-                    label = {
-                        Text(
-                            text = "Copy",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Rounded.ContentCopy,
-                            contentDescription = null,
-                            modifier = Modifier.size(ElementSize.IconMd)
-                        )
-                    },
+                ToolbarActionItem(
+                    icon = Icons.Rounded.ContentCopy,
+                    label = "Copy",
                     enabled = selectedText.isNotBlank(),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        labelColor = MaterialTheme.colorScheme.onSurface,
-                        leadingIconContentColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    modifier = Modifier.padding(vertical = 0.dp)
+                    onClick = onCopy
                 )
 
-                AssistChip(
-                    onClick = onOpenExternal,
-                    label = {
-                        Text(
-                            text = "Dictionary",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
-                            contentDescription = null,
-                            modifier = Modifier.size(ElementSize.IconMd)
-                        )
-                    },
+                ToolbarActionItem(
+                    icon = Icons.AutoMirrored.Rounded.OpenInNew,
+                    label = "Dictionary",
                     enabled = selectedText.isNotBlank(),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        labelColor = MaterialTheme.colorScheme.onSurface,
-                        leadingIconContentColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    modifier = Modifier.padding(vertical = 0.dp)
+                    onClick = onOpenExternal
                 )
             }
 
             HorizontalDivider(
-                modifier = Modifier.fillMaxWidth(0.9f),
+                modifier = Modifier.padding(horizontal = Spacing.Xs),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             )
 
-            // Row 2: Highlight Color Swatches
+            // Row 2: Color Swatches
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Md, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(vertical = Spacing.Xxs)
+                horizontalArrangement = Arrangement.spacedBy(Spacing.Sm, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 HighlightColor.entries.forEach { color ->
                     HighlightColorChip(
@@ -153,6 +111,44 @@ internal fun SelectionToolbar(
 }
 
 @Composable
+private fun ToolbarActionItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val contentColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    val iconColor = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        contentColor = contentColor,
+        modifier = Modifier.clip(MaterialTheme.shapes.medium)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = Spacing.Sm, vertical = Spacing.Xs),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.XxsPlus)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(ElementSize.IconMd)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
 internal fun HighlightEditPopup(
     highlight: TextHighlight,
     onColorChange: (HighlightColor) -> Unit,
@@ -161,8 +157,8 @@ internal fun HighlightEditPopup(
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 6.dp,
-        shadowElevation = 8.dp,
+        tonalElevation = HighlightToolbar.TonalElevation,
+        shadowElevation = HighlightToolbar.ShadowElevation,
         border = BorderStroke(width = Stroke.Thin, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     ) {
         Row(
@@ -184,8 +180,7 @@ internal fun HighlightEditPopup(
             }
 
             VerticalDivider(
-                modifier = Modifier
-                    .size(width = Stroke.Thin, height = 32.dp),
+                modifier = Modifier.size(width = Stroke.Thin, height = HighlightToolbar.DividerHeight),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
             )
 
@@ -240,7 +235,7 @@ private fun HighlightColorChip(
 
     Box(
         modifier = Modifier
-            .size(38.dp)
+            .size(HighlightToolbar.ColorChipSize)
             .graphicsLayer {
                 scaleX = animatedScale
                 scaleY = animatedScale

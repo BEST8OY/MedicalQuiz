@@ -168,4 +168,37 @@ object DialogLayout {
 
     /** Safety margin subtracted from screen height for dialog container max height */
     val MaxHeightInset: Dp get() = Spacing.Xl
+
+    /** Minimum structural container height for dialog shell */
+    val MinContainerHeight: Dp = 280.dp
+
+    /** Fraction of screen height used for structural min height bound */
+    const val MinHeightFraction: Float = 0.75f
+
+    /** Viewport height threshold for compact landscape dialog adjustments */
+    val CompactHeightThreshold: Dp get() = ScreenLayout.CompactHeightBreakpoint
+
+    /** Compact vertical padding for list items in landscape mode */
+    val CompactItemPadding: Dp get() = Spacing.Xxs
+
+    /** Compact padding for input fields in landscape mode */
+    val CompactInputPadding: Dp get() = Spacing.Micro
 }
+
+/**
+ * Text selection highlight toolbar tokens.
+ */
+object HighlightToolbar {
+    /** Diameter for highlight color swatches */
+    val ColorChipSize: Dp = 38.dp
+
+    /** Height of vertical divider separating controls */
+    val DividerHeight: Dp = 32.dp
+
+    /** Tonal elevation for floating toolbar surface */
+    val TonalElevation: Dp = 6.dp
+
+    /** Shadow elevation for floating toolbar surface */
+    val ShadowElevation: Dp = 8.dp
+}
+

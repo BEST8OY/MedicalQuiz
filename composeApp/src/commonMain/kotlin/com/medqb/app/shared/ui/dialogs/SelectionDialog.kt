@@ -1,20 +1,17 @@
 package com.medqb.app.shared.ui.dialogs
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,11 +23,12 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -51,89 +49,86 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import com.medqb.app.shared.data.models.Subject
+import com.medqb.app.shared.data.models.System
+import com.medqb.app.shared.utils.Resource
+import com.medqb.app.shared.ui.dialogs.components.DialogActions
+import com.medqb.app.shared.ui.dialogs.components.DialogHeader
+import com.medqb.app.shared.ui.dialogs.components.DialogShell
+import com.medqb.app.shared.ui.theme.DialogLayout
 import com.medqb.app.shared.ui.theme.ElementSize
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
-import com.medqb.app.shared.data.models.Subject
-import com.medqb.app.shared.data.models.System
-import com.medqb.app.shared.ui.dialogs.components.DialogActions
-import com.medqb.app.shared.ui.dialogs.components.DialogHeader
-import com.medqb.app.shared.ui.dialogs.components.DialogShell
-import com.medqb.app.shared.utils.Resource
 
 /**
- * Subject filter dialog.
+ * Selection dialog for subjects filter.
  */
 @Composable
 fun SubjectFilterDialog(
     isVisible: Boolean,
     resource: Resource<List<Subject>>,
     selectedIds: Set<Long>,
-    onRetry: () -> Unit,
     onApply: (Set<Long>) -> Unit,
     onClear: () -> Unit,
+    onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
     SelectionDialog(
         isVisible = isVisible,
         title = "Select subjects",
         resource = resource,
-        emptyMessage = "No subjects available in this database.",
         selectedIds = selectedIds,
         labelProvider = { it.name },
         idProvider = { it.id },
-        onRetry = onRetry,
+        emptyMessage = "No subjects found",
         onApply = onApply,
         onClear = onClear,
+        onRetry = onRetry,
         onDismiss = onDismiss
     )
 }
 
 /**
- * System filter dialog.
+ * Selection dialog for systems filter.
  */
 @Composable
 fun SystemFilterDialog(
     isVisible: Boolean,
     resource: Resource<List<System>>,
     selectedIds: Set<Long>,
-    onRetry: () -> Unit,
     onApply: (Set<Long>) -> Unit,
     onClear: () -> Unit,
+    onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
     SelectionDialog(
         isVisible = isVisible,
         title = "Select systems",
         resource = resource,
-        emptyMessage = "No systems available in this database.",
         selectedIds = selectedIds,
         labelProvider = { it.name },
         idProvider = { it.id },
-        onRetry = onRetry,
+        emptyMessage = "No systems found",
         onApply = onApply,
         onClear = onClear,
+        onRetry = onRetry,
         onDismiss = onDismiss
     )
 }
 
-/**
- * Generic selection dialog for filtering items.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun <T> SelectionDialog(
     isVisible: Boolean,
     title: String,
     resource: Resource<List<T>>,
-    emptyMessage: String,
     selectedIds: Set<Long>,
     labelProvider: (T) -> String,
     idProvider: (T) -> Long,
-    onRetry: () -> Unit,
+    emptyMessage: String,
     onApply: (Set<Long>) -> Unit,
     onClear: () -> Unit,
+    onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
     if (!isVisible) return
@@ -150,38 +145,41 @@ private fun <T> SelectionDialog(
     ) {
         DialogHeader(title = title, onClose = onDismiss)
 
-        AnimatedContent(
-            targetState = resource,
-            transitionSpec = {
-                fadeIn(animationSpec = fastEffectsSpec) togetherWith
-                    fadeOut(animationSpec = fastEffectsSpec)
-            },
-            label = "selection_dialog_content"
-        ) { currentResource ->
-            when (currentResource) {
-                Resource.Loading -> SelectionLoadingBody()
-                is Resource.Error -> SelectionErrorBody(
-                    message = currentResource.message,
-                    onRetry = onRetry,
-                    onDismiss = onDismiss
-                )
-                is Resource.Success -> {
-                    val data = currentResource.data
-                    if (data.isEmpty()) {
-                        SelectionEmptyBody(
-                            message = emptyMessage,
-                            onDismiss = onDismiss
-                        )
-                    } else {
-                        SelectionListBody(
-                            items = data,
-                            selectedIds = selectedIds,
-                            labelProvider = labelProvider,
-                            idProvider = idProvider,
-                            onApply = onApply,
-                            onClear = onClear,
-                            onDismiss = onDismiss
-                        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            Crossfade(
+                targetState = resource,
+                animationSpec = fastEffectsSpec,
+                label = "selection_dialog_crossfade"
+            ) { currentResource ->
+                when (currentResource) {
+                    Resource.Loading -> SelectionLoadingBody()
+                    is Resource.Error -> SelectionErrorBody(
+                        message = currentResource.message,
+                        onRetry = onRetry,
+                        onDismiss = onDismiss
+                    )
+                    is Resource.Success -> {
+                        val data = currentResource.data
+                        if (data.isEmpty()) {
+                            SelectionEmptyBody(
+                                message = emptyMessage,
+                                onDismiss = onDismiss
+                            )
+                        } else {
+                            SelectionListBody(
+                                items = data,
+                                selectedIds = selectedIds,
+                                labelProvider = labelProvider,
+                                idProvider = idProvider,
+                                onApply = onApply,
+                                onClear = onClear,
+                                onDismiss = onDismiss
+                            )
+                        }
                     }
                 }
             }
@@ -194,8 +192,7 @@ private fun <T> SelectionDialog(
 private fun SelectionLoadingBody() {
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(Layout.LoadingAreaHeight),
+            .fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -223,10 +220,10 @@ private fun SelectionErrorBody(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .padding(Inset.Lg),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.Lg)
+        verticalArrangement = Arrangement.Center
     ) {
         Surface(
             shape = MaterialTheme.shapes.medium,
@@ -247,7 +244,8 @@ private fun SelectionErrorBody(
             text = message,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.padding(vertical = Spacing.Md)
         )
 
         Row(
@@ -270,16 +268,17 @@ private fun SelectionEmptyBody(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .padding(Inset.Lg),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.Lg)
+        verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = message,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.padding(bottom = Spacing.Lg)
         )
 
         Button(onClick = onDismiss) {
@@ -320,132 +319,211 @@ private fun <T> SelectionListBody(
 
     val listState = rememberLazyListState()
 
-    Column {
-        val subtitle = if (searchQuery.isBlank()) {
-            "${currentSelection.size} of ${items.size} selected"
-        } else {
-            "${currentSelection.size} of ${items.size} selected (${filteredItems.size} shown)"
-        }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val isCompactHeight = maxHeight < DialogLayout.CompactHeightThreshold
 
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = Inset.Lg, vertical = Spacing.Xxs)
-        )
-
-        // Search bar
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Inset.Lg),
-            placeholder = { Text("Search...") },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Rounded.Search,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { searchQuery = "" }) {
-                        Icon(
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = "Clear search"
-                        )
-                    }
-                }
-            },
-            singleLine = true,
-            shape = MaterialTheme.shapes.medium,
-            colors = OutlinedTextFieldDefaults.colors(
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-            )
-        )
-
-        // Select all / Clear
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Inset.Lg, vertical = Spacing.Sm),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Sm),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(
-                onClick = { currentSelection = effectiveSelectAllIds.toMutableSet() },
-                enabled = !isAllSelected
-            ) {
-                Text("Select all")
+        Column(modifier = Modifier.fillMaxSize()) {
+            val subtitle = if (searchQuery.isBlank()) {
+                "${currentSelection.size} of ${items.size} selected"
+            } else {
+                "${currentSelection.size} of ${items.size} selected (${filteredItems.size} shown)"
             }
 
-            TextButton(
-                onClick = { currentSelection = mutableSetOf() },
-                enabled = currentSelection.isNotEmpty()
-            ) {
-                Text("Clear")
-            }
-        }
+            if (isCompactHeight) {
+                // Compact Landscape Row: Subtitle + Action Buttons
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Inset.Lg, vertical = DialogLayout.CompactInputPadding),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.Xxs)) {
+                        TextButton(
+                            onClick = { currentSelection = effectiveSelectAllIds.toMutableSet() },
+                            enabled = !isAllSelected,
+                            contentPadding = PaddingValues(horizontal = Spacing.Xs, vertical = 0.dp)
+                        ) {
+                            Text("Select all", style = MaterialTheme.typography.labelSmall)
+                        }
 
-        HorizontalDivider(
-            modifier = Modifier.padding(horizontal = Inset.Lg),
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
-
-        // Item list
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f, fill = false)
-                .heightIn(max = Layout.ItemListMaxHeight),
-            contentPadding = PaddingValues(horizontal = Spacing.Lg, vertical = Spacing.Sm),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)
-        ) {
-            items(
-                items = filteredItems,
-                key = { idProvider(it) }
-            ) { item ->
-                val itemId = idProvider(item)
-                val isChecked = currentSelection.contains(itemId)
-
-                SelectionItem(
-                    label = labelProvider(item),
-                    isChecked = isChecked,
-                    onCheckedChange = { checked ->
-                        currentSelection = currentSelection.toMutableSet().apply {
-                            if (checked) add(itemId) else remove(itemId)
+                        TextButton(
+                            onClick = { currentSelection = mutableSetOf() },
+                            enabled = currentSelection.isNotEmpty(),
+                            contentPadding = PaddingValues(horizontal = Spacing.Xs, vertical = 0.dp)
+                        ) {
+                            Text("Clear", style = MaterialTheme.typography.labelSmall)
                         }
                     }
-                )
-            }
+                }
 
-            if (filteredItems.isEmpty() && searchQuery.isNotEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Inset.Lg),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No matches found",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                // Compact Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Inset.Lg, vertical = DialogLayout.CompactInputPadding),
+                    placeholder = { Text("Search...", style = MaterialTheme.typography.bodySmall) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(ElementSize.IconSm)
                         )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(
+                                onClick = { searchQuery = "" },
+                                modifier = Modifier.size(ElementSize.IconLg)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "Clear search",
+                                    modifier = Modifier.size(ElementSize.IconSm)
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    )
+                )
+            } else {
+                // Portrait Standard Layout
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = Inset.Lg, vertical = Spacing.Xxs)
+                )
+
+                // Search bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Inset.Lg),
+                    placeholder = { Text("Search...") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "Clear search"
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    )
+                )
+
+                // Select all / Clear
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Inset.Lg, vertical = Spacing.Sm),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.Sm),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = { currentSelection = effectiveSelectAllIds.toMutableSet() },
+                        enabled = !isAllSelected
+                    ) {
+                        Text("Select all")
+                    }
+
+                    TextButton(
+                        onClick = { currentSelection = mutableSetOf() },
+                        enabled = currentSelection.isNotEmpty()
+                    ) {
+                        Text("Clear")
                     }
                 }
             }
-        }
 
-        DialogActions(
-            primaryText = "Apply",
-            onPrimary = { onApply(currentSelection.toSet()) },
-            secondaryText = "Cancel",
-            onSecondary = onDismiss
-        )
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = Inset.Lg),
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
+            // Item list
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(
+                    horizontal = Spacing.Lg,
+                    vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.Sm
+                ),
+                verticalArrangement = Arrangement.spacedBy(if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.Xxs)
+            ) {
+                items(
+                    items = filteredItems,
+                    key = { idProvider(it) }
+                ) { item ->
+                    val itemId = idProvider(item)
+                    val isChecked = currentSelection.contains(itemId)
+
+                    SelectionItem(
+                        label = labelProvider(item),
+                        isChecked = isChecked,
+                        compactMode = isCompactHeight,
+                        onCheckedChange = { checked ->
+                            currentSelection = currentSelection.toMutableSet().apply {
+                                if (checked) add(itemId) else remove(itemId)
+                            }
+                        }
+                    )
+                }
+
+                if (filteredItems.isEmpty() && searchQuery.isNotEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Inset.Lg),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No matches found",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            DialogActions(
+                primaryText = "Apply",
+                onPrimary = { onApply(currentSelection.toSet()) },
+                secondaryText = "Cancel",
+                onSecondary = onDismiss
+            )
+        }
     }
 }
 
@@ -453,6 +531,7 @@ private fun <T> SelectionListBody(
 private fun SelectionItem(
     label: String,
     isChecked: Boolean,
+    compactMode: Boolean = false,
     onCheckedChange: (Boolean) -> Unit
 ) {
     val backgroundColor = if (isChecked) {
@@ -472,7 +551,10 @@ private fun SelectionItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Sm, vertical = Inset.Sm),
+                .padding(
+                    horizontal = Inset.Sm,
+                    vertical = if (compactMode) DialogLayout.CompactItemPadding else Inset.Sm
+                ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -481,7 +563,7 @@ private fun SelectionItem(
                 modifier = Modifier
                     .weight(1f)
                     .padding(end = Spacing.Sm),
-                style = MaterialTheme.typography.bodyMedium,
+                style = if (compactMode) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isChecked) FontWeight.Medium else FontWeight.Normal,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -490,6 +572,7 @@ private fun SelectionItem(
             Checkbox(
                 checked = isChecked,
                 onCheckedChange = onCheckedChange,
+                modifier = if (compactMode) Modifier.size(ElementSize.IconLg) else Modifier
             )
         }
     }
