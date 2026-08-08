@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -95,7 +96,9 @@ fun App() {
         }
     }
 
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     AppTheme {
+        val motionScheme = MaterialTheme.motionScheme
         val scope = rememberCoroutineScope()
         val graph = LocalAppGraph.current
 
@@ -227,16 +230,34 @@ fun App() {
                         ),
                         sharedTransitionScope = this@SharedTransitionLayout,
                         transitionSpec = {
-                            slideInHorizontally(initialOffsetX = { it }) togetherWith
-                                slideOutHorizontally(targetOffsetX = { -it })
+                            (slideInHorizontally(
+                                animationSpec = motionScheme.defaultSpatialSpec(),
+                                initialOffsetX = { (it * 0.3f).toInt() }
+                            ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
+                            (slideOutHorizontally(
+                                animationSpec = motionScheme.defaultSpatialSpec(),
+                                targetOffsetX = { -(it * 0.3f).toInt() }
+                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
                         },
                         popTransitionSpec = {
-                            slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                                slideOutHorizontally(targetOffsetX = { it })
+                            (slideInHorizontally(
+                                animationSpec = motionScheme.defaultSpatialSpec(),
+                                initialOffsetX = { -(it * 0.3f).toInt() }
+                            ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
+                            (slideOutHorizontally(
+                                animationSpec = motionScheme.defaultSpatialSpec(),
+                                targetOffsetX = { it }
+                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
                         },
                         predictivePopTransitionSpec = {
-                            slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                                slideOutHorizontally(targetOffsetX = { it })
+                            (slideInHorizontally(
+                                animationSpec = motionScheme.defaultSpatialSpec(),
+                                initialOffsetX = { -(it * 0.3f).toInt() }
+                            ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
+                            (slideOutHorizontally(
+                                animationSpec = motionScheme.defaultSpatialSpec(),
+                                targetOffsetX = { it }
+                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
                         }
                     )
                 }

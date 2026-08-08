@@ -2,7 +2,13 @@ package com.medqb.app.shared.navigation
 
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -29,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
  * Extracting this helper keeps the root `App` composable clean and modular.
  */
 @Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun rememberMedQBNavEntries(
     graph: AppGraph,
     workflow: AppWorkflowHandle,
@@ -38,6 +45,7 @@ fun rememberMedQBNavEntries(
     snackbarHostState: SnackbarHostState,
     onReturnQuizToFilter: () -> Unit,
 ): (NavKey) -> NavEntry<NavKey> {
+    val motionScheme = MaterialTheme.motionScheme
     return remember(
         graph,
         workflow,
@@ -46,6 +54,7 @@ fun rememberMedQBNavEntries(
         mediaDescriptionsFlow,
         snackbarHostState,
         onReturnQuizToFilter,
+        motionScheme,
     ) {
         entryProvider<NavKey> {
             entry<MedQBRoutes.DatabaseSelection> {
@@ -77,7 +86,25 @@ fun rememberMedQBNavEntries(
                 )
             }
 
-            entry<MedQBRoutes.Settings> {
+            entry<MedQBRoutes.Settings>(
+                metadata = metadata {
+                    put(NavDisplay.TransitionKey) {
+                        (fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) +
+                            scaleIn(animationSpec = motionScheme.defaultSpatialSpec(), initialScale = 0.96f)) togetherWith
+                            fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                    }
+                    put(NavDisplay.PopTransitionKey) {
+                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                            (fadeOut(animationSpec = motionScheme.fastEffectsSpec()) +
+                                scaleOut(animationSpec = motionScheme.fastSpatialSpec(), targetScale = 0.96f))
+                    }
+                    put(NavDisplay.PredictivePopTransitionKey) {
+                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                            (fadeOut(animationSpec = motionScheme.fastEffectsSpec()) +
+                                scaleOut(animationSpec = motionScheme.fastSpatialSpec(), targetScale = 0.96f))
+                    }
+                }
+            ) {
                 SettingsEntry(
                     graph = graph,
                     navigator = navigator,
@@ -87,13 +114,19 @@ fun rememberMedQBNavEntries(
             entry<MedQBRoutes.MediaViewer>(
                 metadata = metadata {
                     put(NavDisplay.TransitionKey) {
-                        fadeIn() togetherWith fadeOut()
+                        (fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) +
+                            scaleIn(animationSpec = motionScheme.slowSpatialSpec(), initialScale = 0.92f)) togetherWith
+                            fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                     }
                     put(NavDisplay.PopTransitionKey) {
-                        fadeIn() togetherWith fadeOut()
+                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                            (fadeOut(animationSpec = motionScheme.fastEffectsSpec()) +
+                                scaleOut(animationSpec = motionScheme.fastSpatialSpec(), targetScale = 0.92f))
                     }
                     put(NavDisplay.PredictivePopTransitionKey) {
-                        fadeIn() togetherWith fadeOut()
+                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                            (fadeOut(animationSpec = motionScheme.fastEffectsSpec()) +
+                                scaleOut(animationSpec = motionScheme.fastSpatialSpec(), targetScale = 0.92f))
                     }
                 }
             ) { key ->
@@ -106,7 +139,31 @@ fun rememberMedQBNavEntries(
                 )
             }
 
-            entry<MedQBRoutes.HtmlViewer> { key ->
+            entry<MedQBRoutes.HtmlViewer>(
+                metadata = metadata {
+                    put(NavDisplay.TransitionKey) {
+                        (slideInVertically(
+                            animationSpec = motionScheme.defaultSpatialSpec(),
+                            initialOffsetY = { (it * 0.25f).toInt() }
+                        ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
+                            fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                    }
+                    put(NavDisplay.PopTransitionKey) {
+                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                            (slideOutVertically(
+                                animationSpec = motionScheme.defaultSpatialSpec(),
+                                targetOffsetY = { (it * 0.25f).toInt() }
+                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
+                    }
+                    put(NavDisplay.PredictivePopTransitionKey) {
+                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                            (slideOutVertically(
+                                animationSpec = motionScheme.defaultSpatialSpec(),
+                                targetOffsetY = { (it * 0.25f).toInt() }
+                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
+                    }
+                }
+            ) { key ->
                 HtmlViewerEntry(
                     key = key,
                     graph = graph,

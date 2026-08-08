@@ -45,9 +45,6 @@ class AppNavigator(
             while (backStack.size > filterIndex + 1) {
                 backStack.removeLastOrNull()
             }
-            if (targetPaneName != null) {
-                backStack[filterIndex] = MedQBRoutes.Filter(initialPaneName = targetPaneName)
-            }
         } else {
             popToDatabaseSelection()
             navigateTo(MedQBRoutes.Filter(initialPaneName = targetPaneName))
