@@ -1,5 +1,6 @@
 package com.medqb.app.shared.ui.richtext
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,8 +13,11 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -21,6 +25,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text as MaterialText
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
+import com.medqb.app.shared.ui.theme.Stroke
 
 @Composable
 internal fun RichTextBlockRenderer(
@@ -59,7 +65,7 @@ internal fun RichTextBlockRenderer(
         )
         is RichTextBlock.CodeBlock -> RichTextCodeBlock(block)
         is RichTextBlock.Table -> RichTextTable(block, onLinkClick, onTooltipClick)
-        is RichTextBlock.AbstractBlock -> AbstractCard(block, onLinkClick, onTooltipClick)
+        is RichTextBlock.AbstractBlock -> AbstractCard(block, onLinkClick, onMediaClick, onTooltipClick)
         is RichTextBlock.Media -> RichMedia(block = block, onMediaClick = onMediaClick)
         RichTextBlock.Divider -> HorizontalDivider()
     }
@@ -80,7 +86,11 @@ internal fun RichTextParagraph(
         text = text,
         modifier = modifier,
         style = scaledBodyMedium.copy(
-            lineHeight = scaledBodyMedium.fontSize * 1.375f,
+            lineHeight = scaledBodyMedium.fontSize * LINE_HEIGHT_MULTIPLIER,
+            lineHeightStyle = LineHeightStyle(
+                alignment = LineHeightStyle.Alignment.Center,
+                trim = LineHeightStyle.Trim.None
+            ),
             textIndent = TextIndent.None,
         ),
         textAlign = textAlign,
@@ -109,17 +119,22 @@ internal fun InteractiveText(
     }
     
     val layoutResult = remember { mutableStateOf<TextLayoutResult?>(null) }
-    
+
+    // Use rememberUpdatedState so pointerInput keys only on content, not callback identity.
+    // This prevents gesture coroutine restart if upstream creates fresh lambdas on recomposition.
+    val currentOnLinkClick by rememberUpdatedState(onLinkClick)
+    val currentOnTooltipClick by rememberUpdatedState(onTooltipClick)
+
     val textModifier = if (hasAnnotations) {
-        modifier.pointerInput(text, onLinkClick, onTooltipClick) {
+        modifier.pointerInput(text) {
             detectTapGestures { pos ->
                 layoutResult.value?.let { layout ->
                     val offset = layout.getOffsetForPosition(pos)
                     handleAnnotatedTextTap(
                         text = text,
                         offset = offset,
-                        onLinkClick = onLinkClick,
-                        onTooltipClick = onTooltipClick
+                        onLinkClick = currentOnLinkClick,
+                        onTooltipClick = currentOnTooltipClick
                     )
                 }
             }
@@ -174,13 +189,13 @@ private fun RichTextList(
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     val richTextScale = LocalRichTextScale.current
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Xs)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
         items.forEachIndexed { index, item ->
             Row(modifier = Modifier.fillMaxWidth()) {
                 MaterialText(
                     text = markerProvider(index),
                     style = MaterialTheme.typography.bodyMedium.scaledBy(richTextScale.proseScale),
-                    modifier = Modifier.padding(end = Inset.Sm),
+                    modifier = Modifier.padding(end = Inset.Small),
                 )
                 RichTextParagraph(
                     text = item,
@@ -207,7 +222,7 @@ private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
                 fontFamily = FontFamily.Monospace,
                 fontSize = 14.sp,
             ).scaledBy(richTextScale.proseScale),
-            modifier = Modifier.padding(Inset.Sm)
+            modifier = Modifier.padding(Inset.Small)
         )
     }
 }
@@ -216,6 +231,7 @@ private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
 private fun AbstractCard(
     block: RichTextBlock.AbstractBlock,
     onLinkClick: (String) -> Unit,
+    onMediaClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     val richTextScale = LocalRichTextScale.current
@@ -223,9 +239,9 @@ private fun AbstractCard(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        border = BorderStroke(Stroke.Thin, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Column(modifier = Modifier.padding(Inset.Md), verticalArrangement = Arrangement.spacedBy(Spacing.Xs)) {
+        Column(modifier = Modifier.padding(Inset.Medium), verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
             block.title?.let {
                 MaterialText(
                     text = it,
@@ -233,12 +249,12 @@ private fun AbstractCard(
                 )
             }
             if (block.blocks.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.Sm)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)) {
                     block.blocks.forEach { childBlock ->
                         RichTextBlockRenderer(
                             block = childBlock,
                             onLinkClick = onLinkClick,
-                            onMediaClick = {},
+                            onMediaClick = onMediaClick,
                             onTooltipClick = onTooltipClick
                         )
                     }

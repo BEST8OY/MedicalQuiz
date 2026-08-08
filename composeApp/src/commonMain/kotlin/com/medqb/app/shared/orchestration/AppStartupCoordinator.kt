@@ -3,6 +3,7 @@ package com.medqb.app.shared.orchestration
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.DatabaseManager
 import com.medqb.app.shared.data.LocalContentRepository
+import com.medqb.app.shared.data.SessionHistoryManager
 import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.navigation.QuizLaunchSource
 import com.medqb.app.shared.platform.FileSystemHelper
@@ -15,6 +16,7 @@ import dev.zacsweers.metro.Inject
 class AppStartupCoordinator(
     private val localContentRepository: LocalContentRepository,
     private val activeDatabaseHolder: ActiveDatabaseHolder,
+    private val sessionHistoryManager: SessionHistoryManager,
 ) {
     suspend fun initializeApp(userDataManager: UserDataManager): List<String> {
         userDataManager.init()
@@ -27,9 +29,10 @@ class AppStartupCoordinator(
         selectedDatabase: String?,
         initializedDatabase: String?,
         pendingLaunchSource: QuizLaunchSource?,
+        userDataManager: UserDataManager,
     ): DatabaseSelectionDecision? {
         val dbName = selectedDatabase ?: return null
-        val resolvedDatabase = ensureDatabaseInitialized(dbName)
+        val resolvedDatabase = ensureDatabaseInitialized(dbName, userDataManager)
 
         return DatabaseSelectionDecision(
             initializedDatabase = resolvedDatabase,
@@ -37,13 +40,15 @@ class AppStartupCoordinator(
         )
     }
 
-    private suspend fun ensureDatabaseInitialized(dbName: String): String {
+    private suspend fun ensureDatabaseInitialized(dbName: String, userDataManager: UserDataManager): String {
         val currentName = activeDatabaseHolder.databaseName.value
         val currentProvider = activeDatabaseHolder.databaseProvider.value
         if (currentName == dbName.removeSuffix(".db") && currentProvider != null) return dbName
 
         val dbPath = FileSystemHelper.getDatabasePath(dbName)
-        val databaseManager = DatabaseManager(dbPath)
+        val sessionHistoryDao = sessionHistoryManager.sessionHistoryDao()
+        val roomLogDao = userDataManager.logDao()
+        val databaseManager = DatabaseManager(dbPath, dbName.removeSuffix(".db"), sessionHistoryDao, roomLogDao)
         databaseManager.init()
 
         activeDatabaseHolder.setDatabase(dbName.removeSuffix(".db"), databaseManager)

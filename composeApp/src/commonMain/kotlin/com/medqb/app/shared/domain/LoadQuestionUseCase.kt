@@ -14,18 +14,19 @@ class LoadQuestionUseCase {
         questionId: Long,
         isLoggingEnabled: Boolean,
     ): LoadQuestionResult {
-        val question = db?.getQuestionById(questionId)
-        val answers = db?.getAnswersForQuestion(questionId) ?: emptyList()
-        val performance = if (isLoggingEnabled && question != null) {
-            db.getQuestionPerformance(question.id)
-        } else {
-            null
-        }
+        if (db == null) return LoadQuestionResult(null, emptyList(), null)
 
+        val (question, answers, performance) = db.getQuestionWithDetails(
+            questionId = questionId,
+            loadPerformance = isLoggingEnabled,
+        )
+
+        // Skip performance when the question doesn't exist — matches pre-refactor behavior
+        // and avoids a wasted logs roundtrip for an invalid question id.
         return LoadQuestionResult(
             question = question,
             answers = answers,
-            performance = performance,
+            performance = if (question == null) null else performance,
         )
     }
 }

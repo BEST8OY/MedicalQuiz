@@ -37,6 +37,11 @@ internal class KsoupElement(
     /** Child nodes of this element. */
     val children = mutableListOf<KsoupNode>()
 
+    /** Cached CSS class names parsed from the class attribute. */
+    private val _classNames: Set<String> by lazy {
+        attributes["class"]?.split(" ")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+    }
+
     /** Cache for ancestor class lookups. */
     private val ancestorClassCache = mutableMapOf<KsoupElement?, Set<String>>()
 
@@ -64,7 +69,7 @@ internal class KsoupElement(
      *
      * @return Set of class names
      */
-    fun classNames(): Set<String> = attributes["class"]?.split(" ")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+    fun classNames(): Set<String> = _classNames
 
     /**
      * Collects all text content from this element and its descendants.

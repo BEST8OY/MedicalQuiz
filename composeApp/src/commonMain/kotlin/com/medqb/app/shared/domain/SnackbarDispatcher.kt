@@ -8,16 +8,20 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
 interface SnackbarSink {
-    suspend fun emitSnackbar(message: String)
+    suspend fun emitSnackbar(message: SnackbarMessage)
 }
 
 @Inject
 @SingleIn(AppScope::class)
 class SnackbarDispatcher : SnackbarSink {
-    private val messageFlow = MutableSharedFlow<String>(extraBufferCapacity = 4)
-    val messages: SharedFlow<String> = messageFlow.asSharedFlow()
+    private val messageFlow = MutableSharedFlow<SnackbarMessage>(extraBufferCapacity = 4)
+    val messages: SharedFlow<SnackbarMessage> = messageFlow.asSharedFlow()
 
-    override suspend fun emitSnackbar(message: String) {
+    override suspend fun emitSnackbar(message: SnackbarMessage) {
         messageFlow.emit(message)
+    }
+
+    suspend fun emitSnackbar(message: String) {
+        messageFlow.emit(SnackbarMessage.Simple(message))
     }
 }

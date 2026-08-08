@@ -10,8 +10,9 @@ import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.SnackbarSink
+import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
-import com.medqb.app.shared.ui.screens.FilterPane
+import com.medqb.app.shared.ui.screens.filter.FilterPane
 import com.medqb.app.shared.ui.state.FilterUiState
 import com.medqb.app.shared.utils.Resource
 import dev.zacsweers.metro.Inject
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
@@ -52,7 +54,7 @@ class FilterHubViewModel(
         const val KEY_SELECTED_SUBJECT_IDS = "selected_subject_ids"
         const val KEY_SELECTED_SYSTEM_IDS = "selected_system_ids"
         const val KEY_PERFORMANCE_FILTER = "performance_filter"
-        const val KEY_ACTIVE_PANE = "active_pane"
+        const val KEY_ACTIVE_PANE = "activePane"
 
         private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
     }
@@ -63,13 +65,16 @@ class FilterHubViewModel(
     private val _subjectsRetry = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private val _systemsRetry = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
+    private val activePaneState = savedStateHandle.getMutableStateFlow<String?>(KEY_ACTIVE_PANE, null)
+    private val databaseNameState = savedStateHandle.getMutableStateFlow(KEY_DATABASE_NAME, "")
+
     init {
-        val restoredDbName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
+        val restoredDbName = databaseNameState.value
         if (restoredDbName.isNotEmpty()) {
             _state.update { it.copy(databaseName = restoredDbName) }
         }
 
-        val restoredPaneStr = savedStateHandle.get<String>(KEY_ACTIVE_PANE).orEmpty()
+        val restoredPaneStr = activePaneState.value.orEmpty()
         if (restoredPaneStr.isNotEmpty()) {
             runCatching { FilterPane.valueOf(restoredPaneStr) }.getOrNull()?.let { pane ->
                 _state.update { it.copy(activePane = pane) }
@@ -83,13 +88,26 @@ class FilterHubViewModel(
         setupSettingsCollectors()
         setupFilterSelectionSync()
         setupHistoryEntriesFlow()
-        setupPendingFilterPaneSync()
+        setupInitialPaneCollector()
         restoreSavedFilters()
     }
 
     fun setActivePane(pane: FilterPane) {
         _state.update { it.copy(activePane = pane) }
-        savedStateHandle[KEY_ACTIVE_PANE] = pane.name
+        activePaneState.value = pane.name
+    }
+
+    private fun setupInitialPaneCollector() {
+        activePaneState
+            .filterNotNull()
+            .onEach { paneName ->
+                runCatching { FilterPane.valueOf(paneName) }.getOrNull()?.let { pane ->
+                    if (_state.value.activePane != pane) {
+                        _state.update { it.copy(activePane = pane) }
+                    }
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun setupDatabaseNameTracking() {
@@ -98,7 +116,7 @@ class FilterHubViewModel(
                 if (dbName.isNotEmpty()) {
                     val dbChanged = dbName != _state.value.databaseName
                     _state.update { it.copy(databaseName = dbName) }
-                    savedStateHandle[KEY_DATABASE_NAME] = dbName
+                    databaseNameState.value = dbName
                     if (dbChanged) {
                         savedStateHandle.remove<List<Long>>(KEY_SELECTED_SUBJECT_IDS)
                         savedStateHandle.remove<List<Long>>(KEY_SELECTED_SYSTEM_IDS)
@@ -106,7 +124,7 @@ class FilterHubViewModel(
                         filterStateHolder.reset()
                     }
                 } else {
-                    val restoredName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
+                    val restoredName = databaseNameState.value
                     _state.update { it.copy(databaseName = restoredName) }
                 }
             }
@@ -116,8 +134,7 @@ class FilterHubViewModel(
     private fun setupSubjectsFlow() {
         combine(
             activeDatabaseHolder.databaseProvider,
-            _subjectsRetry.map { activeDatabaseHolder.databaseProvider.value }
-                .onStart { emit(activeDatabaseHolder.databaseProvider.value) },
+            _subjectsRetry.onStart { emit(Unit) },
         ) { db, _ -> db }
             .flatMapLatest { db ->
                 flow {
@@ -134,7 +151,7 @@ class FilterHubViewModel(
                     } catch (e: Exception) {
                         val msg = e.message ?: "Unknown error"
                         emit(Resource.Error(msg))
-                        snackbarSink.emitSnackbar("Error fetching subjects: $msg")
+                        snackbarSink.emitSnackbar(SnackbarMessage.Simple("Error fetching subjects: $msg"))
                     }
                 }
             }
@@ -146,8 +163,7 @@ class FilterHubViewModel(
         combine(
             activeDatabaseHolder.databaseProvider,
             filterStateHolder.selectedSubjectIds,
-            _systemsRetry.map { filterStateHolder.selectedSubjectIds.value }
-                .onStart { emit(filterStateHolder.selectedSubjectIds.value) },
+            _systemsRetry.onStart { emit(Unit) },
         ) { db, subjectIds, _ -> db to subjectIds }
             .flatMapLatest { (db, subjectIds) ->
                 flow {
@@ -166,7 +182,7 @@ class FilterHubViewModel(
                     } catch (e: Exception) {
                         val msg = e.message ?: "Unknown error"
                         emit(Resource.Error(msg))
-                        snackbarSink.emitSnackbar("Error fetching systems: $msg")
+                        snackbarSink.emitSnackbar(SnackbarMessage.Simple("Error fetching systems: $msg"))
                     }
                 }
             }
@@ -229,18 +245,9 @@ class FilterHubViewModel(
             val cleanDbName = dbName.removeSuffix(".db")
             entries.filter { it.databaseName == cleanDbName }
         }
+        .distinctUntilChanged()
         .onEach { filtered -> _state.update { it.copy(historyEntries = filtered) } }
         .launchIn(viewModelScope)
-    }
-
-    private fun setupPendingFilterPaneSync() {
-        filterStateHolder.pendingFilterPane
-            .filterNotNull()
-            .onEach { pane ->
-                setActivePane(pane)
-                filterStateHolder.consumePendingFilterPane()
-            }
-            .launchIn(viewModelScope)
     }
 
     private fun restoreSavedFilters() {
@@ -311,16 +318,18 @@ class FilterHubViewModel(
     }
 
     // History Pane logic
-    fun deleteHistoryEntries(entryIds: Set<String>) {
-        viewModelScope.launch {
-            historyCoordinator.deleteHistoryEntries(entryIds)
-        }
+    suspend fun deleteHistoryEntries(entryIds: Set<String>) {
+        historyCoordinator.deleteHistoryEntries(entryIds)
     }
 
     fun renameHistoryEntry(entryId: String, newName: String) {
         viewModelScope.launch {
             historyCoordinator.renameHistoryEntry(entryId = entryId, newName = newName)
         }
+    }
+
+    suspend fun undoHistoryEntry(entry: QuizSessionRepository.QuizSession) {
+        sessionRepository.restoreDeletedHistoryEntry(entry)
     }
 
     fun restoreHistoryEntry(

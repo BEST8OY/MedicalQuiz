@@ -52,15 +52,16 @@ No separate typecheck or formatter commands — compilation is the typecheck. No
 - Version catalog at `gradle/libs.versions.toml` — all dependencies versioned there
 - Material 3 dynamic colors on Android 12+; fallback `expressiveLightColorScheme()` on older/desktop
 - UI color reference: `docs/ui-colors.md`
-- Desktop release uses ProGuard (`proguard-desktop.pro`); release builds enable obfuscation=false
+- Desktop release uses ProGuard (`proguard-desktop.pro`) with `com.guardsquare:proguard-gradle:7.9.0` in root `buildscript`; release builds enable obfuscation=false
 - ABI splits enabled for Android release — only `arm64-v8a` by default
+- KMP Android target uses `com.android.kotlin.multiplatform.library` with `withHostTest {}` enabled
 
 ## Gotchas
 
-- **No test files exist yet** — `commonTest` has dependencies but no test classes
+- **Tests exist in `commonTest`** — run `./gradlew :composeApp:desktopTest --stacktrace` to execute KMP unit tests
 - **Do not run Android tests** — `testDebugUnitTest` is excluded from agent workflows
 - CI runs Android tests, lint, and desktop tests in parallel — all must pass
 - `org.gradle.configuration-cache=true` is enabled — build scripts must be configuration-cache compatible
-- `-Xexpect-actual-classes` compiler arg is required (set in `composeApp/build.gradle.kts`)
+- `-Xexpect-actual-classes` compiler arg is required (set top-level in `kotlin.compilerOptions` in `composeApp/build.gradle.kts`)
 - Desktop main class: `com.medqb.app.shared.MainKt`
 - The `:app` module depends on `:composeApp` (`implementation(project(":composeApp"))`)

@@ -52,8 +52,10 @@ fun PerformanceFilterDialog(
             )
 
             LazyColumn(
-                modifier = Modifier.padding(horizontal = Inset.Lg),
-                verticalArrangement = Arrangement.spacedBy(Spacing.Xs)
+                modifier = Modifier
+                    .padding(horizontal = Inset.Large)
+                    .weight(1f, fill = false),
+                verticalArrangement = Arrangement.spacedBy(Spacing.Small)
             ) {
                 items(filters) { filter ->
                     PerformanceFilterItem(
@@ -97,11 +99,23 @@ private fun PerformanceFilterItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Md, vertical = Spacing.Md),
+                .padding(horizontal = Inset.Small, vertical = Spacing.MediumSmall),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.Start
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            RadioButton(
+                selected = isSelected,
+                onClick = onSelected,
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = MaterialTheme.colorScheme.primary
+                )
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = Spacing.Small, end = Spacing.MediumSmall)
+            ) {
                 Text(
                     text = filter.displayName(),
                     style = MaterialTheme.typography.bodyLarge,
@@ -120,14 +134,6 @@ private fun PerformanceFilterItem(
                         MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            RadioButton(
-                selected = isSelected,
-                onClick = onSelected,
-                colors = RadioButtonDefaults.colors(
-                    selectedColor = MaterialTheme.colorScheme.primary
-                )
-            )
         }
     }
 }

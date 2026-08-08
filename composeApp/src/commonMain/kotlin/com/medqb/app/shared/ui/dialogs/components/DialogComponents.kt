@@ -1,10 +1,14 @@
 package com.medqb.app.shared.ui.dialogs.components
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -26,12 +30,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.medqb.app.shared.ui.theme.DialogLayout
 import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
 
 /**
  * Base dialog shell with consistent styling for all dialogs.
  */
+
 @Composable
 fun DialogShell(
     onDismiss: () -> Unit,
@@ -46,14 +53,20 @@ fun DialogShell(
         onDismissRequest = onDismiss,
         properties = properties
     ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .clip(MaterialTheme.shapes.extraLarge),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh
-        ) {
-            Column {
-                content()
+        BoxWithConstraints {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth(if (maxWidth >= ScreenLayout.CompactWidthBreakpoint) DialogLayout.ExpandedWidthFraction else DialogLayout.CompactWidthFraction)
+                    .heightIn(
+                        min = DialogLayout.MinContainerHeight,
+                        max = maxHeight - DialogLayout.MaxHeightInset
+                    )
+                    .clip(MaterialTheme.shapes.extraLarge),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
+            ) {
+                Column {
+                    content()
+                }
             }
         }
     }
@@ -72,7 +85,7 @@ fun DialogHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = Inset.Lg, end = Inset.Sm, top = Spacing.MdLg, bottom = Spacing.Sm),
+            .padding(start = Inset.Large, end = Inset.Small, top = Spacing.MediumLarge, bottom = Spacing.MediumSmall),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
     ) {
@@ -88,7 +101,7 @@ fun DialogHeader(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = Spacing.Xs)
+                    modifier = Modifier.padding(top = Spacing.ExtraSmall)
                 )
             }
         }
@@ -120,8 +133,8 @@ fun DialogActions(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = Inset.Lg, vertical = Spacing.MdLg),
-        horizontalArrangement = Arrangement.End,
+            .padding(horizontal = Inset.Large, vertical = Spacing.MediumLarge),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.Small, Alignment.End),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (secondaryText != null && onSecondary != null) {

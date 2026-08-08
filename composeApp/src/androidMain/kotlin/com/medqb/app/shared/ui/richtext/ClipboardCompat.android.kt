@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.medqb.app.shared.ui.richtext
 
 import android.content.ClipData

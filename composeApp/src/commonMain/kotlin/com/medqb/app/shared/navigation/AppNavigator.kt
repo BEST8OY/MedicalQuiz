@@ -39,13 +39,18 @@ class AppNavigator(
         }
     }
 
-    fun returnQuizToFilter() {
-        if (currentRoute is MedQBRoutes.Quiz) {
-            navigateBack()
-        }
-        if (currentRoute !is MedQBRoutes.Filter) {
+    fun returnQuizToFilter(targetPaneName: String? = null) {
+        val filterIndex = backStack.indexOfLast { it is MedQBRoutes.Filter }
+        if (filterIndex >= 0) {
+            while (backStack.size > filterIndex + 1) {
+                backStack.removeLastOrNull()
+            }
+            if (targetPaneName != null) {
+                backStack[filterIndex] = MedQBRoutes.Filter(initialPaneName = targetPaneName)
+            }
+        } else {
             popToDatabaseSelection()
-            navigateTo(MedQBRoutes.Filter)
+            navigateTo(MedQBRoutes.Filter(initialPaneName = targetPaneName))
         }
     }
 }

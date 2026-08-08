@@ -14,6 +14,10 @@ import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.platform.VlcDiscovery
+import com.medqb.app.shared.ui.theme.IconSize
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Layout
+import com.medqb.app.shared.ui.theme.Spacing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import uk.co.caprica.vlcj.player.base.MediaPlayer
@@ -82,7 +86,7 @@ actual fun VideoPlayer(
     Box(modifier = modifier.fillMaxSize()) {
         if (errorMessage != null) {
             Column(
-                modifier = Modifier.fillMaxSize().padding(32.dp),
+                modifier = Modifier.fillMaxSize().padding(Inset.ExtraLarge),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -90,12 +94,12 @@ actual fun VideoPlayer(
                     text = "⚠️",
                     style = MaterialTheme.typography.displayMedium
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Spacing.Medium))
                 Text(
                     text = errorMessage!!,
                     style = MaterialTheme.typography.bodyLarge
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Spacing.Medium))
                 Button(
                     onClick = {
                         if (VlcDiscovery.retry()) {
@@ -148,7 +152,7 @@ actual fun VideoPlayer(
                     .align(Alignment.BottomCenter)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(Spacing.Medium)
                 ) {
                 // Progress bar
                 if (duration > 0) {
@@ -156,7 +160,7 @@ actual fun VideoPlayer(
                         progress = { (currentTime.toFloat() / duration.toFloat()).coerceIn(0f, 1f) },
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(Spacing.Small))
                 }
 
                 Row(
@@ -175,7 +179,7 @@ actual fun VideoPlayer(
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
                             contentDescription = if (isPlaying) "Pause video" else "Play video",
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(IconSize.ExtraLarge)
                         )
                     }
 
@@ -195,9 +199,9 @@ actual fun VideoPlayer(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                             contentDescription = "Volume",
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(IconSize.Medium)
                         )
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(Spacing.Small))
                         Slider(
                             value = volume.toFloat(),
                             onValueChange = { newVolume ->

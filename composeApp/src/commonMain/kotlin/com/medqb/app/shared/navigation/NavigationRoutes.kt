@@ -17,10 +17,18 @@ sealed interface MedQBRoutes : NavKey {
     data object DatabaseSelection : MedQBRoutes
 
     @Serializable
-    data object Filter : MedQBRoutes
+    data class Filter(
+        val initialPaneName: String? = null,
+    ) : MedQBRoutes
 
     @Serializable
-    data object Quiz : MedQBRoutes
+    data class Quiz(
+        val sessionId: String = "",
+        val entryName: String = "",
+        val initialQuestionIndex: Int = 0,
+        val isLoggingEnabled: Boolean? = null,
+        val submissionMode: String? = null,
+    ) : MedQBRoutes
 
     @Serializable
     data object Settings : MedQBRoutes
@@ -42,6 +50,3 @@ enum class QuizLaunchSource {
     Standard,
     History,
 }
-
-
-

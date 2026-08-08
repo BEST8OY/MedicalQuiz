@@ -9,6 +9,7 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.medqb.app.shared.data.FilterStateHolder
+import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.navigation.QuizLaunchSource
 
@@ -37,6 +38,7 @@ private val AppWorkflowStateSaver = Saver<AppWorkflowState, List<Any?>>(
 fun rememberAppWorkflow(
     workflowCoordinator: AppWorkflowCoordinator,
     filterStateHolder: FilterStateHolder,
+    userDataManager: UserDataManager,
 ): AppWorkflowHandle {
     var workflowState by rememberSaveable(stateSaver = AppWorkflowStateSaver) {
         mutableStateOf(workflowCoordinator.initialState())
@@ -47,7 +49,7 @@ fun rememberAppWorkflow(
         workflowState.initializedDatabase,
         workflowState.pendingLaunchSource,
     ) {
-        val decision = workflowCoordinator.handleDatabaseSelection(workflowState)
+        val decision = workflowCoordinator.handleDatabaseSelection(workflowState, userDataManager)
         if (decision != null) {
             workflowState = workflowCoordinator.applyDatabaseSelectionDecision(
                 workflowState, decision

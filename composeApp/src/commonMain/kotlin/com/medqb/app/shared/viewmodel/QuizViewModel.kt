@@ -13,6 +13,7 @@ import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.domain.LoadQuestionUseCase
 import com.medqb.app.shared.domain.SnackbarSink
+import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.ui.state.QuizUiState
 import dev.zacsweers.metro.Inject
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -53,25 +55,26 @@ class QuizViewModel(
 ) : ViewModel() {
 
     private companion object {
-        const val KEY_DATABASE_NAME = "database_name"
-        const val KEY_CURRENT_QUESTION_INDEX = "current_question_index"
-        const val KEY_IS_LOGGING_ENABLED = "is_logging_enabled"
-        const val KEY_SUBMISSION_MODE = "submission_mode"
-        const val KEY_SESSION_ID = "session_id"
-        const val KEY_SELECTED_SUBJECT_IDS = "selected_subject_ids"
-        const val KEY_SELECTED_SYSTEM_IDS = "selected_system_ids"
-        const val KEY_PERFORMANCE_FILTER = "performance_filter"
+        const val KEY_DATABASE_NAME = "databaseName"
+        const val KEY_ENTRY_NAME = "entryName"
+        const val KEY_CURRENT_QUESTION_INDEX = "currentQuestionIndex"
+        const val KEY_IS_LOGGING_ENABLED = "isLoggingEnabled"
+        const val KEY_SUBMISSION_MODE = "submissionMode"
+        const val KEY_SESSION_ID = "sessionId"
     }
 
     private val _state = MutableStateFlow(QuizUiState.EMPTY)
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
 
     val toolbarTitle = state
-        .map { it.databaseName }
+        .map { it.entryName.ifBlank { it.databaseName } }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
-    private var sessionId: String = ""
+    private val sessionIdState: MutableStateFlow<String> = savedStateHandle.getMutableStateFlow(KEY_SESSION_ID, "")
+    private val sessionId: String
+        get() = sessionIdState.value
+    private var filteredIdsJob: Job? = null
     private val loadRequests = MutableSharedFlow<LoadRequest>(extraBufferCapacity = 1)
 
     private data class LoadRequest(
@@ -81,25 +84,12 @@ class QuizViewModel(
     )
 
     private fun updateSessionId(id: String) {
-        sessionId = id
-        savedStateHandle[KEY_SESSION_ID] = id
+        sessionIdState.value = id
     }
 
     init {
         restoreFromSavedState()
         observeSettings()
-
-        sessionId = savedStateHandle.get<String>(KEY_SESSION_ID).orEmpty()
-
-        val restoredId = filterStateHolder.consumePendingHistoryEntryId()
-        if (!restoredId.isNullOrBlank()) {
-            updateSessionId(restoredId)
-        }
-
-        val restoredIndex = filterStateHolder.consumePendingHistoryQuestionIndex()
-        if (restoredIndex > 0) {
-            _state.update { it.copy(currentQuestionIndex = restoredIndex) }
-        }
 
         viewModelScope.launch {
             activeDatabaseHolder.databaseName.collect { dbName ->
@@ -145,18 +135,16 @@ class QuizViewModel(
                                 questionId = result.question.id
                             )
                         }
+                        if (request.appendToHistory) {
+                            appendToHistory()
+                        }
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
                         Logger.e("QuizViewModel", "Error loading question $questionId", e)
                         emitSnackbar("Failed to load question: ${e.message}")
                     } finally {
-                        if (currentCoroutineContext()[Job]?.isActive == true) {
-                            if (request.appendToHistory) {
-                                appendToHistory()
-                            }
-                            _state.update { it.copy(isLoading = false) }
-                        }
+                        _state.update { it.copy(isLoading = false) }
                     }
                     emit(Unit)
                 }
@@ -166,33 +154,19 @@ class QuizViewModel(
 
     private fun restoreFromSavedState() {
         val savedDatabaseName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
+        val savedEntryName = savedStateHandle.get<String>(KEY_ENTRY_NAME).orEmpty()
         val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: 0
-        val savedIsLoggingEnabled = filterStateHolder.consumePendingIsLoggingEnabled()
-            ?: savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED)
+        val savedIsLoggingEnabled = savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED)
             ?: settingsRepository.isLoggingEnabled.value
-        val savedSubmissionMode = filterStateHolder.consumePendingSubmissionMode()
-            ?: savedStateHandle.get<String>(KEY_SUBMISSION_MODE)
-                ?.let { runCatching { SubmissionMode.valueOf(it) }.getOrNull() }
+        val savedSubmissionModeStr = savedStateHandle.get<String>(KEY_SUBMISSION_MODE)
+        val savedSubmissionMode = savedSubmissionModeStr
+            ?.let { runCatching { SubmissionMode.valueOf(it) }.getOrNull() }
             ?: settingsRepository.submissionMode.value
-
-        val savedSubjectIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SUBJECT_IDS)?.toSet()
-        if (savedSubjectIds != null) {
-            filterStateHolder.updateSubjectIds(savedSubjectIds)
-        }
-        val savedSystemIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SYSTEM_IDS)?.toSet()
-        if (savedSystemIds != null) {
-            filterStateHolder.updateSystemIds(savedSystemIds)
-        }
-        val savedPerformanceFilterName = savedStateHandle.get<String>(KEY_PERFORMANCE_FILTER)
-        if (savedPerformanceFilterName != null) {
-            runCatching { PerformanceFilter.valueOf(savedPerformanceFilterName) }.getOrNull()?.let {
-                filterStateHolder.updatePerformanceFilter(it)
-            }
-        }
 
         _state.update {
             it.copy(
                 databaseName = savedDatabaseName,
+                entryName = savedEntryName,
                 currentQuestionIndex = savedQuestionIndex.coerceAtLeast(0),
                 isLoggingEnabled = savedIsLoggingEnabled,
                 submissionMode = savedSubmissionMode,
@@ -201,15 +175,11 @@ class QuizViewModel(
     }
 
     private fun persistStateSnapshot(snapshot: QuizUiState = state.value) {
-        viewModelScope.launch(Dispatchers.Main) {
-            savedStateHandle[KEY_DATABASE_NAME] = snapshot.databaseName
-            savedStateHandle[KEY_CURRENT_QUESTION_INDEX] = snapshot.currentQuestionIndex
-            savedStateHandle[KEY_IS_LOGGING_ENABLED] = snapshot.isLoggingEnabled
-            savedStateHandle[KEY_SUBMISSION_MODE] = snapshot.submissionMode.name
-            savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = filterStateHolder.selectedSubjectIds.value.toList()
-            savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = filterStateHolder.selectedSystemIds.value.toList()
-            savedStateHandle[KEY_PERFORMANCE_FILTER] = filterStateHolder.performanceFilter.value.name
-        }
+        savedStateHandle[KEY_DATABASE_NAME] = snapshot.databaseName
+        savedStateHandle[KEY_ENTRY_NAME] = snapshot.entryName
+        savedStateHandle[KEY_CURRENT_QUESTION_INDEX] = snapshot.currentQuestionIndex
+        savedStateHandle[KEY_IS_LOGGING_ENABLED] = snapshot.isLoggingEnabled
+        savedStateHandle[KEY_SUBMISSION_MODE] = snapshot.submissionMode.name
     }
 
     val highlightsRepository: TextHighlightsRepository
@@ -226,6 +196,7 @@ class QuizViewModel(
                 isLoggingEnabled = state.value.isLoggingEnabled,
                 submissionMode = state.value.submissionMode,
                 currentSessionId = sessionId,
+                entryName = state.value.entryName,
             )
             if (newSessionId.isNotBlank()) {
                 updateSessionId(newSessionId)
@@ -284,7 +255,9 @@ class QuizViewModel(
         }
 
         if (currentState.answerSubmitted) return
-        _state.update { it.copy(answerSubmitted = true) }
+
+        val wasAlreadySubmitted = _state.getAndUpdate { it.copy(answerSubmitted = true) }.answerSubmitted
+        if (wasAlreadySubmitted) return
 
         viewModelScope.launch(Dispatchers.IO) {
             val db = activeDatabaseHolder.databaseProvider.value
@@ -293,6 +266,7 @@ class QuizViewModel(
                     val correctAnswer = currentState.currentAnswers.getOrNull(question.corrAns - 1)
                     val correctAnswerId = correctAnswer?.answerId?.toInt() ?: -1
                     db.logAnswer(
+                        dbName = activeDatabaseHolder.databaseName.value,
                         qid = question.id,
                         selectedAnswer = selectedAnswerId,
                         corrAnswer = correctAnswerId,
@@ -353,7 +327,8 @@ class QuizViewModel(
         updatePreviewCount: Boolean = true,
         startFromBeginning: Boolean = false,
     ) {
-        viewModelScope.launch(Dispatchers.IO) {
+        filteredIdsJob?.cancel()
+        filteredIdsJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true) }
             val db = activeDatabaseHolder.databaseProvider.value
             try {
@@ -407,7 +382,7 @@ class QuizViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val db = activeDatabaseHolder.databaseProvider.value
             try {
-                db?.clearLogForQuestion(questionId)
+                db?.clearLogForQuestion(activeDatabaseHolder.databaseName.value, questionId)
                 _state.update { it.copy(currentPerformance = null) }
                 emitSnackbar("Log cleared for current question")
             } catch (e: CancellationException) {
@@ -423,6 +398,7 @@ class QuizViewModel(
             settingsRepository.showMetadata,
             settingsRepository.fontScalePreference,
         ) { metadata, fontScale -> metadata to fontScale }
+            .distinctUntilChanged()
             .onEach { (metadata, fontScale) ->
                 _state.update { it.copy(showMetadata = metadata, fontScalePreference = fontScale) }
             }
@@ -430,6 +406,19 @@ class QuizViewModel(
     }
 
     private fun emitSnackbar(message: String) {
+        viewModelScope.launch {
+            snackbarSink.emitSnackbar(SnackbarMessage.Simple(message))
+        }
+    }
+
+    /**
+     * Public entrypoint for composables nested under this ViewModel to surface a
+     * typed snackbar (e.g. an undo/copy Action) via the shared [SnackbarDispatcher].
+     *
+     * This exists so leaf UI such as [com.medqb.app.shared.ui.richtext.SelectableHighlightText]
+     * can route snackbar requests through the ViewModel's sink without holding the dispatcher.
+     */
+    fun emitSnackbar(message: SnackbarMessage) {
         viewModelScope.launch {
             snackbarSink.emitSnackbar(message)
         }

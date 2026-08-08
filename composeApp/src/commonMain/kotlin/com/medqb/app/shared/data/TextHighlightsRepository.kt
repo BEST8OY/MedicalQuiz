@@ -63,7 +63,7 @@ class TextHighlightsRepository(
         val context = currentContextSnapshot() ?: return
         val requestId = ++activeLoadRequestId
 
-        scope.launch(Dispatchers.IO) {
+        scope.launch {
             _isLoading.value = true
             try {
                 val allHighlights = userDataManager.getAllTextHighlightsForQuestion(
@@ -117,7 +117,7 @@ class TextHighlightsRepository(
         val normalizedEnd = maxOf(startOffset, endOffset)
         if (normalizedStart >= normalizedEnd) return
 
-        scope.launch(Dispatchers.IO) {
+        scope.launch {
             try {
                 highlightMutationMutex.withLock {
                     if (!matchesCurrentContext(context)) return@withLock
@@ -194,7 +194,7 @@ class TextHighlightsRepository(
     fun removeHighlight(highlightId: Long) {
         val context = currentContextSnapshot()
 
-        scope.launch(Dispatchers.IO) {
+        scope.launch {
             try {
                 highlightMutationMutex.withLock {
                     userDataManager.removeTextHighlight(highlightId)
@@ -216,7 +216,7 @@ class TextHighlightsRepository(
     fun updateHighlightColor(highlightId: Long, color: HighlightColor) {
         val context = currentContextSnapshot()
 
-        scope.launch(Dispatchers.IO) {
+        scope.launch {
             try {
                 highlightMutationMutex.withLock {
                     userDataManager.updateTextHighlightColor(highlightId, color)
@@ -258,7 +258,7 @@ class TextHighlightsRepository(
     fun clearAllHighlightsForCurrentQuestion() {
         val context = currentContextSnapshot() ?: return
 
-        scope.launch(Dispatchers.IO) {
+        scope.launch {
             try {
                 highlightMutationMutex.withLock {
                     userDataManager.clearTextHighlightsForQuestion(context.dbName, context.questionId)
@@ -277,7 +277,7 @@ class TextHighlightsRepository(
     fun clearHighlightsForSection(section: HighlightSection) {
         val context = currentContextSnapshot() ?: return
 
-        scope.launch(Dispatchers.IO) {
+        scope.launch {
             try {
                 highlightMutationMutex.withLock {
                     userDataManager.clearTextHighlightsForQuestion(

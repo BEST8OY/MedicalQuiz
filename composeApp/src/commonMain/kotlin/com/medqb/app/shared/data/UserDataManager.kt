@@ -1,8 +1,10 @@
 package com.medqb.app.shared.data
 
-import androidx.sqlite.SQLiteConnection
+import androidx.room3.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
-import com.medqb.app.shared.data.dao.TextHighlightDao
+import com.medqb.app.shared.data.local.UserDatabase
+import com.medqb.app.shared.data.local.dao.RoomLogDao
+import com.medqb.app.shared.data.local.entity.TextHighlightEntity
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.TextHighlight
@@ -17,29 +19,28 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * Manages the user_data.db SQLite database connection.
- * Text highlights CRUD is delegated to [TextHighlightDao].
+ * Manages the user_data.db SQLite database via Room.
+ * Text highlights CRUD is delegated to the Room DAO.
  */
 @Inject
 @SingleIn(AppScope::class)
 class UserDataManager {
-    private val driver = BundledSQLiteDriver()
-    private var connection: SQLiteConnection? = null
     private val mutex = Mutex()
-
-    val textHighlightDao: TextHighlightDao
+    private var database: UserDatabase? = null
 
     private val dbPath: String
         get() = "${StorageProvider.getAppStorageDirectory()}/user_data.db"
 
-    init {
-        textHighlightDao = TextHighlightDao({ getConnection() }, mutex)
-    }
-
-    suspend fun init() = withContext(Dispatchers.IO) {
-        mutex.withLock {
+    private suspend fun getDatabase(): UserDatabase {
+        database?.let { return it }
+        return mutex.withLock {
+            database?.let { return@withLock it }
             try {
-                getConnection()
+                val db = Room.databaseBuilder<UserDatabase>(dbPath)
+                    .setDriver(BundledSQLiteDriver())
+                    .build()
+                database = db
+                db
             } catch (e: Exception) {
                 Logger.e("UserDataManager", "Error initializing user data database", e)
                 throw e
@@ -47,76 +48,101 @@ class UserDataManager {
         }
     }
 
-    private fun createTables(conn: SQLiteConnection) {
-        conn.prepare("""
-            CREATE TABLE IF NOT EXISTS text_highlights (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                db_name TEXT NOT NULL,
-                question_id INTEGER NOT NULL,
-                section TEXT NOT NULL,
-                start_offset INTEGER NOT NULL,
-                end_offset INTEGER NOT NULL,
-                highlighted_text TEXT NOT NULL,
-                color TEXT NOT NULL DEFAULT 'YELLOW',
-                created_at INTEGER NOT NULL
-            )
-        """.trimIndent()).use { it.step() }
-
-        conn.prepare("""
-            CREATE INDEX IF NOT EXISTS idx_text_highlights_lookup 
-            ON text_highlights(db_name, question_id, section)
-        """.trimIndent()).use { it.step() }
+    suspend fun init() = withContext(Dispatchers.IO) {
+        getDatabase()
     }
 
-    private fun getConnection(): SQLiteConnection {
-        connection?.let { return it }
-
-        val newConnection = driver.open(dbPath)
-        return try {
-            createTables(newConnection)
-            connection = newConnection
-            newConnection
-        } catch (e: Exception) {
-            runCatching { newConnection.close() }
-            throw e
-        }
-    }
+    suspend fun logDao(): RoomLogDao = getDatabase().logDao()
 
     suspend fun close() = withContext(Dispatchers.IO) {
         mutex.withLock {
-            connection?.close()
-            connection = null
+            database?.close()
+            database = null
         }
     }
 
-    // Delegate text highlights to TextHighlightDao
     suspend fun getTextHighlights(dbName: String, questionId: Long, section: HighlightSection): List<TextHighlight> =
-        textHighlightDao.getTextHighlights(dbName, questionId, section)
+        withContext(Dispatchers.IO) {
+            getDatabase().textHighlightDao()
+                .getBySection(dbName, questionId, section.name)
+                .map { it.toDomain() }
+        }
 
     suspend fun getAllTextHighlightsForQuestion(dbName: String, questionId: Long): List<TextHighlight> =
-        textHighlightDao.getAllTextHighlightsForQuestion(dbName, questionId)
+        withContext(Dispatchers.IO) {
+            getDatabase().textHighlightDao()
+                .getAllForQuestion(dbName, questionId)
+                .map { it.toDomain() }
+        }
 
     suspend fun addTextHighlight(
         dbName: String, questionId: Long, section: HighlightSection,
         startOffset: Int, endOffset: Int, highlightedText: String, color: HighlightColor
-    ): TextHighlight = textHighlightDao.addTextHighlight(dbName, questionId, section, startOffset, endOffset, highlightedText, color)
+    ): TextHighlight = withContext(Dispatchers.IO) {
+        val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+        val entity = TextHighlightEntity(
+            dbName = dbName,
+            questionId = questionId,
+            section = section.name,
+            startOffset = startOffset,
+            endOffset = endOffset,
+            highlightedText = highlightedText,
+            color = color.name,
+            createdAt = now
+        )
+        val insertedId = getDatabase().textHighlightDao().insert(entity)
+        entity.copy(id = insertedId).toDomain()
+    }
 
-    suspend fun removeTextHighlight(highlightId: Long) = textHighlightDao.removeTextHighlight(highlightId)
+    suspend fun removeTextHighlight(highlightId: Long) = withContext(Dispatchers.IO) {
+        getDatabase().textHighlightDao().deleteById(highlightId)
+    }
 
     suspend fun updateTextHighlightColor(highlightId: Long, color: HighlightColor) =
-        textHighlightDao.updateTextHighlightColor(highlightId, color)
+        withContext(Dispatchers.IO) {
+            getDatabase().textHighlightDao().updateColor(highlightId, color.name)
+        }
 
     suspend fun clearTextHighlightsForQuestion(dbName: String, questionId: Long, section: HighlightSection? = null) =
-        textHighlightDao.clearTextHighlightsForQuestion(dbName, questionId, section)
+        withContext(Dispatchers.IO) {
+            getDatabase().textHighlightDao().clearForQuestion(dbName, questionId, section?.name)
+        }
 
     suspend fun clearAllTextHighlightsForDatabase(dbName: String) =
-        textHighlightDao.clearAllTextHighlightsForDatabase(dbName)
+        withContext(Dispatchers.IO) {
+            getDatabase().textHighlightDao().clearForDatabase(dbName)
+        }
 
     suspend fun replaceTextHighlightsWithMerged(
         dbName: String, questionId: Long, section: HighlightSection,
         removeHighlightIds: List<Long>, startOffset: Int, endOffset: Int,
         highlightedText: String, color: HighlightColor
-    ): TextHighlight = textHighlightDao.replaceTextHighlightsWithMerged(
-        dbName, questionId, section, removeHighlightIds, startOffset, endOffset, highlightedText, color
+    ): TextHighlight = withContext(Dispatchers.IO) {
+        val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+        val insertEntity = TextHighlightEntity(
+            dbName = dbName,
+            questionId = questionId,
+            section = section.name,
+            startOffset = startOffset,
+            endOffset = endOffset,
+            highlightedText = highlightedText,
+            color = color.name,
+            createdAt = now
+        )
+        val insertedId = getDatabase().textHighlightDao()
+            .replaceWithMerged(removeHighlightIds, insertEntity)
+        insertEntity.copy(id = insertedId).toDomain()
+    }
+
+    private fun TextHighlightEntity.toDomain() = TextHighlight(
+        id = id,
+        dbName = dbName,
+        questionId = questionId,
+        section = HighlightSection.valueOf(section),
+        startOffset = startOffset,
+        endOffset = endOffset,
+        highlightedText = highlightedText,
+        color = HighlightColor.fromName(color),
+        createdAt = createdAt
     )
 }
