@@ -47,7 +47,8 @@ import com.medqb.app.shared.domain.AppIntent
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.navigation.AppNavigator
-import com.medqb.app.shared.ui.screens.FilterPane
+import com.medqb.app.shared.navigation.rememberMedQBNavEntries
+import com.medqb.app.shared.ui.screens.filter.FilterPane
 import com.medqb.app.shared.orchestration.RequestedFilterPane
 import com.medqb.app.shared.orchestration.rememberAppWorkflow
 import com.medqb.app.shared.ui.theme.AppTheme
@@ -195,83 +196,15 @@ fun App() {
             }
         }
 
-        val entryProvider = remember(
-            graph,
-            workflow,
-            navigator,
-            mediaHandler,
-            mediaDescriptionsFlow,
-            returnQuizToFilter,
-        ) {
-            entryProvider<NavKey> {
-                entry<MedQBRoutes.DatabaseSelection> {
-                    DatabaseSelectionEntry(
-                        graph = graph,
-                        workflow = workflow,
-                        navigator = navigator,
-                    )
-                }
-
-                entry<MedQBRoutes.Filter> { route ->
-                    FilterEntry(
-                        route = route,
-                        graph = graph,
-                        workflow = workflow,
-                        navigator = navigator,
-                        snackbarHostState = snackbarHostState,
-                    )
-                }
-
-                entry<MedQBRoutes.Quiz> { route ->
-                    QuizEntry(
-                        route = route,
-                        graph = graph,
-                        workflow = workflow,
-                        navigator = navigator,
-                        mediaHandler = mediaHandler,
-                        onReturnToFilter = returnQuizToFilter,
-                    )
-                }
-
-                entry<MedQBRoutes.Settings> {
-                    SettingsEntry(
-                        graph = graph,
-                        navigator = navigator,
-                    )
-                }
-
-                entry<MedQBRoutes.MediaViewer>(
-                    metadata = metadata {
-                        put(NavDisplay.TransitionKey) {
-                            fadeIn() togetherWith fadeOut()
-                        }
-                        put(NavDisplay.PopTransitionKey) {
-                            fadeIn() togetherWith fadeOut()
-                        }
-                        put(NavDisplay.PredictivePopTransitionKey) {
-                            fadeIn() togetherWith fadeOut()
-                        }
-                    }
-                ) { key ->
-                    MediaViewerEntry(
-                        key = key,
-                        graph = graph,
-                        navigator = navigator,
-                        mediaHandler = mediaHandler,
-                        mediaDescriptionsFlow = mediaDescriptionsFlow,
-                    )
-                }
-
-                entry<MedQBRoutes.HtmlViewer> { key ->
-                    HtmlViewerEntry(
-                        key = key,
-                        graph = graph,
-                        navigator = navigator,
-                        mediaHandler = mediaHandler,
-                    )
-                }
-            }
-        }
+        val entryProvider = rememberMedQBNavEntries(
+            graph = graph,
+            workflow = workflow,
+            navigator = navigator,
+            mediaHandler = mediaHandler,
+            mediaDescriptionsFlow = mediaDescriptionsFlow,
+            snackbarHostState = snackbarHostState,
+            onReturnQuizToFilter = returnQuizToFilter,
+        )
 
         Box {
             @OptIn(ExperimentalSharedTransitionApi::class)

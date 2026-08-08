@@ -4,16 +4,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,22 +17,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.KeyboardArrowUp
-import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.SuggestionChipDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,31 +34,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.ScreenLayout
-import com.medqb.app.shared.ui.theme.Spacing
-import com.medqb.app.shared.ui.theme.Stroke
-import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.models.HighlightSection
-import com.medqb.app.shared.data.models.Question
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.richtext.HighlightableRichText
-import com.medqb.app.shared.ui.richtext.RichText
-import com.medqb.app.shared.ui.richtext.RichTextPalette
 import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
 import com.medqb.app.shared.ui.state.QuizUiState
+import com.medqb.app.shared.ui.theme.ScreenLayout
+import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.HtmlUtils
 import com.medqb.app.shared.viewmodel.QuizViewModel
-import kotlin.math.roundToInt
-
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -82,7 +57,7 @@ fun QuizScreen(
     viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-        bottomClearance: Dp = ScreenLayout.BottomClearanceFloating
+    bottomClearance: Dp = ScreenLayout.BottomClearanceFloating
 ) {
     val fontScalePreference = state.fontScalePreference
 
@@ -110,8 +85,6 @@ private fun QuestionContent(
             .fillMaxSize()
             .padding(contentPadding)
     ) {
-        // Question content stays primary, metadata/logs are now inside the scrollable area
-        // Use surfaceContainerLowest as the "floor" for proper elevation hierarchy
         Surface(
             modifier = Modifier
                 .weight(1f)
@@ -141,98 +114,6 @@ private fun QuestionContent(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun HintSection(
-    isVisible: Boolean,
-    canToggle: Boolean,
-    onToggle: () -> Unit,
-    hintHtml: String,
-    linkHandler: (String) -> Unit,
-    mediaClick: (String) -> Unit,
-    showSelectedHighlight: Boolean
-) {
-    val defaultEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-    val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
-
-    Surface(
-        shape = MaterialTheme.shapes.small,
-        color = if (isVisible) {
-            MaterialTheme.colorScheme.tertiaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainer
-        },
-        modifier = Modifier.fillMaxWidth(),
-        onClick = if (canToggle) onToggle else ({})
-    ) {
-        Column(modifier = Modifier.padding(Spacing.MediumSmall)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Small),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val hintContentColor = if (isVisible) {
-                    MaterialTheme.colorScheme.onTertiaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-                Icon(
-                    imageVector = Icons.Rounded.Lightbulb,
-                    contentDescription = null,
-                    tint = hintContentColor
-                )
-                Text(
-                    text = "Hint",
-                    style = MaterialTheme.typography.titleSmallEmphasized,
-                    color = hintContentColor
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                if (canToggle) {
-                    Icon(
-                        imageVector = if (isVisible) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = hintContentColor
-                    )
-                }
-            }
-            AnimatedVisibility(
-                visible = isVisible,
-                enter = fadeIn(
-                    animationSpec = defaultEffectsSpec,
-                ) + expandVertically(
-                    animationSpec = defaultSpatialSpec,
-                ),
-                exit = fadeOut(
-                    animationSpec = defaultEffectsSpec,
-                ) + shrinkVertically(
-                    animationSpec = defaultSpatialSpec,
-                )
-            ) {
-                val colors = MaterialTheme.colorScheme
-                val hintPalette = remember(colors) {
-                    RichTextPalette(
-                        importantBackground = colors.tertiaryContainer,
-                        importantText = colors.onTertiaryContainer,
-                        selectedBackground = colors.primaryContainer,
-                        selectedText = colors.onPrimaryContainer,
-                        linkText = colors.onTertiaryContainer,
-                        dictionaryText = colors.onTertiaryContainer,
-                        abstractText = colors.onSurfaceVariant
-                    )
-                }
-                RichText(
-                    html = hintHtml,
-                    modifier = Modifier.padding(top = Spacing.Small),
-                    onLinkClick = linkHandler,
-                    onMediaClick = mediaClick,
-                    showSelectedHighlight = showSelectedHighlight,
-                    palette = hintPalette
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
 private fun QuizQuestionCard(
     state: QuizUiState,
     viewModel: QuizViewModel,
@@ -249,12 +130,13 @@ private fun QuizQuestionCard(
     val linkHandler: (String) -> Unit = remember(question?.id, mediaHandler) {
         { url ->
             val normalizedUrl = url.trim()
-            if (normalizedUrl.isEmpty()) return@remember
-            if (!mediaHandler.handleMediaLink(normalizedUrl)) {
-                try {
-                    uriHandler.openUri(normalizedUrl)
-                } catch (e: Exception) {
-                    // Ignore
+            if (normalizedUrl.isNotEmpty()) {
+                if (!mediaHandler.handleMediaLink(normalizedUrl)) {
+                    try {
+                        uriHandler.openUri(normalizedUrl)
+                    } catch (e: Exception) {
+                        // Ignore
+                    }
                 }
             }
         }
@@ -263,7 +145,6 @@ private fun QuizQuestionCard(
 
     LaunchedEffect(question?.id, question != null) {
         if (question != null) {
-            // Run regex-heavy media collection off the main thread
             val mediaFiles = withContext(Dispatchers.IO) {
                 HtmlUtils.collectMediaFiles(question)
             }
@@ -320,7 +201,6 @@ private fun QuizQuestionCard(
         if (total == 0) {
             answers.associate { it.answerId to null }
         } else {
-            // Use largest remainder method to ensure percentages sum to 100
             val exactPercentages = answers.map { answer ->
                 val count = answer.correctPercentage ?: 0
                 answer.answerId to ((count * 100.0) / total)
@@ -331,7 +211,7 @@ private fun QuizQuestionCard(
             }
             val deficit = 100 - floored.sumOf { it.second }
             val indicesToIncrement = remainders.sortedByDescending { it.second }.take(deficit).map { it.first }
-            
+
             floored.mapIndexed { index, pair ->
                 pair.first to (pair.second + if (index in indicesToIncrement) 1 else 0)
             }.toMap()
@@ -351,7 +231,6 @@ private fun QuizQuestionCard(
         verticalArrangement = Arrangement.spacedBy(Spacing.Medium)
     ) {
         key(state.currentQuestionIndex) {
-            // Question card - elevated primary content
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
@@ -445,7 +324,6 @@ private fun QuizQuestionCard(
                 }
             }
 
-            // Question metadata - shown after answering (inside scrollable area)
             AnimatedVisibility(
                 visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
                 enter = fadeIn(
@@ -460,7 +338,6 @@ private fun QuizQuestionCard(
                 }
             }
 
-            // Performance logs - shown after answering if logs enabled (inside scrollable area)
             AnimatedVisibility(
                 visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
                 enter = fadeIn(
@@ -475,190 +352,5 @@ private fun QuizQuestionCard(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun QuestionMetadataCard(sections: List<MetadataSection>) {
-    if (sections.isEmpty()) return
-
-    OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        border = BorderStroke(
-            width = Stroke.Thin,
-            color = MaterialTheme.colorScheme.outlineVariant,
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Spacing.Medium, vertical = Spacing.MediumSmall),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Small)
-        ) {
-            sections.forEach { section ->
-                when (section) {
-                    is MetadataSection.Chips -> MetadataChipGroupRow(section.label, section.values)
-                }
-            }
-        }
-    }
-}
-
-private sealed interface MetadataSection {
-    data class Chips(val label: String, val values: List<String>) : MetadataSection
-}
-
-private fun computeMetadataSections(question: Question?): List<MetadataSection> {
-    val currentQuestion = question ?: return emptyList()
-
-    val sections = mutableListOf<MetadataSection>()
-    sections += MetadataSection.Chips(label = "ID", values = listOf("#${currentQuestion.id}"))
-
-    extractMetadataList(currentQuestion.subName)
-        .takeIf { it.isNotEmpty() }
-        ?.let { values ->
-            val label = if (values.size == 1) "Subject" else "Subjects"
-            sections += MetadataSection.Chips(label, values)
-        }
-
-    extractMetadataList(currentQuestion.sysName)
-        .takeIf { it.isNotEmpty() }
-        ?.let { values ->
-            val label = if (values.size == 1) "System" else "Systems"
-            sections += MetadataSection.Chips(label, values)
-        }
-
-    return sections
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun MetadataChipGroupRow(label: String, values: List<String>) {
-    val contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = contentColor
-        )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Small),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Small)
-        ) {
-            values.forEach { value ->
-                MetadataTag(text = value)
-            }
-        }
-    }
-}
-
-@Composable
-private fun MetadataTag(text: String) {
-    SuggestionChip(
-        onClick = {},
-        label = {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        modifier = Modifier.height(Spacing.Large),
-        contentPadding = PaddingValues(horizontal = Spacing.SubSmall),
-        colors = SuggestionChipDefaults.suggestionChipColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            labelColor = MaterialTheme.colorScheme.onSurface,
-        ),
-    )
-}
-
-private val metadataDelimiters = Regex("[,;\\n•]+")
-
-private fun extractMetadataList(raw: String?): List<String> {
-    if (raw.isNullOrBlank()) return emptyList()
-    return raw.split(metadataDelimiters)
-        .map { it.trim() }
-        .filter { it.isNotEmpty() }
-}
-
-@Composable
-private fun PerformanceCard(performance: QuestionPerformance?) {
-    performance ?: return
-    
-    val contentColor = MaterialTheme.colorScheme.onSurface
-    val lastResultColor = if (performance.lastCorrect) 
-        MaterialTheme.colorScheme.tertiary 
-    else 
-        MaterialTheme.colorScheme.error
-    
-    OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ),
-        border = BorderStroke(
-            width = Stroke.Thin,
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Spacing.Medium, vertical = Spacing.MediumSmall),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            PerformanceStat(
-                label = "Attempts",
-                value = performance.attempts.toString(),
-                color = contentColor
-            )
-            
-            PerformanceStat(
-                label = "Last",
-                value = if (performance.lastCorrect) "✓" else "✗",
-                color = lastResultColor
-            )
-            
-            PerformanceStat(
-                label = "Score",
-                value = "${performance.correctCount}/${performance.correctCount + performance.incorrectCount}",
-                color = contentColor
-            )
-        }
-    }
-}
-
-@Composable
-private fun PerformanceStat(
-    label: String,
-    value: String,
-    color: Color
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.Micro)
-    ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = color
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }

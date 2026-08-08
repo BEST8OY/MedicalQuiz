@@ -1,4 +1,4 @@
-package com.medqb.app.shared.ui.screens
+package com.medqb.app.shared.ui.screens.filter
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally

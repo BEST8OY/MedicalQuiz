@@ -12,7 +12,7 @@ import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
-import com.medqb.app.shared.ui.screens.FilterPane
+import com.medqb.app.shared.ui.screens.filter.FilterPane
 import com.medqb.app.shared.ui.state.FilterUiState
 import com.medqb.app.shared.utils.Resource
 import dev.zacsweers.metro.Inject
@@ -65,13 +65,16 @@ class FilterHubViewModel(
     private val _subjectsRetry = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private val _systemsRetry = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
+    private val activePaneState = savedStateHandle.getMutableStateFlow<String?>(KEY_ACTIVE_PANE, null)
+    private val databaseNameState = savedStateHandle.getMutableStateFlow(KEY_DATABASE_NAME, "")
+
     init {
-        val restoredDbName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
+        val restoredDbName = databaseNameState.value
         if (restoredDbName.isNotEmpty()) {
             _state.update { it.copy(databaseName = restoredDbName) }
         }
 
-        val restoredPaneStr = savedStateHandle.get<String>(KEY_ACTIVE_PANE).orEmpty()
+        val restoredPaneStr = activePaneState.value.orEmpty()
         if (restoredPaneStr.isNotEmpty()) {
             runCatching { FilterPane.valueOf(restoredPaneStr) }.getOrNull()?.let { pane ->
                 _state.update { it.copy(activePane = pane) }
@@ -91,15 +94,17 @@ class FilterHubViewModel(
 
     fun setActivePane(pane: FilterPane) {
         _state.update { it.copy(activePane = pane) }
-        savedStateHandle[KEY_ACTIVE_PANE] = pane.name
+        activePaneState.value = pane.name
     }
 
     private fun setupInitialPaneCollector() {
-        savedStateHandle.getStateFlow<String?>(KEY_ACTIVE_PANE, null)
+        activePaneState
             .filterNotNull()
             .onEach { paneName ->
                 runCatching { FilterPane.valueOf(paneName) }.getOrNull()?.let { pane ->
-                    setActivePane(pane)
+                    if (_state.value.activePane != pane) {
+                        _state.update { it.copy(activePane = pane) }
+                    }
                 }
             }
             .launchIn(viewModelScope)
@@ -111,7 +116,7 @@ class FilterHubViewModel(
                 if (dbName.isNotEmpty()) {
                     val dbChanged = dbName != _state.value.databaseName
                     _state.update { it.copy(databaseName = dbName) }
-                    savedStateHandle[KEY_DATABASE_NAME] = dbName
+                    databaseNameState.value = dbName
                     if (dbChanged) {
                         savedStateHandle.remove<List<Long>>(KEY_SELECTED_SUBJECT_IDS)
                         savedStateHandle.remove<List<Long>>(KEY_SELECTED_SYSTEM_IDS)
@@ -119,7 +124,7 @@ class FilterHubViewModel(
                         filterStateHolder.reset()
                     }
                 } else {
-                    val restoredName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
+                    val restoredName = databaseNameState.value
                     _state.update { it.copy(databaseName = restoredName) }
                 }
             }

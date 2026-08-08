@@ -71,7 +71,9 @@ class QuizViewModel(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
-    @Volatile private var sessionId: String = ""
+    private val sessionIdState: MutableStateFlow<String> = savedStateHandle.getMutableStateFlow(KEY_SESSION_ID, "")
+    private val sessionId: String
+        get() = sessionIdState.value
     private var filteredIdsJob: Job? = null
     private val loadRequests = MutableSharedFlow<LoadRequest>(extraBufferCapacity = 1)
 
@@ -82,15 +84,12 @@ class QuizViewModel(
     )
 
     private fun updateSessionId(id: String) {
-        sessionId = id
-        savedStateHandle[KEY_SESSION_ID] = id
+        sessionIdState.value = id
     }
 
     init {
         restoreFromSavedState()
         observeSettings()
-
-        sessionId = savedStateHandle.get<String>(KEY_SESSION_ID).orEmpty()
 
         viewModelScope.launch {
             activeDatabaseHolder.databaseName.collect { dbName ->

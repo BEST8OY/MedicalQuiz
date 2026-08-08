@@ -13,8 +13,10 @@ import com.medqb.app.shared.di.AppGraph
 import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.orchestration.AppWorkflowHandle
-import com.medqb.app.shared.ui.screens.FilterHubScreen
+import com.medqb.app.shared.ui.screens.filter.FilterHubScreen
+import com.medqb.app.shared.ui.screens.filter.FilterPane
 import com.medqb.app.shared.viewmodel.FilterHubViewModel
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun FilterEntry(
@@ -33,6 +35,14 @@ fun FilterEntry(
             }
         }
     )
+
+    LaunchedEffect(route.initialPaneName) {
+        route.initialPaneName?.let { paneName ->
+            runCatching { FilterPane.valueOf(paneName) }.getOrNull()?.let { pane ->
+                filterVM.setActivePane(pane)
+            }
+        }
+    }
 
     val onStartQuiz = dropUnlessResumed {
         snackbarHostState.currentSnackbarData?.dismiss()

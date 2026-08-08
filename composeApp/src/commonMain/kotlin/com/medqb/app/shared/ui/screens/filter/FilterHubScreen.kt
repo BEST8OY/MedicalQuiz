@@ -1,4 +1,4 @@
-package com.medqb.app.shared.ui.screens
+package com.medqb.app.shared.ui.screens.filter
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -10,21 +10,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.medqb.app.shared.ui.theme.ScreenLayout
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.SubmissionMode
-import com.medqb.app.shared.ui.screens.FilterPane
+import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.ui.dialogs.PerformanceFilterDialog
 import com.medqb.app.shared.ui.dialogs.SubjectFilterDialog
 import com.medqb.app.shared.ui.dialogs.SystemFilterDialog
 import com.medqb.app.shared.ui.screens.history.HistoryPane
+import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.viewmodel.FilterHubViewModel
-import com.medqb.app.shared.domain.SnackbarMessage
 
 @Composable
 internal fun FilterHubScreen(
