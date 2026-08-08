@@ -1,30 +1,18 @@
 package com.medqb.app.shared.ui.richtext
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.max
+import androidx.compose.ui.text.TextStyle
 import com.medqb.app.shared.data.TextHighlightsRepository
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
@@ -32,13 +20,17 @@ import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.ui.richtext.parser.RichTextParser
-import kotlin.math.max
+import com.medqb.app.shared.domain.SnackbarMessage
 import androidx.compose.material3.Text as MaterialText
 
 /**
  * Length of the implicit separator between blocks in the global offset space.
  * Must match the separator used during text construction in the parser.
  * Currently each block is separated by a single newline character.
+ *
+ * IMPORTANT: If the parser ever changes separator length (e.g. to "\n\n"),
+ * every highlight offset will silently desync. A mismatch here causes
+ * highlights to drift by N-1 chars per block boundary.
  */
 private const val BLOCK_SEPARATOR_LENGTH = 1
 
@@ -68,7 +60,8 @@ fun HighlightableRichText(
     showSelectedHighlight: Boolean = false,
     onLinkClick: ((String) -> Unit)? = null,
     onMediaClick: ((String) -> Unit)? = null,
-    onTooltipClick: ((String) -> Unit)? = null
+    onTooltipClick: ((String) -> Unit)? = null,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
 ) {
     val palette = rememberRichTextPalette()
     val blocks = remember(html, palette, showSelectedHighlight) {
@@ -94,7 +87,7 @@ fun HighlightableRichText(
     
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(Spacing.Sm)
+        verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)
     ) {
         // Track cumulative offset across blocks for proper highlight mapping
         var cumulativeOffset = 0
@@ -115,7 +108,8 @@ fun HighlightableRichText(
                 },
                 onLinkClick = resolvedLinkHandler,
                 onMediaClick = resolvedMediaHandler,
-                onTooltipClick = tooltipSupport.onTooltipClick
+                onTooltipClick = tooltipSupport.onTooltipClick,
+                onShowSnackbar = onShowSnackbar
             )
             
             cumulativeOffset += getBlockTextLength(block) + BLOCK_SEPARATOR_LENGTH
@@ -141,7 +135,8 @@ private fun HighlightableBlockRenderer(
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: (String) -> Unit,
     onMediaClick: (String) -> Unit,
-    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit
 ) {
     when (block) {
         is RichTextBlock.Paragraph -> {
@@ -160,15 +155,16 @@ private fun HighlightableBlockRenderer(
                 onHighlightRemove = onHighlightRemove,
                 onHighlightColorChange = onHighlightColorChange,
                 onLinkClick = onLinkClick,
-                onTooltipClick = onTooltipClick
+                onTooltipClick = onTooltipClick,
+                onShowSnackbar = onShowSnackbar
             )
         }
-        
+
         is RichTextBlock.Heading -> {
             // For now, headings are not highlightable (usually short)
             RichTextBlockRenderer(block, onLinkClick, onMediaClick, onTooltipClick)
         }
-        
+
         is RichTextBlock.BulletList -> {
             // Render each list item as individually highlightable
             HighlightableList(
@@ -180,7 +176,8 @@ private fun HighlightableBlockRenderer(
                 onHighlightRemove = onHighlightRemove,
                 onHighlightColorChange = onHighlightColorChange,
                 onLinkClick = onLinkClick,
-                onTooltipClick = onTooltipClick
+                onTooltipClick = onTooltipClick,
+                onShowSnackbar = onShowSnackbar
             )
         }
 
@@ -195,14 +192,15 @@ private fun HighlightableBlockRenderer(
                 onHighlightRemove = onHighlightRemove,
                 onHighlightColorChange = onHighlightColorChange,
                 onLinkClick = onLinkClick,
-                onTooltipClick = onTooltipClick
+                onTooltipClick = onTooltipClick,
+                onShowSnackbar = onShowSnackbar
             )
         }
-        
+
         is RichTextBlock.CodeBlock -> {
             RichTextBlockRenderer(block, onLinkClick, onMediaClick, onTooltipClick)
         }
-        
+
         is RichTextBlock.Table -> {
             // Render table cells as individually highlightable
             HighlightableTable(
@@ -213,7 +211,8 @@ private fun HighlightableBlockRenderer(
                 onHighlightRemove = onHighlightRemove,
                 onHighlightColorChange = onHighlightColorChange,
                 onLinkClick = onLinkClick,
-                onTooltipClick = onTooltipClick
+                onTooltipClick = onTooltipClick,
+                onShowSnackbar = onShowSnackbar
             )
         }
         
@@ -244,10 +243,11 @@ private fun HighlightableList(
     onHighlightRemove: (highlightId: Long) -> Unit,
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit
 ) {
     val richTextScale = LocalRichTextScale.current
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Xs)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
         var itemOffset = baseOffset
 
         items.forEachIndexed { index, itemText ->
@@ -264,7 +264,7 @@ private fun HighlightableList(
                 MaterialText(
                     text = markerProvider(index),
                     style = MaterialTheme.typography.bodyLarge.scaledBy(richTextScale.proseScale),
-                    modifier = Modifier.padding(end = Inset.Sm),
+                    modifier = Modifier.padding(end = Inset.Small),
                 )
                 HighlightableListItem(
                     text = itemText,
@@ -275,12 +275,13 @@ private fun HighlightableList(
                     onHighlightColorChange = onHighlightColorChange,
                     onLinkClick = onLinkClick,
                     onTooltipClick = onTooltipClick,
+                    onShowSnackbar = onShowSnackbar,
                     modifier = Modifier.weight(1f)
                 )
             }
 
-            // Move to next item (+1 for separator)
-            itemOffset += itemLength + 1
+            // Move to next item
+            itemOffset += itemLength + BLOCK_SEPARATOR_LENGTH
         }
     }
 }
@@ -298,6 +299,7 @@ private fun HighlightableListItem(
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit,
     modifier: Modifier = Modifier
 ) {
     SelectableHighlightText(
@@ -308,6 +310,7 @@ private fun HighlightableListItem(
         onHighlightColorChange = onHighlightColorChange,
         onLinkClick = onLinkClick,
         onTooltipClick = onTooltipClick,
+        onShowSnackbar = onShowSnackbar,
         modifier = modifier
     )
 }
@@ -324,7 +327,8 @@ private fun HighlightableTable(
     onHighlightRemove: (highlightId: Long) -> Unit,
     onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
     onLinkClick: (String) -> Unit,
-    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit
 ) {
     if (block.columnCount == 0) return
 
@@ -332,67 +336,114 @@ private fun HighlightableTable(
     val cellBaseOffsets = remember(renderModel, baseOffset) {
         buildTableCellBaseOffsets(renderModel, baseOffset)
     }
-    val scrollState = rememberScrollState()
-    val minTableWidth = 120.dp * renderModel.columnCount
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        BoxWithConstraints {
-            val tableWidth = max(minTableWidth, maxWidth)
-
-            Column(
-                modifier = Modifier
-                    .horizontalScroll(scrollState)
-                    .width(tableWidth)
-            ) {
-                renderModel.rows.forEachIndexed { rowIndex, row ->
-                    TableRowContent(
-                        row = row,
-                        tableClassNames = block.classNames,
+    RichTextTableShell(
+        block = block,
+        renderRow = { row, rowIndex ->
+            val isAbstractRow = row.classNames.containsInsensitive("abstract")
+            TableRowContent(
+                row = row,
+                tableClassNames = block.classNames,
+                onLinkClick = onLinkClick,
+                onTooltipClick = onTooltipClick,
+                isRowspanOverlayEnabled = true,
+                customCellContent = { cell, cellTextStyle, cellIndex ->
+                    HighlightableTableCell(
+                        cell = cell,
+                        cellTextStyle = cellTextStyle,
+                        cellIndex = cellIndex,
+                        rowIndex = rowIndex,
+                        cellBaseOffsets = cellBaseOffsets,
+                        highlights = highlights,
+                        onHighlightAdd = onHighlightAdd,
+                        onHighlightRemove = onHighlightRemove,
+                        onHighlightColorChange = onHighlightColorChange,
                         onLinkClick = onLinkClick,
                         onTooltipClick = onTooltipClick,
-                        customCellContent = { cell, cellTextStyle, cellIndex ->
-                            val currentCellOffset = if (cell.isVisible) {
-                                cellBaseOffsets.getOrNull(rowIndex)?.getOrNull(cellIndex)
-                            } else {
-                                null
-                            }
-
-                            if (currentCellOffset != null) {
-                                val cellLength = cell.cell.text.length
-                                val cellHighlights = remember(highlights, currentCellOffset, cellLength) {
-                                    mapHighlightsToLocal(
-                                        highlights = highlights,
-                                        start = currentCellOffset,
-                                        end = currentCellOffset + cellLength
-                                    )
-                                }
-
-                                SelectableHighlightText(
-                                    text = cell.cell.text,
-                                    highlights = cellHighlights,
-                                    textStyle = cellTextStyle,
-                                    onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
-                                    onHighlightRemove = onHighlightRemove,
-                                    onHighlightColorChange = onHighlightColorChange,
-                                    onLinkClick = onLinkClick,
-                                    onTooltipClick = onTooltipClick,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
+                        onShowSnackbar = onShowSnackbar,
+                        isAbstractRow = isAbstractRow
                     )
-
-                    if (rowIndex != renderModel.rows.lastIndex) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    }
                 }
-            }
+            )
+        },
+        renderAnchorContent = { cell, rowIndex, cellIndex ->
+            val rowIndexModel = renderModel.rows.getOrNull(rowIndex)
+            val isHeaderRow = rowIndexModel?.isHeaderRow ?: false
+            val isHeaderCell = isHeaderRow || cell.cell.isHeader
+            val isAbstractRow = (rowIndexModel?.classNames ?: emptySet()).containsInsensitive("abstract")
+            val textStyle = tableCellTextStyle(isHeaderCell)
+            HighlightableTableCell(
+                cell = cell,
+                cellTextStyle = textStyle,
+                cellIndex = cellIndex,
+                rowIndex = rowIndex,
+                cellBaseOffsets = cellBaseOffsets,
+                highlights = highlights,
+                onHighlightAdd = onHighlightAdd,
+                onHighlightRemove = onHighlightRemove,
+                onHighlightColorChange = onHighlightColorChange,
+                onLinkClick = onLinkClick,
+                onTooltipClick = onTooltipClick,
+                onShowSnackbar = onShowSnackbar,
+                isAbstractRow = isAbstractRow
+            )
         }
+    )
+}
+
+/**
+ * Shared highlightable cell rendering for both regular and anchor cells.
+ */
+@Composable
+private fun HighlightableTableCell(
+    cell: TableRenderedCell,
+    cellTextStyle: TextStyle,
+    cellIndex: Int,
+    rowIndex: Int,
+    cellBaseOffsets: List<List<Int?>>,
+    highlights: List<TextHighlight>,
+    onHighlightAdd: (startOffset: Int, endOffset: Int, text: String, color: HighlightColor) -> Unit,
+    onHighlightRemove: (highlightId: Long) -> Unit,
+    onHighlightColorChange: (highlightId: Long, color: HighlightColor) -> Unit,
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit,
+    isAbstractRow: Boolean = false
+) {
+    if (!cell.isVisible) return
+
+    val currentCellOffset = cellBaseOffsets.getOrNull(rowIndex)?.getOrNull(cellIndex)
+    if (currentCellOffset == null) return
+
+    val isHeaderCell = cell.cell.isHeader
+    val textColor = resolveCellTextColor(
+        isHeaderCell = isHeaderCell,
+        isAbstractRow = isAbstractRow,
+        cellClassNames = cell.cell.classNames
+    )
+
+    val cellLength = cell.cell.text.length
+    val cellHighlights = remember(highlights, currentCellOffset, cellLength) {
+        mapHighlightsToLocal(
+            highlights = highlights,
+            start = currentCellOffset,
+            end = currentCellOffset + cellLength
+        )
     }
+
+    SelectableHighlightText(
+        text = cell.cell.text,
+        highlights = cellHighlights,
+        textStyle = cellTextStyle.copy(textAlign = cell.cell.alignment),
+        color = textColor,
+        onHighlightAdd = mapOnHighlightAddToGlobal(currentCellOffset, onHighlightAdd),
+        onHighlightRemove = onHighlightRemove,
+        onHighlightColorChange = onHighlightColorChange,
+        onLinkClick = onLinkClick,
+        onTooltipClick = onTooltipClick,
+        onShowSnackbar = onShowSnackbar,
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 
@@ -421,15 +472,15 @@ private fun getBlockTextLength(block: RichTextBlock): Int {
     return when (block) {
         is RichTextBlock.Paragraph -> block.text.length
         is RichTextBlock.Heading -> block.text.length
-        is RichTextBlock.BulletList -> block.items.sumOf { it.length + 1 }
-        is RichTextBlock.OrderedList -> block.items.sumOf { it.length + 1 }
+        is RichTextBlock.BulletList -> block.items.sumOf { it.length + BLOCK_SEPARATOR_LENGTH }
+        is RichTextBlock.OrderedList -> block.items.sumOf { it.length + BLOCK_SEPARATOR_LENGTH }
         is RichTextBlock.CodeBlock -> block.text.length
         is RichTextBlock.Table -> {
             (block.headerRows + block.bodyRows).sumOf { row ->
                 row.cells.sumOf { it.text.length }
             }
         }
-        is RichTextBlock.AbstractBlock -> block.blocks.sumOf { getBlockTextLength(it) + 1 }
+        is RichTextBlock.AbstractBlock -> block.blocks.sumOf { getBlockTextLength(it) + BLOCK_SEPARATOR_LENGTH }
         is RichTextBlock.Media -> 0
         RichTextBlock.Divider -> 0
     }
@@ -453,7 +504,7 @@ private fun mapHighlightsToLocal(
 ): List<TextHighlight> {
     return getHighlightsForRange(highlights, start, end)
         .mapNotNull { highlight ->
-            val localStart = (max(highlight.startOffset, start) - start).coerceAtLeast(0)
+            val localStart = (kotlin.math.max(highlight.startOffset, start) - start).coerceAtLeast(0)
             val localEnd = (kotlin.math.min(highlight.endOffset, end) - start).coerceAtLeast(localStart)
             if (localEnd <= localStart) return@mapNotNull null
             highlight.copy(

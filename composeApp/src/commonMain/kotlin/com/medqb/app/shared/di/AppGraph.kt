@@ -5,6 +5,7 @@ import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.QuizSessionRepository
+import com.medqb.app.shared.data.SessionHistoryManager
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
 import com.medqb.app.shared.data.UserDataManager
@@ -27,6 +28,7 @@ import com.medqb.app.shared.viewmodel.SettingsViewModel
  */
 interface AppGraph {
     val activeDatabaseHolder: ActiveDatabaseHolder
+    val sessionHistoryManager: SessionHistoryManager
     val settingsRepository: SettingsRepository
     val localContentRepository: LocalContentRepository
     val userDataManager: UserDataManager

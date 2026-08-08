@@ -53,36 +53,52 @@ class SettingsRepository {
         ioScope.launch { refreshSettingsAsync() }
     }
 
+    /**
+     * Acquire the file lock while writing the in-memory StateFlow so a concurrent
+     * [refreshSettingsAsync] cannot overwrite a fresh setter value with stale file data.
+     * Without this, the race is:
+     *   1. refresh reads the file under the mutex
+     *   2. setter writes _showMetadata.value = true here
+     *   3. refresh's loadSettingsInternal() writes _showMetadata.value = staleFileValue
+     */
     fun setShowMetadata(enabled: Boolean) {
-        _showMetadata.value = enabled
-        ioScope.launch { saveSettingsAsync() }
+        ioScope.launch {
+            fileMutex.withLock { _showMetadata.value = enabled }
+            saveSettingsAsync()
+        }
     }
 
     fun setFontScalePreference(scale: Float?) {
-        _fontScalePreference.value = scale
-        ioScope.launch { saveSettingsAsync() }
+        ioScope.launch {
+            fileMutex.withLock { _fontScalePreference.value = scale }
+            saveSettingsAsync()
+        }
     }
 
     fun setLoggingEnabled(enabled: Boolean) {
-        _isLoggingEnabled.value = enabled
-        ioScope.launch { saveSettingsAsync() }
+        ioScope.launch {
+            fileMutex.withLock { _isLoggingEnabled.value = enabled }
+            saveSettingsAsync()
+        }
     }
 
     fun setSubmissionMode(mode: SubmissionMode) {
-        _submissionMode.value = mode
-        ioScope.launch { saveSettingsAsync() }
+        ioScope.launch {
+            fileMutex.withLock { _submissionMode.value = mode }
+            saveSettingsAsync()
+        }
     }
 
     suspend fun refreshSettingsAsync(): SettingsSnapshot = withContext(Dispatchers.IO) {
         fileMutex.withLock {
             loadSettingsInternal()
+            SettingsSnapshot(
+                showMetadata = _showMetadata.value,
+                fontScalePreference = _fontScalePreference.value,
+                isLoggingEnabled = _isLoggingEnabled.value,
+                submissionMode = _submissionMode.value,
+            )
         }
-        SettingsSnapshot(
-            showMetadata = _showMetadata.value,
-            fontScalePreference = _fontScalePreference.value,
-            isLoggingEnabled = _isLoggingEnabled.value,
-            submissionMode = _submissionMode.value,
-        )
     }
 
     suspend fun saveSettingsAsync() = withContext(Dispatchers.IO) {

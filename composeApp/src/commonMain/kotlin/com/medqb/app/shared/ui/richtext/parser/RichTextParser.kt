@@ -56,7 +56,9 @@ private class RichTextHandler(
 
     override fun onOpenTag(name: String, attributes: Map<String, String>, isImplied: Boolean) {
         // Decode HTML entities in attribute values
-        val decodedAttributes = attributes.mapValues { (_, value) -> HtmlEntities.decode(value) }
+        val decodedAttributes = attributes.mapValues { (_, value) ->
+            HtmlEntities.decode(value).replaceWindows1252C1Controls()
+        }
         val newElement = KsoupElement(name, decodedAttributes, currentElement)
         if (currentElement == null) {
             rootElements.add(newElement)
@@ -69,7 +71,7 @@ private class RichTextHandler(
     override fun onText(text: String) {
         if (text.isEmpty()) return
         // Decode HTML entities like &#39; to ' and &amp; to &
-        val decodedText = HtmlEntities.decode(text)
+        val decodedText = HtmlEntities.decode(text).replaceWindows1252C1Controls()
         val textNode = KsoupTextNode(decodedText, currentElement)
         if (currentElement == null) {
             rootElements.add(textNode)
@@ -79,7 +81,7 @@ private class RichTextHandler(
     }
 
     override fun onCloseTag(name: String, isImplied: Boolean) {
-        if (currentElement?.tagName == name) {
+        if (currentElement?.tagName.equals(name, ignoreCase = true)) {
             currentElement = currentElement?.parent
         }
     }
@@ -107,7 +109,7 @@ private class RichTextDomParser(
     ): List<RichTextBlock> {
         // Prevent stack overflow from deeply nested or malicious HTML
         if (depth >= RichTextParserConfig.MAX_RECURSION_DEPTH) {
-            println("RichText: Maximum recursion depth reached at $depth levels")
+            RichTextParserLogger.log("Maximum recursion depth reached at $depth levels")
             return emptyList()
         }
 
@@ -312,8 +314,9 @@ private class RichTextDomParser(
                 // Check if this is a block-level element
                 val isBlockTag = (tag == "p" || RichTextParserConfig.blockLevelChildTags.contains(tag)) && tag != "li"
                 if (isBlockTag) {
-                    val currentLength = this.toAnnotatedString().length
-                    val endsWithNewline = currentLength > 0 && this.toAnnotatedString()[currentLength - 1] == '\n'
+                    val built = this.toAnnotatedString()
+                    val currentLength = built.length
+                    val endsWithNewline = currentLength > 0 && built[currentLength - 1] == '\n'
                     if (currentLength > 0 && !endsWithNewline) {
                         append("\n")
                     }
@@ -327,8 +330,9 @@ private class RichTextDomParser(
 
                 if (tag == "li") {
                     val parent = node.parent
-                    val currentLength = this.toAnnotatedString().length
-                    val endsWithNewline = currentLength > 0 && this.toAnnotatedString()[currentLength - 1] == '\n'
+                    val built = this.toAnnotatedString()
+                    val currentLength = built.length
+                    val endsWithNewline = currentLength > 0 && built[currentLength - 1] == '\n'
                     val prefix = if (currentLength == 0 || endsWithNewline) "" else "\n"
                     
                     // Add indentation for nested lists (2 spaces per level beyond the first)
@@ -388,8 +392,9 @@ private class RichTextDomParser(
                 appendNodes(node.children, nextStyle, palette, newListDepth)
 
                 if (isBlockTag) {
-                    val currentLength = this.toAnnotatedString().length
-                    val endsWithNewline = currentLength > 0 && this.toAnnotatedString()[currentLength - 1] == '\n'
+                    val built = this.toAnnotatedString()
+                    val currentLength = built.length
+                    val endsWithNewline = currentLength > 0 && built[currentLength - 1] == '\n'
                     if (currentLength > 0 && !endsWithNewline) {
                         append("\n")
                     }
@@ -455,7 +460,7 @@ private class RichTextDomParser(
 
         // Prevent memory exhaustion from excessively large tables
         if (allRows.size > RichTextParserConfig.MAX_TABLE_ROWS) {
-            println("RichText: Table has ${allRows.size} rows, limiting to ${RichTextParserConfig.MAX_TABLE_ROWS}")
+            RichTextParserLogger.log("Table has ${allRows.size} rows, limiting to ${RichTextParserConfig.MAX_TABLE_ROWS}")
             while (allRows.size > RichTextParserConfig.MAX_TABLE_ROWS) {
                 allRows.removeLast()
             }
@@ -492,7 +497,7 @@ private class RichTextDomParser(
 
         // Prevent memory exhaustion from tables with too many columns
         if (columnCount > RichTextParserConfig.MAX_TABLE_COLUMNS) {
-            println("RichText: Table has $columnCount columns, limiting to ${RichTextParserConfig.MAX_TABLE_COLUMNS}")
+            RichTextParserLogger.log("Table has $columnCount columns, limiting to ${RichTextParserConfig.MAX_TABLE_COLUMNS}")
             columnCount = RichTextParserConfig.MAX_TABLE_COLUMNS
         }
 

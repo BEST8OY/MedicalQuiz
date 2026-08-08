@@ -5,7 +5,7 @@ import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.Subject
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.data.models.System
-import com.medqb.app.shared.ui.screens.FilterPane
+import com.medqb.app.shared.ui.screens.filter.FilterPane
 import com.medqb.app.shared.utils.Resource
 
 /**

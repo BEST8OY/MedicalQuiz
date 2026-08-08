@@ -3,7 +3,6 @@ package com.medqb.app.shared.ui.entry
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -33,6 +32,6 @@ fun SettingsEntry(
         fontScalePreference = fontScalePreference,
         onShowMetadataToggle = { settingsVM.setShowMetadata(it) },
         onFontScaleChange = { settingsVM.setFontScalePreference(it) },
-        onBack = dropUnlessResumed { navigator.navigateBack() },
+        onBack = { navigator.navigateBack() },
     )
 }

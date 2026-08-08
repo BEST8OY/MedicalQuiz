@@ -35,7 +35,7 @@ fun DatabaseSelectionEntry(
         onRefreshDatabases = { dbVM.refreshDatabases() },
         onDatabaseSelected = { dbName ->
             workflow.onDatabaseSelected(dbName)
-            navigator.navigateTo(MedQBRoutes.Filter)
+            navigator.navigateTo(MedQBRoutes.Filter())
         },
         onOpenSettings = {
             navigator.navigateTo(MedQBRoutes.Settings)

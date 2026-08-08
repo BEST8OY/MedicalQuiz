@@ -13,9 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingToolbarDefaults
@@ -23,14 +23,14 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
-import com.medqb.app.shared.ui.theme.Layout
+import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
 
 data class QuizBottomToolbarUiState(
@@ -54,45 +54,73 @@ fun QuizFloatingToolbar(
 ) {
     BoxWithConstraints(modifier = modifier) {
         val motionScheme = MaterialTheme.motionScheme
-        val isExpanded = maxWidth >= Layout.CompactBreakpoint
+        val isExpanded = maxWidth >= ScreenLayout.CompactWidthBreakpoint
         val currentQuestionNumber = uiState.currentQuestionIndex + 1
         val questionLabel = "$currentQuestionNumber / ${uiState.totalQuestions}"
 
         HorizontalFloatingToolbar(
             expanded = true,
-            modifier = Modifier.padding(horizontal = if (isExpanded) Spacing.Lg else Spacing.Md),
+            modifier = Modifier.padding(horizontal = if (isExpanded) Spacing.Large else Spacing.Medium),
             colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
             contentPadding = FloatingToolbarDefaults.ContentPadding,
             leadingContent = {
-                IconButton(
-                    onClick = onPrevious,
-                    enabled = uiState.hasPreviousQuestion,
-                    modifier = Modifier
-                        .sizeIn(minWidth = Layout.MinTouchTarget, minHeight = Layout.MinTouchTarget)
-                        .semantics { contentDescription = "Previous question" },
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = null,
-                    )
+                if (isExpanded) {
+                    TextButton(
+                        onClick = onPrevious,
+                        enabled = uiState.hasPreviousQuestion,
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = null,
+                        )
+                        Spacer(modifier = Modifier.width(Spacing.ExtraSmall))
+                        Text(
+                            text = "Prev",
+                            style = MaterialTheme.typography.labelLargeEmphasized,
+                        )
+                    }
+                } else {
+                    IconButton(
+                        onClick = onPrevious,
+                        enabled = uiState.hasPreviousQuestion,
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Previous question",
+                        )
+                    }
                 }
             },
             trailingContent = {
-                IconButton(
-                    onClick = onNext,
-                    enabled = uiState.hasNextQuestion,
-                    modifier = Modifier
-                        .sizeIn(minWidth = Layout.MinTouchTarget, minHeight = Layout.MinTouchTarget)
-                        .semantics { contentDescription = "Next question" },
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                        contentDescription = null,
-                    )
+                if (isExpanded) {
+                    TextButton(
+                        onClick = onNext,
+                        enabled = uiState.hasNextQuestion,
+                    ) {
+                        Text(
+                            text = "Next",
+                            style = MaterialTheme.typography.labelLargeEmphasized,
+                        )
+                        Spacer(modifier = Modifier.width(Spacing.ExtraSmall))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                            contentDescription = null,
+                        )
+                    }
+                } else {
+                    IconButton(
+                        onClick = onNext,
+                        enabled = uiState.hasNextQuestion,
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                            contentDescription = "Next question",
+                        )
+                    }
                 }
             },
             content = {
-                Spacer(modifier = Modifier.width(Spacing.Xs))
+                Spacer(modifier = Modifier.width(Spacing.Small))
 
                 AnimatedVisibility(
                     visible = uiState.showSubmitButton,
@@ -105,37 +133,31 @@ fun QuizFloatingToolbar(
                         FilledTonalButton(
                             onClick = onSubmit,
                             enabled = uiState.canSubmit,
-                            modifier = Modifier.sizeIn(minHeight = Spacing.MdLg),
+                            modifier = Modifier.sizeIn(minHeight = Spacing.MediumLarge),
                         ) {
                             Text(text = "Submit")
                         }
-                        Spacer(modifier = Modifier.width(Spacing.Xs))
+                        Spacer(modifier = Modifier.width(Spacing.Small))
                     }
                 }
 
-                Surface(
+                FilledTonalButton(
                     onClick = onJumpTo,
-                    shape = MaterialTheme.shapes.extraLarge,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier
-                        .sizeIn(minHeight = Spacing.MdLg)
-                        .semantics {
-                            contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}. Tap to jump."
-                        },
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    ),
+                    modifier = Modifier.semantics {
+                        contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}. Tap to jump."
+                    },
                 ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = Spacing.Md, vertical = Spacing.Xs),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = questionLabel,
-                            style = MaterialTheme.typography.labelLargeEmphasized,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                    }
+                    Text(
+                        text = questionLabel,
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                    )
                 }
 
-                Spacer(modifier = Modifier.width(Spacing.Xs))
+                Spacer(modifier = Modifier.width(Spacing.Small))
             }
         )
     }

@@ -1,5 +1,7 @@
 package com.medqb.app.shared.ui.dialogs
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -50,13 +52,12 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun JumpToDialog(
-    isVisible: Boolean,
     totalQuestions: Int,
     currentIndex: Int,
     onJumpTo: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    if (!isVisible || totalQuestions <= 0) return
+    if (totalQuestions <= 0) return
 
     val clampedCurrent = (currentIndex + 1).coerceIn(1, totalQuestions)
     var inputValue by rememberSaveable(totalQuestions, currentIndex) {
@@ -78,7 +79,7 @@ fun JumpToDialog(
     }
 
     DialogShell(onDismiss = onDismiss) {
-        Column {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             DialogHeader(
                 title = "Jump to question",
                 subtitle = "Currently on $clampedCurrent of $totalQuestions",
@@ -86,8 +87,8 @@ fun JumpToDialog(
             )
 
             Column(
-                modifier = Modifier.padding(horizontal = Inset.Lg),
-                verticalArrangement = Arrangement.spacedBy(Spacing.MdLg)
+                modifier = Modifier.padding(horizontal = Inset.Large),
+                verticalArrangement = Arrangement.spacedBy(Spacing.MediumLarge)
             ) {
                 // Number input with stepper buttons
                 Row(
@@ -107,14 +108,15 @@ fun JumpToDialog(
                         Icon(Icons.Rounded.Remove, "Decrease")
                     }
 
+                    val maxDigits = totalQuestions.toString().length
                     OutlinedTextField(
                         value = inputValue,
                         onValueChange = { value ->
-                            inputValue = value.filter { it.isDigit() }.take(4)
+                            inputValue = value.filter { it.isDigit() }.take(maxDigits)
                         },
                         modifier = Modifier
                             .width(120.dp)
-                            .padding(horizontal = Spacing.Sm),
+                            .padding(horizontal = Spacing.MediumSmall),
                         textStyle = MaterialTheme.typography.titleLarge.copy(
                             textAlign = TextAlign.Center,
                             fontWeight = FontWeight.SemiBold
@@ -155,7 +157,8 @@ fun JumpToDialog(
 
                 // Slider for quick navigation
                 if (totalQuestions > 1) {
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Xs)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
+                        val sliderSteps = if (totalQuestions > 50) 0 else (totalQuestions - 2).coerceAtLeast(0)
                         Slider(
                             value = sliderValue,
                             onValueChange = { newValue ->
@@ -164,7 +167,7 @@ fun JumpToDialog(
                                 inputValue = snapped.toString()
                             },
                             valueRange = 1f..totalQuestions.toFloat(),
-                            steps = (totalQuestions - 2).coerceAtLeast(0),
+                            steps = sliderSteps,
                             colors = SliderDefaults.colors(
                                 thumbColor = MaterialTheme.colorScheme.primary,
                                 activeTrackColor = MaterialTheme.colorScheme.primary

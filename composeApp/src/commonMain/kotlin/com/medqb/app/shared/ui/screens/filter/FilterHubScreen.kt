@@ -1,4 +1,4 @@
-package com.medqb.app.shared.ui.screens
+package com.medqb.app.shared.ui.screens.filter
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -10,19 +10,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.medqb.app.shared.ui.theme.ScreenLayout
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.SubmissionMode
-import com.medqb.app.shared.ui.screens.FilterPane
+import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.ui.dialogs.PerformanceFilterDialog
 import com.medqb.app.shared.ui.dialogs.SubjectFilterDialog
 import com.medqb.app.shared.ui.dialogs.SystemFilterDialog
 import com.medqb.app.shared.ui.screens.history.HistoryPane
+import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.viewmodel.FilterHubViewModel
 
 @Composable
@@ -32,7 +32,8 @@ internal fun FilterHubScreen(
     onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
     onLoggingToggle: (Boolean) -> Unit,
     onSubmissionModeToggle: (SubmissionMode) -> Unit,
-    onShowSnackbar: suspend (String) -> Unit = {},
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
+    onDismissSnackbar: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val performanceLabel = formatPerformanceLabel(state.performanceFilter)
@@ -45,7 +46,12 @@ internal fun FilterHubScreen(
 
     FilterPaneScaffold(
         selectedPane = state.activePane,
-        onPaneSelected = { viewModel.setActivePane(it) },
+        onPaneSelected = { pane ->
+            if (pane != state.activePane) {
+                onDismissSnackbar()
+                viewModel.setActivePane(pane)
+            }
+        },
         showPaneToolbar = !historySelectionMode || state.activePane == FilterPane.Filters,
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -55,8 +61,8 @@ internal fun FilterHubScreen(
             AnimatedContent(
                 targetState = state.activePane,
                 transitionSpec = {
-                    fadeIn(animationSpec = motionScheme.defaultEffectsSpec())
-                        .togetherWith(fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
+                    fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                        fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                 },
                 label = "filter_pane_content",
             ) { activePane ->
@@ -84,21 +90,29 @@ internal fun FilterHubScreen(
                                 viewModel.fetchSystemsForSubjects(subjects)
                             },
                             onSelectPerformance = { showPerformanceDialog = true },
-                            onStart = onStartQuiz,
+                            onStart = {
+                                onDismissSnackbar()
+                                onStartQuiz()
+                            },
                             onClearFilters = { viewModel.clearAllFilters() },
                         )
                     }
                     FilterPane.History -> {
                         HistoryPane(
                             historyEntries = state.historyEntries,
-                            onHistorySelected = onHistorySelected,
+                            onHistorySelected = { entry ->
+                                onDismissSnackbar()
+                                onHistorySelected(entry)
+                            },
                             onDeleteHistoryEntries = { viewModel.deleteHistoryEntries(it) },
                             onRenameHistoryEntry = { id, name -> viewModel.renameHistoryEntry(id, name) },
                             onCopyAllQids = { entries, onCopied ->
                                 viewModel.copyQuestionIdsForHistoryEntries(entries, onCopied)
                             },
                             onSelectionModeChanged = { historySelectionMode = it },
+                            onUndoDelete = { viewModel.undoHistoryEntry(it) },
                             onShowSnackbar = onShowSnackbar,
+                            onDismissSnackbar = onDismissSnackbar,
                         )
                     }
                 }
@@ -108,16 +122,11 @@ internal fun FilterHubScreen(
 
     if (showSubjectDialog) {
         SubjectFilterDialog(
-            isVisible = true,
             resource = state.subjectsResource,
             selectedIds = state.selectedSubjectIds,
             onRetry = { viewModel.fetchSubjects() },
             onApply = { selected ->
                 viewModel.applySelectedSubjects(selected)
-                showSubjectDialog = false
-            },
-            onClear = {
-                viewModel.applySelectedSubjects(emptySet())
                 showSubjectDialog = false
             },
             onDismiss = { showSubjectDialog = false }
@@ -126,7 +135,6 @@ internal fun FilterHubScreen(
 
     if (showSystemDialog) {
         SystemFilterDialog(
-            isVisible = true,
             resource = state.systemsResource,
             selectedIds = state.selectedSystemIds,
             onRetry = {
@@ -135,10 +143,6 @@ internal fun FilterHubScreen(
             },
             onApply = { selected ->
                 viewModel.applySelectedSystems(selected)
-                showSystemDialog = false
-            },
-            onClear = {
-                viewModel.applySelectedSystems(emptySet())
                 showSystemDialog = false
             },
             onDismiss = { showSystemDialog = false }

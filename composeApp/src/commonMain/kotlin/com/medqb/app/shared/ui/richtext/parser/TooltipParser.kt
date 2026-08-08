@@ -149,7 +149,7 @@ internal object TooltipParser {
         val handler = object : KsoupHtmlHandler {
             val sb = StringBuilder()
             override fun onText(text: String) {
-                sb.append(text)
+                sb.append(text.replaceWindows1252C1Controls())
             }
         }
         val parser = KsoupHtmlParser(handler)

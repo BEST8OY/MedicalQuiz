@@ -43,12 +43,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // ----- Kotlin Compiler Options (NEW DSL – replaces kotlinOptions) -----
+    // ----- Kotlin Compiler Options -----
     kotlin {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-
-            // (Optional but recommended for Kotlin 2.2)
             freeCompilerArgs.addAll(
                 "-opt-in=kotlin.RequiresOptIn"
             )
@@ -57,11 +55,6 @@ android {
 
     buildFeatures {
         compose = true
-    }
-
-    composeOptions {
-        // Compose Compiler now auto-matches Kotlin 2.2 because of the plugin
-        // No need to specify kotlinCompilerExtensionVersion
     }
 }
 
@@ -78,8 +71,8 @@ dependencies {
     // ----- Jetpack Compose -----
     implementation(platform(libs.androidx.compose.bom))
 
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.material3:material3")
+    implementation(libs.compose.ui)
+    implementation(libs.compose.material3)
     implementation(libs.compose.materialIconsExtended)
     implementation(libs.androidx.activity.compose)
 
@@ -90,7 +83,7 @@ dependencies {
 
     implementation(project(":composeApp"))
 
-    // Instrumentation tests (R6 lifecycle coverage)
+    // Instrumentation tests
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)

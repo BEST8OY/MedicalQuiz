@@ -23,7 +23,7 @@ data class AppWorkflowState(
 )
 
 /**
- * Mirror of [com.medqb.app.shared.ui.screens.FilterPane] used at
+ * Mirror of [com.medqb.app.shared.ui.screens.filter.FilterPane] used at
  * the orchestration layer so the domain/orchestration packages stay
  * decoupled from UI enums.
  */

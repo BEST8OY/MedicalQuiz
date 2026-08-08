@@ -22,9 +22,9 @@ fun EmptyStateMessage(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = ScreenLayout.EmptyStateTopPadding),
+            .padding(top = ScreenLayout.EmptyStatePadding),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.Sm, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall, Alignment.CenterVertically),
     ) {
         Text(
             text = title,

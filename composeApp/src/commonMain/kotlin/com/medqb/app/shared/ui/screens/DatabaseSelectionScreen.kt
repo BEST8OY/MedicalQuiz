@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -30,6 +31,7 @@ import com.medqb.app.shared.ui.components.EmptyStateMessage
 import com.medqb.app.shared.ui.components.MedQBTopBar
 import com.medqb.app.shared.ui.components.SettingsActionButton
 import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,16 +60,19 @@ fun DatabaseSelectionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
+            contentAlignment = Alignment.TopCenter,
         ) {
             PullToRefreshBox(
                 isRefreshing = isLoading,
                 onRefresh = onRefreshDatabases,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = ScreenLayout.WideWidthBreakpoint),
             ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.Sm),
-                    contentPadding = PaddingValues(start = Inset.Md, top = Inset.Md, end = Inset.Md, bottom = Spacing.Lg),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall),
+                    contentPadding = PaddingValues(start = Inset.Medium, top = Inset.Medium, end = Inset.Medium, bottom = Spacing.Large),
                 ) {
                     if (databases.isEmpty() && !isLoading) {
                         item {
@@ -104,15 +109,15 @@ private fun DatabaseItemCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(Spacing.Md),
+                .padding(Spacing.Medium),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Md),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Medium),
         ) {
             Icon(
                 imageVector = Icons.Filled.Storage,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(Spacing.Xl),
+                modifier = Modifier.size(Spacing.ExtraLarge),
             )
             Text(
                 text = name,

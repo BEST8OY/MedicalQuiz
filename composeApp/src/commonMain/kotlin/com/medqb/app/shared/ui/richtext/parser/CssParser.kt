@@ -110,9 +110,10 @@ internal object CssParser {
         if (alignAttr.isNotEmpty()) {
             return when (alignAttr.lowercase()) {
                 "center" -> TextAlign.Center
-                "right" -> TextAlign.End
+                "right", "end" -> TextAlign.End
                 "justify" -> TextAlign.Justify
-                else -> TextAlign.Start
+                "left", "start" -> TextAlign.Start
+                else -> null // Unknown value: treat as absent per HTML spec
             }
         }
         val style = styleAttr.lowercase()
@@ -120,9 +121,10 @@ internal object CssParser {
             val value = style.substringAfter("text-align").substringAfter(":").substringBefore(";").trim()
             return when (value) {
                 "center" -> TextAlign.Center
-                "right" -> TextAlign.End
+                "right", "end" -> TextAlign.End
                 "justify" -> TextAlign.Justify
-                else -> TextAlign.Start
+                "left", "start" -> TextAlign.Start
+                else -> null // Unknown value: treat as absent per CSS spec
             }
         }
         return null

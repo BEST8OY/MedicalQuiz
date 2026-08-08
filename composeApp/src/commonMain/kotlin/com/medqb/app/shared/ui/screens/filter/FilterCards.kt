@@ -1,4 +1,4 @@
-package com.medqb.app.shared.ui.screens
+package com.medqb.app.shared.ui.screens.filter
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -6,20 +6,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterAltOff
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.ButtonGroup
@@ -40,121 +32,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import com.medqb.app.shared.data.database.PerformanceFilter
-import com.medqb.app.shared.data.models.SubmissionMode
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import com.medqb.app.shared.ui.theme.ElementSize
+import com.medqb.app.shared.ui.theme.ContainerSize
+import com.medqb.app.shared.ui.theme.IconSize
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 
-@Composable
-internal fun FilterScreen(
-    databaseName: String,
-    subjectCount: Int,
-    systemCount: Int,
-    performanceFilter: PerformanceFilter,
-    performanceLabel: String,
-    previewCount: Int,
-    isLoggingEnabled: Boolean,
-    onLoggingToggle: (Boolean) -> Unit,
-    submissionMode: SubmissionMode = SubmissionMode.INSTANT,
-    onSubmissionModeToggle: (SubmissionMode) -> Unit,
-    bottomContentPadding: Dp = 0.dp,
-    onSelectSubjects: () -> Unit,
-    onSelectSystems: () -> Unit,
-    onSelectPerformance: () -> Unit,
-    onStart: () -> Unit,
-    onClearFilters: () -> Unit
-) {
-    val hasPreview = previewCount > 0
-    val hasFilters = subjectCount > 0 || systemCount > 0 || performanceFilter != PerformanceFilter.ALL
-
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    start = Inset.Lg,
-                    top = Inset.Xl,
-                    end = Inset.Lg,
-                    bottom = Inset.Xl + bottomContentPadding,
-                )
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(Spacing.Xl)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.Xl)
-                ) {
-                    DatabaseHeaderCard(databaseName = databaseName)
-
-                    FilterPreviewCard(previewCount = previewCount)
-
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Md)) {
-                        FilterSelectionCard(
-                            title = "Subjects",
-                            subtitle = if (subjectCount == 0) "All subjects" else "$subjectCount selected",
-                            icon = Icons.Filled.Category,
-                            isActive = subjectCount > 0,
-                            onClick = onSelectSubjects
-                        )
-
-                        FilterSelectionCard(
-                            title = "Systems",
-                            subtitle = if (systemCount == 0) "All systems" else "$systemCount selected",
-                            icon = Icons.Filled.Layers,
-                            isActive = systemCount > 0,
-                            onClick = onSelectSystems
-                        )
-
-                        FilterSelectionCard(
-                            title = "Performance",
-                            subtitle = performanceLabel,
-                            icon = Icons.AutoMirrored.Filled.TrendingUp,
-                            isActive = performanceFilter != PerformanceFilter.ALL,
-                            onClick = onSelectPerformance
-                        )
-
-                        ToggleCard(
-                            icon = Icons.Filled.Edit,
-                            title = "Manual Submission",
-                            description = "Review your answer before submitting",
-                            checked = submissionMode == SubmissionMode.MANUAL,
-                            onCheckedChange = { checked ->
-                                onSubmissionModeToggle(if (checked) SubmissionMode.MANUAL else SubmissionMode.INSTANT)
-                            }
-                        )
-
-                        ToggleCard(
-                            icon = Icons.Filled.History,
-                            title = "Track Session Progress",
-                            description = "Record answer logs for historical tracking",
-                            checked = isLoggingEnabled,
-                            onCheckedChange = onLoggingToggle
-                        )
-                    }
-                }
-
-                PrimaryActionButtonGroup(
-                    hasPreview = hasPreview,
-                    hasFilters = hasFilters,
-                    onStart = onStart,
-                    onClearFilters = onClearFilters
-                )
-            }
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
-private fun ToggleCard(
+internal fun ToggleCard(
     icon: ImageVector,
     title: String,
     description: String,
@@ -203,14 +89,14 @@ private fun ToggleCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Md, vertical = Spacing.Md),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Lg),
+                .padding(horizontal = Inset.Medium, vertical = Spacing.Medium),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Large),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = iconContainerColor,
-                modifier = Modifier.size(ElementSize.IconContainerLg)
+                modifier = Modifier.size(ContainerSize.Large)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -223,7 +109,7 @@ private fun ToggleCard(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)
+                verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)
             ) {
                 Text(
                     text = title,
@@ -248,7 +134,7 @@ private fun ToggleCard(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun DatabaseHeaderCard(databaseName: String) {
+internal fun DatabaseHeaderCard(databaseName: String) {
     val motionScheme = MaterialTheme.motionScheme
     val containerColor by animateColorAsState(
         targetValue = MaterialTheme.colorScheme.secondaryContainer,
@@ -263,14 +149,14 @@ private fun DatabaseHeaderCard(databaseName: String) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Spacing.MdLg, vertical = Spacing.Lg),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Lg),
+                .padding(horizontal = Spacing.MediumLarge, vertical = Spacing.Large),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Large),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(ElementSize.IconContainerMd)
+                modifier = Modifier.size(ContainerSize.Medium)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -300,7 +186,7 @@ private fun DatabaseHeaderCard(databaseName: String) {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun FilterPreviewCard(previewCount: Int) {
+internal fun FilterPreviewCard(previewCount: Int) {
     val hasPreview = previewCount > 0
     val statusText = when {
         previewCount > 1 -> "$previewCount questions available"
@@ -328,8 +214,8 @@ private fun FilterPreviewCard(previewCount: Int) {
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = Inset.Lg, vertical = Spacing.MdLg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Sm)
+            modifier = Modifier.padding(horizontal = Inset.Large, vertical = Spacing.MediumLarge),
+            verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)
         ) {
             Text(
                 text = statusText,
@@ -348,7 +234,7 @@ private fun FilterPreviewCard(previewCount: Int) {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun FilterSelectionCard(
+internal fun FilterSelectionCard(
     title: String,
     subtitle: String,
     icon: ImageVector,
@@ -398,14 +284,14 @@ private fun FilterSelectionCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Md, vertical = Spacing.Md),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Lg),
+                .padding(horizontal = Inset.Medium, vertical = Spacing.Medium),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.Large),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = iconContainerColor,
-                modifier = Modifier.size(ElementSize.IconContainerLg)
+                modifier = Modifier.size(ContainerSize.Large)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -418,7 +304,7 @@ private fun FilterSelectionCard(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(Spacing.Xxs)
+                verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)
             ) {
                 Text(
                     text = title,
@@ -438,7 +324,7 @@ private fun FilterSelectionCard(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun PrimaryActionButtonGroup(
+internal fun PrimaryActionButtonGroup(
     hasPreview: Boolean,
     hasFilters: Boolean,
     onStart: () -> Unit,
@@ -447,7 +333,7 @@ private fun PrimaryActionButtonGroup(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.Sm),
+            .padding(horizontal = Spacing.MediumSmall),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -517,7 +403,7 @@ private fun ButtonGroupScope.StartQuizButtonGroupItem(
             Icon(
                 imageVector = Icons.Filled.PlayArrow,
                 contentDescription = null,
-                modifier = Modifier.size(ElementSize.IconMd),
+                modifier = Modifier.size(IconSize.Medium),
             )
         },
         enabled = hasPreview,
@@ -536,7 +422,7 @@ private fun ButtonGroupScope.ResetFiltersButtonGroupItem(
             Icon(
                 imageVector = Icons.Filled.FilterAltOff,
                 contentDescription = null,
-                modifier = Modifier.size(ElementSize.IconMd),
+                modifier = Modifier.size(IconSize.Medium),
             )
         },
         weight = 1f,

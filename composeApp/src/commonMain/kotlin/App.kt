@@ -1,21 +1,30 @@
 package com.medqb.app.shared
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.navigation3.runtime.metadata
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,12 +44,16 @@ import coil3.compose.setSingletonImageLoaderFactory
 import com.medqb.app.shared.data.MediaDescription
 import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.domain.AppIntent
+import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.navigation.AppNavigator
-import com.medqb.app.shared.ui.screens.FilterPane
+import com.medqb.app.shared.navigation.rememberMedQBNavEntries
+import com.medqb.app.shared.ui.screens.filter.FilterPane
 import com.medqb.app.shared.orchestration.RequestedFilterPane
 import com.medqb.app.shared.orchestration.rememberAppWorkflow
 import com.medqb.app.shared.ui.theme.AppTheme
+import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.ui.entry.DatabaseSelectionEntry
 import com.medqb.app.shared.ui.entry.FilterEntry
 import com.medqb.app.shared.ui.entry.HtmlViewerEntry
@@ -48,6 +61,7 @@ import com.medqb.app.shared.ui.entry.MediaViewerEntry
 import com.medqb.app.shared.ui.entry.QuizEntry
 import com.medqb.app.shared.ui.entry.SettingsEntry
 import com.medqb.app.shared.ui.media.MediaHandler
+import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -104,6 +118,7 @@ fun App() {
         val workflow = rememberAppWorkflow(
             workflowCoordinator = graph.workflowCoordinator,
             filterStateHolder = graph.filterStateHolder,
+            userDataManager = graph.userDataManager,
         )
 
         val mediaDescriptionsFlow = remember { MutableStateFlow<Map<String, MediaDescription>>(emptyMap()) }
@@ -149,123 +164,97 @@ fun App() {
                 }
             }
             launch {
-                graph.snackbarDispatcher.messages.collect { message ->
-                    snackbarHostState.showSnackbar(message)
+                graph.snackbarDispatcher.messages.collect { snackbarMessage ->
+                    when (snackbarMessage) {
+                        is SnackbarMessage.Simple -> {
+                            snackbarHostState.showSnackbar(snackbarMessage.message)
+                        }
+                        is SnackbarMessage.Action -> {
+                            val result = snackbarHostState.showSnackbar(
+                                message = snackbarMessage.message,
+                                actionLabel = snackbarMessage.actionLabel,
+                                duration = snackbarMessage.duration,
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                snackbarMessage.onActionPerformed()
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        val returnQuizToFilter: () -> Unit = {
-            val targetPane = workflow.onQuizReturn()
-            navigator.returnQuizToFilter()
-            targetPane?.let {
-                val pane = when (it) {
-                    RequestedFilterPane.Filters -> FilterPane.Filters
-                    RequestedFilterPane.History -> FilterPane.History
+        val returnQuizToFilter: () -> Unit = remember(workflow, navigator) {
+            {
+                val targetPane = workflow.onQuizReturn()
+                val paneName = when (targetPane) {
+                    RequestedFilterPane.Filters -> FilterPane.Filters.name
+                    RequestedFilterPane.History -> FilterPane.History.name
+                    null -> null
                 }
-                graph.filterStateHolder.setPendingFilterPane(pane)
+                navigator.returnQuizToFilter(paneName)
             }
         }
 
-        val entryProvider = remember(
-            graph,
-            workflow,
-            navigator,
-            mediaHandler,
-            mediaDescriptionsFlow,
-            returnQuizToFilter,
-        ) {
-            entryProvider<NavKey> {
-                entry<MedQBRoutes.DatabaseSelection> {
-                    DatabaseSelectionEntry(
-                        graph = graph,
-                        workflow = workflow,
-                        navigator = navigator,
-                    )
-                }
-
-                entry<MedQBRoutes.Filter> {
-                    FilterEntry(
-                        graph = graph,
-                        workflow = workflow,
-                        navigator = navigator,
-                    )
-                }
-
-
-
-                entry<MedQBRoutes.Quiz> {
-                    QuizEntry(
-                        graph = graph,
-                        workflow = workflow,
-                        navigator = navigator,
-                        mediaHandler = mediaHandler,
-                        onReturnToFilter = returnQuizToFilter,
-                    )
-                }
-
-                entry<MedQBRoutes.Settings> {
-                    SettingsEntry(
-                        graph = graph,
-                        navigator = navigator,
-                    )
-                }
-
-                entry<MedQBRoutes.MediaViewer> { key ->
-                    MediaViewerEntry(
-                        key = key,
-                        graph = graph,
-                        navigator = navigator,
-                        mediaHandler = mediaHandler,
-                        mediaDescriptionsFlow = mediaDescriptionsFlow,
-                    )
-                }
-
-                entry<MedQBRoutes.HtmlViewer> { key ->
-                    HtmlViewerEntry(
-                        key = key,
-                        graph = graph,
-                        navigator = navigator,
-                        mediaHandler = mediaHandler,
-                    )
-                }
-            }
-        }
+        val entryProvider = rememberMedQBNavEntries(
+            graph = graph,
+            workflow = workflow,
+            navigator = navigator,
+            mediaHandler = mediaHandler,
+            mediaDescriptionsFlow = mediaDescriptionsFlow,
+            snackbarHostState = snackbarHostState,
+            onReturnQuizToFilter = returnQuizToFilter,
+        )
 
         Box {
-            NavDisplay(
-                backStack = backStack,
-                onBack = {
-                    if (navigator.currentRoute is MedQBRoutes.Quiz) {
-                        returnQuizToFilter()
-                    } else {
-                        navigator.navigateBack()
-                    }
-                },
-                entryProvider = entryProvider,
-                entryDecorators = listOf(
-                    rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator()
-                ),
-                transitionSpec = {
-                    slideInHorizontally(initialOffsetX = { it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { -it })
-                },
-                popTransitionSpec = {
-                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { it })
-                },
-                predictivePopTransitionSpec = {
-                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { it })
+            @OptIn(ExperimentalSharedTransitionApi::class)
+            SharedTransitionLayout {
+                CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
+                    NavDisplay(
+                        backStack = backStack,
+                        onBack = {
+                            snackbarHostState.currentSnackbarData?.dismiss()
+                            if (navigator.currentRoute is MedQBRoutes.Quiz) {
+                                returnQuizToFilter()
+                            } else {
+                                navigator.navigateBack()
+                            }
+                        },
+                        entryProvider = entryProvider,
+                        entryDecorators = listOf(
+                            rememberSaveableStateHolderNavEntryDecorator(),
+                            rememberViewModelStoreNavEntryDecorator()
+                        ),
+                        sharedTransitionScope = this@SharedTransitionLayout,
+                        transitionSpec = {
+                            slideInHorizontally(initialOffsetX = { it }) togetherWith
+                                slideOutHorizontally(targetOffsetX = { -it })
+                        },
+                        popTransitionSpec = {
+                            slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                                slideOutHorizontally(targetOffsetX = { it })
+                        },
+                        predictivePopTransitionSpec = {
+                            slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                                slideOutHorizontally(targetOffsetX = { it })
+                        }
+                    )
                 }
-            )
+            }
 
+            val isFilterRoute by remember(backStack) {
+                derivedStateOf { navigator.currentRoute is MedQBRoutes.Filter }
+            }
             SnackbarHost(
                 hostState = snackbarHostState,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .navigationBarsPadding()
+                    .padding(
+                        start = Inset.Medium,
+                        end = Inset.Medium,
+                        bottom = if (isFilterRoute) 80.dp else Spacing.MediumSmall,
+                    ),
                 snackbar = { data ->
                     Snackbar(
                         snackbarData = data,
