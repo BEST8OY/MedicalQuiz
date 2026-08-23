@@ -67,7 +67,10 @@ kotlin {
 
                 // Room 3
                 implementation(libs.room3.runtime)
-                
+
+                // DataStore (settings persistence)
+                implementation(libs.datastore.preferences.core)
+
                 // Navigation 3
                 implementation(libs.androidx.navigation3.ui)
                 implementation(libs.androidx.lifecycle.viewmodel.navigation3)

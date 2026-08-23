@@ -3,7 +3,6 @@ package com.medqb.app.shared.orchestration
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.DatabaseManager
 import com.medqb.app.shared.data.LocalContentRepository
-import com.medqb.app.shared.data.SessionHistoryManager
 import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.navigation.QuizLaunchSource
 import com.medqb.app.shared.platform.FileSystemHelper
@@ -16,7 +15,6 @@ import dev.zacsweers.metro.Inject
 class AppStartupCoordinator(
     private val localContentRepository: LocalContentRepository,
     private val activeDatabaseHolder: ActiveDatabaseHolder,
-    private val sessionHistoryManager: SessionHistoryManager,
 ) {
     suspend fun initializeApp(userDataManager: UserDataManager): List<String> {
         userDataManager.init()
@@ -41,17 +39,15 @@ class AppStartupCoordinator(
     }
 
     private suspend fun ensureDatabaseInitialized(dbName: String, userDataManager: UserDataManager): String {
-        val currentName = activeDatabaseHolder.databaseName.value
-        val currentProvider = activeDatabaseHolder.databaseProvider.value
-        if (currentName == dbName.removeSuffix(".db") && currentProvider != null) return dbName
+        val current = activeDatabaseHolder.activeDatabase.value
+        // Single atomic snapshot — name and connection can never disagree here.
+        if (current != null && current.matchesFileName(dbName)) return dbName
 
         val dbPath = FileSystemHelper.getDatabasePath(dbName)
-        val sessionHistoryDao = sessionHistoryManager.sessionHistoryDao()
-        val roomLogDao = userDataManager.logDao()
-        val databaseManager = DatabaseManager(dbPath, dbName.removeSuffix(".db"), sessionHistoryDao, roomLogDao)
+        val databaseManager = DatabaseManager(dbPath, dbName.removeSuffix(".db"), userDataManager)
         databaseManager.init()
 
-        activeDatabaseHolder.setDatabase(dbName.removeSuffix(".db"), databaseManager)
+        activeDatabaseHolder.setDatabase(dbName, databaseManager)
         return dbName
     }
 }

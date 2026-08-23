@@ -7,9 +7,8 @@ import com.medqb.app.shared.data.dao.QuestionDao
 import com.medqb.app.shared.data.dao.SubjectDao
 import com.medqb.app.shared.data.database.DatabaseProvider
 import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.QuestionDetails
 import com.medqb.app.shared.data.database.QuestionPerformance
-import com.medqb.app.shared.data.local.dao.RoomLogDao
-import com.medqb.app.shared.data.local.dao.RoomSessionHistoryDao
 import com.medqb.app.shared.data.models.Answer
 import com.medqb.app.shared.data.models.Question
 import com.medqb.app.shared.data.models.Subject
@@ -23,8 +22,7 @@ import kotlinx.coroutines.withContext
 class DatabaseManager(
     private val dbPath: String,
     val dbName: String,
-    private val sessionHistoryDao: RoomSessionHistoryDao,
-    private val roomLogDao: RoomLogDao,
+    private val userDataManager: UserDataManager,
 ) : DatabaseProvider {
     private val driver = BundledSQLiteDriver()
     private var connection: SQLiteConnection? = null
@@ -37,9 +35,14 @@ class DatabaseManager(
 
     init {
         val connProvider = { getConnection() }
-        questionDao = QuestionDao(connProvider, mutex, { isStringIds }, ::getSubjectNames, ::getSystemNames, roomLogDao)
         subjectDao = SubjectDao(connProvider, mutex)
-        logDao = LogDao(roomLogDao, sessionHistoryDao)
+        questionDao = QuestionDao(
+            connProvider,
+            mutex,
+            { isStringIds },
+            getLogDao = { userDataManager.logDao() }
+        )
+        logDao = LogDao(userDataManager)
     }
 
     suspend fun init() = withContext(Dispatchers.IO) {
@@ -97,12 +100,12 @@ class DatabaseManager(
     override suspend fun getQuestionWithDetails(
         questionId: Long,
         loadPerformance: Boolean,
-    ): Triple<Question?, List<Answer>, QuestionPerformance?> {
-        val (question, answers, _) = questionDao.getQuestionWithDetails(questionId)
+    ): QuestionDetails {
+        val (question, answers) = questionDao.getQuestionWithDetails(questionId)
         val performance = if (loadPerformance && question != null) {
-            getQuestionPerformance(dbName, questionId)
+            getQuestionPerformance(questionId)
         } else null
-        return Triple(question, answers, performance)
+        return QuestionDetails.from(question, answers, performance)
     }
 
     override suspend fun countQuestionIds(
@@ -116,7 +119,6 @@ class DatabaseManager(
     override suspend fun getSystems(subjectIds: List<Long>?): List<System> = subjectDao.getSystems(subjectIds)
 
     override suspend fun logAnswer(
-        dbName: String,
         qid: Long,
         selectedAnswer: Int,
         corrAnswer: Int,
@@ -124,23 +126,18 @@ class DatabaseManager(
         sessionId: String
     ) = logDao.logAnswer(dbName, qid, selectedAnswer, corrAnswer, time, sessionId)
 
-    override suspend fun clearLogForQuestion(dbName: String, qid: Long) = logDao.clearLogForQuestion(dbName, qid)
+    override suspend fun clearLogForQuestion(qid: Long) = logDao.clearLogForQuestion(dbName, qid)
 
-    override suspend fun getQuestionPerformance(dbName: String, qid: Long): QuestionPerformance? = withContext(Dispatchers.IO) {
-        roomLogDao.getQuestionPerformance(dbName, qid)?.let {
-            QuestionPerformance(
-                qid = qid,
-                lastCorrect = it.lastCorrect == 1L,
-                everCorrect = it.everCorrect == 1L,
-                everIncorrect = it.everIncorrect == 1L,
-                attempts = it.attempts.toInt(),
-                correctCount = it.correctCount.toInt(),
-                incorrectCount = it.incorrectCount.toInt(),
-            )
-        }
+    override suspend fun getQuestionPerformance(qid: Long): QuestionPerformance? = withContext(Dispatchers.IO) {
+        val result = userDataManager.logDao().getQuestionPerformance(dbName, qid) ?: return@withContext null
+        QuestionPerformance(
+            qid = qid,
+            lastCorrect = result.lastCorrect == 1L,
+            everCorrect = result.everCorrect == 1L,
+            everIncorrect = result.everIncorrect == 1L,
+            attempts = result.attempts.toInt(),
+            correctCount = result.correctCount.toInt(),
+            incorrectCount = result.incorrectCount.toInt(),
+        )
     }
-
-    private fun getSubjectNames(idsStr: String): String = subjectDao.getSubjectNames(idsStr)
-
-    private fun getSystemNames(idsStr: String): String = subjectDao.getSystemNames(idsStr)
 }

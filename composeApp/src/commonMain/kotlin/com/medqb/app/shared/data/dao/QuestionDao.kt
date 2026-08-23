@@ -2,7 +2,6 @@ package com.medqb.app.shared.data.dao
 
 import androidx.sqlite.SQLiteConnection
 import com.medqb.app.shared.data.database.PerformanceFilter
-import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.local.dao.RoomLogDao
 import com.medqb.app.shared.data.models.Answer
 import com.medqb.app.shared.data.models.Question
@@ -15,9 +14,7 @@ class QuestionDao(
     private val getConnection: () -> SQLiteConnection,
     private val mutex: Mutex,
     private val isStringIds: () -> Boolean,
-    private val getSubjectNames: (String) -> String,
-    private val getSystemNames: (String) -> String,
-    private val roomLogDao: RoomLogDao,
+    private val getLogDao: suspend () -> RoomLogDao,
 ) {
     suspend fun getQuestionIds(
         dbName: String,
@@ -26,10 +23,7 @@ class QuestionDao(
         performanceFilter: PerformanceFilter
     ): List<Long> = withContext(Dispatchers.IO) {
         mutex.withLock {
-            // For performance filters, get logged qids from Room first
-            val loggedQids = if (performanceFilter != PerformanceFilter.ALL) {
-                roomLogDao.getAllLoggedQids(dbName).toSet()
-            } else emptySet()
+            val perfMatcher = resolvePerformanceMatcher(dbName, performanceFilter)
 
             val args = mutableListOf<Any>()
             val whereClauses = mutableListOf<String>()
@@ -57,20 +51,12 @@ class QuestionDao(
                 bindArgs(stmt, args)
                 while (stmt.step()) {
                     val qid = stmt.getLong(0)
-                    // Apply performance filter using Room data
-                    if (performanceFilter == PerformanceFilter.ALL || qid in loggedQids) {
+                    if (perfMatcher == null || perfMatcher(qid)) {
                         result.add(qid)
                     }
                 }
             }
-
-            // For now, return all matching qids (performance filtering is approximate)
-            // A more precise implementation would query Room for each qid's performance
-            if (performanceFilter == PerformanceFilter.ALL) {
-                result
-            } else {
-                result.takeIf { it.isNotEmpty() } ?: emptyList()
-            }
+            result
         }
     }
 
@@ -82,13 +68,16 @@ class QuestionDao(
         mutex.withLock { getAnswersForQuestionInternal(questionId) }
     }
 
+    /**
+     * Question + answers fetched under a single lock acquisition.
+     */
     suspend fun getQuestionWithDetails(
         questionId: Long,
-    ): Triple<Question?, List<Answer>, QuestionPerformance?> = withContext(Dispatchers.IO) {
+    ): Pair<Question?, List<Answer>> = withContext(Dispatchers.IO) {
         mutex.withLock {
             val question = getQuestionByIdInternal(questionId)
             val answers = if (question != null) getAnswersForQuestionInternal(questionId) else emptyList()
-            Triple(question, answers, null)
+            question to answers
         }
     }
 
@@ -106,8 +95,8 @@ class QuestionDao(
                 val subIdStr = if (stmt.isNull(9)) null else stmt.getText(9)
                 val sysIdStr = if (stmt.isNull(10)) null else stmt.getText(10)
 
-                val subName = subIdStr?.let { getSubjectNames(it) }
-                val sysName = sysIdStr?.let { getSystemNames(it) }
+                val subName = subIdStr?.let { lookupNamesUnderLock(it, "Subjects") }
+                val sysName = sysIdStr?.let { lookupNamesUnderLock(it, "Systems") }
 
                 question = Question(
                     id = stmt.getLong(0),
@@ -130,7 +119,8 @@ class QuestionDao(
     }
 
     private fun getAnswersForQuestionInternal(questionId: Long): List<Answer> {
-        val sql = "SELECT id, answerId, answerText, correctPercentage, qId FROM Answers WHERE qId = ?"
+        // ORDER BY id gives a deterministic position for Question.corrAns (1-based index).
+        val sql = "SELECT id, answerId, answerText, correctPercentage, qId FROM Answers WHERE qId = ? ORDER BY id"
         val answers = mutableListOf<Answer>()
         getConnection().prepare(sql).use { stmt ->
             stmt.bindLong(1, questionId)
@@ -146,36 +136,70 @@ class QuestionDao(
         return answers
     }
 
+    /**
+     * Preview count for the given filters. Deliberately derived from [getQuestionIds]
+     * rather than a second query: the count feeds the exact selection the quiz will
+     * load, so both must share one query path and can never drift apart.
+     */
     suspend fun countQuestionIds(
         dbName: String,
         subjectIds: List<Long>?,
         systemIds: List<Long>?,
         performanceFilter: PerformanceFilter,
-    ): Int = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            val args = mutableListOf<Any>()
-            val whereClauses = mutableListOf<String>()
+    ): Int = getQuestionIds(dbName, subjectIds, systemIds, performanceFilter).size
 
-            subjectIds?.takeIf { it.isNotEmpty() }?.let {
-                whereClauses.add(buildMultiValueCondition("q.subId", it, args))
-            }
-            systemIds?.takeIf { it.isNotEmpty() }?.let {
-                whereClauses.add(buildMultiValueCondition("q.sysId", it, args))
-            }
+    /**
+     * Returns a predicate selecting question ids that satisfy [performanceFilter] according
+     * to the user's logs, or `null` when every question matches ([PerformanceFilter.ALL]).
+     * The filter is resolved entirely in SQL — each query returns exactly the matching qids.
+     */
+    private suspend fun resolvePerformanceMatcher(
+        dbName: String,
+        performanceFilter: PerformanceFilter
+    ): ((Long) -> Boolean)? {
+        val logDao = getLogDao()
+        return when (performanceFilter) {
+            PerformanceFilter.ALL -> null
+            PerformanceFilter.UNANSWERED -> notIn(logDao.getAllLoggedQids(dbName))
+            PerformanceFilter.LAST_CORRECT -> inSet(logDao.getLastCorrectQids(dbName))
+            PerformanceFilter.LAST_INCORRECT -> inSet(logDao.getLastIncorrectQids(dbName))
+            PerformanceFilter.EVER_CORRECT -> inSet(logDao.getEverCorrectQids(dbName))
+            PerformanceFilter.EVER_INCORRECT -> inSet(logDao.getEverIncorrectQids(dbName))
+        }
+    }
 
-            val sql = buildString {
-                append("SELECT COUNT(*) FROM Questions q")
-                if (whereClauses.isNotEmpty()) {
-                    append(" WHERE ")
-                    append(whereClauses.joinToString(" AND "))
+    private fun inSet(qids: List<Long>): (Long) -> Boolean {
+        val set = qids.toSet()
+        return { qid -> qid in set }
+    }
+
+    private fun notIn(qids: List<Long>): (Long) -> Boolean {
+        val set = qids.toSet()
+        return { qid -> qid !in set }
+    }
+
+    /**
+     * Look up display names for a comma-separated id string against [table]
+     * ("Subjects" or "Systems"). Only callable from code already holding [mutex] —
+     * it executes SQL directly so no path can touch the connection unlocked.
+     */
+    private fun lookupNamesUnderLock(idsStr: String, table: String): String {
+        val ids = idsStr.split(",").mapNotNull { it.trim().toLongOrNull() }
+        if (ids.isEmpty()) return ""
+
+        val placeholders = ids.joinToString(",") { "?" }
+        val sql = "SELECT name FROM $table WHERE id IN ($placeholders)"
+
+        val names = mutableListOf<String>()
+        getConnection().prepare(sql).use { stmt ->
+            ids.forEachIndexed { index, id -> stmt.bindLong(index + 1, id) }
+            while (stmt.step()) {
+                if (!stmt.isNull(0)) {
+                    names.add(stmt.getText(0))
                 }
             }
-
-            getConnection().prepare(sql).use { stmt ->
-                bindArgs(stmt, args)
-                if (stmt.step()) stmt.getLong(0).toInt() else 0
-            }
         }
+        return names.joinToString(", ")
     }
 
     private fun buildMultiValueCondition(

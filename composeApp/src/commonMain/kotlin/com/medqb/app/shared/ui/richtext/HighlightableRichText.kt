@@ -8,12 +8,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
-import com.medqb.app.shared.data.TextHighlightsRepository
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.data.models.HighlightColor
@@ -36,18 +34,25 @@ private const val BLOCK_SEPARATOR_LENGTH = 1
 
 /**
  * RichText composable with text highlighting support.
- * 
+ *
+ * Pure presentation: highlights and mutation callbacks are passed in — typically
+ * from the quiz UI state — so this composable holds no data-layer dependencies and
+ * renders whatever it is given, atomically with its text.
+ *
  * This extends the base RichText with the ability to:
  * - Long-press to select text
  * - Drag to adjust selection
  * - Tap color to create highlight
  * - Tap existing highlight to edit/delete
- * 
+ *
  * @param html The HTML string to render
  * @param section Which section this is (QUESTION or EXPLANATION)
- * @param highlightsRepository Repository for managing text highlights
+ * @param highlights Saved highlights for this section, in global offsets
  * @param modifier Modifier to apply to the root layout
  * @param showSelectedHighlight Whether to show 'selected' class highlights
+ * @param onHighlightAdd Called when the user creates a highlight (global offsets)
+ * @param onHighlightRemove Called when the user deletes a highlight
+ * @param onHighlightColorChange Called when the user recolors a highlight
  * @param onLinkClick Optional callback when a link is clicked
  * @param onMediaClick Optional callback when media is clicked
  */
@@ -55,9 +60,12 @@ private const val BLOCK_SEPARATOR_LENGTH = 1
 fun HighlightableRichText(
     html: String,
     section: HighlightSection,
-    highlightsRepository: TextHighlightsRepository?,
+    highlights: List<TextHighlight>,
     modifier: Modifier = Modifier,
     showSelectedHighlight: Boolean = false,
+    onHighlightAdd: ((HighlightSection, startOffset: Int, endOffset: Int, highlightedText: String, color: HighlightColor) -> Unit)? = null,
+    onHighlightRemove: ((highlightId: Long) -> Unit)? = null,
+    onHighlightColorChange: ((highlightId: Long, color: HighlightColor) -> Unit)? = null,
     onLinkClick: ((String) -> Unit)? = null,
     onMediaClick: ((String) -> Unit)? = null,
     onTooltipClick: ((String) -> Unit)? = null,
@@ -68,54 +76,45 @@ fun HighlightableRichText(
         if (html.trim().isEmpty()) emptyList()
         else RichTextParser.parse(html.trim(), palette, showSelectedHighlight)
     }
-    
-    // Get highlights for this section - proper StateFlow collection with stable dependencies
-    val questionHighlightsState = highlightsRepository?.questionHighlights?.collectAsStateWithLifecycle()
-    val explanationHighlightsState = highlightsRepository?.explanationHighlights?.collectAsStateWithLifecycle()
-    
-    val highlights = when (section) {
-        HighlightSection.QUESTION -> questionHighlightsState?.value ?: emptyList()
-        HighlightSection.EXPLANATION -> explanationHighlightsState?.value ?: emptyList()
-    }
-    
+
     val resolvedLinkHandler = rememberResolvedLinkHandler(onLinkClick, sourceTag = "HighlightableRichText")
     val resolvedMediaHandler = rememberResolvedMediaHandler(onMediaClick)
     val tooltipSupport = rememberRichTextTooltipSupport(
         resetKey = blocks,
         onTooltipClick = onTooltipClick
     )
-    
+
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)
     ) {
         // Track cumulative offset across blocks for proper highlight mapping
         var cumulativeOffset = 0
-        
+
         blocks.forEach { block ->
             HighlightableBlockRenderer(
                 block = block,
                 highlights = highlights,
                 baseOffset = cumulativeOffset,
                 onHighlightAdd = { start, end, text, color ->
-                    highlightsRepository?.addHighlight(section, start, end, text, color)
+                    onHighlightAdd?.invoke(section, start, end, text, color)
                 },
                 onHighlightRemove = { id ->
-                    highlightsRepository?.removeHighlight(id)
+                    onHighlightRemove?.invoke(id)
                 },
                 onHighlightColorChange = { id, color ->
-                    highlightsRepository?.updateHighlightColor(id, color)
+                    onHighlightColorChange?.invoke(id, color)
                 },
                 onLinkClick = resolvedLinkHandler,
                 onMediaClick = resolvedMediaHandler,
                 onTooltipClick = tooltipSupport.onTooltipClick,
                 onShowSnackbar = onShowSnackbar
             )
-            
+
             cumulativeOffset += getBlockTextLength(block) + BLOCK_SEPARATOR_LENGTH
         }
     }
-    
+
     RichTextTooltipBottomSheet(
         content = tooltipSupport.tooltipContent,
         onDismissRequest = tooltipSupport.dismissTooltip

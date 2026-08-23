@@ -4,7 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.orchestration.AppStartupCoordinator
+import com.medqb.app.shared.platform.Logger
 import dev.zacsweers.metro.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,25 +29,39 @@ class DatabaseSelectionViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    // Serializes init load vs user-triggered refresh; latest request wins.
+    private var loadJob: Job? = null
+
     init {
         initializeApp()
     }
 
     private fun initializeApp() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            val dbs = startupCoordinator.initializeApp(userDataManager)
-            _availableDatabases.value = dbs
-            _isLoading.value = false
-        }
+        loadDatabases { startupCoordinator.initializeApp(userDataManager) }
     }
 
     fun refreshDatabases() {
-        viewModelScope.launch {
+        loadDatabases { startupCoordinator.refreshDatabases() }
+    }
+
+    private fun loadDatabases(block: suspend () -> List<String>) {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _isLoading.value = true
-            val dbs = startupCoordinator.refreshDatabases()
-            _availableDatabases.value = dbs
-            _isLoading.value = false
+            _errorMessage.value = null
+            try {
+                _availableDatabases.value = block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("DatabaseSelectionViewModel", "Error loading database list", e)
+                _errorMessage.value = "Couldn't load QBanks: ${e.message ?: "unknown error"}"
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 }

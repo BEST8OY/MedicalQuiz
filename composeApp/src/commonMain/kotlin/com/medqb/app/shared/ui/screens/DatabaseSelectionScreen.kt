@@ -39,6 +39,7 @@ import com.medqb.app.shared.ui.theme.Spacing
 fun DatabaseSelectionScreen(
     databases: List<String>,
     isLoading: Boolean,
+    errorMessage: String?,
     onRefreshDatabases: () -> Unit,
     onDatabaseSelected: (String) -> Unit,
     onOpenSettings: () -> Unit,
@@ -77,8 +78,9 @@ fun DatabaseSelectionScreen(
                     if (databases.isEmpty() && !isLoading) {
                         item {
                             EmptyStateMessage(
-                                title = "No QBanks found",
-                                subtitle = "Add .db files to /MedQB/QBanks and pull to refresh.",
+                                title = if (errorMessage != null) "Couldn't load QBanks" else "No QBanks found",
+                                subtitle = errorMessage
+                                    ?: "Add .db files to /MedQB/QBanks and pull to refresh.",
                             )
                         }
                     } else {

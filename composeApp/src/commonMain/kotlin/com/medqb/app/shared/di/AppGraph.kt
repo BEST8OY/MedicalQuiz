@@ -2,10 +2,12 @@ package com.medqb.app.shared.di
 
 import androidx.lifecycle.SavedStateHandle
 import com.medqb.app.shared.data.ActiveDatabaseHolder
+import com.medqb.app.shared.data.DataStoreSettingsRepository
+import com.medqb.app.shared.data.DefaultQuizSessionRepository
+import com.medqb.app.shared.data.DefaultTextHighlightsRepository
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.QuizSessionRepository
-import com.medqb.app.shared.data.SessionHistoryManager
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
 import com.medqb.app.shared.data.UserDataManager
@@ -21,6 +23,7 @@ import com.medqb.app.shared.viewmodel.DatabaseSelectionViewModel
 import com.medqb.app.shared.viewmodel.FilterHubViewModel
 import com.medqb.app.shared.viewmodel.QuizViewModel
 import com.medqb.app.shared.viewmodel.SettingsViewModel
+import dev.zacsweers.metro.Binds
 
 /**
  * Common dependency graph interface.
@@ -28,7 +31,6 @@ import com.medqb.app.shared.viewmodel.SettingsViewModel
  */
 interface AppGraph {
     val activeDatabaseHolder: ActiveDatabaseHolder
-    val sessionHistoryManager: SessionHistoryManager
     val settingsRepository: SettingsRepository
     val localContentRepository: LocalContentRepository
     val userDataManager: UserDataManager
@@ -43,6 +45,15 @@ interface AppGraph {
     val startupCoordinator: AppStartupCoordinator
     val workflowCoordinator: AppWorkflowCoordinator
     val mediaNavigationCoordinator: MediaNavigationCoordinator
+
+    @Binds
+    fun bindSettingsRepository(impl: DataStoreSettingsRepository): SettingsRepository
+
+    @Binds
+    fun bindQuizSessionRepository(impl: DefaultQuizSessionRepository): QuizSessionRepository
+
+    @Binds
+    fun bindTextHighlightsRepository(impl: DefaultTextHighlightsRepository): TextHighlightsRepository
 
     fun createDatabaseSelectionViewModel(): DatabaseSelectionViewModel {
         return DatabaseSelectionViewModel(

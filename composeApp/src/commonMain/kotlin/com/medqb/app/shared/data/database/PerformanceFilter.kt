@@ -8,3 +8,4 @@ enum class PerformanceFilter {
     EVER_CORRECT,
     EVER_INCORRECT
 }
+

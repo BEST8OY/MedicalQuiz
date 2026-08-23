@@ -2,7 +2,6 @@ package com.medqb.app.shared.data.local.dao
 
 import androidx.room3.Dao
 import androidx.room3.Insert
-import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
 import androidx.room3.Transaction
 import com.medqb.app.shared.data.local.entity.TextHighlightEntity
@@ -28,7 +27,7 @@ interface RoomTextHighlightDao {
     )
     suspend fun getAllForQuestion(dbName: String, questionId: Long): List<TextHighlightEntity>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert
     suspend fun insert(highlight: TextHighlightEntity): Long
 
     @Query("DELETE FROM text_highlights WHERE id = :id")

@@ -193,9 +193,7 @@ private fun QuizQuestionCard(
             answer.answerId to sanitized
         }
     }
-    val correctAnswerId = remember(question.id, answers) {
-        answers.getOrNull(question.corrAns - 1)?.answerId?.toInt()
-    }
+    val correctAnswerId = state.correctAnswerId
     val answerPercentages = remember(answers) {
         val total = answers.sumOf { it.correctPercentage ?: 0 }
         if (total == 0) {
@@ -244,8 +242,11 @@ private fun QuizQuestionCard(
                 HighlightableRichText(
                     html = questionHtml,
                     section = HighlightSection.QUESTION,
-                    highlightsRepository = viewModel.highlightsRepository,
+                    highlights = state.questionHighlights,
                     showSelectedHighlight = state.answerSubmitted,
+                    onHighlightAdd = viewModel::addHighlight,
+                    onHighlightRemove = viewModel::removeHighlight,
+                    onHighlightColorChange = viewModel::changeHighlightColor,
                     onLinkClick = linkHandler,
                     onMediaClick = mediaClick,
                     onShowSnackbar = viewModel::emitSnackbar,
@@ -314,8 +315,11 @@ private fun QuizQuestionCard(
                         HighlightableRichText(
                             html = explanationHtml,
                             section = HighlightSection.EXPLANATION,
-                            highlightsRepository = viewModel.highlightsRepository,
+                            highlights = state.explanationHighlights,
                             showSelectedHighlight = state.answerSubmitted,
+                            onHighlightAdd = viewModel::addHighlight,
+                            onHighlightRemove = viewModel::removeHighlight,
+                            onHighlightColorChange = viewModel::changeHighlightColor,
                             onLinkClick = linkHandler,
                             onMediaClick = mediaClick,
                             onShowSnackbar = viewModel::emitSnackbar

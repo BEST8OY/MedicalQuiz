@@ -40,8 +40,10 @@ class AppHistoryCoordinator(
     suspend fun getQuestionIdsForHistoryEntries(
         entries: List<QuizSessionRepository.QuizSession>,
     ): String = withContext(Dispatchers.IO) {
-        val db = activeDatabaseHolder.databaseProvider.value
-        val activeDbName = activeDatabaseHolder.databaseName.value
+        // One atomic snapshot — the connection and its name always agree.
+        val active = activeDatabaseHolder.activeDatabase.value
+        val db = active?.provider
+        val activeDbName = active?.name.orEmpty()
         buildString {
             entries.forEach { entry ->
                 if (entry.databaseName != activeDbName) return@forEach

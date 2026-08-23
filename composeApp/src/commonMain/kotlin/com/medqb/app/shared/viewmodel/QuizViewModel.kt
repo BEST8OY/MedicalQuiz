@@ -10,13 +10,17 @@ import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.models.HighlightColor
+import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.SubmissionMode
+import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.domain.LoadQuestionUseCase
 import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.ui.state.QuizUiState
 import dev.zacsweers.metro.Inject
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
@@ -24,16 +28,14 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.getAndUpdate
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -52,6 +54,7 @@ class QuizViewModel(
     private val loadQuestionUseCase: LoadQuestionUseCase,
     private val snackbarSink: SnackbarSink,
     private val filterStateHolder: FilterStateHolder,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
 
     private companion object {
@@ -75,9 +78,21 @@ class QuizViewModel(
     private val sessionId: String
         get() = sessionIdState.value
     private var filteredIdsJob: Job? = null
-    private val loadRequests = MutableSharedFlow<LoadRequest>(extraBufferCapacity = 1)
+    // Name of the database whose question ids were last (re)loaded. Distinguishes
+    // "first load / db switched" from "filters legitimately produced zero results".
+    private var loadedForDbName: String? = null
+    private var loadSeq = 0L
+
+    /**
+     * Navigation requests. A StateFlow (not a SharedFlow) so an emission made before
+     * the collector subscribes is never lost; [LoadRequest.seq] makes consecutive
+     * requests distinguishable, and collectLatest cancels any in-flight load when a
+     * newer request arrives — latest navigation wins.
+     */
+    private val loadRequests = MutableStateFlow<LoadRequest?>(null)
 
     private data class LoadRequest(
+        val seq: Long,
         val index: Int,
         val resetAnswerState: Boolean,
         val appendToHistory: Boolean,
@@ -92,64 +107,73 @@ class QuizViewModel(
         observeSettings()
 
         viewModelScope.launch {
-            activeDatabaseHolder.databaseName.collect { dbName ->
-                if (dbName.isNotEmpty() && (dbName != _state.value.databaseName || _state.value.questionIds.isEmpty())) {
-                    val startFromBeginning = _state.value.currentQuestionIndex <= 0
+            activeDatabaseHolder.activeDatabase.collect { active ->
+                val dbName = active?.name ?: return@collect
+
+                val isFirstLoad = loadedForDbName == null
+                val dbChanged = dbName != loadedForDbName
+                if (isFirstLoad || dbChanged) {
+                    loadedForDbName = dbName
                     _state.update { it.copy(databaseName = dbName, questionIds = emptyList()) }
+                    // First load after process restore resumes the saved position;
+                    // switching to a different QBank restarts at the first question.
                     loadFilteredQuestionIds(
                         updatePreviewCount = true,
-                        startFromBeginning = startFromBeginning
+                        startFromBeginning = !isFirstLoad
                     )
                 }
             }
         }
 
-        loadRequests
-            .flatMapLatest { request ->
-                flow {
-                    val ids = state.value.questionIds
-                    val questionId = ids.getOrNull(request.index) ?: return@flow
+        viewModelScope.launch {
+            loadRequests.collectLatest { request ->
+                if (request == null) return@collectLatest
 
-                    _state.update { it.copy(isLoading = true, currentPerformance = null) }
-                    val db = activeDatabaseHolder.databaseProvider.value
-                    try {
-                        val result = loadQuestionUseCase(
-                            db = db,
-                            questionId = questionId,
-                            isLoggingEnabled = state.value.isLoggingEnabled,
-                        )
-                        currentCoroutineContext().ensureActive()
-                        _state.update {
-                            it.copy(currentQuestionIndex = request.index)
-                                .copyWithQuestion(
-                                    question = result.question,
-                                    answers = result.answers,
-                                    resetAnswerState = request.resetAnswerState
-                                )
-                                .copy(currentPerformance = result.performance)
-                        }
-                        persistStateSnapshot()
-                        if (result.question != null) {
-                            textHighlightsRepository.loadHighlightsForQuestion(
-                                dbName = state.value.databaseName,
-                                questionId = result.question.id
-                            )
-                        }
-                        if (request.appendToHistory) {
-                            appendToHistory()
-                        }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Logger.e("QuizViewModel", "Error loading question $questionId", e)
-                        emitSnackbar("Failed to load question: ${e.message}")
-                    } finally {
-                        _state.update { it.copy(isLoading = false) }
+                val ids = state.value.questionIds
+                val questionId = ids.getOrNull(request.index) ?: return@collectLatest
+
+                _state.update { it.copy(isLoading = true, currentPerformance = null) }
+                val active = activeDatabaseHolder.activeDatabase.value
+                val db = active?.provider
+                try {
+                    val result = loadQuestionUseCase(
+                        db = db,
+                        dbName = state.value.databaseName,
+                        questionId = questionId,
+                        isLoggingEnabled = state.value.isLoggingEnabled,
+                    )
+                    currentCoroutineContext().ensureActive()
+                    // The database was switched while this load was in flight —
+                    // drop the result instead of publishing stale question state.
+                    if (active != null && activeDatabaseHolder.activeDatabase.value !== active) {
+                        return@collectLatest
                     }
-                    emit(Unit)
+                    _state.update {
+                        it.copy(currentQuestionIndex = request.index)
+                            .copyWithQuestion(
+                                question = result.question,
+                                answers = result.answers,
+                                correctAnswerId = result.correctAnswerId,
+                                questionHighlights = result.questionHighlights,
+                                explanationHighlights = result.explanationHighlights,
+                                resetAnswerState = request.resetAnswerState
+                            )
+                            .copy(currentPerformance = result.performance)
+                    }
+                    persistStateSnapshot()
+                    if (request.appendToHistory) {
+                        appendToHistory()
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Logger.e("QuizViewModel", "Error loading question $questionId", e)
+                    emitSnackbar("Failed to load question: ${e.message}")
+                } finally {
+                    _state.update { it.copy(isLoading = false) }
                 }
             }
-            .launchIn(viewModelScope)
+        }
     }
 
     private fun restoreFromSavedState() {
@@ -182,8 +206,77 @@ class QuizViewModel(
         savedStateHandle[KEY_SUBMISSION_MODE] = snapshot.submissionMode.name
     }
 
-    val highlightsRepository: TextHighlightsRepository
-        get() = textHighlightsRepository
+    /**
+     * Highlight intents. Each captures the question the user was viewing at dispatch
+     * time; the resulting DB write targets that question, and the refreshed list is
+     * only published while the UI still displays it — a mutation can never leak into
+     * another question's state.
+     */
+    fun addHighlight(
+        section: HighlightSection,
+        startOffset: Int,
+        endOffset: Int,
+        highlightedText: String,
+        color: HighlightColor = HighlightColor.YELLOW,
+    ) {
+        mutateHighlights { dbName, questionId ->
+            textHighlightsRepository.addHighlight(
+                dbName = dbName,
+                questionId = questionId,
+                section = section,
+                startOffset = startOffset,
+                endOffset = endOffset,
+                highlightedText = highlightedText,
+                color = color,
+            )
+        }
+    }
+
+    fun removeHighlight(highlightId: Long) {
+        mutateHighlights { dbName, questionId ->
+            textHighlightsRepository.removeHighlight(dbName, questionId, highlightId)
+        }
+    }
+
+    fun changeHighlightColor(highlightId: Long, color: HighlightColor) {
+        mutateHighlights { dbName, questionId ->
+            textHighlightsRepository.updateHighlightColor(dbName, questionId, highlightId, color)
+        }
+    }
+
+    private fun mutateHighlights(
+        block: suspend (dbName: String, questionId: Long) -> List<TextHighlight>
+    ) {
+        val snapshot = state.value
+        val dbName = snapshot.databaseName
+        val questionId = snapshot.currentQuestion?.id ?: return
+
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                val updated = block(dbName, questionId)
+                publishHighlights(dbName, questionId, updated)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("QuizViewModel", "Error updating highlights for question $questionId", e)
+            }
+        }
+    }
+
+    private fun publishHighlights(dbName: String, questionId: Long, updated: List<TextHighlight>) {
+        _state.update { current ->
+            // The user navigated away mid-write — this result belongs to another
+            // question than the one now displayed.
+            if (current.databaseName != dbName || current.currentQuestion?.id != questionId) {
+                current
+            } else {
+                current.copy(
+                    questionHighlights = updated.filter { it.section == HighlightSection.QUESTION },
+                    explanationHighlights = updated.filter { it.section == HighlightSection.EXPLANATION },
+                )
+            }
+        }
+    }
 
     private suspend fun appendToHistory() {
         try {
@@ -213,7 +306,7 @@ class QuizViewModel(
     ) {
         val ids = state.value.questionIds
         if (ids.getOrNull(index) == null) return
-        loadRequests.tryEmit(LoadRequest(index, resetAnswerState, appendToHistory))
+        loadRequests.value = LoadRequest(++loadSeq, index, resetAnswerState, appendToHistory)
     }
 
     fun loadNext() {
@@ -259,21 +352,35 @@ class QuizViewModel(
         val wasAlreadySubmitted = _state.getAndUpdate { it.copy(answerSubmitted = true) }.answerSubmitted
         if (wasAlreadySubmitted) return
 
-        viewModelScope.launch(Dispatchers.IO) {
-            val db = activeDatabaseHolder.databaseProvider.value
+        viewModelScope.launch(ioDispatcher) {
+            val active = activeDatabaseHolder.activeDatabase.value
+            val db = active?.provider
             try {
                 if (state.value.isLoggingEnabled && db != null) {
-                    val correctAnswer = currentState.currentAnswers.getOrNull(question.corrAns - 1)
-                    val correctAnswerId = correctAnswer?.answerId?.toInt() ?: -1
+                    val correctAnswerId = currentState.correctAnswerId
+                    // A question whose answer key can't be derived (malformed bank
+                    // row) must not reach the log: a corrAnswer sentinel would grade
+                    // the attempt permanently incorrect in every stat query.
+                    if (correctAnswerId == null) {
+                        emitSnackbar("Question has no valid answer key — result not saved")
+                        return@launch
+                    }
                     db.logAnswer(
-                        dbName = activeDatabaseHolder.databaseName.value,
                         qid = question.id,
                         selectedAnswer = selectedAnswerId,
                         corrAnswer = correctAnswerId,
                         time = timeTaken,
                         sessionId = sessionId
                     )
-                    updatePerformanceState(question.id, correctAnswerId, selectedAnswerId)
+                    // Only merge performance into the UI while the user is still on the
+                    // same question of the same database — otherwise the stats would be
+                    // attributed to whatever is now displayed.
+                    val stillOnSameQuestion =
+                        activeDatabaseHolder.activeDatabase.value === active &&
+                            state.value.currentQuestion?.id == question.id
+                    if (stillOnSameQuestion) {
+                        updatePerformanceState(question.id, correctAnswerId, selectedAnswerId)
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -319,18 +426,15 @@ class QuizViewModel(
         _state.update { it.copy(selectedAnswerId = null, answerSubmitted = false) }
     }
 
-    fun setLoadingState(isLoading: Boolean) {
-        _state.update { it.copy(isLoading = isLoading) }
-    }
-
-    fun loadFilteredQuestionIds(
+    private fun loadFilteredQuestionIds(
         updatePreviewCount: Boolean = true,
         startFromBeginning: Boolean = false,
     ) {
         filteredIdsJob?.cancel()
-        filteredIdsJob = viewModelScope.launch(Dispatchers.IO) {
+        filteredIdsJob = viewModelScope.launch(ioDispatcher) {
             _state.update { it.copy(isLoading = true) }
-            val db = activeDatabaseHolder.databaseProvider.value
+            val active = activeDatabaseHolder.activeDatabase.value
+            val db = active?.provider
             try {
                 val currentState = state.value
                 val ids = db?.getQuestionIds(
@@ -338,6 +442,12 @@ class QuizViewModel(
                     systemIds = filterStateHolder.selectedSystemIds.value.toList(),
                     performanceFilter = filterStateHolder.performanceFilter.value
                 ) ?: emptyList()
+
+                // Database switched mid-query — a newer load for the new database is
+                // responsible for publishing state.
+                if (active != null && activeDatabaseHolder.activeDatabase.value !== active) {
+                    return@launch
+                }
 
                 if (ids.isEmpty()) {
                     _state.update {
@@ -379,10 +489,14 @@ class QuizViewModel(
 
     fun clearCurrentQuestionLog() {
         val questionId = _state.value.currentQuestion?.id ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            val db = activeDatabaseHolder.databaseProvider.value
+        viewModelScope.launch(ioDispatcher) {
+            val active = activeDatabaseHolder.activeDatabase.value
+            val db = active?.provider
             try {
-                db?.clearLogForQuestion(activeDatabaseHolder.databaseName.value, questionId)
+                db?.clearLogForQuestion(questionId)
+                if (active != null && activeDatabaseHolder.activeDatabase.value !== active) {
+                    return@launch
+                }
                 _state.update { it.copy(currentPerformance = null) }
                 emitSnackbar("Log cleared for current question")
             } catch (e: CancellationException) {
