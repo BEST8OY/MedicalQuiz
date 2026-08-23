@@ -3,11 +3,9 @@ package com.medqb.app.shared.ui.dialogs
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -49,18 +47,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogProperties
 import com.medqb.app.shared.data.models.Subject
 import com.medqb.app.shared.data.models.System
-import com.medqb.app.shared.utils.Resource
 import com.medqb.app.shared.ui.dialogs.components.DialogActions
 import com.medqb.app.shared.ui.dialogs.components.DialogHeader
 import com.medqb.app.shared.ui.dialogs.components.DialogShell
+import com.medqb.app.shared.ui.dialogs.components.LocalDialogCompactMode
 import com.medqb.app.shared.ui.theme.ContainerSize
 import com.medqb.app.shared.ui.theme.DialogLayout
 import com.medqb.app.shared.ui.theme.IconSize
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
+import com.medqb.app.shared.utils.Resource
 
 /**
  * Selection dialog for subjects filter.
@@ -122,45 +120,32 @@ private fun <T> SelectionDialog(
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    DialogShell(
-        onDismiss = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true
-        )
-    ) {
+    DialogShell(onDismiss = onDismiss) {
         DialogHeader(title = title, onClose = onDismiss)
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f, fill = false)
-        ) {
-            when (resource) {
-                Resource.Loading -> SelectionLoadingBody()
-                is Resource.Error -> SelectionErrorBody(
-                    message = resource.message,
-                    onRetry = onRetry,
-                    onDismiss = onDismiss
-                )
-                is Resource.Success -> {
-                    val data = resource.data
-                    if (data.isEmpty()) {
-                        SelectionEmptyBody(
-                            message = emptyMessage,
-                            onDismiss = onDismiss
-                        )
-                    } else {
-                        SelectionListBody(
-                            items = data,
-                            selectedIds = selectedIds,
-                            labelProvider = labelProvider,
-                            idProvider = idProvider,
-                            onApply = onApply,
-                            onDismiss = onDismiss
-                        )
-                    }
+        when (resource) {
+            Resource.Loading -> SelectionLoadingBody()
+            is Resource.Error -> SelectionErrorBody(
+                message = resource.message,
+                onRetry = onRetry,
+                onDismiss = onDismiss
+            )
+            is Resource.Success -> {
+                val data = resource.data
+                if (data.isEmpty()) {
+                    SelectionEmptyBody(
+                        message = emptyMessage,
+                        onDismiss = onDismiss
+                    )
+                } else {
+                    SelectionListContent(
+                        items = data,
+                        selectedIds = selectedIds,
+                        labelProvider = labelProvider,
+                        idProvider = idProvider,
+                        onApply = onApply,
+                        onDismiss = onDismiss
+                    )
                 }
             }
         }
@@ -169,13 +154,15 @@ private fun <T> SelectionDialog(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SelectionLoadingBody() {
+private fun ColumnScope.SelectionLoadingBody() {
     Box(
         modifier = Modifier
-            .fillMaxSize(),
+            .fillMaxWidth()
+            .weight(1f, fill = false)
+            .padding(vertical = Spacing.ExtraLarge),
         contentAlignment = Alignment.Center
     ) {
-        Column(
+        androidx.compose.foundation.layout.Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Spacing.Large)
         ) {
@@ -193,14 +180,15 @@ private fun SelectionLoadingBody() {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SelectionErrorBody(
+private fun ColumnScope.SelectionErrorBody(
     message: String,
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    Column(
+    androidx.compose.foundation.layout.Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
+            .weight(1f, fill = false)
             .padding(Inset.Large),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -242,13 +230,14 @@ private fun SelectionErrorBody(
 }
 
 @Composable
-private fun SelectionEmptyBody(
+private fun ColumnScope.SelectionEmptyBody(
     message: String,
     onDismiss: () -> Unit
 ) {
-    Column(
+    androidx.compose.foundation.layout.Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
+            .weight(1f, fill = false)
             .padding(Inset.Large),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -268,7 +257,7 @@ private fun SelectionEmptyBody(
 }
 
 @Composable
-private fun <T> SelectionListBody(
+private fun <T> ColumnScope.SelectionListContent(
     items: List<T>,
     selectedIds: Set<Long>,
     labelProvider: (T) -> String,
@@ -281,6 +270,7 @@ private fun <T> SelectionListBody(
     }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
+    val isCompactHeight = LocalDialogCompactMode.current
 
     val allIds = remember(items) { items.map { idProvider(it) }.toSet() }
 
@@ -299,155 +289,160 @@ private fun <T> SelectionListBody(
 
     val listState = rememberLazyListState()
 
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val isCompactHeight = maxHeight < DialogLayout.CompactHeightThreshold
+    val subtitle = if (searchQuery.isBlank()) {
+        "${currentSelection.size} of ${items.size} selected"
+    } else {
+        "${currentSelection.size} of ${items.size} selected (${filteredItems.size} shown)"
+    }
 
-        Column(modifier = Modifier.fillMaxWidth()) {
-            val subtitle = if (searchQuery.isBlank()) {
-                "${currentSelection.size} of ${items.size} selected"
-            } else {
-                "${currentSelection.size} of ${items.size} selected (${filteredItems.size} shown)"
-            }
+    val selectAllLabel = if (searchQuery.isNotBlank()) {
+        "Select visible (${effectiveSelectAllIds.size})"
+    } else {
+        "Select all"
+    }
 
-            val selectAllLabel = if (searchQuery.isNotBlank()) {
-                "Select visible (${effectiveSelectAllIds.size})"
-            } else {
-                "Select all"
-            }
-
-            // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Inset.Large, vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.ExtraSmall),
-                placeholder = { Text("Search...", style = if (isCompactHeight) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium) },
-                leadingIcon = {
+    // Search Bar
+    OutlinedTextField(
+        value = searchQuery,
+        onValueChange = { searchQuery = it },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = Inset.Large,
+                vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.ExtraSmall
+            ),
+        placeholder = {
+            Text(
+                "Search...",
+                style = if (isCompactHeight) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Rounded.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = if (isCompactHeight) Modifier.size(IconSize.Small) else Modifier.size(IconSize.Medium)
+            )
+        },
+        trailingIcon = {
+            if (searchQuery.isNotEmpty()) {
+                IconButton(
+                    onClick = { searchQuery = "" },
+                    modifier = if (isCompactHeight) Modifier.size(IconSize.Large) else Modifier
+                ) {
                     Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = if (isCompactHeight) Modifier.size(IconSize.Small) else Modifier.size(IconSize.Medium)
-                    )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(
-                            onClick = { searchQuery = "" },
-                            modifier = if (isCompactHeight) Modifier.size(IconSize.Large) else Modifier
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Close,
-                                contentDescription = "Clear search",
-                                modifier = Modifier.size(IconSize.Small)
-                            )
-                        }
-                    }
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                shape = MaterialTheme.shapes.medium,
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                )
-            )
-
-            // Consolidated Row: Subtitle (Left) + Actions (Right)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Inset.Large, vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.ExtraSmall),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)) {
-                    TextButton(
-                        onClick = { currentSelection = effectiveSelectAllIds.toMutableSet() },
-                        enabled = !isAllSelected,
-                        contentPadding = PaddingValues(horizontal = Spacing.Small, vertical = 0.dp)
-                    ) {
-                        Text(selectAllLabel, style = MaterialTheme.typography.labelSmall)
-                    }
-
-                    TextButton(
-                        onClick = { currentSelection = mutableSetOf() },
-                        enabled = currentSelection.isNotEmpty(),
-                        contentPadding = PaddingValues(horizontal = Spacing.Small, vertical = 0.dp)
-                    ) {
-                        Text("Clear", style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-            }
-
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = Inset.Large),
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
-
-            // Item list
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false),
-                contentPadding = PaddingValues(
-                    horizontal = Inset.Large,
-                    vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.MediumSmall
-                ),
-                verticalArrangement = Arrangement.spacedBy(if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.ExtraSmall)
-            ) {
-                items(
-                    items = filteredItems,
-                    key = { idProvider(it) }
-                ) { item ->
-                    val itemId = idProvider(item)
-                    val isChecked = currentSelection.contains(itemId)
-
-                    SelectionItem(
-                        label = labelProvider(item),
-                        isChecked = isChecked,
-                        compactMode = isCompactHeight,
-                        onCheckedChange = { checked ->
-                            currentSelection = currentSelection.toMutableSet().apply {
-                                if (checked) add(itemId) else remove(itemId)
-                            }
-                        }
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = "Clear search",
+                        modifier = Modifier.size(IconSize.Small)
                     )
                 }
+            }
+        },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+        shape = MaterialTheme.shapes.medium,
+        colors = OutlinedTextFieldDefaults.colors(
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+        )
+    )
 
-                if (filteredItems.isEmpty() && searchQuery.isNotEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(Inset.Large),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No matches found",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
+    // Consolidated Row: Subtitle (Left) + Actions (Right)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = Inset.Large,
+                vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.ExtraSmall
+            ),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)) {
+            TextButton(
+                onClick = { currentSelection = effectiveSelectAllIds.toMutableSet() },
+                enabled = !isAllSelected,
+                contentPadding = PaddingValues(horizontal = Spacing.Small, vertical = 0.dp)
+            ) {
+                Text(selectAllLabel, style = MaterialTheme.typography.labelSmall)
             }
 
-            DialogActions(
-                primaryText = "Apply",
-                onPrimary = { onApply(currentSelection.toSet()) },
-                secondaryText = "Cancel",
-                onSecondary = onDismiss
-            )
+            TextButton(
+                onClick = { currentSelection = mutableSetOf() },
+                enabled = currentSelection.isNotEmpty(),
+                contentPadding = PaddingValues(horizontal = Spacing.Small, vertical = 0.dp)
+            ) {
+                Text("Clear", style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
+
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = Inset.Large),
+        color = MaterialTheme.colorScheme.outlineVariant
+    )
+
+    // Item list
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f, fill = false),
+        contentPadding = PaddingValues(
+            horizontal = Inset.Large,
+            vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.MediumSmall
+        ),
+        verticalArrangement = Arrangement.spacedBy(if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.ExtraSmall)
+    ) {
+        items(
+            items = filteredItems,
+            key = { idProvider(it) }
+        ) { item ->
+            val itemId = idProvider(item)
+            val isChecked = currentSelection.contains(itemId)
+
+            SelectionItem(
+                label = labelProvider(item),
+                isChecked = isChecked,
+                compactMode = isCompactHeight,
+                onCheckedChange = { checked ->
+                    currentSelection = currentSelection.toMutableSet().apply {
+                        if (checked) add(itemId) else remove(itemId)
+                    }
+                }
+            )
+        }
+
+        if (filteredItems.isEmpty() && searchQuery.isNotEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(Inset.Large),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No matches found",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+
+    DialogActions(
+        primaryText = "Apply",
+        onPrimary = { onApply(currentSelection.toSet()) },
+        secondaryText = "Cancel",
+        onSecondary = onDismiss
+    )
 }
 
 @Composable
@@ -500,4 +495,3 @@ private fun SelectionItem(
         }
     }
 }
-

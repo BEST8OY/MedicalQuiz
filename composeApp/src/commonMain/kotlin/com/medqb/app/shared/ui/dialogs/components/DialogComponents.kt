@@ -1,7 +1,5 @@
 package com.medqb.app.shared.ui.dialogs.components
 
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -12,8 +10,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -22,12 +18,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.medqb.app.shared.ui.theme.DialogLayout
@@ -36,9 +32,17 @@ import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
 
 /**
- * Base dialog shell with consistent styling for all dialogs.
+ * Composition local providing whether the dialog is in compact height mode.
+ * Set by [DialogShell] based on the available viewport height.
  */
+val LocalDialogCompactMode = compositionLocalOf { false }
 
+/**
+ * Base dialog shell with consistent styling for all dialogs.
+ *
+ * Provides a single [ColumnScope] for content. All dialog children (header, body, actions)
+ * should be placed directly in this scope — no intermediate wrapping Column needed.
+ */
 @Composable
 fun DialogShell(
     onDismiss: () -> Unit,
@@ -54,18 +58,21 @@ fun DialogShell(
         properties = properties
     ) {
         BoxWithConstraints {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth(if (maxWidth >= ScreenLayout.CompactWidthBreakpoint) DialogLayout.ExpandedWidthFraction else DialogLayout.CompactWidthFraction)
-                    .heightIn(
-                        min = DialogLayout.MinContainerHeight,
-                        max = maxHeight - DialogLayout.MaxHeightInset
-                    )
-                    .clip(MaterialTheme.shapes.extraLarge),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh
-            ) {
-                Column {
-                    content()
+            val isCompactHeight = maxHeight < DialogLayout.CompactHeightThreshold
+            CompositionLocalProvider(LocalDialogCompactMode provides isCompactHeight) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth(if (maxWidth >= ScreenLayout.CompactWidthBreakpoint) DialogLayout.ExpandedWidthFraction else DialogLayout.CompactWidthFraction)
+                        .heightIn(
+                            min = DialogLayout.MinContainerHeight,
+                            max = maxHeight - DialogLayout.MaxHeightInset
+                        )
+                        .clip(MaterialTheme.shapes.extraLarge),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                ) {
+                    Column {
+                        content()
+                    }
                 }
             }
         }
@@ -118,7 +125,10 @@ fun DialogHeader(
 }
 
 /**
- * Dialog action buttons (primary and secondary).
+ * Dialog action buttons using M3-compliant text buttons.
+ *
+ * Per M3 spec, dialog actions use text buttons (lowest emphasis).
+ * Destructive actions use error-colored text.
  */
 @Composable
 fun DialogActions(
@@ -143,15 +153,17 @@ fun DialogActions(
             }
         }
 
-        Button(
+        TextButton(
             onClick = onPrimary,
             enabled = primaryEnabled,
-            colors = if (destructive) ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error,
-                contentColor = MaterialTheme.colorScheme.onError
-            ) else ButtonDefaults.buttonColors()
         ) {
-            Text(primaryText)
+            Text(
+                text = primaryText,
+                color = if (destructive) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.primary.copy(
+                    alpha = if (primaryEnabled) 1f else 0.38f
+                )
+            )
         }
     }
 }
