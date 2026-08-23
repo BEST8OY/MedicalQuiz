@@ -1,18 +1,16 @@
 package com.medqb.app.shared.ui.dialogs
 
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
@@ -49,6 +47,8 @@ import kotlin.math.roundToInt
 
 /**
  * Dialog for jumping to a specific question by number.
+ *
+ * Header and actions are pinned; only the number input + slider content scrolls.
  */
 @Composable
 fun JumpToDialog(
@@ -79,131 +79,133 @@ fun JumpToDialog(
     }
 
     DialogShell(onDismiss = onDismiss) {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            DialogHeader(
-                title = "Jump to question",
-                subtitle = "Currently on $clampedCurrent of $totalQuestions",
-                onClose = onDismiss
-            )
+        DialogHeader(
+            title = "Jump to question",
+            subtitle = "Currently on $clampedCurrent of $totalQuestions",
+            onClose = onDismiss
+        )
 
-            Column(
-                modifier = Modifier.padding(horizontal = Inset.Large),
-                verticalArrangement = Arrangement.spacedBy(Spacing.MediumLarge)
+        // Scrollable content area — pinned header above, pinned actions below
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Inset.Large),
+            verticalArrangement = Arrangement.spacedBy(Spacing.MediumLarge)
+        ) {
+            // Number input with stepper buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Number input with stepper buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                FilledTonalIconButton(
+                    onClick = {
+                        val current = inputValue.toIntOrNull() ?: clampedCurrent
+                        val newValue = (current - 1).coerceAtLeast(1)
+                        inputValue = newValue.toString()
+                    },
+                    enabled = (inputValue.toIntOrNull() ?: clampedCurrent) > 1,
+                    modifier = Modifier.size(Layout.MinTouchTarget)
                 ) {
-                    FilledTonalIconButton(
-                        onClick = {
-                            val current = inputValue.toIntOrNull() ?: clampedCurrent
-                            val newValue = (current - 1).coerceAtLeast(1)
-                            inputValue = newValue.toString()
-                        },
-                        enabled = (inputValue.toIntOrNull() ?: clampedCurrent) > 1,
-                        modifier = Modifier.size(Layout.MinTouchTarget)
-                    ) {
-                        Icon(Icons.Rounded.Remove, "Decrease")
-                    }
-
-                    val maxDigits = totalQuestions.toString().length
-                    OutlinedTextField(
-                        value = inputValue,
-                        onValueChange = { value ->
-                            inputValue = value.filter { it.isDigit() }.take(maxDigits)
-                        },
-                        modifier = Modifier
-                            .width(120.dp)
-                            .padding(horizontal = Spacing.MediumSmall),
-                        textStyle = MaterialTheme.typography.titleLarge.copy(
-                            textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                focusManager.clearFocus()
-                                if (isValid) {
-                                    onJumpTo(typedNumber - 1)
-                                }
-                            }
-                        ),
-                        singleLine = true,
-                        isError = inputValue.isNotEmpty() && !isValid,
-                        shape = MaterialTheme.shapes.medium,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
-                    )
-
-                    FilledTonalIconButton(
-                        onClick = {
-                            val current = inputValue.toIntOrNull() ?: clampedCurrent
-                            val newValue = (current + 1).coerceAtMost(totalQuestions)
-                            inputValue = newValue.toString()
-                        },
-                        enabled = (inputValue.toIntOrNull() ?: clampedCurrent) < totalQuestions,
-                        modifier = Modifier.size(Layout.MinTouchTarget)
-                    ) {
-                        Icon(Icons.Rounded.Add, "Increase")
-                    }
+                    Icon(Icons.Rounded.Remove, "Decrease")
                 }
 
-                // Slider for quick navigation
-                if (totalQuestions > 1) {
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
-                        val sliderSteps = if (totalQuestions > 50) 0 else (totalQuestions - 2).coerceAtLeast(0)
-                        Slider(
-                            value = sliderValue,
-                            onValueChange = { newValue ->
-                                sliderValue = newValue
-                                val snapped = newValue.roundToInt().coerceIn(1, totalQuestions)
-                                inputValue = snapped.toString()
-                            },
-                            valueRange = 1f..totalQuestions.toFloat(),
-                            steps = sliderSteps,
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary
-                            )
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "1",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = totalQuestions.toString(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                val maxDigits = totalQuestions.toString().length
+                OutlinedTextField(
+                    value = inputValue,
+                    onValueChange = { value ->
+                        inputValue = value.filter { it.isDigit() }.take(maxDigits)
+                    },
+                    modifier = Modifier
+                        .width(120.dp)
+                        .padding(horizontal = Spacing.MediumSmall),
+                    textStyle = MaterialTheme.typography.titleLarge.copy(
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            focusManager.clearFocus()
+                            if (isValid) {
+                                onJumpTo(typedNumber - 1)
+                            }
                         }
-                    }
+                    ),
+                    singleLine = true,
+                    isError = inputValue.isNotEmpty() && !isValid,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    )
+                )
+
+                FilledTonalIconButton(
+                    onClick = {
+                        val current = inputValue.toIntOrNull() ?: clampedCurrent
+                        val newValue = (current + 1).coerceAtMost(totalQuestions)
+                        inputValue = newValue.toString()
+                    },
+                    enabled = (inputValue.toIntOrNull() ?: clampedCurrent) < totalQuestions,
+                    modifier = Modifier.size(Layout.MinTouchTarget)
+                ) {
+                    Icon(Icons.Rounded.Add, "Increase")
                 }
             }
 
-            DialogActions(
-                primaryText = "Jump",
-                primaryEnabled = isValid,
-                onPrimary = {
-                    if (isValid) {
-                        onJumpTo(typedNumber - 1)
+            // Slider for quick navigation
+            if (totalQuestions > 1) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
+                    val sliderSteps = if (totalQuestions > 50) 0 else (totalQuestions - 2).coerceAtLeast(0)
+                    Slider(
+                        value = sliderValue,
+                        onValueChange = { newValue ->
+                            sliderValue = newValue
+                            val snapped = newValue.roundToInt().coerceIn(1, totalQuestions)
+                            inputValue = snapped.toString()
+                        },
+                        valueRange = 1f..totalQuestions.toFloat(),
+                        steps = sliderSteps,
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "1",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = totalQuestions.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                },
-                secondaryText = "Cancel",
-                onSecondary = onDismiss
-            )
+                }
+            }
         }
+
+        DialogActions(
+            primaryText = "Jump",
+            primaryEnabled = isValid,
+            onPrimary = {
+                if (isValid) {
+                    onJumpTo(typedNumber - 1)
+                }
+            },
+            secondaryText = "Cancel",
+            onSecondary = onDismiss
+        )
     }
 }

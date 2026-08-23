@@ -2,12 +2,12 @@ package com.medqb.app.shared.ui.dialogs
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
@@ -23,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.data.database.PerformanceFilter
@@ -44,35 +43,33 @@ fun PerformanceFilterDialog(
     var selected by remember { mutableStateOf(current) }
 
     DialogShell(onDismiss = onDismiss) {
-        Column {
-            DialogHeader(
-                title = "Filter by performance",
-                subtitle = "Show questions based on your history",
-                onClose = onDismiss
-            )
+        DialogHeader(
+            title = "Filter by performance",
+            subtitle = "Show questions based on your history",
+            onClose = onDismiss
+        )
 
-            LazyColumn(
-                modifier = Modifier
-                    .padding(horizontal = Inset.Large)
-                    .weight(1f, fill = false),
-                verticalArrangement = Arrangement.spacedBy(Spacing.Small)
-            ) {
-                items(filters) { filter ->
-                    PerformanceFilterItem(
-                        filter = filter,
-                        isSelected = selected == filter,
-                        onSelected = { selected = filter }
-                    )
-                }
+        LazyColumn(
+            modifier = Modifier
+                .padding(horizontal = Inset.Large)
+                .weight(1f, fill = false),
+            verticalArrangement = Arrangement.spacedBy(Spacing.Small)
+        ) {
+            items(filters) { filter ->
+                PerformanceFilterItem(
+                    filter = filter,
+                    isSelected = selected == filter,
+                    onSelected = { selected = filter }
+                )
             }
-
-            DialogActions(
-                primaryText = "Apply",
-                onPrimary = { onSelect(selected) },
-                secondaryText = "Cancel",
-                onSecondary = onDismiss
-            )
         }
+
+        DialogActions(
+            primaryText = "Apply",
+            onPrimary = { onSelect(selected) },
+            secondaryText = "Cancel",
+            onSecondary = onDismiss
+        )
     }
 }
 

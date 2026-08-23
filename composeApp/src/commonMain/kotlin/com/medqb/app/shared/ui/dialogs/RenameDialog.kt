@@ -1,6 +1,6 @@
 package com.medqb.app.shared.ui.dialogs
 
-import androidx.compose.foundation.layout.Column
+
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
@@ -34,54 +34,50 @@ fun RenameDialog(
     val isValid = currentName.isNotBlank() && currentName.length <= maxLength
 
     DialogShell(onDismiss = onDismiss) {
-        Column {
-            DialogHeader(
-                title = "Rename entry",
-                subtitle = "Give this session a custom title",
-                onClose = onDismiss
-            )
+        DialogHeader(
+            title = "Rename entry",
+            subtitle = "Give this session a custom title",
+            onClose = onDismiss
+        )
 
-            Column(
-                modifier = Modifier.padding(horizontal = Inset.Large, vertical = Spacing.MediumSmall)
-            ) {
-                OutlinedTextField(
-                    value = currentName,
-                    onValueChange = { if (it.length <= maxLength) onNameChange(it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Entry name") },
-                    singleLine = true,
-                    isError = currentName.length > maxLength,
-                    supportingText = {
-                        Text(
-                            text = "${currentName.length} / $maxLength",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            focusManager.clearFocus()
-                            if (isValid) {
-                                onConfirm()
-                            }
-                        }
-                    ),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    )
+        OutlinedTextField(
+            value = currentName,
+            onValueChange = { if (it.length <= maxLength) onNameChange(it) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Inset.Large, vertical = Spacing.MediumSmall),
+            label = { Text("Entry name") },
+            singleLine = true,
+            isError = currentName.length > maxLength,
+            supportingText = {
+                Text(
+                    text = "${currentName.length} / $maxLength",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
                 )
-            }
-
-            DialogActions(
-                primaryText = "Save",
-                primaryEnabled = isValid,
-                onPrimary = onConfirm,
-                secondaryText = "Cancel",
-                onSecondary = onDismiss
+            },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    focusManager.clearFocus()
+                    if (isValid) {
+                        onConfirm()
+                    }
+                }
+            ),
+            shape = MaterialTheme.shapes.medium,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
             )
-        }
+        )
+
+        DialogActions(
+            primaryText = "Save",
+            primaryEnabled = isValid,
+            onPrimary = onConfirm,
+            secondaryText = "Cancel",
+            onSecondary = onDismiss
+        )
     }
 }
