@@ -12,11 +12,13 @@ import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
+import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.ui.screens.filter.FilterPane
 import com.medqb.app.shared.ui.state.FilterUiState
 import com.medqb.app.shared.utils.Resource
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -47,6 +49,7 @@ class FilterHubViewModel(
     private val savedStateHandle: SavedStateHandle,
     private val historyCoordinator: AppHistoryCoordinator,
     private val sessionRepository: QuizSessionRepository,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
 
     private companion object {
@@ -89,6 +92,7 @@ class FilterHubViewModel(
         setupFilterSelectionSync()
         setupHistoryEntriesFlow()
         setupInitialPaneCollector()
+        setupFilterPersistence()
         restoreSavedFilters()
     }
 
@@ -111,16 +115,16 @@ class FilterHubViewModel(
     }
 
     private fun setupDatabaseNameTracking() {
-        activeDatabaseHolder.databaseName
+        activeDatabaseHolder.activeDatabase
+            .map { it?.name.orEmpty() }
             .onEach { dbName ->
                 if (dbName.isNotEmpty()) {
                     val dbChanged = dbName != _state.value.databaseName
                     _state.update { it.copy(databaseName = dbName) }
                     databaseNameState.value = dbName
                     if (dbChanged) {
-                        savedStateHandle.remove<List<Long>>(KEY_SELECTED_SUBJECT_IDS)
-                        savedStateHandle.remove<List<Long>>(KEY_SELECTED_SYSTEM_IDS)
-                        savedStateHandle.remove<String>(KEY_PERFORMANCE_FILTER)
+                        // Holder reset propagates to SavedStateHandle through the
+                        // filter-persistence collector.
                         filterStateHolder.reset()
                     }
                 } else {
@@ -133,9 +137,9 @@ class FilterHubViewModel(
 
     private fun setupSubjectsFlow() {
         combine(
-            activeDatabaseHolder.databaseProvider,
+            activeDatabaseHolder.activeDatabase,
             _subjectsRetry.onStart { emit(Unit) },
-        ) { db, _ -> db }
+        ) { active, _ -> active?.provider }
             .flatMapLatest { db ->
                 flow {
                     if (db == null) {
@@ -144,7 +148,7 @@ class FilterHubViewModel(
                     }
                     emit(Resource.Loading)
                     try {
-                        val subjects = withContext(Dispatchers.IO) { db.getSubjects() }
+                        val subjects = withContext(ioDispatcher) { db.getSubjects() }
                         emit(Resource.Success(subjects))
                     } catch (e: CancellationException) {
                         throw e
@@ -161,10 +165,10 @@ class FilterHubViewModel(
 
     private fun setupSystemsFlow() {
         combine(
-            activeDatabaseHolder.databaseProvider,
+            activeDatabaseHolder.activeDatabase,
             filterStateHolder.selectedSubjectIds,
             _systemsRetry.onStart { emit(Unit) },
-        ) { db, subjectIds, _ -> db to subjectIds }
+        ) { active, subjectIds, _ -> (active?.provider) to subjectIds }
             .flatMapLatest { (db, subjectIds) ->
                 flow {
                     if (db == null) {
@@ -173,7 +177,7 @@ class FilterHubViewModel(
                     }
                     emit(Resource.Loading)
                     try {
-                        val systems = withContext(Dispatchers.IO) {
+                        val systems = withContext(ioDispatcher) {
                             db.getSystems(subjectIds.takeIf { it.isNotEmpty() }?.toList())
                         }
                         emit(Resource.Success(systems))
@@ -195,19 +199,24 @@ class FilterHubViewModel(
             filterStateHolder.selectedSubjectIds,
             filterStateHolder.selectedSystemIds,
             filterStateHolder.performanceFilter,
-            activeDatabaseHolder.databaseProvider,
-        ) { subjects, systems, perf, db -> Quad(subjects, systems, perf, db) }
+            activeDatabaseHolder.activeDatabase,
+        ) { subjects, systems, perf, active -> Quad(subjects, systems, perf, active?.provider) }
             .flatMapLatest { (subjects, systems, perf, db) ->
                 flow {
-                    val count = withContext(Dispatchers.IO) {
-                        runCatching {
+                    val count = withContext(ioDispatcher) {
+                        try {
                             applyFiltersUseCase.previewQuestionCount(
                                 db = db,
                                 selectedSubjectIds = subjects,
                                 selectedSystemIds = systems,
                                 performanceFilter = perf,
                             )
-                        }.getOrDefault(0)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            Logger.e("FilterHubViewModel", "Error computing preview question count", e)
+                            0
+                        }
                     }
                     emit(count)
                 }
@@ -216,33 +225,51 @@ class FilterHubViewModel(
             .launchIn(viewModelScope)
     }
 
+    /**
+     * Single reduction of shared filter-holder state into UiState — one collector
+     * instead of three parallel mirrors, so partial-update interleavings are impossible.
+     */
     private fun setupFilterSelectionSync() {
-        filterStateHolder.selectedSubjectIds
-            .onEach { ids -> _state.update { it.copy(selectedSubjectIds = ids) } }
-            .launchIn(viewModelScope)
-        filterStateHolder.selectedSystemIds
-            .onEach { ids -> _state.update { it.copy(selectedSystemIds = ids) } }
-            .launchIn(viewModelScope)
-        filterStateHolder.performanceFilter
-            .onEach { filter -> _state.update { it.copy(performanceFilter = filter) } }
+        combine(
+            filterStateHolder.selectedSubjectIds,
+            filterStateHolder.selectedSystemIds,
+            filterStateHolder.performanceFilter,
+        ) { subjectIds, systemIds, performanceFilter ->
+            Triple(subjectIds, systemIds, performanceFilter)
+        }
+            .onEach { (subjectIds, systemIds, performanceFilter) ->
+                _state.update {
+                    it.copy(
+                        selectedSubjectIds = subjectIds,
+                        selectedSystemIds = systemIds,
+                        performanceFilter = performanceFilter
+                    )
+                }
+            }
             .launchIn(viewModelScope)
     }
 
     private fun setupSettingsCollectors() {
-        settingsRepository.isLoggingEnabled
-            .onEach { enabled -> _state.update { it.copy(isLoggingEnabled = enabled) } }
-            .launchIn(viewModelScope)
-        settingsRepository.submissionMode
-            .onEach { mode -> _state.update { it.copy(submissionMode = mode) } }
+        combine(
+            settingsRepository.isLoggingEnabled,
+            settingsRepository.submissionMode,
+        ) { isLoggingEnabled, submissionMode ->
+            isLoggingEnabled to submissionMode
+        }
+            .onEach { (isLoggingEnabled, submissionMode) ->
+                _state.update {
+                    it.copy(isLoggingEnabled = isLoggingEnabled, submissionMode = submissionMode)
+                }
+            }
             .launchIn(viewModelScope)
     }
 
     private fun setupHistoryEntriesFlow() {
         combine(
             sessionRepository.historyEntries,
-            activeDatabaseHolder.databaseName
-        ) { entries, dbName ->
-            val cleanDbName = dbName.removeSuffix(".db")
+            activeDatabaseHolder.activeDatabase,
+        ) { entries, active ->
+            val cleanDbName = active?.name.orEmpty()
             entries.filter { it.databaseName == cleanDbName }
         }
         .distinctUntilChanged()
@@ -250,6 +277,10 @@ class FilterHubViewModel(
         .launchIn(viewModelScope)
     }
 
+    /**
+     * Hydrates the holder from SavedStateHandle once at creation. Persistence in
+     * the other direction is continuous — see [setupFilterPersistence].
+     */
     private fun restoreSavedFilters() {
         savedStateHandle.get<List<Long>>(KEY_SELECTED_SUBJECT_IDS)?.toSet()?.let {
             filterStateHolder.updateSubjectIds(it)
@@ -264,6 +295,27 @@ class FilterHubViewModel(
         }
     }
 
+    /**
+     * Single-writer persistence: SavedStateHandle reactively mirrors the holder,
+     * so mutations write only to the holder and can never diverge from what is
+     * persisted. External resets (e.g. a database switch) propagate automatically.
+     */
+    private fun setupFilterPersistence() {
+        combine(
+            filterStateHolder.selectedSubjectIds,
+            filterStateHolder.selectedSystemIds,
+            filterStateHolder.performanceFilter,
+        ) { subjectIds, systemIds, performanceFilter ->
+            Triple(subjectIds, systemIds, performanceFilter)
+        }
+            .onEach { (subjectIds, systemIds, performanceFilter) ->
+                savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = subjectIds.toList()
+                savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = systemIds.toList()
+                savedStateHandle[KEY_PERFORMANCE_FILTER] = performanceFilter.name
+            }
+            .launchIn(viewModelScope)
+    }
+
     fun fetchSubjects() {
         _subjectsRetry.tryEmit(Unit)
     }
@@ -271,7 +323,6 @@ class FilterHubViewModel(
     fun fetchSystemsForSubjects(subjectIds: List<Long>?) {
         if (subjectIds != null) {
             filterStateHolder.updateSubjectIds(subjectIds.toSet())
-            savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = subjectIds
         }
         _systemsRetry.tryEmit(Unit)
     }
@@ -280,41 +331,34 @@ class FilterHubViewModel(
         viewModelScope.launch {
             val previouslySelectedSystems = filterStateHolder.selectedSystemIds.value
             filterStateHolder.updateSubjectIds(newSubjectIds)
-            savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = newSubjectIds.toList()
-            val db = activeDatabaseHolder.databaseProvider.value
+            val db = activeDatabaseHolder.activeDatabase.value?.provider
             val prunedSelectedSystems = applyFiltersUseCase.pruneSystemsForSubjects(
                 db = db,
                 newSubjectIds = newSubjectIds,
                 previouslySelectedSystems = previouslySelectedSystems,
             )
             filterStateHolder.updateSystemIds(prunedSelectedSystems)
-            savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = prunedSelectedSystems.toList()
         }
     }
 
     fun applySelectedSystems(newSystemIds: Set<Long>) {
         viewModelScope.launch {
-            val db = activeDatabaseHolder.databaseProvider.value
+            val db = activeDatabaseHolder.activeDatabase.value?.provider
             val normalizedSelection = applyFiltersUseCase.normalizeSelectedSystems(
                 db = db,
                 selectedSubjectIds = filterStateHolder.selectedSubjectIds.value,
                 newSystemIds = newSystemIds,
             )
             filterStateHolder.updateSystemIds(normalizedSelection)
-            savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = normalizedSelection.toList()
         }
     }
 
     fun setPerformanceFilter(filter: PerformanceFilter) {
         filterStateHolder.updatePerformanceFilter(filter)
-        savedStateHandle[KEY_PERFORMANCE_FILTER] = filter.name
     }
 
     fun clearAllFilters() {
         filterStateHolder.reset()
-        savedStateHandle.remove<List<Long>>(KEY_SELECTED_SUBJECT_IDS)
-        savedStateHandle.remove<List<Long>>(KEY_SELECTED_SYSTEM_IDS)
-        savedStateHandle.remove<String>(KEY_PERFORMANCE_FILTER)
     }
 
     // History Pane logic
@@ -359,7 +403,10 @@ class FilterHubViewModel(
             try {
                 val qids = historyCoordinator.getQuestionIdsForHistoryEntries(entries)
                 onCopied(qids)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
+                Logger.e("FilterHubViewModel", "Error copying question ids for history entries", e)
                 onCopied("")
             }
         }

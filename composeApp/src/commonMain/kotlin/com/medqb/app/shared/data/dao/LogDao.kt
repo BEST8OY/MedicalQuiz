@@ -1,7 +1,6 @@
 package com.medqb.app.shared.data.dao
 
-import com.medqb.app.shared.data.local.dao.RoomLogDao
-import com.medqb.app.shared.data.local.dao.RoomSessionHistoryDao
+import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.data.local.entity.LogEntity
 import com.medqb.app.shared.data.local.entity.QuizSessionEntity
 import com.medqb.app.shared.data.local.entity.SessionLogLinkEntity
@@ -10,9 +9,12 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
+/**
+ * Writes answer logs and their session links. Both live in the same user database,
+ * so each multi-step write is fully atomic.
+ */
 class LogDao(
-    private val logDao: RoomLogDao,
-    private val sessionHistoryDao: RoomSessionHistoryDao,
+    private val userDataManager: UserDataManager,
 ) {
     @OptIn(ExperimentalTime::class)
     suspend fun logAnswer(
@@ -36,21 +38,29 @@ class LogDao(
             time = time,
             answerDate = dateString
         )
-        val insertedId = logDao.insert(logEntity)
 
-        if (sessionId.isNotBlank()) {
-            sessionHistoryDao.ensureSessionExists(QuizSessionEntity(sessionId))
-            sessionHistoryDao.insertLogLink(
-                SessionLogLinkEntity(sessionId, insertedId)
-            )
+        val logDao = userDataManager.logDao()
+        if (sessionId.isBlank()) {
+            logDao.insert(logEntity)
+        } else {
+            val historyDao = userDataManager.sessionHistoryDao()
+            userDataManager.withTransaction {
+                val insertedId = logDao.insert(logEntity)
+                historyDao.ensureSessionExists(QuizSessionEntity(sessionId))
+                historyDao.insertLogLink(SessionLogLinkEntity(sessionId, insertedId))
+            }
         }
     }
 
     suspend fun clearLogForQuestion(dbName: String, qid: Long) {
+        val logDao = userDataManager.logDao()
         val rowids = logDao.getLogRowIds(dbName, qid)
-        logDao.clearForQuestion(dbName, qid)
-        if (rowids.isNotEmpty()) {
-            sessionHistoryDao.cleanupLinksForLogs(rowids)
+        val historyDao = userDataManager.sessionHistoryDao()
+        userDataManager.withTransaction {
+            logDao.clearForQuestion(dbName, qid)
+            if (rowids.isNotEmpty()) {
+                historyDao.cleanupLinksForLogs(rowids)
+            }
         }
     }
 }

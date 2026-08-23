@@ -74,42 +74,4 @@ class SubjectDao(
             systems
         }
     }
-
-    fun getSubjectNames(idsStr: String): String {
-        val ids = idsStr.split(",").mapNotNull { it.trim().toLongOrNull() }
-        if (ids.isEmpty()) return ""
-
-        val placeholders = ids.joinToString(",") { "?" }
-        val sql = "SELECT name FROM Subjects WHERE id IN ($placeholders)"
-
-        val names = mutableListOf<String>()
-        getConnection().prepare(sql).use { stmt ->
-            ids.forEachIndexed { index, id -> stmt.bindLong(index + 1, id) }
-            while (stmt.step()) {
-                if (!stmt.isNull(0)) {
-                    names.add(stmt.getText(0))
-                }
-            }
-        }
-        return names.joinToString(", ")
-    }
-
-    fun getSystemNames(idsStr: String): String {
-        val ids = idsStr.split(",").mapNotNull { it.trim().toLongOrNull() }
-        if (ids.isEmpty()) return ""
-
-        val placeholders = ids.joinToString(",") { "?" }
-        val sql = "SELECT name FROM Systems WHERE id IN ($placeholders)"
-
-        val names = mutableListOf<String>()
-        getConnection().prepare(sql).use { stmt ->
-            ids.forEachIndexed { index, id -> stmt.bindLong(index + 1, id) }
-            while (stmt.step()) {
-                if (!stmt.isNull(0)) {
-                    names.add(stmt.getText(0))
-                }
-            }
-        }
-        return names.joinToString(", ")
-    }
 }

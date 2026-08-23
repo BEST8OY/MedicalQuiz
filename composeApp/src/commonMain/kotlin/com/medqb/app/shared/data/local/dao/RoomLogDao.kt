@@ -69,4 +69,50 @@ interface RoomLogDao {
         """
     )
     suspend fun getAllLoggedQids(dbName: String): List<Long>
+
+    /**
+     * Qids whose most recent attempt (max rowid per qid) was correct.
+     */
+    @Query(
+        """
+        SELECT l.qid
+        FROM logs l
+        JOIN (
+            SELECT MAX(id) AS maxId FROM logs WHERE db_name = :dbName GROUP BY qid
+        ) m ON l.id = m.maxId
+        WHERE l.selected_answer = l.corr_answer
+        """
+    )
+    suspend fun getLastCorrectQids(dbName: String): List<Long>
+
+    /**
+     * Qids whose most recent attempt (max rowid per qid) was incorrect.
+     */
+    @Query(
+        """
+        SELECT l.qid
+        FROM logs l
+        JOIN (
+            SELECT MAX(id) AS maxId FROM logs WHERE db_name = :dbName GROUP BY qid
+        ) m ON l.id = m.maxId
+        WHERE l.selected_answer != l.corr_answer
+        """
+    )
+    suspend fun getLastIncorrectQids(dbName: String): List<Long>
+
+    @Query(
+        """
+        SELECT DISTINCT qid FROM logs
+        WHERE db_name = :dbName AND selected_answer = corr_answer
+        """
+    )
+    suspend fun getEverCorrectQids(dbName: String): List<Long>
+
+    @Query(
+        """
+        SELECT DISTINCT qid FROM logs
+        WHERE db_name = :dbName AND selected_answer != corr_answer
+        """
+    )
+    suspend fun getEverIncorrectQids(dbName: String): List<Long>
 }

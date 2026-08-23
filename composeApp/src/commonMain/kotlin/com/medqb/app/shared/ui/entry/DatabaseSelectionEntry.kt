@@ -28,10 +28,12 @@ fun DatabaseSelectionEntry(
     )
     val databases by dbVM.availableDatabases.collectAsStateWithLifecycle()
     val isLoading by dbVM.isLoading.collectAsStateWithLifecycle()
+    val errorMessage by dbVM.errorMessage.collectAsStateWithLifecycle()
 
     DatabaseSelectionScreen(
         databases = databases,
         isLoading = isLoading,
+        errorMessage = errorMessage,
         onRefreshDatabases = { dbVM.refreshDatabases() },
         onDatabaseSelected = { dbName ->
             workflow.onDatabaseSelected(dbName)
