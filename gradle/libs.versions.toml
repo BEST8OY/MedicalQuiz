@@ -30,7 +30,7 @@ navigation3 = "1.1.1"
 navigationevent = "1.1.0"
 metro = "1.4.2"
 room3 = "3.0.1"
-ksp = "2.3.10"
+ksp = "2.3.11"
 datastore = "1.2.1"
 
 [libraries]
