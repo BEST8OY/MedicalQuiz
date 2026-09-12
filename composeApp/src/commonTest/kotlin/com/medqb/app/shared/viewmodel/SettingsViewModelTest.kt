@@ -48,4 +48,28 @@ class SettingsViewModelTest {
         assertNull(viewModel.fontScalePreference.value)
         assertNull(fakeRepo.fontScalePreference.value)
     }
+
+    @Test
+    fun loggingEnabledReflectsStoredValueAndUpdates() {
+        val fakeRepo = FakeSettingsRepository(isLoggingEnabled = true)
+        val viewModel = SettingsViewModel(fakeRepo)
+
+        assertTrue(viewModel.isLoggingEnabled.value)
+
+        viewModel.setLoggingEnabled(false)
+        assertFalse(viewModel.isLoggingEnabled.value)
+        assertFalse(fakeRepo.isLoggingEnabled.value)
+    }
+
+    @Test
+    fun submissionModeReflectsStoredValueAndUpdates() {
+        val fakeRepo = FakeSettingsRepository(submissionMode = com.medqb.app.shared.data.models.SubmissionMode.INSTANT)
+        val viewModel = SettingsViewModel(fakeRepo)
+
+        assertEquals(com.medqb.app.shared.data.models.SubmissionMode.INSTANT, viewModel.submissionMode.value)
+
+        viewModel.setSubmissionMode(com.medqb.app.shared.data.models.SubmissionMode.MANUAL)
+        assertEquals(com.medqb.app.shared.data.models.SubmissionMode.MANUAL, viewModel.submissionMode.value)
+        assertEquals(com.medqb.app.shared.data.models.SubmissionMode.MANUAL, fakeRepo.submissionMode.value)
+    }
 }

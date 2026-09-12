@@ -162,4 +162,20 @@ class FilterHubViewModelTest {
         assertEquals(emptySet(), viewModel.state.value.selectedSubjectIds)
         assertEquals(emptySet(), filterStateHolder.selectedSubjectIds.value)
     }
+
+    @Test
+    fun closingDatabaseClearsDatabaseName() = runHubTest {
+        val provider = FakeDatabaseProvider(dbName = "bank-a")
+        val holder = ActiveDatabaseHolder()
+        val viewModel = createViewModel(provider, holder)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals("bank-a", viewModel.state.value.databaseName)
+
+        holder.closeDatabase()
+        advanceUntilIdle()
+
+        assertEquals("", viewModel.state.value.databaseName)
+    }
 }

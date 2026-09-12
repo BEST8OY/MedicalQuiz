@@ -59,7 +59,12 @@ class FilterHubViewModel(
         const val KEY_PERFORMANCE_FILTER = "performance_filter"
         const val KEY_ACTIVE_PANE = "activePane"
 
-        private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+        private data class PreviewFilterParameters(
+            val subjects: Set<Long>,
+            val systems: Set<Long>,
+            val performance: PerformanceFilter,
+            val db: com.medqb.app.shared.data.database.DatabaseProvider?,
+        )
     }
 
     private val _state = MutableStateFlow(FilterUiState.EMPTY)
@@ -91,7 +96,6 @@ class FilterHubViewModel(
         setupSettingsCollectors()
         setupFilterSelectionSync()
         setupHistoryEntriesFlow()
-        setupInitialPaneCollector()
         setupFilterPersistence()
         restoreSavedFilters()
     }
@@ -99,19 +103,6 @@ class FilterHubViewModel(
     fun setActivePane(pane: FilterPane) {
         _state.update { it.copy(activePane = pane) }
         activePaneState.value = pane.name
-    }
-
-    private fun setupInitialPaneCollector() {
-        activePaneState
-            .filterNotNull()
-            .onEach { paneName ->
-                runCatching { FilterPane.valueOf(paneName) }.getOrNull()?.let { pane ->
-                    if (_state.value.activePane != pane) {
-                        _state.update { it.copy(activePane = pane) }
-                    }
-                }
-            }
-            .launchIn(viewModelScope)
     }
 
     private fun setupDatabaseNameTracking() {
@@ -128,8 +119,8 @@ class FilterHubViewModel(
                         filterStateHolder.reset()
                     }
                 } else {
-                    val restoredName = databaseNameState.value
-                    _state.update { it.copy(databaseName = restoredName) }
+                    _state.update { it.copy(databaseName = "") }
+                    databaseNameState.value = ""
                 }
             }
             .launchIn(viewModelScope)
@@ -200,16 +191,18 @@ class FilterHubViewModel(
             filterStateHolder.selectedSystemIds,
             filterStateHolder.performanceFilter,
             activeDatabaseHolder.activeDatabase,
-        ) { subjects, systems, perf, active -> Quad(subjects, systems, perf, active?.provider) }
-            .flatMapLatest { (subjects, systems, perf, db) ->
+        ) { subjects, systems, perf, active ->
+            PreviewFilterParameters(subjects, systems, perf, active?.provider)
+        }
+            .flatMapLatest { params ->
                 flow {
                     val count = withContext(ioDispatcher) {
                         try {
                             applyFiltersUseCase.previewQuestionCount(
-                                db = db,
-                                selectedSubjectIds = subjects,
-                                selectedSystemIds = systems,
-                                performanceFilter = perf,
+                                db = params.db,
+                                selectedSubjectIds = params.subjects,
+                                selectedSystemIds = params.systems,
+                                performanceFilter = params.performance,
                             )
                         } catch (e: CancellationException) {
                             throw e
@@ -389,6 +382,8 @@ class FilterHubViewModel(
                 } else {
                     onFailure()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 onFailure()
             }

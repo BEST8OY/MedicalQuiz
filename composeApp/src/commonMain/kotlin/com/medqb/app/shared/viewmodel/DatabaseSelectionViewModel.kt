@@ -2,7 +2,6 @@ package com.medqb.app.shared.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.orchestration.AppStartupCoordinator
 import com.medqb.app.shared.platform.Logger
 import dev.zacsweers.metro.Inject
@@ -20,7 +19,6 @@ import kotlinx.coroutines.launch
 @Inject
 class DatabaseSelectionViewModel(
     private val startupCoordinator: AppStartupCoordinator,
-    private val userDataManager: UserDataManager,
 ) : ViewModel() {
 
     private val _availableDatabases = MutableStateFlow<List<String>>(emptyList())
@@ -40,7 +38,7 @@ class DatabaseSelectionViewModel(
     }
 
     private fun initializeApp() {
-        loadDatabases { startupCoordinator.initializeApp(userDataManager) }
+        loadDatabases { startupCoordinator.initializeApp() }
     }
 
     fun refreshDatabases() {

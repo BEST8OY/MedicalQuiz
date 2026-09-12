@@ -57,8 +57,7 @@ interface AppGraph {
 
     fun createDatabaseSelectionViewModel(): DatabaseSelectionViewModel {
         return DatabaseSelectionViewModel(
-            startupCoordinator = startupCoordinator,
-            userDataManager = userDataManager
+            startupCoordinator = startupCoordinator
         )
     }
 

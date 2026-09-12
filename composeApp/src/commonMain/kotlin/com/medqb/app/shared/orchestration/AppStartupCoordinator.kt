@@ -15,13 +15,19 @@ import dev.zacsweers.metro.Inject
 class AppStartupCoordinator(
     private val localContentRepository: LocalContentRepository,
     private val activeDatabaseHolder: ActiveDatabaseHolder,
+    private val userDataManager: UserDataManager,
 ) {
-    suspend fun initializeApp(userDataManager: UserDataManager): List<String> {
+    suspend fun initializeApp(): List<String> {
         userDataManager.init()
         return localContentRepository.listDatabases()
     }
 
-    suspend fun refreshDatabases(): List<String> = localContentRepository.listDatabases()
+    suspend fun initializeApp(userDataManager: UserDataManager): List<String> = initializeApp()
+
+    suspend fun refreshDatabases(): List<String> {
+        userDataManager.init()
+        return localContentRepository.listDatabases()
+    }
 
     suspend fun handleDatabaseSelection(
         selectedDatabase: String?,

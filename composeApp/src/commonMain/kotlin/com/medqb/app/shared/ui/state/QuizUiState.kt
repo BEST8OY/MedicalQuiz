@@ -45,6 +45,9 @@ data class QuizUiState(
     val hasNextQuestion: Boolean
         get() = currentQuestionIndex < questionIds.size - 1
 
+    val toolbarTitle: String
+        get() = entryName.ifBlank { databaseName }
+
     companion object {
         val EMPTY = QuizUiState()
     }

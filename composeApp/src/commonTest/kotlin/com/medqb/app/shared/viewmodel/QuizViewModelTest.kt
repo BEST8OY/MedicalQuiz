@@ -368,4 +368,90 @@ class QuizViewModelTest {
 
         assertEquals(SubmissionMode.MANUAL, viewModel.state.value.submissionMode)
     }
+
+    @Test
+    fun runtimeSettingsChangeUpdatesQuizStateDynamically() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val settings = FakeSettingsRepository(
+            submissionMode = SubmissionMode.INSTANT,
+            isLoggingEnabled = true,
+        )
+        val viewModel = createViewModel(provider, holder, settings = settings)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals(SubmissionMode.INSTANT, viewModel.state.value.submissionMode)
+        assertTrue(viewModel.state.value.isLoggingEnabled)
+
+        settings.setSubmissionMode(SubmissionMode.MANUAL)
+        settings.setLoggingEnabled(false)
+        advanceUntilIdle()
+
+        assertEquals(SubmissionMode.MANUAL, viewModel.state.value.submissionMode)
+        assertFalse(viewModel.state.value.isLoggingEnabled)
+    }
+
+    @Test
+    fun toolbarTitleReflectsEntryNameOrDatabaseName() = runQuizTest {
+        val provider = FakeDatabaseProvider(dbName = "Cardiology.db")
+        val holder = ActiveDatabaseHolder()
+        val savedStateHandle = SavedStateHandle(mapOf("entryName" to "My Custom Quiz"))
+        val viewModel = QuizViewModel(
+            settingsRepository = FakeSettingsRepository(),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            sessionRepository = FakeQuizSessionRepository(),
+            savedStateHandle = savedStateHandle,
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals("My Custom Quiz", viewModel.state.value.toolbarTitle)
+        assertEquals("My Custom Quiz", viewModel.toolbarTitle.value)
+    }
+
+    @Test
+    fun clearingLogDoesNotWipePerformanceWhenNavigatedToAnotherQuestion() = runQuizTest {
+        val provider = FakeDatabaseProvider(
+            q2Performance = QuestionPerformance(
+                qid = 2,
+                lastCorrect = true,
+                everCorrect = true,
+                everIncorrect = false,
+                attempts = 7,
+                correctCount = 7,
+                incorrectCount = 0,
+            )
+        )
+        val holder = ActiveDatabaseHolder()
+        val viewModel = createViewModel(provider, holder)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        // Load question 2 (which has non-null performance in FakeDatabaseProvider)
+        viewModel.loadQuestion(1)
+        advanceUntilIdle()
+        val q2Performance = viewModel.state.value.currentPerformance
+        assertTrue(q2Performance != null && q2Performance.attempts == 7)
+
+        // Clear log for question 2, but simulate user moving back to question 1
+        // (Fake clearLog will complete while on question 1)
+        viewModel.loadQuestion(0)
+        advanceUntilIdle()
+        assertNull(viewModel.state.value.currentPerformance) // Question 1 has null performance
+
+        viewModel.clearCurrentQuestionLog()
+        advanceUntilIdle()
+
+        // Navigate back to question 2: its performance should be loaded fresh and intact
+        viewModel.loadQuestion(1)
+        advanceUntilIdle()
+        val reloadedPerformance = viewModel.state.value.currentPerformance
+        assertTrue(reloadedPerformance != null && reloadedPerformance.attempts == 7)
+    }
 }

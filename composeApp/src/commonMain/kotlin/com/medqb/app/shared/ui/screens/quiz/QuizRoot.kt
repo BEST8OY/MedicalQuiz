@@ -39,7 +39,7 @@ fun QuizRoot(
     onOpenSettingsScreen: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val title by viewModel.toolbarTitle.collectAsStateWithLifecycle()
+    val title = state.toolbarTitle
     val isQuizMode = state.questionIds.isNotEmpty() && state.currentQuestion != null
 
     // Dialog states - these are overlays within the quiz screen

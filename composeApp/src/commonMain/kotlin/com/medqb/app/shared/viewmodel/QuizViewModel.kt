@@ -70,9 +70,9 @@ class QuizViewModel(
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
 
     val toolbarTitle = state
-        .map { it.entryName.ifBlank { it.databaseName } }
+        .map { it.toolbarTitle }
         .distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
     private val sessionIdState: MutableStateFlow<String> = savedStateHandle.getMutableStateFlow(KEY_SESSION_ID, "")
     private val sessionId: String
@@ -170,7 +170,9 @@ class QuizViewModel(
                     Logger.e("QuizViewModel", "Error loading question $questionId", e)
                     emitSnackbar("Failed to load question: ${e.message}")
                 } finally {
-                    _state.update { it.copy(isLoading = false) }
+                    if (currentCoroutineContext().isActive) {
+                        _state.update { it.copy(isLoading = false) }
+                    }
                 }
             }
         }
@@ -294,6 +296,8 @@ class QuizViewModel(
             if (newSessionId.isNotBlank()) {
                 updateSessionId(newSessionId)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e("QuizViewModel", "Error appending to history", e)
         }
@@ -497,7 +501,13 @@ class QuizViewModel(
                 if (active != null && activeDatabaseHolder.activeDatabase.value !== active) {
                     return@launch
                 }
-                _state.update { it.copy(currentPerformance = null) }
+                _state.update { current ->
+                    if (current.currentQuestion?.id == questionId) {
+                        current.copy(currentPerformance = null)
+                    } else {
+                        current
+                    }
+                }
                 emitSnackbar("Log cleared for current question")
             } catch (e: CancellationException) {
                 throw e
@@ -511,13 +521,31 @@ class QuizViewModel(
         combine(
             settingsRepository.showMetadata,
             settingsRepository.fontScalePreference,
-        ) { metadata, fontScale -> metadata to fontScale }
+            settingsRepository.isLoggingEnabled,
+            settingsRepository.submissionMode,
+        ) { metadata, fontScale, isLoggingEnabled, submissionMode ->
+            QuizSettingsSnapshot(metadata, fontScale, isLoggingEnabled, submissionMode)
+        }
             .distinctUntilChanged()
-            .onEach { (metadata, fontScale) ->
-                _state.update { it.copy(showMetadata = metadata, fontScalePreference = fontScale) }
+            .onEach { settings ->
+                _state.update {
+                    it.copy(
+                        showMetadata = settings.metadata,
+                        fontScalePreference = settings.fontScale,
+                        isLoggingEnabled = settings.isLoggingEnabled,
+                        submissionMode = settings.submissionMode,
+                    )
+                }
             }
             .launchIn(viewModelScope)
     }
+
+    private data class QuizSettingsSnapshot(
+        val metadata: Boolean,
+        val fontScale: Float?,
+        val isLoggingEnabled: Boolean,
+        val submissionMode: SubmissionMode,
+    )
 
     private fun emitSnackbar(message: String) {
         viewModelScope.launch {
