@@ -97,3 +97,9 @@ lint/tmp/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Databases and SQLite artifacts
+*.db
+*.db-shm
+*.db-wal
+
