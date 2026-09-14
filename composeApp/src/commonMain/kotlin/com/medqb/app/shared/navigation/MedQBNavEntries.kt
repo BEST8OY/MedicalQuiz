@@ -114,19 +114,16 @@ fun rememberMedQBNavEntries(
             entry<MedQBRoutes.MediaViewer>(
                 metadata = metadata {
                     put(NavDisplay.TransitionKey) {
-                        (fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) +
-                            scaleIn(animationSpec = motionScheme.slowSpatialSpec(), initialScale = 0.92f)) togetherWith
+                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
                             fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                     }
                     put(NavDisplay.PopTransitionKey) {
                         fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            (fadeOut(animationSpec = motionScheme.fastEffectsSpec()) +
-                                scaleOut(animationSpec = motionScheme.defaultSpatialSpec(), targetScale = 0.92f))
+                            fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                     }
                     put(NavDisplay.PredictivePopTransitionKey) {
                         fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            (fadeOut(animationSpec = motionScheme.fastEffectsSpec()) +
-                                scaleOut(animationSpec = motionScheme.defaultSpatialSpec(), targetScale = 0.92f))
+                            fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                     }
                 }
             ) { key ->
