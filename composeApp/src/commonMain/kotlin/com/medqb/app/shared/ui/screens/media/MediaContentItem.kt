@@ -38,13 +38,10 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntSize
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.medqb.app.shared.ui.media.MediaType
@@ -198,46 +195,25 @@ private fun ImageContent(
 
     val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
 
-    val sharedElementModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+    val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
         with(sharedTransitionScope) {
-            Modifier.sharedElement(
+            Modifier.sharedBounds(
                 sharedContentState = rememberSharedContentState(key = "media_$fileName"),
                 animatedVisibilityScope = animatedVisibilityScope,
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
+                resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.Fit),
             )
         }
     } else Modifier
-
-    var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    val center = remember(containerSize) {
-        if (containerSize.width > 0 && containerSize.height > 0) {
-            Offset(containerSize.width / 2f, containerSize.height / 2f)
-        } else {
-            Offset.Zero
-        }
-    }
 
     val isExitingTransition = animatedVisibilityScope?.transition?.targetState?.let {
         it == EnterExitState.PostExit || it == EnterExitState.PreEnter
     } ?: false
 
-    // Single-stage back navigation: smoothly animate zoom scale and offsets back to 1.0x centered
-    // concurrently with the shared element bounds collapse using Material 3 Expressive motionScheme.
-    LaunchedEffect(isExitingTransition) {
-        if (isExitingTransition && isZoomed) {
-            zoomState.changeScale(
-                targetScale = MIN_SCALE,
-                position = center,
-                animationSpec = defaultSpatialSpec,
-            )
-        }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .onSizeChanged { containerSize = it }
-            .then(sharedElementModifier)
+            .then(sharedBoundsModifier)
             .clipToBounds()
             .zoomable(
                 zoomState = zoomState,

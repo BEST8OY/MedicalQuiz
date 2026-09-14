@@ -60,15 +60,16 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalNavAnimatedContentScope.current
     val activeKey = LocalActiveSharedElementKey.current?.value
-    val sharedElementModifier = if (
+    val sharedBoundsModifier = if (
         sharedTransitionScope != null &&
         activeKey == clickTarget
     ) {
         with(sharedTransitionScope) {
-            Modifier.sharedElement(
+            Modifier.sharedBounds(
                 sharedContentState = rememberSharedContentState(key = "media_$clickTarget"),
                 animatedVisibilityScope = animatedVisibilityScope,
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
+                resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.Fit),
             )
         }
     } else Modifier
@@ -91,7 +92,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
             modifier = Modifier
                 .zIndex(if (isZoomed) 1f else 0f)
                 .then(imageSizeModifier)
-                .then(sharedElementModifier)
+                .then(sharedBoundsModifier)
                 .clipToBounds()
                 .snapBackZoomable(
                     zoomState = zoomState,
