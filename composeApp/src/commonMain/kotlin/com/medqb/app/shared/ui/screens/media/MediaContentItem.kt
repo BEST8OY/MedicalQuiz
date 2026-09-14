@@ -128,7 +128,7 @@ private fun VideoContent(
     mediaFileExists: suspend (String) -> Boolean,
     isActivePage: Boolean,
 ) {
-    val fileExists by produceState(initialValue = true, filePath) {
+    val fileExists by produceState(initialValue = true, fileName, filePath) {
         value = mediaFileExists(fileName)
     }
 
@@ -151,7 +151,7 @@ private fun AudioContent(
     mediaFileExists: suspend (String) -> Boolean,
     isActivePage: Boolean,
 ) {
-    val fileExists by produceState(initialValue = true, filePath) {
+    val fileExists by produceState(initialValue = true, fileName, filePath) {
         value = mediaFileExists(fileName)
     }
 
@@ -180,7 +180,7 @@ private fun ImageContent(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
-    val fileExists by produceState(initialValue = true, mediaFilePath) {
+    val fileExists by produceState(initialValue = true, fileName, mediaFilePath) {
         value = mediaFileExists(fileName)
     }
 

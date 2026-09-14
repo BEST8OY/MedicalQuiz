@@ -143,6 +143,7 @@ private fun MediaViewerContent(
     ) {
         HorizontalPager(
             state = pagerState,
+            key = { mediaFiles[it] },
             modifier = Modifier.fillMaxSize(),
             userScrollEnabled = !isZoomed,
             beyondViewportPageCount = 1,
@@ -154,6 +155,12 @@ private fun MediaViewerContent(
                 object : androidx.lifecycle.LifecycleOwner {
                     val registry = androidx.lifecycle.LifecycleRegistry(this)
                     override val lifecycle: Lifecycle get() = registry
+                }
+            }
+
+            DisposableEffect(pageLifecycleOwner) {
+                onDispose {
+                    pageLifecycleOwner.registry.currentState = Lifecycle.State.DESTROYED
                 }
             }
 
@@ -180,14 +187,14 @@ private fun MediaViewerContent(
             }
 
             CompositionLocalProvider(LocalLifecycleOwner provides pageLifecycleOwner) {
-                val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            alpha = lerp(0.5f, 1f, 1f - pageOffset.absoluteValue.coerceIn(0f, 1f))
-                            val scale = lerp(0.85f, 1f, 1f - pageOffset.absoluteValue.coerceIn(0f, 1f))
+                            val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                            val fraction = 1f - pageOffset.absoluteValue.coerceIn(0f, 1f)
+                            alpha = lerp(0.5f, 1f, fraction)
+                            val scale = lerp(0.85f, 1f, fraction)
                             scaleX = scale
                             scaleY = scale
                         },
@@ -203,8 +210,8 @@ private fun MediaViewerContent(
                             if (it) showUI = false
                         },
                         onSingleTap = onToggleUI,
-                        overlayPath = if (page == pagerState.currentPage) currentOverlayPath else null,
-                        showOverlay = if (page == pagerState.currentPage) showOverlay else true,
+                        overlayPath = overlayPathsByFile[mediaFiles[page]],
+                        showOverlay = showOverlay,
                         sharedTransitionScope = sharedTransitionScope,
                         animatedVisibilityScope = animatedVisibilityScope,
                     )
