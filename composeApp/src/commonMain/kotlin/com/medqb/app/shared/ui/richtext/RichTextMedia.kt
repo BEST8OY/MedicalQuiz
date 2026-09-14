@@ -62,7 +62,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     val activeKey = LocalActiveSharedElementKey.current?.value
     val motionScheme = androidx.compose.material3.MaterialTheme.motionScheme
     val slowSpatialSpec = motionScheme.slowSpatialSpec<androidx.compose.ui.geometry.Rect>()
-    val defaultSpatialSpec = motionScheme.defaultSpatialSpec<androidx.compose.ui.geometry.Rect>()
+    val fastSpatialSpec = motionScheme.fastSpatialSpec<androidx.compose.ui.geometry.Rect>()
 
     // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
     // hero transition without duplicate image crossfade artifacts.
@@ -76,7 +76,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
                 animatedVisibilityScope = animatedVisibilityScope,
                 boundsTransform = { initialBounds, targetBounds ->
                     val isExpanding = initialBounds.width * initialBounds.height < targetBounds.width * targetBounds.height
-                    if (isExpanding) slowSpatialSpec else defaultSpatialSpec
+                    if (isExpanding) slowSpatialSpec else fastSpatialSpec
                 },
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
             )

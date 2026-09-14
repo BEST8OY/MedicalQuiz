@@ -23,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -203,8 +202,9 @@ private fun ImageContent(
 
     val motionScheme = MaterialTheme.motionScheme
     val defaultSpatialFloatSpec = motionScheme.defaultSpatialSpec<Float>()
+    val fastSpatialFloatSpec = motionScheme.fastSpatialSpec<Float>()
     val slowSpatialSpec = motionScheme.slowSpatialSpec<androidx.compose.ui.geometry.Rect>()
-    val defaultSpatialSpec = motionScheme.defaultSpatialSpec<androidx.compose.ui.geometry.Rect>()
+    val fastSpatialSpec = motionScheme.fastSpatialSpec<androidx.compose.ui.geometry.Rect>()
 
     // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
     // hero transition without duplicate image crossfade artifacts.
@@ -215,7 +215,7 @@ private fun ImageContent(
                 animatedVisibilityScope = animatedVisibilityScope,
                 boundsTransform = { initialBounds, targetBounds ->
                     val isExpanding = initialBounds.width * initialBounds.height < targetBounds.width * targetBounds.height
-                    if (isExpanding) slowSpatialSpec else defaultSpatialSpec
+                    if (isExpanding) slowSpatialSpec else fastSpatialSpec
                 },
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
             )
@@ -252,7 +252,7 @@ private fun ImageContent(
             zoomState.changeScale(
                 targetScale = MIN_SCALE,
                 position = center,
-                animationSpec = defaultSpatialFloatSpec,
+                animationSpec = fastSpatialFloatSpec,
             )
         }
     }
@@ -277,7 +277,6 @@ private fun ImageContent(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        var isLoading by remember { mutableStateOf(true) }
         var isTransitionDone by remember { mutableStateOf(animatedVisibilityScope == null) }
 
         LaunchedEffect(animatedVisibilityScope) {
@@ -297,21 +296,11 @@ private fun ImageContent(
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Fit,
             onState = { state ->
-                isLoading = state is AsyncImagePainter.State.Loading
                 if (state is AsyncImagePainter.State.Success) {
                     zoomState.setContentSize(state.painter.intrinsicSize)
                 }
             },
         )
-
-        if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                LoadingIndicator()
-            }
-        }
 
         AnimatedVisibility(
             visible = overlayPath != null && showOverlay && !isExitingTransition && isTransitionDone,

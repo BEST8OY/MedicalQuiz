@@ -119,11 +119,11 @@ fun rememberMedQBNavEntries(
                     }
                     put(NavDisplay.PopTransitionKey) {
                         fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                            fadeOut(animationSpec = motionScheme.defaultEffectsSpec())
                     }
                     put(NavDisplay.PredictivePopTransitionKey) {
                         fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                            fadeOut(animationSpec = motionScheme.defaultEffectsSpec())
                     }
                 }
             ) { key ->
