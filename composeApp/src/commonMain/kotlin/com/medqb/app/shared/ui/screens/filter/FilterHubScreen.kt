@@ -25,6 +25,8 @@ import com.medqb.app.shared.ui.screens.history.HistoryPane
 import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.viewmodel.FilterHubViewModel
 
+import com.medqb.app.shared.ui.state.FilterUiState
+
 @Composable
 internal fun FilterHubScreen(
     viewModel: FilterHubViewModel,
@@ -34,8 +36,60 @@ internal fun FilterHubScreen(
     onSubmissionModeToggle: (SubmissionMode) -> Unit,
     onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
     onDismissSnackbar: () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    FilterHubContent(
+        state = state,
+        onStartQuiz = onStartQuiz,
+        onHistorySelected = onHistorySelected,
+        onLoggingToggle = onLoggingToggle,
+        onSubmissionModeToggle = onSubmissionModeToggle,
+        onPaneSelected = { pane ->
+            if (pane != state.activePane) {
+                onDismissSnackbar()
+                viewModel.setActivePane(pane)
+            }
+        },
+        onClearFilters = { viewModel.clearAllFilters() },
+        onDeleteHistoryEntries = { viewModel.deleteHistoryEntries(it) },
+        onRenameHistoryEntry = { id, name -> viewModel.renameHistoryEntry(id, name) },
+        onCopyAllQids = { entries, onCopied -> viewModel.copyQuestionIdsForHistoryEntries(entries, onCopied) },
+        onUndoDelete = { viewModel.undoHistoryEntry(it) },
+        onFetchSubjects = { viewModel.fetchSubjects() },
+        onApplySelectedSubjects = { viewModel.applySelectedSubjects(it) },
+        onFetchSystems = { viewModel.fetchSystems() },
+        onApplySelectedSystems = { viewModel.applySelectedSystems(it) },
+        onSelectPerformanceFilter = { viewModel.setPerformanceFilter(it) },
+        onShowSnackbar = onShowSnackbar,
+        onDismissSnackbar = onDismissSnackbar,
+        modifier = modifier,
+    )
+}
+
+@Composable
+internal fun FilterHubContent(
+    state: FilterUiState,
+    onStartQuiz: () -> Unit,
+    onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
+    onLoggingToggle: (Boolean) -> Unit,
+    onSubmissionModeToggle: (SubmissionMode) -> Unit,
+    onPaneSelected: (FilterPane) -> Unit,
+    onClearFilters: () -> Unit,
+    onDeleteHistoryEntries: suspend (Set<String>) -> Unit,
+    onRenameHistoryEntry: (String, String) -> Unit,
+    onCopyAllQids: (List<QuizSessionRepository.QuizSession>, (String) -> Unit) -> Unit,
+    onUndoDelete: suspend (QuizSessionRepository.QuizSession) -> Unit,
+    onFetchSubjects: () -> Unit,
+    onApplySelectedSubjects: (Set<Long>) -> Unit,
+    onFetchSystems: () -> Unit,
+    onApplySelectedSystems: (Set<Long>) -> Unit,
+    onSelectPerformanceFilter: (PerformanceFilter) -> Unit,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
+    onDismissSnackbar: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     val performanceLabel = formatPerformanceLabel(state.performanceFilter)
 
     var showSubjectDialog by rememberSaveable { mutableStateOf(false) }
@@ -46,13 +100,9 @@ internal fun FilterHubScreen(
 
     FilterPaneScaffold(
         selectedPane = state.activePane,
-        onPaneSelected = { pane ->
-            if (pane != state.activePane) {
-                onDismissSnackbar()
-                viewModel.setActivePane(pane)
-            }
-        },
+        onPaneSelected = onPaneSelected,
         showPaneToolbar = !historySelectionMode || state.activePane == FilterPane.Filters,
+        modifier = modifier,
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val screenHeight = maxHeight
@@ -87,7 +137,7 @@ internal fun FilterHubScreen(
                                 onDismissSnackbar()
                                 onStartQuiz()
                             },
-                            onClearFilters = { viewModel.clearAllFilters() },
+                            onClearFilters = onClearFilters,
                         )
                     }
                     FilterPane.History -> {
@@ -97,13 +147,11 @@ internal fun FilterHubScreen(
                                 onDismissSnackbar()
                                 onHistorySelected(entry)
                             },
-                            onDeleteHistoryEntries = { viewModel.deleteHistoryEntries(it) },
-                            onRenameHistoryEntry = { id, name -> viewModel.renameHistoryEntry(id, name) },
-                            onCopyAllQids = { entries, onCopied ->
-                                viewModel.copyQuestionIdsForHistoryEntries(entries, onCopied)
-                            },
+                            onDeleteHistoryEntries = onDeleteHistoryEntries,
+                            onRenameHistoryEntry = onRenameHistoryEntry,
+                            onCopyAllQids = onCopyAllQids,
                             onSelectionModeChanged = { historySelectionMode = it },
-                            onUndoDelete = { viewModel.undoHistoryEntry(it) },
+                            onUndoDelete = onUndoDelete,
                             onShowSnackbar = onShowSnackbar,
                             onDismissSnackbar = onDismissSnackbar,
                         )
@@ -117,9 +165,9 @@ internal fun FilterHubScreen(
         SubjectFilterDialog(
             resource = state.subjectsResource,
             selectedIds = state.selectedSubjectIds,
-            onRetry = { viewModel.fetchSubjects() },
+            onRetry = onFetchSubjects,
             onApply = { selected ->
-                viewModel.applySelectedSubjects(selected)
+                onApplySelectedSubjects(selected)
                 showSubjectDialog = false
             },
             onDismiss = { showSubjectDialog = false }
@@ -130,9 +178,9 @@ internal fun FilterHubScreen(
         SystemFilterDialog(
             resource = state.systemsResource,
             selectedIds = state.selectedSystemIds,
-            onRetry = { viewModel.fetchSystems() },
+            onRetry = onFetchSystems,
             onApply = { selected ->
-                viewModel.applySelectedSystems(selected)
+                onApplySelectedSystems(selected)
                 showSystemDialog = false
             },
             onDismiss = { showSystemDialog = false }
@@ -143,7 +191,7 @@ internal fun FilterHubScreen(
         PerformanceFilterDialog(
             current = state.performanceFilter,
             onSelect = { filter ->
-                viewModel.setPerformanceFilter(filter)
+                onSelectPerformanceFilter(filter)
                 showPerformanceDialog = false
             },
             onDismiss = { showPerformanceDialog = false }
@@ -151,7 +199,6 @@ internal fun FilterHubScreen(
     }
 }
 
-@Composable
 private fun formatPerformanceLabel(filter: PerformanceFilter): String {
     return when (filter) {
         PerformanceFilter.ALL -> "All Questions"

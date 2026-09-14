@@ -45,7 +45,8 @@ internal fun ToggleCard(
     title: String,
     description: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val motionScheme = MaterialTheme.motionScheme
     val containerColor by animateColorAsState(
@@ -82,7 +83,7 @@ internal fun ToggleCard(
 
     Card(
         onClick = { onCheckedChange(!checked) },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
@@ -126,7 +127,7 @@ internal fun ToggleCard(
 
             Switch(
                 checked = checked,
-                onCheckedChange = onCheckedChange
+                onCheckedChange = null,
             )
         }
     }
@@ -134,7 +135,10 @@ internal fun ToggleCard(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun DatabaseHeaderCard(databaseName: String) {
+internal fun DatabaseHeaderCard(
+    databaseName: String,
+    modifier: Modifier = Modifier,
+) {
     val motionScheme = MaterialTheme.motionScheme
     val containerColor by animateColorAsState(
         targetValue = MaterialTheme.colorScheme.secondaryContainer,
@@ -142,7 +146,7 @@ internal fun DatabaseHeaderCard(databaseName: String) {
     )
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
@@ -186,7 +190,10 @@ internal fun DatabaseHeaderCard(databaseName: String) {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun FilterPreviewCard(previewCount: Int) {
+internal fun FilterPreviewCard(
+    previewCount: Int,
+    modifier: Modifier = Modifier,
+) {
     val hasPreview = previewCount > 0
     val statusText = when {
         previewCount > 1 -> "$previewCount questions available"
@@ -209,7 +216,7 @@ internal fun FilterPreviewCard(previewCount: Int) {
     )
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
@@ -239,7 +246,8 @@ internal fun FilterSelectionCard(
     subtitle: String,
     icon: ImageVector,
     isActive: Boolean = false,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val motionScheme = MaterialTheme.motionScheme
 
@@ -277,7 +285,7 @@ internal fun FilterSelectionCard(
 
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
@@ -328,10 +336,11 @@ internal fun PrimaryActionButtonGroup(
     hasPreview: Boolean,
     hasFilters: Boolean,
     onStart: () -> Unit,
-    onClearFilters: () -> Unit
+    onClearFilters: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.MediumSmall),
         contentAlignment = Alignment.Center,
@@ -340,7 +349,8 @@ internal fun PrimaryActionButtonGroup(
             modifier = Modifier
                 .widthIn(max = Layout.MaxContentWidth)
                 .fillMaxWidth()
-                .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec())
+                .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()),
+            contentAlignment = Alignment.Center,
         ) {
             FilterActionControlButtonGroup(
                 hasPreview = hasPreview,
@@ -367,26 +377,21 @@ private fun FilterActionControlButtonGroup(
         ButtonGroupDefaults.HorizontalArrangement
     }
 
-    Box(
-        modifier = Modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center,
+    ButtonGroup(
+        overflowIndicator = {
+            ButtonGroupDefaults.OverflowIndicator(menuState = it)
+        },
+        modifier = groupModifier,
+        horizontalArrangement = groupArrangement,
+        expandedRatio = 0f,
     ) {
-        ButtonGroup(
-            overflowIndicator = {
-                ButtonGroupDefaults.OverflowIndicator(menuState = it)
-            },
-            modifier = groupModifier,
-            horizontalArrangement = groupArrangement,
-            expandedRatio = 0f,
-        ) {
             StartQuizButtonGroupItem(
                 hasPreview = hasPreview,
                 onStart = onStart,
             )
 
-            if (showReset) {
-                ResetFiltersButtonGroupItem(onClearFilters = onClearFilters)
-            }
+        if (showReset) {
+            ResetFiltersButtonGroupItem(onClearFilters = onClearFilters)
         }
     }
 }

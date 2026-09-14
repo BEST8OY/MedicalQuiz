@@ -48,13 +48,14 @@ internal fun FilterScreen(
     onSelectSystems: () -> Unit,
     onSelectPerformance: () -> Unit,
     onStart: () -> Unit,
-    onClearFilters: () -> Unit
+    onClearFilters: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val hasPreview = previewCount > 0
     val hasFilters = subjectCount > 0 || systemCount > 0 || performanceFilter != PerformanceFilter.ALL
 
-    Surface(modifier = Modifier.fillMaxSize()) {
-        BoxWithConstraints(
+    Surface(modifier = modifier.fillMaxSize()) {
+        Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopCenter
         ) {
@@ -84,25 +85,23 @@ internal fun FilterScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(Spacing.Medium)
                         ) {
-                            Box(modifier = Modifier.weight(1f)) {
-                                FilterSelectionCard(
-                                    title = "Subjects",
-                                    subtitle = if (subjectCount == 0) "All subjects" else "$subjectCount selected",
-                                    icon = Icons.Filled.Category,
-                                    isActive = subjectCount > 0,
-                                    onClick = onSelectSubjects
-                                )
-                            }
+                            FilterSelectionCard(
+                                title = "Subjects",
+                                subtitle = if (subjectCount == 0) "All subjects" else "$subjectCount selected",
+                                icon = Icons.Filled.Category,
+                                isActive = subjectCount > 0,
+                                onClick = onSelectSubjects,
+                                modifier = Modifier.weight(1f),
+                            )
 
-                            Box(modifier = Modifier.weight(1f)) {
-                                FilterSelectionCard(
-                                    title = "Systems",
-                                    subtitle = if (systemCount == 0) "All systems" else "$systemCount selected",
-                                    icon = Icons.Filled.Layers,
-                                    isActive = systemCount > 0,
-                                    onClick = onSelectSystems
-                                )
-                            }
+                            FilterSelectionCard(
+                                title = "Systems",
+                                subtitle = if (systemCount == 0) "All systems" else "$systemCount selected",
+                                icon = Icons.Filled.Layers,
+                                isActive = systemCount > 0,
+                                onClick = onSelectSystems,
+                                modifier = Modifier.weight(1f),
+                            )
                         }
 
                         FilterSelectionCard(

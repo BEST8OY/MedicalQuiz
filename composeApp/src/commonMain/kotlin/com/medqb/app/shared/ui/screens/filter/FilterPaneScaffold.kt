@@ -55,10 +55,11 @@ internal fun FilterPaneScaffold(
     selectedPane: FilterPane,
     onPaneSelected: (FilterPane) -> Unit,
     showPaneToolbar: Boolean,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
     ) {
         Box(
             modifier = Modifier
