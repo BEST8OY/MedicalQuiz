@@ -121,8 +121,6 @@ private fun MediaViewerContent(
         showExplanation = false
     }
 
-    PlatformBackHandler(enabled = showExplanation, onBack = { showExplanation = false })
-
     val onToggleUI: () -> Unit = { showUI = !showUI }
 
     val overlayPathsByFile by produceState<Map<String, String?>>(initialValue = emptyMap(), mediaFiles) {
@@ -256,6 +254,3 @@ private fun MediaViewerContent(
         }
     }
 }
-
-@Composable
-expect fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit)

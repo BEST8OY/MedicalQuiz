@@ -25,7 +25,6 @@ import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.LocalActiveSharedElementKey
 import com.medqb.app.shared.ui.dialogs.JumpToDialog
-import com.medqb.app.shared.ui.screens.media.PlatformBackHandler
 import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.viewmodel.QuizViewModel
@@ -35,23 +34,15 @@ import com.medqb.app.shared.viewmodel.QuizViewModel
 fun QuizRoot(
     viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
-    onNavigateBack: () -> Unit,
+    onNavigateBack: () -> Unit = {},
     onOpenSettingsScreen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title = state.toolbarTitle
-    val isQuizMode = state.questionIds.isNotEmpty() && state.currentQuestion != null
 
     // Dialog states - these are overlays within the quiz screen
     var showJumpToDialog by rememberSaveable { mutableStateOf(false) }
-    val isOverlayVisible = showJumpToDialog
-
-    // In pre-quiz mode, back button should navigate back to filter screen.
-    PlatformBackHandler(
-        enabled = !isQuizMode && !isOverlayVisible,
-        onBack = onNavigateBack
-    )
 
     CompositionLocalProvider(LocalActiveSharedElementKey provides mediaHandler.activeSharedElementKey) {
         Box(modifier = modifier.fillMaxSize()) {

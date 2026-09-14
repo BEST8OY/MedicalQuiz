@@ -40,7 +40,7 @@ import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.ui.components.EmptyStateMessage
 import com.medqb.app.shared.ui.dialogs.RenameDialog
 import com.medqb.app.shared.ui.richtext.setPlainText
-import com.medqb.app.shared.ui.screens.media.PlatformBackHandler
+import com.medqb.app.shared.platform.PlatformBackHandler
 import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
 import kotlinx.coroutines.launch

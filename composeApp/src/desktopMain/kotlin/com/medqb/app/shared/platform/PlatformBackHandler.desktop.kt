@@ -1,4 +1,4 @@
-package com.medqb.app.shared.ui.screens.media
+package com.medqb.app.shared.platform
 
 import androidx.compose.runtime.Composable
 

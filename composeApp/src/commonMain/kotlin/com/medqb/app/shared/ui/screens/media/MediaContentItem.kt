@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
+import com.medqb.app.shared.platform.PlatformBackHandler
 import com.medqb.app.shared.ui.media.MediaType
 import com.medqb.app.shared.ui.theme.ContainerSize
 import com.medqb.app.shared.ui.theme.Spacing
