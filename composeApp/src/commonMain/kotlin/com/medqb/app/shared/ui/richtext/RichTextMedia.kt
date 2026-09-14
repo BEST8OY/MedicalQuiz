@@ -60,6 +60,11 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalNavAnimatedContentScope.current
     val activeKey = LocalActiveSharedElementKey.current?.value
+    val boundsSpatialSpec = androidx.compose.material3.MaterialTheme.motionScheme
+        .defaultSpatialSpec<androidx.compose.ui.geometry.Rect>()
+
+    // Uses sharedBounds with ScaleToBounds(ContentScale.Fit) and Material 3 Expressive motionScheme
+    // to mirror MediaContentItem. This enables smooth single-stage back navigation from zoomed states.
     val sharedBoundsModifier = if (
         sharedTransitionScope != null &&
         activeKey == clickTarget
@@ -68,6 +73,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
             Modifier.sharedBounds(
                 sharedContentState = rememberSharedContentState(key = "media_$clickTarget"),
                 animatedVisibilityScope = animatedVisibilityScope,
+                boundsTransform = { _, _ -> boundsSpatialSpec },
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
                 resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.Fit),
             )

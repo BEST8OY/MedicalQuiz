@@ -194,12 +194,23 @@ private fun ImageContent(
     }
 
     val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val boundsSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<androidx.compose.ui.geometry.Rect>()
 
+    // Why Modifier.sharedBounds instead of Modifier.sharedElement:
+    // Modifier.sharedElement sets renderOnlyWhenVisible = true under the hood, which forces
+    // Compose to drop the outgoing (zoomed) screen immediately on back navigation and only render
+    // the incoming 1.0x thumbnail in the overlay, causing a jarring visual snap to 1.0x.
+    // In contrast, Modifier.sharedBounds sets renderOnlyWhenVisible = false, keeping the outgoing
+    // zoomed surface actively rendered while the container bounds shrink to the thumbnail position.
+    // Combined with ScaleToBounds(ContentScale.Fit) and Material 3 Expressive motionScheme,
+    // this enables a seamless single-stage back gesture directly from an arbitrary zoom state
+    // (matching the behavior in WhatsApp, Telegram, and Google Photos).
     val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
         with(sharedTransitionScope) {
             Modifier.sharedBounds(
                 sharedContentState = rememberSharedContentState(key = "media_$fileName"),
                 animatedVisibilityScope = animatedVisibilityScope,
+                boundsTransform = { _, _ -> boundsSpatialSpec },
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
                 resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.Fit),
             )
