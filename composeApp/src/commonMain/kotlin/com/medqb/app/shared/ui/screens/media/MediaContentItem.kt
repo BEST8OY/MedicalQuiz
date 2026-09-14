@@ -205,12 +205,39 @@ private fun ImageContent(
         }
     }
 
-    // Option A: Two-stage back gesture handling (Standard Mobile UX).
-    // When the user is zoomed into an image (inspection mode), intercepting the system back
-    // gesture smoothly resets the zoom back to MIN_SCALE (1.0x) rather than popping the screen.
-    // Once reset to MIN_SCALE, isZoomed becomes false, disabling this back handler so that
-    // the subsequent back gesture pops the screen and runs the 1.0x -> thumbnail shared element
-    // transition cleanly without visual snapping or duplicate image ghosting.
+    // ── Back Gesture Strategy: Two-Stage Zoom Reset ────────────────────────────
+    //
+    // When the user is zoomed into an image (inspection mode), the system back gesture is
+    // intercepted to smoothly reset the zoom to MIN_SCALE (1.0x) instead of immediately popping
+    // the screen. Once reset, isZoomed becomes false, this handler disables itself, and the
+    // next back gesture pops the screen normally — running the 1.0x → thumbnail shared element
+    // transition cleanly without visual snapping.
+    //
+    // Why two stages instead of a single drag-to-dismiss gesture (Telegram / Google Photos)?
+    //
+    // A single-gesture zoomed dismiss would require an in-place fullscreen overlay within the
+    // same composable hierarchy (not a separate navigation route) so that one persistent image
+    // surface and its transform matrix can be continuously interpolated from an arbitrary
+    // (scale, offset) back to the thumbnail bounds. This approach was considered and rejected
+    // for this app for several reasons:
+    //
+    //   1. Compose's Modifier.sharedElement hardcodes renderOnlyWhenVisible = true, which
+    //      renders the *target* composable (the unzoomed thumbnail) the instant the exit
+    //      transition begins. If the user is at 2.5× zoom, the image visually snaps to 1.0×
+    //      before the bounds animation even starts.
+    //
+    //   2. Modifier.sharedBounds renders both source and target simultaneously with a crossfade,
+    //      producing duplicate image ghosting when the two surfaces have different scales.
+    //
+    //   3. An overlay-based media viewer would lose Navigation 3 integration: saved state
+    //      survival across configuration changes, automatic backstack management, predictive
+    //      back animation support, and the SharedTransitionLayout coordination with NavDisplay.
+    //      Re-implementing all of this (plus the pager, bottom sheet, and save controls) inside
+    //      a manual overlay adds significant architectural complexity.
+    //
+    //   4. The two-stage approach is a standard UX pattern that keeps the media viewer as a
+    //      navigation destination with full lifecycle, saved state, and backstack support.
+    //
     PlatformBackHandler(enabled = isActivePage && isZoomed && isTransitionDone) {
         coroutineScope.launch {
             zoomState.changeScale(
