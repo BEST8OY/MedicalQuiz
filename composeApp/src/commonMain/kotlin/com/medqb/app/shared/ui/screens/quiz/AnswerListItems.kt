@@ -117,7 +117,7 @@ private fun AnswerListItem(
                 showResult && isCorrect -> MaterialTheme.colorScheme.secondary
                 showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.error
                 isSelected -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.surfaceVariant
+                else -> MaterialTheme.colorScheme.surfaceContainerHigh
             },
             animationSpec = motionScheme.defaultEffectsSpec()
         )
@@ -195,14 +195,13 @@ private fun AnswerListItem(
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = containerColor,
-        shadowElevation = elevation,
+        tonalElevation = elevation,
         modifier = Modifier
             .fillMaxWidth()
             .scale(scale)
             .clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,
-                indication = null,
                 onClick = onClick
             )
     ) {
@@ -302,11 +301,11 @@ fun AnswerOptions(
     answerPercentages: Map<Long, Int?>,
     onAnswerSelected: (Long) -> Unit,
     onLinkClick: (String) -> Unit,
-    onMediaClick: (String) -> Unit
+    onMediaClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val motionScheme = MaterialTheme.motionScheme
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Spacing.Small)
     ) {
         answers.forEachIndexed { index, answer ->

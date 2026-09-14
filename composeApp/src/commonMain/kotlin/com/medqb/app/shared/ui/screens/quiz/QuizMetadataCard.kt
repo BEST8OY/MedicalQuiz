@@ -64,11 +64,14 @@ private fun extractMetadataList(raw: String?): List<String> {
 }
 
 @Composable
-internal fun QuestionMetadataCard(sections: List<MetadataSection>) {
+internal fun QuestionMetadataCard(
+    sections: List<MetadataSection>,
+    modifier: Modifier = Modifier,
+) {
     if (sections.isEmpty()) return
 
     OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -140,7 +143,10 @@ private fun MetadataTag(text: String) {
 }
 
 @Composable
-internal fun PerformanceCard(performance: QuestionPerformance?) {
+internal fun PerformanceCard(
+    performance: QuestionPerformance?,
+    modifier: Modifier = Modifier,
+) {
     performance ?: return
 
     val contentColor = MaterialTheme.colorScheme.onSurface
@@ -150,7 +156,7 @@ internal fun PerformanceCard(performance: QuestionPerformance?) {
         MaterialTheme.colorScheme.error
 
     OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer

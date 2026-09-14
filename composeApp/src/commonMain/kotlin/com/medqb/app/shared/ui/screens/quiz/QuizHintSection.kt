@@ -38,7 +38,8 @@ internal fun HintSection(
     hintHtml: String,
     linkHandler: (String) -> Unit,
     mediaClick: (String) -> Unit,
-    showSelectedHighlight: Boolean
+    showSelectedHighlight: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     val defaultEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
@@ -50,7 +51,7 @@ internal fun HintSection(
         } else {
             MaterialTheme.colorScheme.surfaceContainer
         },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         onClick = if (canToggle) onToggle else ({})
     ) {
         Column(modifier = Modifier.padding(Spacing.MediumSmall)) {

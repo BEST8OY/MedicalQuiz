@@ -38,8 +38,10 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.SubmissionMode
+import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.richtext.HighlightableRichText
 import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
@@ -47,25 +49,34 @@ import com.medqb.app.shared.ui.state.QuizUiState
 import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.HtmlUtils
-import com.medqb.app.shared.viewmodel.QuizViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Composable
 fun QuizScreen(
     state: QuizUiState,
-    viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
+    onAnswerSelected: (Long) -> Unit,
+    onHighlightAdd: (HighlightSection, Int, Int, String, HighlightColor) -> Unit,
+    onHighlightRemove: (Long) -> Unit,
+    onHighlightColorChange: (Long, HighlightColor) -> Unit,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
+    modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    bottomClearance: Dp = ScreenLayout.BottomClearanceFloating
+    bottomClearance: Dp = ScreenLayout.BottomClearanceFloating,
 ) {
     val fontScalePreference = state.fontScalePreference
 
     RichTextScaleProvider(proseScale = fontScalePreference ?: 1f) {
         QuestionContent(
             state = state,
-            viewModel = viewModel,
             mediaHandler = mediaHandler,
+            onAnswerSelected = onAnswerSelected,
+            onHighlightAdd = onHighlightAdd,
+            onHighlightRemove = onHighlightRemove,
+            onHighlightColorChange = onHighlightColorChange,
+            onShowSnackbar = onShowSnackbar,
+            modifier = modifier,
             contentPadding = contentPadding,
             bottomClearance = bottomClearance,
         )
@@ -75,13 +86,18 @@ fun QuizScreen(
 @Composable
 private fun QuestionContent(
     state: QuizUiState,
-    viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
-    contentPadding: PaddingValues,
-    bottomClearance: Dp
+    onAnswerSelected: (Long) -> Unit,
+    onHighlightAdd: (HighlightSection, Int, Int, String, HighlightColor) -> Unit,
+    onHighlightRemove: (Long) -> Unit,
+    onHighlightColorChange: (Long, HighlightColor) -> Unit,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    bottomClearance: Dp = ScreenLayout.BottomClearanceFloating,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .padding(contentPadding)
     ) {
@@ -91,7 +107,7 @@ private fun QuestionContent(
                 .fillMaxWidth(),
             color = MaterialTheme.colorScheme.surfaceContainerLowest
         ) {
-            BoxWithConstraints(
+            Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.TopCenter
             ) {
@@ -102,9 +118,13 @@ private fun QuestionContent(
                 ) {
                     QuizQuestionCard(
                         state = state,
-                        viewModel = viewModel,
                         mediaHandler = mediaHandler,
-                        bottomClearance = bottomClearance
+                        onAnswerSelected = onAnswerSelected,
+                        onHighlightAdd = onHighlightAdd,
+                        onHighlightRemove = onHighlightRemove,
+                        onHighlightColorChange = onHighlightColorChange,
+                        onShowSnackbar = onShowSnackbar,
+                        bottomClearance = bottomClearance,
                     )
                 }
             }
@@ -116,9 +136,14 @@ private fun QuestionContent(
 @Composable
 private fun QuizQuestionCard(
     state: QuizUiState,
-    viewModel: QuizViewModel,
     mediaHandler: MediaHandler,
-    bottomClearance: Dp
+    onAnswerSelected: (Long) -> Unit,
+    onHighlightAdd: (HighlightSection, Int, Int, String, HighlightColor) -> Unit,
+    onHighlightRemove: (Long) -> Unit,
+    onHighlightColorChange: (Long, HighlightColor) -> Unit,
+    onShowSnackbar: suspend (SnackbarMessage) -> Unit,
+    bottomClearance: Dp,
+    modifier: Modifier = Modifier,
 ) {
     val defaultEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
@@ -221,17 +246,73 @@ private fun QuizQuestionCard(
     val scrollState = key(state.currentQuestionIndex) { rememberScrollState() }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
             .padding(horizontal = Spacing.Medium)
             .padding(top = Spacing.MediumSmall, bottom = bottomClearance + Spacing.Medium),
         verticalArrangement = Arrangement.spacedBy(Spacing.Medium)
     ) {
-        key(state.currentQuestionIndex) {
+        ElevatedCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ),
+            elevation = CardDefaults.elevatedCardElevation(
+                defaultElevation = 1.dp
+            )
+        ) {
+            HighlightableRichText(
+                html = questionHtml,
+                section = HighlightSection.QUESTION,
+                highlights = state.questionHighlights,
+                showSelectedHighlight = state.answerSubmitted,
+                onHighlightAdd = onHighlightAdd,
+                onHighlightRemove = onHighlightRemove,
+                onHighlightColorChange = onHighlightColorChange,
+                onLinkClick = linkHandler,
+                onMediaClick = mediaClick,
+                onShowSnackbar = onShowSnackbar,
+                modifier = Modifier.padding(Spacing.Medium)
+            )
+        }
+
+        if (hintHtml != null) {
+            HintSection(
+                isVisible = showHint,
+                canToggle = !state.answerSubmitted,
+                onToggle = { hintExpanded = !hintExpanded },
+                hintHtml = hintHtml,
+                linkHandler = linkHandler,
+                mediaClick = mediaClick,
+                showSelectedHighlight = state.answerSubmitted
+            )
+        }
+
+        AnswerOptions(
+            answers = answers,
+            sanitizedAnswers = sanitizedAnswers,
+            selectedAnswerId = state.selectedAnswerId,
+            correctAnswerId = correctAnswerId,
+            answerSubmitted = state.answerSubmitted,
+            answerPercentages = answerPercentages,
+            onAnswerSelected = onAnswerSelected,
+            onLinkClick = linkHandler,
+            onMediaClick = mediaClick
+        )
+
+        AnimatedVisibility(
+            visible = state.answerSubmitted && explanationHtml.isNotBlank(),
+            enter = fadeIn(
+                animationSpec = defaultEffectsSpec,
+            ) + expandVertically(
+                animationSpec = defaultSpatialSpec,
+            ),
+        ) {
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
+                shape = MaterialTheme.shapes.medium,
                 colors = CardDefaults.elevatedCardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                 ),
@@ -239,121 +320,56 @@ private fun QuizQuestionCard(
                     defaultElevation = 1.dp
                 )
             ) {
-                HighlightableRichText(
-                    html = questionHtml,
-                    section = HighlightSection.QUESTION,
-                    highlights = state.questionHighlights,
-                    showSelectedHighlight = state.answerSubmitted,
-                    onHighlightAdd = viewModel::addHighlight,
-                    onHighlightRemove = viewModel::removeHighlight,
-                    onHighlightColorChange = viewModel::changeHighlightColor,
-                    onLinkClick = linkHandler,
-                    onMediaClick = mediaClick,
-                    onShowSnackbar = viewModel::emitSnackbar,
-                    modifier = Modifier.padding(Spacing.Medium)
-                )
-            }
-
-            if (hintHtml != null) {
-                HintSection(
-                    isVisible = showHint,
-                    canToggle = !state.answerSubmitted,
-                    onToggle = { hintExpanded = !hintExpanded },
-                    hintHtml = hintHtml,
-                    linkHandler = linkHandler,
-                    mediaClick = mediaClick,
-                    showSelectedHighlight = state.answerSubmitted
-                )
-            }
-
-            AnswerOptions(
-                answers = answers,
-                sanitizedAnswers = sanitizedAnswers,
-                selectedAnswerId = state.selectedAnswerId,
-                correctAnswerId = correctAnswerId,
-                answerSubmitted = state.answerSubmitted,
-                answerPercentages = answerPercentages,
-                onAnswerSelected = { answerId ->
-                    if (!state.answerSubmitted) {
-                        viewModel.onAnswerSelected(answerId)
-                        if (state.submissionMode == SubmissionMode.INSTANT) {
-                            viewModel.submitAnswer(timeTaken = 0L)
-                        }
-                    }
-                },
-                onLinkClick = linkHandler,
-                onMediaClick = mediaClick
-            )
-
-            AnimatedVisibility(
-                visible = state.answerSubmitted && explanationHtml.isNotBlank(),
-                enter = fadeIn(
-                    animationSpec = defaultEffectsSpec,
-                ) + expandVertically(
-                    animationSpec = defaultSpatialSpec,
-                ),
-            ) {
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    ),
-                    elevation = CardDefaults.elevatedCardElevation(
-                        defaultElevation = 1.dp
-                    )
+                Column(
+                    modifier = Modifier.padding(Spacing.Medium),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.Small)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(Spacing.Medium),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.Small)
-                    ) {
-                        Text(
-                            text = "Explanation",
-                            style = MaterialTheme.typography.titleMediumEmphasized,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        HighlightableRichText(
-                            html = explanationHtml,
-                            section = HighlightSection.EXPLANATION,
-                            highlights = state.explanationHighlights,
-                            showSelectedHighlight = state.answerSubmitted,
-                            onHighlightAdd = viewModel::addHighlight,
-                            onHighlightRemove = viewModel::removeHighlight,
-                            onHighlightColorChange = viewModel::changeHighlightColor,
-                            onLinkClick = linkHandler,
-                            onMediaClick = mediaClick,
-                            onShowSnackbar = viewModel::emitSnackbar
-                        )
-                    }
+                    Text(
+                        text = "Explanation",
+                        style = MaterialTheme.typography.titleMediumEmphasized,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    HighlightableRichText(
+                        html = explanationHtml,
+                        section = HighlightSection.EXPLANATION,
+                        highlights = state.explanationHighlights,
+                        showSelectedHighlight = state.answerSubmitted,
+                        onHighlightAdd = onHighlightAdd,
+                        onHighlightRemove = onHighlightRemove,
+                        onHighlightColorChange = onHighlightColorChange,
+                        onLinkClick = linkHandler,
+                        onMediaClick = mediaClick,
+                        onShowSnackbar = onShowSnackbar
+                    )
                 }
             }
+        }
 
-            AnimatedVisibility(
-                visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
-                enter = fadeIn(
-                    animationSpec = defaultEffectsSpec,
-                ) + expandVertically(
-                    animationSpec = defaultSpatialSpec,
-                ),
-            ) {
-                Column {
-                    Spacer(modifier = Modifier.height(Spacing.MediumSmall))
-                    QuestionMetadataCard(sections = metadataSections)
-                }
+        AnimatedVisibility(
+            visible = state.showMetadata && state.answerSubmitted && metadataSections.isNotEmpty(),
+            enter = fadeIn(
+                animationSpec = defaultEffectsSpec,
+            ) + expandVertically(
+                animationSpec = defaultSpatialSpec,
+            ),
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(Spacing.MediumSmall))
+                QuestionMetadataCard(sections = metadataSections)
             }
+        }
 
-            AnimatedVisibility(
-                visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
-                enter = fadeIn(
-                    animationSpec = defaultEffectsSpec,
-                ) + expandVertically(
-                    animationSpec = defaultSpatialSpec,
-                ),
-            ) {
-                Column {
-                    Spacer(modifier = Modifier.height(Spacing.MediumSmall))
-                    PerformanceCard(performance = state.currentPerformance)
-                }
+        AnimatedVisibility(
+            visible = state.answerSubmitted && state.currentPerformance != null && state.isLoggingEnabled,
+            enter = fadeIn(
+                animationSpec = defaultEffectsSpec,
+            ) + expandVertically(
+                animationSpec = defaultSpatialSpec,
+            ),
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(Spacing.MediumSmall))
+                PerformanceCard(performance = state.currentPerformance)
             }
         }
     }

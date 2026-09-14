@@ -37,6 +37,7 @@ fun QuizRoot(
     mediaHandler: MediaHandler,
     onNavigateBack: () -> Unit,
     onOpenSettingsScreen: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title = state.toolbarTitle
@@ -53,7 +54,7 @@ fun QuizRoot(
     )
 
     CompositionLocalProvider(LocalActiveSharedElementKey provides mediaHandler.activeSharedElementKey) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = modifier.fillMaxSize()) {
             val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
             Scaffold(
@@ -69,8 +70,20 @@ fun QuizRoot(
             ) { padding ->
                 QuizScreen(
                     state = state,
-                    viewModel = viewModel,
                     mediaHandler = mediaHandler,
+                    onAnswerSelected = { answerId ->
+                        if (!state.answerSubmitted) {
+                            viewModel.onAnswerSelected(answerId)
+                            if (state.submissionMode == SubmissionMode.INSTANT) {
+                                viewModel.submitAnswer(timeTaken = 0L)
+                            }
+                        }
+                    },
+                    onHighlightAdd = viewModel::addHighlight,
+                    onHighlightRemove = viewModel::removeHighlight,
+                    onHighlightColorChange = viewModel::changeHighlightColor,
+                    onShowSnackbar = { viewModel.emitSnackbar(it) },
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = padding,
                     bottomClearance = bottomPadding + ScreenLayout.BottomClearanceFloating
                 )
