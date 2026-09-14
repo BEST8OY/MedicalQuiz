@@ -11,7 +11,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -23,7 +22,6 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.ui.media.MediaHandler
-import com.medqb.app.shared.ui.LocalActiveSharedElementKey
 import com.medqb.app.shared.ui.dialogs.JumpToDialog
 import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
@@ -44,8 +42,7 @@ fun QuizRoot(
     // Dialog states - these are overlays within the quiz screen
     var showJumpToDialog by rememberSaveable { mutableStateOf(false) }
 
-    CompositionLocalProvider(LocalActiveSharedElementKey provides mediaHandler.activeSharedElementKey) {
-        Box(modifier = modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
             val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
             Scaffold(
@@ -99,7 +96,6 @@ fun QuizRoot(
                     .padding(bottom = bottomPadding + Spacing.Medium)
                     .zIndex(1f)
             )
-        }
 
         // Dialogs - rendered as overlays
         if (showJumpToDialog) {

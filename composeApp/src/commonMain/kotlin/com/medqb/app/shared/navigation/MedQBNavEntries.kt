@@ -17,17 +17,14 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.metadata
 import androidx.navigation3.ui.NavDisplay
-import com.medqb.app.shared.data.MediaDescription
 import com.medqb.app.shared.di.AppGraph
 import com.medqb.app.shared.orchestration.AppWorkflowHandle
 import com.medqb.app.shared.ui.entry.DatabaseSelectionEntry
 import com.medqb.app.shared.ui.entry.FilterEntry
 import com.medqb.app.shared.ui.entry.HtmlViewerEntry
-import com.medqb.app.shared.ui.entry.MediaViewerEntry
 import com.medqb.app.shared.ui.entry.QuizEntry
 import com.medqb.app.shared.ui.entry.SettingsEntry
 import com.medqb.app.shared.ui.media.MediaHandler
-import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * Builds the Navigation 3 [entryProvider] mapping [MedQBRoutes] to their composable entries.
@@ -41,7 +38,6 @@ fun rememberMedQBNavEntries(
     workflow: AppWorkflowHandle,
     navigator: AppNavigator,
     mediaHandler: MediaHandler,
-    mediaDescriptionsFlow: MutableStateFlow<Map<String, MediaDescription>>,
     snackbarHostState: SnackbarHostState,
     onReturnQuizToFilter: () -> Unit,
 ): (NavKey) -> NavEntry<NavKey> {
@@ -51,7 +47,6 @@ fun rememberMedQBNavEntries(
         workflow,
         navigator,
         mediaHandler,
-        mediaDescriptionsFlow,
         snackbarHostState,
         onReturnQuizToFilter,
         motionScheme,
@@ -111,30 +106,6 @@ fun rememberMedQBNavEntries(
                 )
             }
 
-            entry<MedQBRoutes.MediaViewer>(
-                metadata = metadata {
-                    put(NavDisplay.TransitionKey) {
-                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            fadeOut(animationSpec = motionScheme.fastEffectsSpec())
-                    }
-                    put(NavDisplay.PopTransitionKey) {
-                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            fadeOut(animationSpec = motionScheme.defaultEffectsSpec())
-                    }
-                    put(NavDisplay.PredictivePopTransitionKey) {
-                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            fadeOut(animationSpec = motionScheme.defaultEffectsSpec())
-                    }
-                }
-            ) { key ->
-                MediaViewerEntry(
-                    key = key,
-                    graph = graph,
-                    navigator = navigator,
-                    mediaHandler = mediaHandler,
-                    mediaDescriptionsFlow = mediaDescriptionsFlow,
-                )
-            }
 
             entry<MedQBRoutes.HtmlViewer>(
                 metadata = metadata {

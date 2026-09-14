@@ -58,11 +58,17 @@ import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.ui.entry.DatabaseSelectionEntry
 import com.medqb.app.shared.ui.entry.FilterEntry
 import com.medqb.app.shared.ui.entry.HtmlViewerEntry
-import com.medqb.app.shared.ui.entry.MediaViewerEntry
+import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.ui.entry.QuizEntry
 import com.medqb.app.shared.ui.entry.SettingsEntry
+import com.medqb.app.shared.ui.media.LocalMediaAnchorRegistry
 import com.medqb.app.shared.ui.media.MediaHandler
+import com.medqb.app.shared.ui.media.rememberMediaAnchorRegistry
+import com.medqb.app.shared.ui.media.rememberMediaOverlayState
+import com.medqb.app.shared.ui.screens.media.MediaViewerOverlayHost
 import com.medqb.app.shared.ui.LocalSharedTransitionScope
+import androidx.compose.ui.zIndex
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -124,16 +130,21 @@ fun App() {
             userDataManager = graph.userDataManager,
         )
 
+        val mediaAnchorRegistry = rememberMediaAnchorRegistry()
+        val mediaOverlayState = rememberMediaOverlayState()
         val mediaDescriptionsFlow = remember { MutableStateFlow<Map<String, MediaDescription>>(emptyMap()) }
+        val mediaDescriptions by mediaDescriptionsFlow.collectAsStateWithLifecycle()
+        val fontScalePreference by graph.settingsRepository.fontScalePreference
+            .collectAsStateWithLifecycle(null)
         val snackbarHostState = remember { SnackbarHostState() }
 
-        val navigateToMediaViewer = remember(scope, graph.mediaNavigationCoordinator, mediaDescriptionsFlow, navigator) {
+        val navigateToMediaViewer = remember(scope, graph.mediaNavigationCoordinator, mediaDescriptionsFlow, mediaOverlayState) {
             { files: List<String>, index: Int ->
                 scope.launch {
                     val request = graph.mediaNavigationCoordinator.resolveMediaViewerRequest(files, index)
                     if (request != null) {
                         mediaDescriptionsFlow.value = request.mediaDescriptions
-                        navigator.navigateTo(request.route)
+                        mediaOverlayState.open(request.route.files, request.route.startIndex)
                     }
                 }
             }
@@ -204,87 +215,112 @@ fun App() {
             workflow = workflow,
             navigator = navigator,
             mediaHandler = mediaHandler,
-            mediaDescriptionsFlow = mediaDescriptionsFlow,
             snackbarHostState = snackbarHostState,
             onReturnQuizToFilter = returnQuizToFilter,
         )
 
-        Box {
-            @OptIn(ExperimentalSharedTransitionApi::class)
-            SharedTransitionLayout {
-                CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
-                    NavDisplay(
-                        backStack = backStack,
-                        onBack = {
-                            snackbarHostState.currentSnackbarData?.dismiss()
-                            if (navigator.currentRoute is MedQBRoutes.Quiz) {
-                                returnQuizToFilter()
-                            } else {
-                                navigator.navigateBack()
+        CompositionLocalProvider(LocalMediaAnchorRegistry provides mediaAnchorRegistry) {
+            Box {
+                @OptIn(ExperimentalSharedTransitionApi::class)
+                SharedTransitionLayout {
+                    CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
+                        NavDisplay(
+                            backStack = backStack,
+                            onBack = {
+                                snackbarHostState.currentSnackbarData?.dismiss()
+                                if (navigator.currentRoute is MedQBRoutes.Quiz) {
+                                    returnQuizToFilter()
+                                } else {
+                                    navigator.navigateBack()
+                                }
+                            },
+                            entryProvider = entryProvider,
+                            entryDecorators = listOf(
+                                rememberSaveableStateHolderNavEntryDecorator(),
+                                rememberViewModelStoreNavEntryDecorator()
+                            ),
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            transitionSpec = {
+                                (slideInHorizontally(
+                                    animationSpec = motionScheme.defaultSpatialSpec(),
+                                    initialOffsetX = { (it * 0.3f).toInt() }
+                                ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
+                                (slideOutHorizontally(
+                                    animationSpec = motionScheme.defaultSpatialSpec(),
+                                    targetOffsetX = { -(it * 0.3f).toInt() }
+                                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
+                            },
+                            popTransitionSpec = {
+                                (slideInHorizontally(
+                                    animationSpec = motionScheme.defaultSpatialSpec(),
+                                    initialOffsetX = { -(it * 0.3f).toInt() }
+                                ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
+                                (slideOutHorizontally(
+                                    animationSpec = motionScheme.defaultSpatialSpec(),
+                                    targetOffsetX = { it }
+                                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
+                            },
+                            predictivePopTransitionSpec = {
+                                (slideInHorizontally(
+                                    animationSpec = motionScheme.defaultSpatialSpec(),
+                                    initialOffsetX = { -(it * 0.3f).toInt() }
+                                ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
+                                (slideOutHorizontally(
+                                    animationSpec = motionScheme.defaultSpatialSpec(),
+                                    targetOffsetX = { it }
+                                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
                             }
-                        },
-                        entryProvider = entryProvider,
-                        entryDecorators = listOf(
-                            rememberSaveableStateHolderNavEntryDecorator(),
-                            rememberViewModelStoreNavEntryDecorator()
-                        ),
-                        sharedTransitionScope = this@SharedTransitionLayout,
-                        transitionSpec = {
-                            (slideInHorizontally(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
-                                initialOffsetX = { (it * 0.3f).toInt() }
-                            ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
-                            (slideOutHorizontally(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
-                                targetOffsetX = { -(it * 0.3f).toInt() }
-                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
-                        },
-                        popTransitionSpec = {
-                            (slideInHorizontally(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
-                                initialOffsetX = { -(it * 0.3f).toInt() }
-                            ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
-                            (slideOutHorizontally(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
-                                targetOffsetX = { it }
-                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
-                        },
-                        predictivePopTransitionSpec = {
-                            (slideInHorizontally(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
-                                initialOffsetX = { -(it * 0.3f).toInt() }
-                            ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
-                            (slideOutHorizontally(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
-                                targetOffsetX = { it }
-                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
-                        }
-                    )
+                        )
+                    }
                 }
-            }
 
-            val isFilterRoute by remember(backStack) {
-                derivedStateOf { navigator.currentRoute is MedQBRoutes.Filter }
-            }
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(
-                        start = Inset.Medium,
-                        end = Inset.Medium,
-                        bottom = if (isFilterRoute) 80.dp else Spacing.MediumSmall,
-                    ),
-                snackbar = { data ->
-                    Snackbar(
-                        snackbarData = data,
-                        containerColor = MaterialTheme.colorScheme.inverseSurface,
-                        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                        shape = MaterialTheme.shapes.medium,
-                    )
+                MediaViewerOverlayHost(
+                    overlayState = mediaOverlayState,
+                    anchorRegistry = mediaAnchorRegistry,
+                    mediaDescriptions = mediaDescriptions,
+                    richTextScale = fontScalePreference ?: 1f,
+                    resolveMediaFilePath = graph.localContentRepository::mediaFilePath,
+                    mediaFileExists = { fileName -> graph.localContentRepository.mediaFileExists(fileName) },
+                    resolveOverlayPaths = { files -> graph.localContentRepository.resolveOverlayPaths(files) },
+                    onLinkClick = { url -> mediaHandler.handleMediaLink(url) },
+                    onSaveMedia = { fileName ->
+                        scope.launch {
+                            when (val result = graph.localContentRepository.saveMediaFile(fileName)) {
+                                is LocalContentRepository.SaveMediaResult.Success ->
+                                    graph.snackbarDispatcher.emitSnackbar("Media saved to: ${result.destPath}")
+                                LocalContentRepository.SaveMediaResult.InvalidFileName ->
+                                    graph.snackbarDispatcher.emitSnackbar("Invalid file name")
+                                LocalContentRepository.SaveMediaResult.CopyFailed ->
+                                    graph.snackbarDispatcher.emitSnackbar("Failed to save media")
+                            }
+                        }
+                    }
+                )
+
+                val isFilterRoute by remember(backStack) {
+                    derivedStateOf { navigator.currentRoute is MedQBRoutes.Filter }
                 }
-            )
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .zIndex(110f)
+                        .padding(
+                            start = Inset.Medium,
+                            end = Inset.Medium,
+                            bottom = if (isFilterRoute) 80.dp else Spacing.MediumSmall,
+                        ),
+                    snackbar = { data ->
+                        Snackbar(
+                            snackbarData = data,
+                            containerColor = MaterialTheme.colorScheme.inverseSurface,
+                            contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                            shape = MaterialTheme.shapes.medium,
+                        )
+                    }
+                )
+            }
         }
     }
 }

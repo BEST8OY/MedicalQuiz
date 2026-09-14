@@ -246,6 +246,16 @@ private fun ImageContent(
     // Once reset to MIN_SCALE, isZoomed becomes false, disabling this back handler so that
     // the subsequent back gesture pops the screen and runs the 1.0x -> thumbnail shared element
     // transition cleanly without visual snapping or duplicate image ghosting.
+    //
+    // FUTURE REFACTOR (Option B - Single-Surface Overlay):
+    // If a seamless single-gesture dismissal directly from an arbitrary zoomed state is desired
+    // (similar to Telegram / Google Photos drag-down dismiss), MediaViewer cannot remain a separate
+    // NavDisplay backstack route connecting two independent composables. Compose's Modifier.sharedElement
+    // hardcodes renderOnlyWhenVisible = true (instantly rendering the unzoomed target thumbnail on exit),
+    // and Modifier.sharedBounds crossfades the two differing scales (producing duplicate image ghosting).
+    // Option B would refactor MediaViewer into an in-place fullscreen overlay within the same
+    // screen hierarchy, allowing a single persistent image surface and its 2D transformation matrix
+    // to be continuously interpolated from (scale, offset) to destination thumbnail bounds.
     PlatformBackHandler(enabled = isActivePage && isZoomed && isTransitionDone) {
         coroutineScope.launch {
             zoomState.changeScale(

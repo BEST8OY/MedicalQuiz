@@ -51,6 +51,9 @@ fun MediaViewerScreen(
     onLinkClick: ((String) -> Unit)? = null,
     onBack: () -> Unit,
     onSaveMedia: ((String) -> Unit)? = null,
+    onCurrentIndexChanged: ((Int) -> Unit)? = null,
+    onZoomStateChanged: ((Boolean) -> Unit)? = null,
+    controlsAlpha: Float = 1f,
     modifier: Modifier = Modifier,
 ) {
     val sharedTransitionScope = LocalSharedTransitionScope.current
@@ -67,6 +70,9 @@ fun MediaViewerScreen(
         onLinkClick = onLinkClick,
         onBack = onBack,
         onSaveMedia = onSaveMedia,
+        onCurrentIndexChanged = onCurrentIndexChanged,
+        onZoomStateChanged = onZoomStateChanged,
+        controlsAlpha = controlsAlpha,
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope,
         modifier = modifier,
@@ -86,6 +92,9 @@ private fun MediaViewerContent(
     onLinkClick: ((String) -> Unit)?,
     onBack: () -> Unit,
     onSaveMedia: ((String) -> Unit)?,
+    onCurrentIndexChanged: ((Int) -> Unit)? = null,
+    onZoomStateChanged: ((Boolean) -> Unit)? = null,
+    controlsAlpha: Float = 1f,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier,
@@ -119,6 +128,7 @@ private fun MediaViewerContent(
         isZoomed = false
         showOverlay = true
         showExplanation = false
+        onCurrentIndexChanged?.invoke(pagerState.currentPage)
     }
 
     val onToggleUI: () -> Unit = { showUI = !showUI }
@@ -132,11 +142,16 @@ private fun MediaViewerContent(
         targetValue = if (showUI) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceDim,
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
     )
+    val effectiveBackgroundColor = if (controlsAlpha < 0.99f) {
+        backgroundColor.copy(alpha = controlsAlpha)
+    } else {
+        backgroundColor
+    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(backgroundColor)
+            .background(effectiveBackgroundColor)
             .windowInsetsPadding(WindowInsets.systemBars),
     ) {
         HorizontalPager(
@@ -206,6 +221,7 @@ private fun MediaViewerContent(
                         onZoomChanged = {
                             isZoomed = it
                             if (it) showUI = false
+                            onZoomStateChanged?.invoke(it)
                         },
                         onSingleTap = onToggleUI,
                         overlayPath = overlayPathsByFile[mediaFiles[page]],
@@ -225,7 +241,9 @@ private fun MediaViewerContent(
             onBack = onBack,
             onSaveMedia = onSaveMedia,
             animatedVisibilityScope = animatedVisibilityScope,
-            modifier = Modifier.align(Alignment.TopCenter),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .graphicsLayer { alpha = controlsAlpha },
         )
 
         val hasOverlay by derivedStateOf { currentOverlayPath != null }
@@ -241,7 +259,9 @@ private fun MediaViewerContent(
             onShowOverlayChange = { showOverlay = it },
             onShowInfo = { showExplanation = true },
             animatedVisibilityScope = animatedVisibilityScope,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .graphicsLayer { alpha = controlsAlpha },
         )
 
         if (showExplanation && currentDescription != null) {

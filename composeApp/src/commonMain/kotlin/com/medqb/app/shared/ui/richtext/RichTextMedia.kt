@@ -1,23 +1,22 @@
 package com.medqb.app.shared.ui.richtext
 
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import coil3.compose.AsyncImage
-import com.medqb.app.shared.ui.LocalSharedTransitionScope
-import com.medqb.app.shared.ui.LocalActiveSharedElementKey
+import com.medqb.app.shared.ui.media.LocalMediaAnchorRegistry
 import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.HtmlUtils
@@ -25,8 +24,6 @@ import com.medqb.app.shared.utils.HtmlUtils
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.zIndex
 import net.engawapg.lib.zoomable.rememberZoomState
 import net.engawapg.lib.zoomable.snapBackZoomable
@@ -37,7 +34,6 @@ import net.engawapg.lib.zoomable.snapBackZoomable
  * @param block The media block containing source, description, and layout information
  * @param onMediaClick Callback invoked when the media is clicked
  */
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Unit) {
     val mediaModel = remember(block.source, block.mediaRef) {
@@ -59,32 +55,13 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
 
     val zoomState = rememberZoomState()
     val isZoomed = zoomState.scale > 1.001f
+    val anchorRegistry = LocalMediaAnchorRegistry.current
 
-    val sharedTransitionScope = LocalSharedTransitionScope.current
-    val animatedVisibilityScope = LocalNavAnimatedContentScope.current
-    val activeKey = LocalActiveSharedElementKey.current?.value
-    val motionScheme = MaterialTheme.motionScheme
-    val slowSpatialSpec = motionScheme.slowSpatialSpec<Rect>()
-    val defaultSpatialSpec = motionScheme.defaultSpatialSpec<Rect>()
-
-    // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
-    // hero transition without duplicate image crossfade artifacts.
-    val sharedElementModifier = if (
-        sharedTransitionScope != null &&
-        activeKey == clickTarget
-    ) {
-        with(sharedTransitionScope) {
-            Modifier.sharedElement(
-                sharedContentState = rememberSharedContentState(key = "media_$clickTarget"),
-                animatedVisibilityScope = animatedVisibilityScope,
-                boundsTransform = { initialBounds, targetBounds ->
-                    val isExpanding = initialBounds.width * initialBounds.height < targetBounds.width * targetBounds.height
-                    if (isExpanding) slowSpatialSpec else defaultSpatialSpec
-                },
-                clipInOverlayDuringTransition = OverlayClip(RectangleShape),
-            )
+    DisposableEffect(clickTarget) {
+        onDispose {
+            anchorRegistry?.unregister(clickTarget)
         }
-    } else Modifier
+    }
 
     Column(
         modifier = Modifier
@@ -104,7 +81,9 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
             modifier = Modifier
                 .zIndex(if (isZoomed) 1f else 0f)
                 .then(imageSizeModifier)
-                .then(sharedElementModifier)
+                .onGloballyPositioned { coordinates ->
+                    anchorRegistry?.register(clickTarget, coordinates.boundsInRoot())
+                }
                 .clipToBounds()
                 .snapBackZoomable(
                     zoomState = zoomState,
