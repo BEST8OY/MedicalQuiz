@@ -33,11 +33,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import coil3.compose.AsyncImage
@@ -66,6 +68,7 @@ internal fun MediaContent(
     showOverlay: Boolean = true,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    modifier: Modifier = Modifier,
 ) {
     val mediaType = remember(fileName) { getMediaType(fileName) }
     val filePath = remember(fileName, resolveMediaFilePath) { resolveMediaFilePath(fileName) }
@@ -77,6 +80,7 @@ internal fun MediaContent(
 
     AnimatedContent(
         targetState = mediaType,
+        modifier = modifier,
         transitionSpec = {
             fadeIn(animationSpec = defaultEffectsSpec) +
                 scaleIn(initialScale = 0.9f, animationSpec = defaultSpatialSpec) togetherWith
@@ -121,7 +125,7 @@ private fun VideoContent(
     mediaFileExists: suspend (String) -> Boolean,
     isActivePage: Boolean,
 ) {
-    val fileExists by produceState(initialValue = false, filePath) {
+    val fileExists by produceState(initialValue = true, filePath) {
         value = mediaFileExists(fileName)
     }
 
@@ -144,7 +148,7 @@ private fun AudioContent(
     mediaFileExists: suspend (String) -> Boolean,
     isActivePage: Boolean,
 ) {
-    val fileExists by produceState(initialValue = false, filePath) {
+    val fileExists by produceState(initialValue = true, filePath) {
         value = mediaFileExists(fileName)
     }
 
@@ -173,9 +177,7 @@ private fun ImageContent(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
-    val filePath = remember(mediaFilePath) { mediaFilePath }
-
-    val fileExists by produceState(initialValue = false, filePath) {
+    val fileExists by produceState(initialValue = true, mediaFilePath) {
         value = mediaFileExists(fileName)
     }
 
@@ -185,9 +187,17 @@ private fun ImageContent(
     }
 
     val zoomState = rememberZoomState()
+    val coroutineScope = rememberCoroutineScope()
+    val isZoomed = zoomState.scale > MIN_SCALE + 0.01f
 
-    LaunchedEffect(zoomState.scale) {
-        onZoomChanged(zoomState.scale > MIN_SCALE + 0.01f)
+    LaunchedEffect(isZoomed) {
+        onZoomChanged(isZoomed)
+    }
+
+    PlatformBackHandler(enabled = isZoomed) {
+        coroutineScope.launch {
+            zoomState.reset()
+        }
     }
 
     val sharedElementModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
@@ -202,6 +212,12 @@ private fun ImageContent(
     val isExitingTransition = animatedVisibilityScope?.transition?.targetState?.let {
         it == EnterExitState.PostExit || it == EnterExitState.PreEnter
     } ?: false
+
+    LaunchedEffect(isExitingTransition) {
+        if (isExitingTransition && isZoomed) {
+            zoomState.reset()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -231,7 +247,7 @@ private fun ImageContent(
         }
 
         AsyncImage(
-            model = filePath,
+            model = mediaFilePath,
             contentDescription = fileName,
             modifier = Modifier.fillMaxSize().then(sharedElementModifier),
             contentScale = ContentScale.Fit,
@@ -272,9 +288,12 @@ private fun ImageContent(
 }
 
 @Composable
-internal fun UnsupportedContent(fileName: String) {
+internal fun UnsupportedContent(
+    fileName: String,
+    modifier: Modifier = Modifier,
+) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -283,7 +302,7 @@ internal fun UnsupportedContent(fileName: String) {
         ) {
             Surface(
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier.size(ContainerSize.ExtraLarge),
             ) {
                 Box(contentAlignment = Alignment.Center) {

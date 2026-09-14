@@ -18,6 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -50,6 +51,7 @@ fun MediaViewerScreen(
     onLinkClick: ((String) -> Unit)? = null,
     onBack: () -> Unit,
     onSaveMedia: ((String) -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalNavAnimatedContentScope.current
@@ -67,6 +69,7 @@ fun MediaViewerScreen(
         onSaveMedia = onSaveMedia,
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope,
+        modifier = modifier,
     )
 }
 
@@ -85,10 +88,11 @@ private fun MediaViewerContent(
     onSaveMedia: ((String) -> Unit)?,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    modifier: Modifier = Modifier,
 ) {
     if (mediaFiles.isEmpty()) {
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
                 .windowInsetsPadding(WindowInsets.systemBars),
@@ -99,8 +103,9 @@ private fun MediaViewerContent(
         return
     }
 
+    val safeInitialPage = startIndex.coerceIn(0, mediaFiles.lastIndex)
     val pagerState = rememberPagerState(
-        initialPage = startIndex,
+        initialPage = safeInitialPage,
         pageCount = { mediaFiles.size },
     )
     var isZoomed by rememberSaveable { mutableStateOf(false) }
@@ -131,7 +136,7 @@ private fun MediaViewerContent(
     )
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(backgroundColor)
             .windowInsetsPadding(WindowInsets.systemBars),
@@ -144,22 +149,33 @@ private fun MediaViewerContent(
             flingBehavior = PagerDefaults.flingBehavior(state = pagerState),
         ) { page ->
             val parentLifecycleOwner = LocalLifecycleOwner.current
-            val pageLifecycleOwner = remember(parentLifecycleOwner, pagerState.settledPage, page) {
-                val maxState = if (pagerState.settledPage == page) Lifecycle.State.RESUMED else Lifecycle.State.STARTED
+            val maxState = if (pagerState.settledPage == page) Lifecycle.State.RESUMED else Lifecycle.State.STARTED
+            val pageLifecycleOwner = remember(parentLifecycleOwner) {
                 object : androidx.lifecycle.LifecycleOwner {
-                    private val registry = androidx.lifecycle.LifecycleRegistry(this)
-                    private val observer = androidx.lifecycle.LifecycleEventObserver { _, _ ->
-                        val targetState = if (parentLifecycleOwner.lifecycle.currentState < maxState) {
-                            parentLifecycleOwner.lifecycle.currentState
-                        } else {
-                            maxState
-                        }
-                        registry.currentState = targetState
-                    }
-                    init {
-                        parentLifecycleOwner.lifecycle.addObserver(observer)
-                    }
+                    val registry = androidx.lifecycle.LifecycleRegistry(this)
                     override val lifecycle: Lifecycle get() = registry
+                }
+            }
+
+            DisposableEffect(parentLifecycleOwner, maxState) {
+                val observer = androidx.lifecycle.LifecycleEventObserver { _, _ ->
+                    val targetState = if (parentLifecycleOwner.lifecycle.currentState < maxState) {
+                        parentLifecycleOwner.lifecycle.currentState
+                    } else {
+                        maxState
+                    }
+                    pageLifecycleOwner.registry.currentState = targetState
+                }
+                parentLifecycleOwner.lifecycle.addObserver(observer)
+                val initialTargetState = if (parentLifecycleOwner.lifecycle.currentState < maxState) {
+                    parentLifecycleOwner.lifecycle.currentState
+                } else {
+                    maxState
+                }
+                pageLifecycleOwner.registry.currentState = initialTargetState
+
+                onDispose {
+                    parentLifecycleOwner.lifecycle.removeObserver(observer)
                 }
             }
 
@@ -179,7 +195,7 @@ private fun MediaViewerContent(
                     MediaContent(
                         fileName = mediaFiles[page],
                         isActivePage = pagerState.currentPage == page,
-                        isSharedElementPage = page == startIndex && page == pagerState.currentPage,
+                        isSharedElementPage = page == safeInitialPage && page == pagerState.currentPage,
                         resolveMediaFilePath = resolveMediaFilePath,
                         mediaFileExists = mediaFileExists,
                         onZoomChanged = {

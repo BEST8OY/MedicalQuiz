@@ -44,9 +44,10 @@ fun HtmlViewerScreen(
     isLoading: Boolean,
     onBack: () -> Unit,
     onLinkClick: ((String) -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -125,7 +126,7 @@ fun HtmlViewerScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.extraLarge,
                             color = MaterialTheme.colorScheme.surfaceContainer,
-                            shadowElevation = 1.dp, // M3 Level 1 elevation
+                            tonalElevation = 1.dp, // M3 Level 1 tonal elevation
                         ) {
                             Column(
                                 modifier = Modifier
@@ -155,9 +156,13 @@ fun HtmlViewerScreen(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun EmptyHtmlState(title: String, supportingText: String) {
+private fun EmptyHtmlState(
+    title: String,
+    supportingText: String,
+    modifier: Modifier = Modifier,
+) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .padding(horizontal = Inset.Large),
         contentAlignment = Alignment.Center,

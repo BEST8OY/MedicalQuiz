@@ -53,6 +53,20 @@ internal fun resolveControlsLayout(hasOverlay: Boolean, hasDescription: Boolean)
     else -> MediaControlsLayout.None
 }
 
+@Composable
+private fun rememberTransitionAlpha(animatedVisibilityScope: AnimatedVisibilityScope?): Float {
+    return animatedVisibilityScope?.transition?.animateFloat(
+        transitionSpec = { MaterialTheme.motionScheme.defaultEffectsSpec() },
+        label = "chromeAlpha"
+    ) { state ->
+        when (state) {
+            androidx.compose.animation.EnterExitState.PreEnter -> 0f
+            androidx.compose.animation.EnterExitState.Visible -> 1f
+            androidx.compose.animation.EnterExitState.PostExit -> 0f
+        }
+    }?.value ?: 1f
+}
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun MediaViewerTopBar(
@@ -65,16 +79,7 @@ internal fun MediaViewerTopBar(
     animatedVisibilityScope: AnimatedVisibilityScope?,
     modifier: Modifier = Modifier,
 ) {
-    val transitionAlpha = animatedVisibilityScope?.transition?.animateFloat(
-        transitionSpec = { MaterialTheme.motionScheme.defaultEffectsSpec() },
-        label = "chromeAlpha"
-    ) { state ->
-        when (state) {
-            androidx.compose.animation.EnterExitState.PreEnter -> 0f
-            androidx.compose.animation.EnterExitState.Visible -> 1f
-            androidx.compose.animation.EnterExitState.PostExit -> 0f
-        }
-    }?.value ?: 1f
+    val transitionAlpha = rememberTransitionAlpha(animatedVisibilityScope)
 
     AnimatedVisibility(
         visible = showUI,
@@ -100,8 +105,8 @@ internal fun MediaViewerTopBar(
                 onClick = onBack,
                 modifier = Modifier.align(Alignment.CenterStart),
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
                 ),
             ) {
                 Icon(
@@ -114,13 +119,13 @@ internal fun MediaViewerTopBar(
                 Surface(
                     modifier = Modifier.align(Alignment.Center),
                     shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
                 ) {
                     Text(
                         text = "${pagerState.currentPage + 1} / $mediaFilesCount",
                         modifier = Modifier.padding(horizontal = Spacing.Medium, vertical = Spacing.Small),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -130,8 +135,8 @@ internal fun MediaViewerTopBar(
                     onClick = { onSaveMedia(currentFileName) },
                     modifier = Modifier.align(Alignment.CenterEnd),
                     colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
                     ),
                 ) {
                     Icon(
@@ -155,16 +160,7 @@ internal fun MediaViewerBottomBar(
     animatedVisibilityScope: AnimatedVisibilityScope?,
     modifier: Modifier = Modifier,
 ) {
-    val transitionAlpha = animatedVisibilityScope?.transition?.animateFloat(
-        transitionSpec = { MaterialTheme.motionScheme.defaultEffectsSpec() },
-        label = "chromeAlpha"
-    ) { state ->
-        when (state) {
-            androidx.compose.animation.EnterExitState.PreEnter -> 0f
-            androidx.compose.animation.EnterExitState.Visible -> 1f
-            androidx.compose.animation.EnterExitState.PostExit -> 0f
-        }
-    }?.value ?: 1f
+    val transitionAlpha = rememberTransitionAlpha(animatedVisibilityScope)
 
     val hasControls = controlsLayout != MediaControlsLayout.None
     val controlsWidth = Layout.PanelWidth
