@@ -114,17 +114,27 @@ private class RichTextDomParser(
         }
 
         val blocks = mutableListOf<RichTextBlock>()
+        val inlineNodes = mutableListOf<KsoupNode>()
+
+        fun flushInlineParagraph() {
+            if (inlineNodes.isEmpty()) return
+            val builder = buildAnnotatedString {
+                appendNodes(inlineNodes, InlineStyle(), palette)
+            }
+            inlineNodes.clear()
+            val trimmed = builder.trim()
+            if (trimmed.text.isNotBlank()) {
+                blocks += RichTextBlock.Paragraph(
+                    text = trimmed,
+                    textAlign = inheritedStyles.textAlign ?: TextAlign.Start
+                )
+            }
+        }
 
         nodes.forEach { node ->
             when (node) {
                 is KsoupTextNode -> {
-                    val text = node.text.trim()
-                    if (text.isNotEmpty()) {
-                        blocks += RichTextBlock.Paragraph(
-                            text = buildAnnotatedString { append(text) },
-                            textAlign = inheritedStyles.textAlign ?: TextAlign.Start
-                        )
-                    }
+                    inlineNodes.add(node)
                 }
                 is KsoupElement -> {
                     val tag = node.tagName.lowercase()
@@ -135,8 +145,12 @@ private class RichTextDomParser(
                     val nextStyles = inheritedStyles.copy(textAlign = currentTextAlign)
 
                     when (tag) {
-                        "p" -> handleParagraph(node, blocks, nextStyles, depth)
+                        "p" -> {
+                            flushInlineParagraph()
+                            handleParagraph(node, blocks, nextStyles, depth)
+                        }
                         "h1", "h2", "h3", "h4", "h5", "h6" -> {
+                            flushInlineParagraph()
                             val level = tag.removePrefix("h").toIntOrNull() ?: 6
                             buildAnnotatedBlock(node)?.let { heading ->
                                 if (heading.text.isNotBlank()) {
@@ -149,6 +163,7 @@ private class RichTextDomParser(
                             }
                         }
                         "ul" -> {
+                            flushInlineParagraph()
                             val items = node.children
                                 .mapNotNull { child ->
                                     if (child is KsoupElement && child.tagName.equals("li", ignoreCase = true)) {
@@ -159,6 +174,7 @@ private class RichTextDomParser(
                             if (items.isNotEmpty()) blocks += RichTextBlock.BulletList(items)
                         }
                         "ol" -> {
+                            flushInlineParagraph()
                             val start = node.attr("start").toIntOrNull() ?: 1
                             val items = node.children
                                 .mapNotNull { child ->
@@ -169,34 +185,40 @@ private class RichTextDomParser(
                                 .filter { it.text.isNotBlank() }
                             if (items.isNotEmpty()) blocks += RichTextBlock.OrderedList(items, start)
                         }
-                        "hr" -> blocks += RichTextBlock.Divider
+                        "hr" -> {
+                            flushInlineParagraph()
+                            blocks += RichTextBlock.Divider
+                        }
                         "pre", "code" -> {
+                            flushInlineParagraph()
                             val codeText = node.text().trim()
                             if (codeText.isNotEmpty()) blocks += RichTextBlock.CodeBlock(codeText)
                         }
-                        "table" -> parseTable(node)?.let(blocks::add)
+                        "table" -> {
+                            flushInlineParagraph()
+                            parseTable(node)?.let(blocks::add)
+                        }
                         "div", "section", "article", "blockquote" -> {
+                            flushInlineParagraph()
                             if (node.classNames().any { it.equals("abstract", ignoreCase = true) }) {
                                 parseAbstractBlock(node, depth + 1)?.let(blocks::add)
                             } else {
                                 blocks += parse(node.children, nextStyles, depth + 1)
                             }
                         }
-                        "img" -> parseMediaElement(node, currentTextAlign)?.let(blocks::add)
+                        "img" -> {
+                            flushInlineParagraph()
+                            parseMediaElement(node, currentTextAlign)?.let(blocks::add)
+                        }
                         else -> {
-                            buildAnnotatedBlock(node)?.let { paragraph ->
-                                if (paragraph.text.isNotBlank()) {
-                                    blocks += RichTextBlock.Paragraph(
-                                        text = paragraph,
-                                        textAlign = currentTextAlign ?: TextAlign.Start
-                                    )
-                                }
-                            }
+                            inlineNodes.add(node)
                         }
                     }
                 }
             }
         }
+
+        flushInlineParagraph()
 
         return blocks
     }
@@ -223,9 +245,10 @@ private class RichTextDomParser(
                 appendNodes(inlineNodes, paragraphBaseStyle, palette)
             }
             inlineNodes.clear()
-            if (builder.text.isNotBlank()) {
+            val trimmed = builder.trim()
+            if (trimmed.text.isNotBlank()) {
                 blocks += RichTextBlock.Paragraph(
-                    text = builder,
+                    text = trimmed,
                     textAlign = paragraphAlignment ?: TextAlign.Start
                 )
             }
@@ -384,6 +407,17 @@ private class RichTextDomParser(
                 }
 
                 nextStyle = nextStyle.applyClassStyles(node.classNames(), palette, showSelectedHighlight)
+                val styleAttr = node.attr("style")
+                if (styleAttr.isNotBlank()) {
+                    if (CssParser.isSuperscript(styleAttr)) {
+                        nextStyle = nextStyle.copy(superscript = true)
+                    } else if (CssParser.isSubscript(styleAttr)) {
+                        nextStyle = nextStyle.copy(subscript = true)
+                    }
+                    if (CssParser.isBoldStyle(styleAttr)) {
+                        nextStyle = nextStyle.copy(bold = true)
+                    }
+                }
                 TooltipParser.extractTooltipText(node)?.let { tooltip ->
                     nextStyle = nextStyle.copy(tooltip = tooltip)
                 }
@@ -445,6 +479,26 @@ private class RichTextDomParser(
     // ==================== TABLE PARSING ====================
 
     private fun parseTable(element: KsoupElement): RichTextBlock.Table? {
+        val descendantTables = mutableListOf<KsoupElement>()
+        fun findTables(el: KsoupElement) {
+            el.children.filterIsInstance<KsoupElement>().forEach { child ->
+                if (child.tagName.equals("table", ignoreCase = true)) {
+                    descendantTables.add(child)
+                } else {
+                    findTables(child)
+                }
+            }
+        }
+        findTables(element)
+
+        if (descendantTables.size == 1) {
+            val innerTable = descendantTables.first()
+            val outerTextWithoutInner = element.textExcluding(innerTable).trim()
+            if (outerTextWithoutInner.isEmpty()) {
+                return parseTable(innerTable)
+            }
+        }
+
         val allRows = mutableListOf<KsoupElement>()
 
         fun collectRows(el: KsoupElement) {
@@ -481,6 +535,10 @@ private class RichTextDomParser(
             }
 
             val parsedRow = parseTableRow(tr, element, isHeaderContext, index == 0)
+            if (parsedRow.cells.isNotEmpty() && parsedRow.cells.all { it.text.text.isBlank() }) {
+                // Skip empty spacer rows
+                return@forEachIndexed
+            }
             if (parsedRow.isHeader) {
                 headerRows.add(parsedRow)
             } else {
@@ -507,6 +565,22 @@ private class RichTextDomParser(
             columnCount = columnCount,
             classNames = element.classNames()
         )
+    }
+
+    private fun KsoupElement.textExcluding(excluded: KsoupElement): String {
+        val sb = StringBuilder()
+        fun appendText(node: KsoupNode) {
+            when (node) {
+                is KsoupTextNode -> sb.append(node.text)
+                is KsoupElement -> {
+                    if (node !== excluded) {
+                        node.children.forEach { appendText(it) }
+                    }
+                }
+            }
+        }
+        children.forEach { appendText(it) }
+        return sb.toString()
     }
 
     private fun parseTableRow(

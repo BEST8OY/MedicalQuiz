@@ -9,6 +9,12 @@ object HtmlUtils {
     
     // Regex patterns
     private val STYLE_REGEX = Regex("<style[\\s\\S]*?</style>", setOf(RegexOption.IGNORE_CASE))
+    private val SCRIPT_REGEX = Regex("<script[\\s\\S]*?</script>", setOf(RegexOption.IGNORE_CASE))
+    private val ITS_ELIMINATED_SPAN_REGEX = Regex("""<span[^>]*id=['"]elim\d+['"][^>]*>[\s\S]*?</span>""", RegexOption.IGNORE_CASE)
+    private val ITS_EVENT_HANDLER_ATTR_REGEX = Regex("""\s*(?:onerror|ondragstart|onselectstart|draggable|unselectable|strikeout)\s*=\s*(['"][^'"]*['"]|\S+)""", RegexOption.IGNORE_CASE)
+    private val MALFORMED_ATTR_REGEX = Regex("""/=["']?-?\d+["']?""")
+    private val ITS_OPTION_OPEN_REGEX = Regex("""^(\s*<span[^>]*class=['"][^'"]*(?:its-item-td|ITSMCOptionTextCell|ITSMCOptionText)[^'"]*['"][^>]*>\s*)+""", RegexOption.IGNORE_CASE)
+    private val ITS_OPTION_CLOSE_REGEX = Regex("""(\s*</span>\s*)+$""", RegexOption.IGNORE_CASE)
     private val IMG_TAG_REGEX = Regex("""<img([^>]*)\s+src=['\"]([^'\"]+)['\"]""", setOf(RegexOption.IGNORE_CASE))
     private val ANCHOR_TAG_REGEX = Regex("""<a([^>]*?)href=([\"'])([^\"']+)\2([^>]*)>""", setOf(RegexOption.IGNORE_CASE))
     private val MEDIA_LINK_REGEX = Regex("""(?i).*\.(jpg|jpeg|png|gif|bmp|webp|mp4|avi|mkv|mov|webm|3gp|mp3|wav|ogg|m4a|aac|flac)(?:$|[?#]).*""")
@@ -168,12 +174,16 @@ object HtmlUtils {
     fun normalizeAnswerHtml(html: String?): String {
         val trimmed = html?.trim().orEmpty()
         if (trimmed.isEmpty()) return ""
-        // Check if already wrapped in a block element - if not, wrap in <p>
-        val blockElementRegex = Regex("^<(p|div|h[1-6]|li|td|th|blockquote)[^>]*>", RegexOption.IGNORE_CASE)
-        return if (blockElementRegex.containsMatchIn(trimmed)) {
-            trimmed
+        val withoutScripts = removeScriptArtifacts(trimmed)
+        val cleaned = cleanNbmeArtifacts(withoutScripts).trim()
+        val unwrapped = unwrapItsOptionWrappers(cleaned).trim()
+        if (unwrapped.isEmpty()) return ""
+        // Check if already wrapped in a block element (including table) - if not, wrap in <p>
+        val blockElementRegex = Regex("^<(p|div|h[1-6]|li|td|th|blockquote|table)[^>]*>", RegexOption.IGNORE_CASE)
+        return if (blockElementRegex.containsMatchIn(unwrapped)) {
+            unwrapped
         } else {
-            "<p>$trimmed</p>"
+            "<p>$unwrapped</p>"
         }
     }
 
@@ -205,10 +215,25 @@ object HtmlUtils {
 
     fun sanitizeForRichText(html: String): String {
         if (html.isBlank()) return ""
-        val withoutStyles = removeStyleArtifacts(html)
-        val withNormalizedImages = rewriteImageSources(withoutStyles)
+        val withoutScripts = removeScriptArtifacts(html)
+        val withoutStyles = removeStyleArtifacts(withoutScripts)
+        val cleanedNbme = cleanNbmeArtifacts(withoutStyles)
+        val withNormalizedImages = rewriteImageSources(cleanedNbme)
         val rewritten = rewriteAnchorTags(withNormalizedImages)
         return ensureHtmlStructure(rewritten.trim())
+    }
+
+    private fun removeScriptArtifacts(html: String): String = html
+        .replace(SCRIPT_REGEX, "")
+
+    private fun cleanNbmeArtifacts(html: String): String = html
+        .replace(ITS_ELIMINATED_SPAN_REGEX, "")
+        .replace(ITS_EVENT_HANDLER_ATTR_REGEX, "")
+        .replace(MALFORMED_ATTR_REGEX, "")
+
+    private fun unwrapItsOptionWrappers(html: String): String {
+        val withoutOpen = html.replace(ITS_OPTION_OPEN_REGEX, "")
+        return withoutOpen.replace(ITS_OPTION_CLOSE_REGEX, "")
     }
 
     private fun removeStyleArtifacts(html: String): String = html

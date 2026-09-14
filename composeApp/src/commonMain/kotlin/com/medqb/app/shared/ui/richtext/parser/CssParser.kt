@@ -129,4 +129,32 @@ internal object CssParser {
         }
         return null
     }
+
+    /**
+     * Checks if a style attribute indicates superscript text.
+     * Handles vertical-align: super and negative relative offsets (e.g., top: -3pt).
+     */
+    fun isSuperscript(styleAttr: String): Boolean {
+        if (styleAttr.isBlank()) return false
+        val verticalAlign = extractValue(styleAttr, "vertical-align")?.lowercase()?.trim()
+        if (verticalAlign == "super") return true
+
+        val top = extractValue(styleAttr, "top")?.lowercase()?.trim() ?: return false
+        val numericTop = top.removeSuffix("pt").removeSuffix("px").removeSuffix("em").removeSuffix("%").trim().toFloatOrNull()
+        return numericTop != null && numericTop < 0f
+    }
+
+    /**
+     * Checks if a style attribute indicates subscript text.
+     * Handles vertical-align: sub and positive relative offsets (e.g., top: 3pt).
+     */
+    fun isSubscript(styleAttr: String): Boolean {
+        if (styleAttr.isBlank()) return false
+        val verticalAlign = extractValue(styleAttr, "vertical-align")?.lowercase()?.trim()
+        if (verticalAlign == "sub") return true
+
+        val top = extractValue(styleAttr, "top")?.lowercase()?.trim() ?: return false
+        val numericTop = top.removeSuffix("pt").removeSuffix("px").removeSuffix("em").removeSuffix("%").trim().toFloatOrNull()
+        return numericTop != null && numericTop > 0f
+    }
 }
