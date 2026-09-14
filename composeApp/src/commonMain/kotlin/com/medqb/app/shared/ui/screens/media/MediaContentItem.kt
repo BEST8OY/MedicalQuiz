@@ -1,6 +1,5 @@
 package com.medqb.app.shared.ui.screens.media
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterExitState
@@ -8,9 +7,6 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +25,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -79,23 +77,8 @@ internal fun MediaContent(
     val mediaType = remember(fileName) { getMediaType(fileName) }
     val filePath = remember(fileName, resolveMediaFilePath) { resolveMediaFilePath(fileName) }
 
-    val defaultEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-    val fastEffectsSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-    val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
-    val fastSpatialSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
-
-    AnimatedContent(
-        targetState = mediaType,
-        modifier = modifier,
-        transitionSpec = {
-            fadeIn(animationSpec = defaultEffectsSpec) +
-                scaleIn(initialScale = 0.9f, animationSpec = defaultSpatialSpec) togetherWith
-                fadeOut(animationSpec = fastEffectsSpec) +
-                scaleOut(targetScale = 1.1f, animationSpec = fastSpatialSpec)
-        },
-        label = "media_transition"
-    ) { type ->
-        when (type) {
+    Box(modifier = modifier) {
+        when (mediaType) {
             MediaType.IMAGE -> ImageContent(
                 fileName = fileName,
                 mediaFilePath = filePath,
@@ -198,6 +181,26 @@ private fun ImageContent(
     val zoomState = rememberZoomState()
     val isZoomed = zoomState.scale > MIN_SCALE + 0.01f
 
+    var isTransitionDone by remember { mutableStateOf(animatedVisibilityScope == null) }
+    var sharedElementResetKey by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(animatedVisibilityScope) {
+        if (animatedVisibilityScope != null) {
+            snapshotFlow {
+                animatedVisibilityScope.transition.currentState to animatedVisibilityScope.transition.targetState
+            }.collect { (current, target) ->
+                if (current == EnterExitState.Visible && target == EnterExitState.Visible) {
+                    if (!isTransitionDone) {
+                        isTransitionDone = true
+                        sharedElementResetKey++
+                    }
+                } else {
+                    isTransitionDone = false
+                }
+            }
+        }
+    }
+
     LaunchedEffect(isZoomed) {
         onZoomChanged(isZoomed)
     }
@@ -209,17 +212,22 @@ private fun ImageContent(
 
     // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
     // hero transition without duplicate image crossfade artifacts.
+    // When the forward entrance transition finishes, sharedElementResetKey is incremented to
+    // detach the completed forward BoundsAnimation and attach a pristine, un-mutated
+    // sharedElement node so that predictive back exit initiates on frame 0 of the first gesture.
     val sharedElementModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-        with(sharedTransitionScope) {
-            Modifier.sharedElement(
-                sharedContentState = rememberSharedContentState(key = "media_$fileName"),
-                animatedVisibilityScope = animatedVisibilityScope,
-                boundsTransform = { initialBounds, targetBounds ->
-                    val isExpanding = initialBounds.width * initialBounds.height < targetBounds.width * targetBounds.height
-                    if (isExpanding) slowSpatialSpec else defaultSpatialSpec
-                },
-                clipInOverlayDuringTransition = OverlayClip(RectangleShape),
-            )
+        key(sharedElementResetKey) {
+            with(sharedTransitionScope) {
+                Modifier.sharedElement(
+                    sharedContentState = rememberSharedContentState(key = "media_$fileName"),
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    boundsTransform = { initialBounds, targetBounds ->
+                        val isExpanding = initialBounds.width * initialBounds.height < targetBounds.width * targetBounds.height
+                        if (isExpanding) slowSpatialSpec else defaultSpatialSpec
+                    },
+                    clipInOverlayDuringTransition = OverlayClip(RectangleShape),
+                )
+            }
         }
     } else Modifier
 
@@ -238,17 +246,7 @@ private fun ImageContent(
     // Once reset to MIN_SCALE, isZoomed becomes false, disabling this back handler so that
     // the subsequent back gesture pops the screen and runs the 1.0x -> thumbnail shared element
     // transition cleanly without visual snapping or duplicate image ghosting.
-    //
-    // FUTURE REFACTOR (Option B - Single-Surface Overlay):
-    // If a seamless single-gesture dismissal directly from an arbitrary zoomed state is desired
-    // (similar to Telegram / Google Photos drag-down dismiss), MediaViewer cannot remain a separate
-    // NavDisplay backstack route connecting two independent composables. Compose's Modifier.sharedElement
-    // hardcodes renderOnlyWhenVisible = true (instantly rendering the unzoomed target thumbnail on exit),
-    // and Modifier.sharedBounds crossfades the two differing scales (producing duplicate image ghosting).
-    // Option B would refactor MediaViewer into an in-place fullscreen overlay within the same
-    // screen hierarchy, allowing a single persistent image surface and its 2D transformation matrix
-    // to be continuously interpolated from (scale, offset) to destination thumbnail bounds.
-    PlatformBackHandler(enabled = isActivePage && isZoomed) {
+    PlatformBackHandler(enabled = isActivePage && isZoomed && isTransitionDone) {
         coroutineScope.launch {
             zoomState.changeScale(
                 targetScale = MIN_SCALE,
@@ -278,19 +276,6 @@ private fun ImageContent(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        var isTransitionDone by remember { mutableStateOf(animatedVisibilityScope == null) }
-
-        LaunchedEffect(animatedVisibilityScope) {
-            if (animatedVisibilityScope != null) {
-                snapshotFlow { animatedVisibilityScope.transition.isRunning }
-                    .collect { running ->
-                        if (!running) {
-                            isTransitionDone = true
-                        }
-                    }
-            }
-        }
-
         AsyncImage(
             model = mediaFilePath,
             contentDescription = fileName,
