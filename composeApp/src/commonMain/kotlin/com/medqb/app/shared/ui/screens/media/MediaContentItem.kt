@@ -33,11 +33,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
@@ -97,6 +99,7 @@ internal fun MediaContent(
                 fileName = fileName,
                 mediaFilePath = filePath,
                 mediaFileExists = mediaFileExists,
+                isActivePage = isActivePage,
                 onZoomChanged = onZoomChanged,
                 onSingleTap = onSingleTap,
                 overlayPath = overlayPath,
@@ -173,6 +176,7 @@ private fun ImageContent(
     fileName: String,
     mediaFilePath: String,
     mediaFileExists: suspend (String) -> Boolean,
+    isActivePage: Boolean,
     onZoomChanged: (Boolean) -> Unit,
     onSingleTap: () -> Unit,
     overlayPath: String? = null,
@@ -189,6 +193,7 @@ private fun ImageContent(
         return
     }
 
+    val coroutineScope = rememberCoroutineScope()
     val zoomState = rememberZoomState()
     val isZoomed = zoomState.scale > MIN_SCALE + 0.01f
 
@@ -225,6 +230,32 @@ private fun ImageContent(
             Offset(containerSize.width / 2f, containerSize.height / 2f)
         } else {
             Offset.Zero
+        }
+    }
+
+    // Option A: Two-stage back gesture handling (Standard Mobile UX).
+    // When the user is zoomed into an image (inspection mode), intercepting the system back
+    // gesture smoothly resets the zoom back to MIN_SCALE (1.0x) rather than popping the screen.
+    // Once reset to MIN_SCALE, isZoomed becomes false, disabling this back handler so that
+    // the subsequent back gesture pops the screen and runs the 1.0x -> thumbnail shared element
+    // transition cleanly without visual snapping or duplicate image ghosting.
+    //
+    // FUTURE REFACTOR (Option B - Single-Surface Overlay):
+    // If a seamless single-gesture dismissal directly from an arbitrary zoomed state is desired
+    // (similar to Telegram / Google Photos drag-down dismiss), MediaViewer cannot remain a separate
+    // NavDisplay backstack route connecting two independent composables. Compose's Modifier.sharedElement
+    // hardcodes renderOnlyWhenVisible = true (instantly rendering the unzoomed target thumbnail on exit),
+    // and Modifier.sharedBounds crossfades the two differing scales (producing duplicate image ghosting).
+    // Option B would refactor MediaViewer into an in-place fullscreen overlay within the same
+    // screen hierarchy, allowing a single persistent image surface and its 2D transformation matrix
+    // to be continuously interpolated from (scale, offset) to destination thumbnail bounds.
+    PlatformBackHandler(enabled = isActivePage && isZoomed) {
+        coroutineScope.launch {
+            zoomState.changeScale(
+                targetScale = MIN_SCALE,
+                position = center,
+                animationSpec = defaultSpatialFloatSpec,
+            )
         }
     }
 
