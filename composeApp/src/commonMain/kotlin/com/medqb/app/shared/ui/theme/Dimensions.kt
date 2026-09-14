@@ -221,6 +221,12 @@ object ScreenLayout {
  * Responsive dialog layout tokens.
  */
 object DialogLayout {
+    /** Minimum dialog container width per M3 specification (280dp) */
+    val MinWidth: Dp = 280.dp
+
+    /** Maximum dialog container width per M3 specification (560dp) */
+    val MaxWidth: Dp = 560.dp
+
     /** Fraction of screen width for compact viewports (phones) */
     const val CompactWidthFraction: Float = 0.92f
 

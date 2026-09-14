@@ -313,11 +313,12 @@ class FilterHubViewModel(
         _subjectsRetry.tryEmit(Unit)
     }
 
-    fun fetchSystemsForSubjects(subjectIds: List<Long>?) {
-        if (subjectIds != null) {
-            filterStateHolder.updateSubjectIds(subjectIds.toSet())
-        }
+    fun fetchSystems() {
         _systemsRetry.tryEmit(Unit)
+    }
+
+    fun fetchSystemsForSubjects(subjectIds: List<Long>? = null) {
+        fetchSystems()
     }
 
     fun applySelectedSubjects(newSubjectIds: Set<Long>) {

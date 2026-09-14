@@ -16,10 +16,13 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import com.medqb.app.shared.data.models.System
+import com.medqb.app.shared.utils.Resource
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FilterHubViewModelTest {
@@ -177,5 +180,53 @@ class FilterHubViewModelTest {
         advanceUntilIdle()
 
         assertEquals("", viewModel.state.value.databaseName)
+    }
+
+    @Test
+    fun fetchSystemsRetriesWithoutMutatingSelectedSubjects() = runHubTest {
+        val provider = FakeDatabaseProvider(dbName = "bank-nbme")
+        provider.seededSystems = listOf(System(id = 0, name = "All Systems", count = 50))
+        val filterStateHolder = FilterStateHolder()
+        val holder = ActiveDatabaseHolder()
+        val viewModel = createViewModel(provider, holder, filterStateHolder = filterStateHolder)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        // User selected subject 1
+        filterStateHolder.updateSubjectIds(setOf(1L))
+        advanceUntilIdle()
+        assertEquals(setOf(1L), filterStateHolder.selectedSubjectIds.value)
+        assertEquals(setOf(1L), viewModel.state.value.selectedSubjectIds)
+
+        // Calling fetchSystems() should retry without mutating selectedSubjectIds
+        viewModel.fetchSystems()
+        assertEquals(setOf(1L), filterStateHolder.selectedSubjectIds.value)
+        advanceUntilIdle()
+        assertEquals(setOf(1L), viewModel.state.value.selectedSubjectIds)
+
+        // Calling fetchSystemsForSubjects(listOf(99L)) should NOT mutate filterStateHolder
+        viewModel.fetchSystemsForSubjects(listOf(99L))
+        assertEquals(setOf(1L), filterStateHolder.selectedSubjectIds.value)
+        advanceUntilIdle()
+        assertEquals(setOf(1L), viewModel.state.value.selectedSubjectIds)
+    }
+
+    @Test
+    fun systemsResourcePreservesPreloadedSuccessWithoutSpuriousReset() = runHubTest {
+        val provider = FakeDatabaseProvider(dbName = "bank-nbme")
+        val nbmeSystem = System(id = 0, name = "All Systems", count = 50)
+        provider.seededSystems = listOf(nbmeSystem)
+        val holder = ActiveDatabaseHolder()
+        val viewModel = createViewModel(provider, holder)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        // Before user taps anything, systemsResource is already preloaded as Resource.Success
+        val initialResource = viewModel.state.value.systemsResource
+        assertTrue(initialResource is Resource.Success)
+        assertEquals(listOf(nbmeSystem), initialResource.data)
+
+        // Simply opening the dialog does NOT call fetchSystems(), so state remains Success
+        assertEquals(listOf(nbmeSystem), (viewModel.state.value.systemsResource as Resource.Success).data)
     }
 }

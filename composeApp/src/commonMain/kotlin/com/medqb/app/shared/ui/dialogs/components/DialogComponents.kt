@@ -1,13 +1,16 @@
 package com.medqb.app.shared.ui.dialogs.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -57,21 +60,29 @@ fun DialogShell(
         onDismissRequest = onDismiss,
         properties = properties
     ) {
-        BoxWithConstraints {
-            val isCompactHeight = maxHeight < DialogLayout.CompactHeightThreshold
-            CompositionLocalProvider(LocalDialogCompactMode provides isCompactHeight) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth(if (maxWidth >= ScreenLayout.CompactWidthBreakpoint) DialogLayout.ExpandedWidthFraction else DialogLayout.CompactWidthFraction)
-                        .heightIn(
-                            min = DialogLayout.MinContainerHeight,
-                            max = maxHeight - DialogLayout.MaxHeightInset
-                        )
-                        .clip(MaterialTheme.shapes.extraLarge),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh
-                ) {
-                    Column {
-                        content()
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            BoxWithConstraints(
+                contentAlignment = Alignment.Center
+            ) {
+                val isCompactHeight = maxHeight < DialogLayout.CompactHeightThreshold
+                CompositionLocalProvider(LocalDialogCompactMode provides isCompactHeight) {
+                    Surface(
+                        modifier = Modifier
+                            .widthIn(min = DialogLayout.MinWidth, max = DialogLayout.MaxWidth)
+                            .fillMaxWidth(if (maxWidth >= ScreenLayout.CompactWidthBreakpoint) DialogLayout.ExpandedWidthFraction else DialogLayout.CompactWidthFraction)
+                            .heightIn(
+                                min = DialogLayout.MinContainerHeight,
+                                max = (maxHeight - DialogLayout.MaxHeightInset).coerceAtLeast(DialogLayout.MinContainerHeight)
+                            )
+                            .clip(MaterialTheme.shapes.extraLarge),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ) {
+                        Column {
+                            content()
+                        }
                     }
                 }
             }

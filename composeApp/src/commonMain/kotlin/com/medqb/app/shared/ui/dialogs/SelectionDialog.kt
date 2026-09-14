@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -57,6 +58,7 @@ import com.medqb.app.shared.ui.theme.ContainerSize
 import com.medqb.app.shared.ui.theme.DialogLayout
 import com.medqb.app.shared.ui.theme.IconSize
 import com.medqb.app.shared.ui.theme.Inset
+import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.Resource
 
@@ -158,7 +160,7 @@ private fun ColumnScope.SelectionLoadingBody() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .weight(1f, fill = false)
+            .heightIn(min = Layout.LoadingAreaHeight)
             .padding(vertical = Spacing.ExtraLarge),
         contentAlignment = Alignment.Center
     ) {
@@ -188,7 +190,7 @@ private fun ColumnScope.SelectionErrorBody(
     androidx.compose.foundation.layout.Column(
         modifier = Modifier
             .fillMaxWidth()
-            .weight(1f, fill = false)
+            .heightIn(min = Layout.LoadingAreaHeight)
             .padding(Inset.Large),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -237,7 +239,7 @@ private fun ColumnScope.SelectionEmptyBody(
     androidx.compose.foundation.layout.Column(
         modifier = Modifier
             .fillMaxWidth()
-            .weight(1f, fill = false)
+            .heightIn(min = Layout.LoadingAreaHeight)
             .padding(Inset.Large),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center

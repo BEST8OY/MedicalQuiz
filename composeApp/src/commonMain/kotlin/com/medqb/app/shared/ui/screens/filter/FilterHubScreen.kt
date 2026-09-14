@@ -80,15 +80,8 @@ internal fun FilterHubScreen(
                             submissionMode = state.submissionMode,
                             onSubmissionModeToggle = onSubmissionModeToggle,
                             bottomContentPadding = bottomContentPadding,
-                            onSelectSubjects = {
-                                showSubjectDialog = true
-                                viewModel.fetchSubjects()
-                            },
-                            onSelectSystems = {
-                                showSystemDialog = true
-                                val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-                                viewModel.fetchSystemsForSubjects(subjects)
-                            },
+                            onSelectSubjects = { showSubjectDialog = true },
+                            onSelectSystems = { showSystemDialog = true },
                             onSelectPerformance = { showPerformanceDialog = true },
                             onStart = {
                                 onDismissSnackbar()
@@ -137,10 +130,7 @@ internal fun FilterHubScreen(
         SystemFilterDialog(
             resource = state.systemsResource,
             selectedIds = state.selectedSystemIds,
-            onRetry = {
-                val subjects = state.selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList()
-                viewModel.fetchSystemsForSubjects(subjects)
-            },
+            onRetry = { viewModel.fetchSystems() },
             onApply = { selected ->
                 viewModel.applySelectedSystems(selected)
                 showSystemDialog = false

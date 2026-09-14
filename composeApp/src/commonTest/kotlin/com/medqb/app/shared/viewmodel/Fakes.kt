@@ -263,9 +263,12 @@ class FakeDatabaseProvider(
         performanceFilter: PerformanceFilter,
     ): Int = if (performanceFilter == PerformanceFilter.ALL) 10 else 3
 
-    override suspend fun getSubjects(): List<Subject> = emptyList()
+    var seededSubjects: List<Subject> = emptyList()
+    var seededSystems: List<System> = emptyList()
 
-    override suspend fun getSystems(subjectIds: List<Long>?): List<System> = emptyList()
+    override suspend fun getSubjects(): List<Subject> = seededSubjects
+
+    override suspend fun getSystems(subjectIds: List<Long>?): List<System> = seededSystems
 
     override suspend fun logAnswer(
         qid: Long,
