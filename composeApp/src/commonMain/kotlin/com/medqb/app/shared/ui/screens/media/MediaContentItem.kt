@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -202,9 +203,8 @@ private fun ImageContent(
 
     val motionScheme = MaterialTheme.motionScheme
     val defaultSpatialFloatSpec = motionScheme.defaultSpatialSpec<Float>()
-    val fastSpatialFloatSpec = motionScheme.fastSpatialSpec<Float>()
-    val slowSpatialSpec = motionScheme.slowSpatialSpec<androidx.compose.ui.geometry.Rect>()
-    val fastSpatialSpec = motionScheme.fastSpatialSpec<androidx.compose.ui.geometry.Rect>()
+    val slowSpatialSpec = motionScheme.slowSpatialSpec<Rect>()
+    val defaultSpatialSpec = motionScheme.defaultSpatialSpec<Rect>()
 
     // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
     // hero transition without duplicate image crossfade artifacts.
@@ -215,7 +215,7 @@ private fun ImageContent(
                 animatedVisibilityScope = animatedVisibilityScope,
                 boundsTransform = { initialBounds, targetBounds ->
                     val isExpanding = initialBounds.width * initialBounds.height < targetBounds.width * targetBounds.height
-                    if (isExpanding) slowSpatialSpec else fastSpatialSpec
+                    if (isExpanding) slowSpatialSpec else defaultSpatialSpec
                 },
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
             )
@@ -252,7 +252,7 @@ private fun ImageContent(
             zoomState.changeScale(
                 targetScale = MIN_SCALE,
                 position = center,
-                animationSpec = fastSpatialFloatSpec,
+                animationSpec = defaultSpatialFloatSpec,
             )
         }
     }

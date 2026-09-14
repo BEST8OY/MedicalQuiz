@@ -22,7 +22,10 @@ import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.HtmlUtils
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.zIndex
 import net.engawapg.lib.zoomable.rememberZoomState
@@ -60,9 +63,9 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalNavAnimatedContentScope.current
     val activeKey = LocalActiveSharedElementKey.current?.value
-    val motionScheme = androidx.compose.material3.MaterialTheme.motionScheme
-    val slowSpatialSpec = motionScheme.slowSpatialSpec<androidx.compose.ui.geometry.Rect>()
-    val fastSpatialSpec = motionScheme.fastSpatialSpec<androidx.compose.ui.geometry.Rect>()
+    val motionScheme = MaterialTheme.motionScheme
+    val slowSpatialSpec = motionScheme.slowSpatialSpec<Rect>()
+    val defaultSpatialSpec = motionScheme.defaultSpatialSpec<Rect>()
 
     // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
     // hero transition without duplicate image crossfade artifacts.
@@ -76,7 +79,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
                 animatedVisibilityScope = animatedVisibilityScope,
                 boundsTransform = { initialBounds, targetBounds ->
                     val isExpanding = initialBounds.width * initialBounds.height < targetBounds.width * targetBounds.height
-                    if (isExpanding) slowSpatialSpec else fastSpatialSpec
+                    if (isExpanding) slowSpatialSpec else defaultSpatialSpec
                 },
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
             )
@@ -109,10 +112,10 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
                 ),
         )
         block.description?.let {
-            androidx.compose.material3.Text(
+            Text(
                 text = it,
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = Spacing.ExtraSmall),
