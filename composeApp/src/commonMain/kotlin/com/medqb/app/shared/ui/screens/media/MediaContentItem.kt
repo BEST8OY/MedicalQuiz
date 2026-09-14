@@ -205,8 +205,6 @@ private fun ImageContent(
     val defaultSpatialFloatSpec = motionScheme.defaultSpatialSpec<Float>()
     val slowSpatialSpec = motionScheme.slowSpatialSpec<androidx.compose.ui.geometry.Rect>()
     val defaultSpatialSpec = motionScheme.defaultSpatialSpec<androidx.compose.ui.geometry.Rect>()
-    val defaultEffectsSpec = motionScheme.defaultEffectsSpec<Float>()
-    val fastEffectsSpec = motionScheme.fastEffectsSpec<Float>()
 
     // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
     // hero transition without duplicate image crossfade artifacts.
@@ -262,16 +260,6 @@ private fun ImageContent(
     val isExitingTransition = animatedVisibilityScope?.transition?.targetState?.let {
         it == EnterExitState.PostExit || it == EnterExitState.PreEnter
     } ?: false
-
-    LaunchedEffect(isExitingTransition) {
-        if (isExitingTransition && isZoomed) {
-            zoomState.changeScale(
-                targetScale = MIN_SCALE,
-                position = center,
-                animationSpec = defaultSpatialFloatSpec,
-            )
-        }
-    }
 
     Box(
         modifier = Modifier

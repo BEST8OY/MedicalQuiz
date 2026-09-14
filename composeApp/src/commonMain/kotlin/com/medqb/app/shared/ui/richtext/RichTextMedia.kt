@@ -2,8 +2,6 @@ package com.medqb.app.shared.ui.richtext
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -65,8 +63,6 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     val motionScheme = androidx.compose.material3.MaterialTheme.motionScheme
     val slowSpatialSpec = motionScheme.slowSpatialSpec<androidx.compose.ui.geometry.Rect>()
     val defaultSpatialSpec = motionScheme.defaultSpatialSpec<androidx.compose.ui.geometry.Rect>()
-    val defaultEffectsSpec = motionScheme.defaultEffectsSpec<Float>()
-    val fastEffectsSpec = motionScheme.fastEffectsSpec<Float>()
 
     // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
     // hero transition without duplicate image crossfade artifacts.
