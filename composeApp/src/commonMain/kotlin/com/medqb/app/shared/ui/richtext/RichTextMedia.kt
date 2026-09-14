@@ -22,6 +22,8 @@ import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.HtmlUtils
 
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.zIndex
 import net.engawapg.lib.zoomable.rememberZoomState
 import net.engawapg.lib.zoomable.snapBackZoomable
@@ -66,6 +68,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
             Modifier.sharedElement(
                 sharedContentState = rememberSharedContentState(key = "media_$clickTarget"),
                 animatedVisibilityScope = animatedVisibilityScope,
+                clipInOverlayDuringTransition = OverlayClip(RectangleShape),
             )
         }
     } else Modifier
@@ -88,11 +91,12 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
             modifier = Modifier
                 .zIndex(if (isZoomed) 1f else 0f)
                 .then(imageSizeModifier)
+                .then(sharedElementModifier)
+                .clipToBounds()
                 .snapBackZoomable(
                     zoomState = zoomState,
                     onTap = { onMediaClick(clickTarget) },
-                )
-                .then(sharedElementModifier),
+                ),
         )
         block.description?.let {
             androidx.compose.material3.Text(
