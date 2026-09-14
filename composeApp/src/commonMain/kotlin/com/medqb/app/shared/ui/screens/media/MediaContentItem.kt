@@ -38,10 +38,13 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.medqb.app.shared.ui.media.MediaType
@@ -200,45 +203,50 @@ private fun ImageContent(
     val defaultEffectsSpec = motionScheme.defaultEffectsSpec<Float>()
     val fastEffectsSpec = motionScheme.fastEffectsSpec<Float>()
 
-    // Why Modifier.sharedBounds instead of Modifier.sharedElement:
-    // Modifier.sharedElement sets renderOnlyWhenVisible = true under the hood, which forces
-    // Compose to drop the outgoing (zoomed) screen immediately on back navigation and only render
-    // the incoming 1.0x thumbnail in the overlay, causing a jarring visual snap to 1.0x.
-    // In contrast, Modifier.sharedBounds sets renderOnlyWhenVisible = false, keeping the outgoing
-    // zoomed surface actively rendered while the container bounds shrink to the thumbnail position.
-    // Combined with ScaleToBounds(ContentScale.Fit) and Material 3 Expressive motionScheme,
-    // this enables a seamless single-stage back gesture directly from an arbitrary zoom state
-    // (matching the behavior in WhatsApp, Telegram, and Google Photos).
-    //
-    // MotionScheme tokens:
-    // - slowSpatialSpec for expansion (sweeping hero reveal when opening)
-    // - defaultSpatialSpec for collapse (crisp, prompt dismissal when returning)
-    // - defaultEffectsSpec / fastEffectsSpec for enter/exit crossfading
-    val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+    // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
+    // hero transition without duplicate image crossfade artifacts.
+    val sharedElementModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
         with(sharedTransitionScope) {
-            Modifier.sharedBounds(
+            Modifier.sharedElement(
                 sharedContentState = rememberSharedContentState(key = "media_$fileName"),
                 animatedVisibilityScope = animatedVisibilityScope,
                 boundsTransform = { initialBounds, targetBounds ->
                     val isExpanding = initialBounds.width * initialBounds.height < targetBounds.width * targetBounds.height
                     if (isExpanding) slowSpatialSpec else defaultSpatialSpec
                 },
-                enter = fadeIn(animationSpec = defaultEffectsSpec),
-                exit = fadeOut(animationSpec = fastEffectsSpec),
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
-                resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.Fit),
             )
         }
     } else Modifier
+
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+    val center = remember(containerSize) {
+        if (containerSize.width > 0 && containerSize.height > 0) {
+            Offset(containerSize.width / 2f, containerSize.height / 2f)
+        } else {
+            Offset.Zero
+        }
+    }
 
     val isExitingTransition = animatedVisibilityScope?.transition?.targetState?.let {
         it == EnterExitState.PostExit || it == EnterExitState.PreEnter
     } ?: false
 
+    LaunchedEffect(isExitingTransition) {
+        if (isExitingTransition && isZoomed) {
+            zoomState.changeScale(
+                targetScale = MIN_SCALE,
+                position = center,
+                animationSpec = defaultSpatialFloatSpec,
+            )
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .then(sharedBoundsModifier)
+            .onSizeChanged { containerSize = it }
+            .then(sharedElementModifier)
             .clipToBounds()
             .zoomable(
                 zoomState = zoomState,

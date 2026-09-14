@@ -68,26 +68,21 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     val defaultEffectsSpec = motionScheme.defaultEffectsSpec<Float>()
     val fastEffectsSpec = motionScheme.fastEffectsSpec<Float>()
 
-    // Uses sharedBounds with ScaleToBounds(ContentScale.Fit) and Material 3 Expressive motionScheme
-    // to mirror MediaContentItem.
-    // Expansive opening uses slowSpatialSpec (sweeping hero transition);
-    // Collapse dismissal uses defaultSpatialSpec (crisp, responsive settling).
-    val sharedBoundsModifier = if (
+    // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
+    // hero transition without duplicate image crossfade artifacts.
+    val sharedElementModifier = if (
         sharedTransitionScope != null &&
         activeKey == clickTarget
     ) {
         with(sharedTransitionScope) {
-            Modifier.sharedBounds(
+            Modifier.sharedElement(
                 sharedContentState = rememberSharedContentState(key = "media_$clickTarget"),
                 animatedVisibilityScope = animatedVisibilityScope,
                 boundsTransform = { initialBounds, targetBounds ->
                     val isExpanding = initialBounds.width * initialBounds.height < targetBounds.width * targetBounds.height
                     if (isExpanding) slowSpatialSpec else defaultSpatialSpec
                 },
-                enter = fadeIn(animationSpec = defaultEffectsSpec),
-                exit = fadeOut(animationSpec = fastEffectsSpec),
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
-                resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.Fit),
             )
         }
     } else Modifier
@@ -110,7 +105,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
             modifier = Modifier
                 .zIndex(if (isZoomed) 1f else 0f)
                 .then(imageSizeModifier)
-                .then(sharedBoundsModifier)
+                .then(sharedElementModifier)
                 .clipToBounds()
                 .snapBackZoomable(
                     zoomState = zoomState,
