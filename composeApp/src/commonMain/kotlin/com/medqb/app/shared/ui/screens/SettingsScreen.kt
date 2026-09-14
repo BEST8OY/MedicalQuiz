@@ -63,6 +63,7 @@ fun SettingsScreen(
     onShowMetadataToggle: (Boolean) -> Unit,
     onFontScaleChange: (Float?) -> Unit,
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val motionScheme = MaterialTheme.motionScheme
 
@@ -72,7 +73,7 @@ fun SettingsScreen(
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -111,94 +112,39 @@ fun SettingsScreen(
                     .padding(horizontal = Spacing.MediumLarge, vertical = Spacing.Medium),
                 verticalArrangement = Arrangement.spacedBy(Spacing.MediumLarge)
             ) {
-            // Section 1: Quiz Experience
-            Text(
-                text = "Quiz Experience",
-                style = MaterialTheme.typography.titleMediumEmphasized,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = Spacing.ExtraSmall)
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                // Section 1: Quiz Experience
+                Text(
+                    text = "Quiz Experience",
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = Spacing.ExtraSmall)
                 )
-            ) {
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            text = "Show metadata",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    },
-                    supportingContent = {
-                        Text(
-                            text = "Display subjects and systems after answering",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = showMetadata,
-                            onCheckedChange = onShowMetadataToggle
-                        )
-                    },
-                    colors = ListItemDefaults.colors(
-                        containerColor = Color.Transparent,
-                        headlineColor = MaterialTheme.colorScheme.onSurface,
-                        supportingColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.padding(vertical = Spacing.ExtraSmall)
-                )
-            }
 
-            // Section 2: Text & Accessibility
-            Text(
-                text = "Appearance & Accessibility",
-                style = MaterialTheme.typography.titleMediumEmphasized,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = Spacing.ExtraSmall)
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(bottom = Spacing.Medium)
-                        .animateContentSize(animationSpec = motionScheme.defaultSpatialSpec())
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    )
                 ) {
                     ListItem(
                         headlineContent = {
                             Text(
-                                text = "Use system font size",
+                                text = "Show metadata",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                         },
                         supportingContent = {
                             Text(
-                                text = "Match the font size to your device system settings",
+                                text = "Display subjects and systems after answering",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         },
                         trailingContent = {
-                        Switch(
-                            checked = useSystemSize,
-                            onCheckedChange = { checked ->
-                                if (checked) {
-                                    onFontScaleChange(null)
-                                } else {
-                                    onFontScaleChange(FontScalePresets.DEFAULT)
-                                }
-                                }
+                            Switch(
+                                checked = showMetadata,
+                                onCheckedChange = onShowMetadataToggle
                             )
                         },
                         colors = ListItemDefaults.colors(
@@ -208,103 +154,157 @@ fun SettingsScreen(
                         ),
                         modifier = Modifier.padding(vertical = Spacing.ExtraSmall)
                     )
+                }
 
-                    AnimatedVisibility(
-                        visible = !useSystemSize,
-                        enter = fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
-                        exit = fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                // Section 2: Text & Accessibility
+                Text(
+                    text = "Appearance & Accessibility",
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = Spacing.ExtraSmall)
+                )
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(bottom = Spacing.Medium)
+                            .animateContentSize(animationSpec = motionScheme.defaultSpatialSpec())
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = Spacing.Medium),
-                            verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    text = "Use system font size",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            },
+                            supportingContent = {
+                                Text(
+                                    text = "Match the font size to your device system settings",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = useSystemSize,
+                                    onCheckedChange = { checked ->
+                                        if (checked) {
+                                            onFontScaleChange(null)
+                                        } else {
+                                            onFontScaleChange(FontScalePresets.DEFAULT)
+                                        }
+                                    }
+                                )
+                            },
+                            colors = ListItemDefaults.colors(
+                                containerColor = Color.Transparent,
+                                headlineColor = MaterialTheme.colorScheme.onSurface,
+                                supportingColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            modifier = Modifier.padding(vertical = Spacing.ExtraSmall)
+                        )
+
+                        AnimatedVisibility(
+                            visible = !useSystemSize,
+                            enter = fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
+                            exit = fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                         ) {
-                            Text(
-                                text = "Custom Reading Text Size",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = Spacing.Medium),
+                                verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.FormatSize,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(Spacing.Medium)
+                                Text(
+                                    text = "Custom Reading Text Size",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
 
-                                val sliderIndex = scaleToIndex(currentScale)
-                                Slider(
-                                    value = sliderIndex,
-                                    onValueChange = { indexFloat ->
-                                        val newScale = indexToScale(indexFloat.toInt())
-                                        onFontScaleChange(newScale)
-                                    },
-                                    valueRange = 0f..3f,
-                                    steps = 2,
-                                    modifier = Modifier.weight(1f)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.FormatSize,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(Spacing.Medium)
+                                    )
+
+                                    val sliderIndex = scaleToIndex(currentScale)
+                                    Slider(
+                                        value = sliderIndex,
+                                        onValueChange = { indexFloat ->
+                                            val newScale = indexToScale(indexFloat.toInt())
+                                            onFontScaleChange(newScale)
+                                        },
+                                        valueRange = 0f..3f,
+                                        steps = 2,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    Icon(
+                                        imageVector = Icons.Outlined.FormatSize,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(Spacing.MediumLarge)
+                                    )
+                                }
+
+                                Text(
+                                    text = scaleToLabel(currentScale),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally)
                                 )
 
-                                Icon(
-                                    imageVector = Icons.Outlined.FormatSize,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(Spacing.MediumLarge)
-                                )
+                                Spacer(modifier = Modifier.height(Spacing.ExtraSmall))
+
+                                LivePreviewCard(currentScale = currentScale)
                             }
-
-                            Text(
-                                text = scaleToLabel(currentScale),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.align(Alignment.CenterHorizontally)
-                            )
-
-                            Spacer(modifier = Modifier.height(Spacing.ExtraSmall))
-
-                            LivePreviewCard(currentScale = currentScale)
                         }
                     }
                 }
-            }
 
-            // Info Notice
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(Spacing.Medium),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.MediumSmall),
-                    verticalAlignment = Alignment.Top
+                // Info Notice
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(IconSize.Medium)
-                    )
-                    Text(
-                        text = "Custom typography sizes apply exclusively to medical questions, answers, and media rich text descriptions.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 16.sp
-                    )
+                    Row(
+                        modifier = Modifier.padding(Spacing.Medium),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.MediumSmall),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(IconSize.Medium)
+                        )
+                        Text(
+                            text = "Custom typography sizes apply exclusively to medical questions, answers, and media rich text descriptions.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
     }
-}
-}
 }
 
 @Composable
@@ -329,7 +329,6 @@ private fun LivePreviewCard(currentScale: Float) {
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.secondary,
-                letterSpacing = 1.sp
             )
 
             Text(

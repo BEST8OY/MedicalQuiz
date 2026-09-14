@@ -202,60 +202,56 @@ internal fun HistoryPane(
             }
 
             if (selectedHistoryEntryIds.isNotEmpty()) {
-                BoxWithConstraints(
-                    modifier = Modifier.fillMaxSize(),
+                val horizontalMargin = if (this@BoxWithConstraints.maxWidth >= ScreenLayout.WideWidthBreakpoint) Spacing.ExtraLarge else Spacing.Large
+                FloatingActionButtonMenu(
+                    expanded = isFabMenuExpanded,
+                    button = {
+                        ToggleFloatingActionButton(
+                            checked = isFabMenuExpanded,
+                            onCheckedChange = { isFabMenuExpanded = it },
+                        ) {
+                            Icon(
+                                imageVector = if (isFabMenuExpanded) Icons.Filled.Close else Icons.Filled.MoreVert,
+                                contentDescription = if (isFabMenuExpanded) "Close actions" else "More actions",
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = horizontalMargin, bottom = ScreenLayout.FabBottomPadding)
+                        .navigationBarsPadding(),
                 ) {
-                    val horizontalMargin = if (maxWidth >= ScreenLayout.WideWidthBreakpoint) Spacing.ExtraLarge else Spacing.Large
-                    FloatingActionButtonMenu(
-                        expanded = isFabMenuExpanded,
-                        button = {
-                            ToggleFloatingActionButton(
-                                checked = isFabMenuExpanded,
-                                onCheckedChange = { isFabMenuExpanded = it },
-                            ) {
-                                Icon(
-                                    imageVector = if (isFabMenuExpanded) Icons.Filled.Close else Icons.Filled.MoreVert,
-                                    contentDescription = if (isFabMenuExpanded) "Close actions" else "More actions",
-                                )
-                            }
+                    FloatingActionButtonMenuItem(
+                        onClick = {
+                            selectedHistoryEntryIds = allHistoryEntryIds
+                            isFabMenuExpanded = false
                         },
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(end = horizontalMargin, bottom = ScreenLayout.FabBottomPadding)
-                            .navigationBarsPadding(),
-                    ) {
-                        FloatingActionButtonMenuItem(
-                            onClick = {
-                                selectedHistoryEntryIds = allHistoryEntryIds
-                                isFabMenuExpanded = false
-                            },
-                            text = { Text("Select all") },
-                            icon = { Icon(Icons.Filled.History, contentDescription = null) },
-                        )
+                        text = { Text("Select all") },
+                        icon = { Icon(Icons.Filled.History, contentDescription = null) },
+                    )
 
-                        FloatingActionButtonMenuItem(
-                            onClick = {
-                                val selectedEntries = historyEntries
-                                    .filter { it.id in selectedHistoryEntryIds }
-                                onCopyAllQids(selectedEntries) { qidsText ->
-                                    lastCopiedText = qidsText
-                                }
-                                isFabMenuExpanded = false
-                            },
-                            text = { Text("Copy QIDs (${selectedHistoryEntryIds.size})") },
-                            icon = { Icon(Icons.Filled.ContentCopy, contentDescription = null) },
-                        )
+                    FloatingActionButtonMenuItem(
+                        onClick = {
+                            val selectedEntries = historyEntries
+                                .filter { it.id in selectedHistoryEntryIds }
+                            onCopyAllQids(selectedEntries) { qidsText ->
+                                lastCopiedText = qidsText
+                            }
+                            isFabMenuExpanded = false
+                        },
+                        text = { Text("Copy QIDs (${selectedHistoryEntryIds.size})") },
+                        icon = { Icon(Icons.Filled.ContentCopy, contentDescription = null) },
+                    )
 
-                        FloatingActionButtonMenuItem(
-                            onClick = {
-                                val entriesToDelete = historyEntries
-                                    .filter { it.id in selectedHistoryEntryIds }
-                                deleteHistoryEntries(entriesToDelete)
-                            },
-                            text = { Text("Delete (${selectedHistoryEntryIds.size})") },
-                            icon = { Icon(Icons.Filled.Delete, contentDescription = null) },
-                        )
-                    }
+                    FloatingActionButtonMenuItem(
+                        onClick = {
+                            val entriesToDelete = historyEntries
+                                .filter { it.id in selectedHistoryEntryIds }
+                            deleteHistoryEntries(entriesToDelete)
+                        },
+                        text = { Text("Delete (${selectedHistoryEntryIds.size})") },
+                        icon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                    )
                 }
             }
 

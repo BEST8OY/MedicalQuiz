@@ -43,8 +43,10 @@ fun DatabaseSelectionScreen(
     onRefreshDatabases: () -> Unit,
     onDatabaseSelected: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Scaffold(
+        modifier = modifier,
         topBar = {
             MedQBTopBar(
                 supportingText = "Select QBank",
@@ -84,7 +86,10 @@ fun DatabaseSelectionScreen(
                             )
                         }
                     } else {
-                        items(databases) { dbName ->
+                        items(
+                            items = databases,
+                            key = { it },
+                        ) { dbName ->
                             DatabaseItemCard(
                                 name = dbName,
                                 onClick = { onDatabaseSelected(dbName) },
@@ -101,10 +106,11 @@ fun DatabaseSelectionScreen(
 private fun DatabaseItemCard(
     name: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
