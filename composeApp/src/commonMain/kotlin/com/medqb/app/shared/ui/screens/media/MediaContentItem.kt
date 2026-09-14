@@ -33,13 +33,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
-import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import coil3.compose.AsyncImage
@@ -187,18 +186,13 @@ private fun ImageContent(
     }
 
     val zoomState = rememberZoomState()
-    val coroutineScope = rememberCoroutineScope()
     val isZoomed = zoomState.scale > MIN_SCALE + 0.01f
 
     LaunchedEffect(isZoomed) {
         onZoomChanged(isZoomed)
     }
 
-    PlatformBackHandler(enabled = isZoomed) {
-        coroutineScope.launch {
-            zoomState.reset()
-        }
-    }
+    val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
 
     val sharedElementModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
         with(sharedTransitionScope) {
@@ -213,9 +207,15 @@ private fun ImageContent(
         it == EnterExitState.PostExit || it == EnterExitState.PreEnter
     } ?: false
 
+    // Single-stage back navigation: smoothly animate zoom scale and offsets back to 1.0x concurrently
+    // with the shared element bounds collapse using Material 3 Expressive motionScheme.
     LaunchedEffect(isExitingTransition) {
         if (isExitingTransition && isZoomed) {
-            zoomState.reset()
+            zoomState.changeScale(
+                targetScale = MIN_SCALE,
+                position = Offset.Zero,
+                animationSpec = defaultSpatialSpec,
+            )
         }
     }
 
@@ -226,7 +226,7 @@ private fun ImageContent(
                 zoomState = zoomState,
                 onDoubleTap = { position ->
                     val targetScale = if (zoomState.scale < 2f) DOUBLE_TAP_ZOOM else MIN_SCALE
-                    zoomState.changeScale(targetScale, position)
+                    zoomState.changeScale(targetScale, position, defaultSpatialSpec)
                 },
                 onTap = { onSingleTap() },
             ),
