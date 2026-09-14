@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -46,7 +47,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     if (mediaModel == null) return
 
     val clickTarget = block.mediaRef ?: extractMediaRef(block.source) ?: block.source
-    val imageSizeModifier = remember(block.width, block.height) {
+    val imageSizeModifier = remember(block.width) {
         val w = block.width?.takeIf { it > 0 }
         when {
             w != null -> Modifier
@@ -58,13 +59,12 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     }
 
     val zoomState = rememberZoomState()
-    val isZoomed = zoomState.scale > 1.001f
+    val isZoomed by remember { derivedStateOf { zoomState.scale > 1.001f } }
 
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalNavAnimatedContentScope.current
     val activeKey = LocalActiveSharedElementKey.current?.value
     val motionScheme = MaterialTheme.motionScheme
-    val slowSpatialSpec = motionScheme.slowSpatialSpec<Rect>()
     val defaultSpatialSpec = motionScheme.defaultSpatialSpec<Rect>()
 
     // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
@@ -77,10 +77,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
             Modifier.sharedElement(
                 sharedContentState = rememberSharedContentState(key = "media_$clickTarget"),
                 animatedVisibilityScope = animatedVisibilityScope,
-                boundsTransform = { initialBounds, targetBounds ->
-                    val isExpanding = initialBounds.width * initialBounds.height < targetBounds.width * targetBounds.height
-                    if (isExpanding) slowSpatialSpec else defaultSpatialSpec
-                },
+                boundsTransform = { _, _ -> defaultSpatialSpec },
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
             )
         }

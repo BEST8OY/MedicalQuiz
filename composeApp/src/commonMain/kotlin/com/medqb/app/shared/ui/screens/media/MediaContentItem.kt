@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -74,15 +75,19 @@ internal fun MediaContent(
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier,
 ) {
-    val mediaType = remember(fileName) { getMediaType(fileName) }
+    val mediaType = remember(fileName) { MediaTypeUtils.fromFileName(fileName) }
     val filePath = remember(fileName, resolveMediaFilePath) { resolveMediaFilePath(fileName) }
 
+    val fileExists by produceState(initialValue = true, fileName) {
+        value = mediaFileExists(fileName)
+    }
+
     Box(modifier = modifier) {
-        when (mediaType) {
-            MediaType.IMAGE -> ImageContent(
+        when {
+            !fileExists -> UnsupportedContent(fileName = fileName)
+            mediaType == MediaType.IMAGE -> ImageContent(
                 fileName = fileName,
                 mediaFilePath = filePath,
-                mediaFileExists = mediaFileExists,
                 isActivePage = isActivePage,
                 onZoomChanged = onZoomChanged,
                 onSingleTap = onSingleTap,
@@ -91,17 +96,13 @@ internal fun MediaContent(
                 sharedTransitionScope = if (isSharedElementPage) sharedTransitionScope else null,
                 animatedVisibilityScope = if (isSharedElementPage) animatedVisibilityScope else null,
             )
-            MediaType.VIDEO -> VideoContent(
+            mediaType == MediaType.VIDEO -> VideoContent(
                 filePath = filePath,
-                fileName = fileName,
-                mediaFileExists = mediaFileExists,
-                isActivePage = isActivePage
+                isActivePage = isActivePage,
             )
-            MediaType.AUDIO -> AudioContent(
+            mediaType == MediaType.AUDIO -> AudioContent(
                 filePath = filePath,
-                fileName = fileName,
-                mediaFileExists = mediaFileExists,
-                isActivePage = isActivePage
+                isActivePage = isActivePage,
             )
             else -> UnsupportedContent(fileName = fileName)
         }
@@ -111,46 +112,24 @@ internal fun MediaContent(
 @Composable
 private fun VideoContent(
     filePath: String,
-    fileName: String,
-    mediaFileExists: suspend (String) -> Boolean,
     isActivePage: Boolean,
 ) {
-    val fileExists by produceState(initialValue = true, fileName, filePath) {
-        value = mediaFileExists(fileName)
-    }
-
-    if (!fileExists) {
-        UnsupportedContent(fileName = fileName)
-        return
-    }
-
     VideoPlayer(
         filePath = filePath,
         modifier = Modifier.fillMaxSize(),
-        isActivePage = isActivePage
+        isActivePage = isActivePage,
     )
 }
 
 @Composable
 private fun AudioContent(
     filePath: String,
-    fileName: String,
-    mediaFileExists: suspend (String) -> Boolean,
     isActivePage: Boolean,
 ) {
-    val fileExists by produceState(initialValue = true, fileName, filePath) {
-        value = mediaFileExists(fileName)
-    }
-
-    if (!fileExists) {
-        UnsupportedContent(fileName = fileName)
-        return
-    }
-
     AudioPlayer(
         filePath = filePath,
         modifier = Modifier.fillMaxSize(),
-        isActivePage = isActivePage
+        isActivePage = isActivePage,
     )
 }
 
@@ -159,7 +138,6 @@ private fun AudioContent(
 private fun ImageContent(
     fileName: String,
     mediaFilePath: String,
-    mediaFileExists: suspend (String) -> Boolean,
     isActivePage: Boolean,
     onZoomChanged: (Boolean) -> Unit,
     onSingleTap: () -> Unit,
@@ -168,18 +146,9 @@ private fun ImageContent(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
-    val fileExists by produceState(initialValue = true, fileName, mediaFilePath) {
-        value = mediaFileExists(fileName)
-    }
-
-    if (!fileExists) {
-        UnsupportedContent(fileName = fileName)
-        return
-    }
-
     val coroutineScope = rememberCoroutineScope()
     val zoomState = rememberZoomState()
-    val isZoomed = zoomState.scale > MIN_SCALE + 0.01f
+    val isZoomed by remember { derivedStateOf { zoomState.scale > MIN_SCALE + 0.01f } }
 
     var isTransitionDone by remember { mutableStateOf(animatedVisibilityScope == null) }
     var sharedElementResetKey by remember { mutableIntStateOf(0) }
@@ -207,7 +176,6 @@ private fun ImageContent(
 
     val motionScheme = MaterialTheme.motionScheme
     val defaultSpatialFloatSpec = motionScheme.defaultSpatialSpec<Float>()
-    val slowSpatialSpec = motionScheme.slowSpatialSpec<Rect>()
     val defaultSpatialSpec = motionScheme.defaultSpatialSpec<Rect>()
 
     // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
@@ -221,10 +189,7 @@ private fun ImageContent(
                 Modifier.sharedElement(
                     sharedContentState = rememberSharedContentState(key = "media_$fileName"),
                     animatedVisibilityScope = animatedVisibilityScope,
-                    boundsTransform = { initialBounds, targetBounds ->
-                        val isExpanding = initialBounds.width * initialBounds.height < targetBounds.width * targetBounds.height
-                        if (isExpanding) slowSpatialSpec else defaultSpatialSpec
-                    },
+                    boundsTransform = { _, _ -> defaultSpatialSpec },
                     clipInOverlayDuringTransition = OverlayClip(RectangleShape),
                 )
             }
@@ -256,9 +221,13 @@ private fun ImageContent(
         }
     }
 
-    val isExitingTransition = animatedVisibilityScope?.transition?.targetState?.let {
-        it == EnterExitState.PostExit || it == EnterExitState.PreEnter
-    } ?: false
+    val isExitingTransition by remember(animatedVisibilityScope) {
+        derivedStateOf {
+            animatedVisibilityScope?.transition?.targetState?.let {
+                it == EnterExitState.PostExit || it == EnterExitState.PreEnter
+            } ?: false
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -353,6 +322,3 @@ internal fun UnsupportedContent(
     }
 }
 
-private fun getMediaType(fileName: String): MediaType {
-    return MediaTypeUtils.fromFileName(fileName)
-}
