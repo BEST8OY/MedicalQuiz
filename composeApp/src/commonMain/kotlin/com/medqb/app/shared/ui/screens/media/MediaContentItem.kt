@@ -193,8 +193,12 @@ private fun ImageContent(
         onZoomChanged(isZoomed)
     }
 
-    val defaultSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
-    val boundsSpatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<androidx.compose.ui.geometry.Rect>()
+    val motionScheme = MaterialTheme.motionScheme
+    val defaultSpatialFloatSpec = motionScheme.defaultSpatialSpec<Float>()
+    val slowSpatialSpec = motionScheme.slowSpatialSpec<androidx.compose.ui.geometry.Rect>()
+    val defaultSpatialSpec = motionScheme.defaultSpatialSpec<androidx.compose.ui.geometry.Rect>()
+    val defaultEffectsSpec = motionScheme.defaultEffectsSpec<Float>()
+    val fastEffectsSpec = motionScheme.fastEffectsSpec<Float>()
 
     // Why Modifier.sharedBounds instead of Modifier.sharedElement:
     // Modifier.sharedElement sets renderOnlyWhenVisible = true under the hood, which forces
@@ -205,12 +209,22 @@ private fun ImageContent(
     // Combined with ScaleToBounds(ContentScale.Fit) and Material 3 Expressive motionScheme,
     // this enables a seamless single-stage back gesture directly from an arbitrary zoom state
     // (matching the behavior in WhatsApp, Telegram, and Google Photos).
+    //
+    // MotionScheme tokens:
+    // - slowSpatialSpec for expansion (sweeping hero reveal when opening)
+    // - defaultSpatialSpec for collapse (crisp, prompt dismissal when returning)
+    // - defaultEffectsSpec / fastEffectsSpec for enter/exit crossfading
     val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
         with(sharedTransitionScope) {
             Modifier.sharedBounds(
                 sharedContentState = rememberSharedContentState(key = "media_$fileName"),
                 animatedVisibilityScope = animatedVisibilityScope,
-                boundsTransform = { _, _ -> boundsSpatialSpec },
+                boundsTransform = { initialBounds, targetBounds ->
+                    val isExpanding = initialBounds.width * initialBounds.height < targetBounds.width * targetBounds.height
+                    if (isExpanding) slowSpatialSpec else defaultSpatialSpec
+                },
+                enter = fadeIn(animationSpec = defaultEffectsSpec),
+                exit = fadeOut(animationSpec = fastEffectsSpec),
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
                 resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.Fit),
             )
@@ -230,7 +244,7 @@ private fun ImageContent(
                 zoomState = zoomState,
                 onDoubleTap = { position ->
                     val targetScale = if (zoomState.scale < 2f) DOUBLE_TAP_ZOOM else MIN_SCALE
-                    zoomState.changeScale(targetScale, position, defaultSpatialSpec)
+                    zoomState.changeScale(targetScale, position, defaultSpatialFloatSpec)
                 },
                 onTap = { onSingleTap() },
             ),

@@ -2,6 +2,8 @@ package com.medqb.app.shared.ui.richtext
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -60,11 +62,16 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalNavAnimatedContentScope.current
     val activeKey = LocalActiveSharedElementKey.current?.value
-    val boundsSpatialSpec = androidx.compose.material3.MaterialTheme.motionScheme
-        .defaultSpatialSpec<androidx.compose.ui.geometry.Rect>()
+    val motionScheme = androidx.compose.material3.MaterialTheme.motionScheme
+    val slowSpatialSpec = motionScheme.slowSpatialSpec<androidx.compose.ui.geometry.Rect>()
+    val defaultSpatialSpec = motionScheme.defaultSpatialSpec<androidx.compose.ui.geometry.Rect>()
+    val defaultEffectsSpec = motionScheme.defaultEffectsSpec<Float>()
+    val fastEffectsSpec = motionScheme.fastEffectsSpec<Float>()
 
     // Uses sharedBounds with ScaleToBounds(ContentScale.Fit) and Material 3 Expressive motionScheme
-    // to mirror MediaContentItem. This enables smooth single-stage back navigation from zoomed states.
+    // to mirror MediaContentItem.
+    // Expansive opening uses slowSpatialSpec (sweeping hero transition);
+    // Collapse dismissal uses defaultSpatialSpec (crisp, responsive settling).
     val sharedBoundsModifier = if (
         sharedTransitionScope != null &&
         activeKey == clickTarget
@@ -73,7 +80,12 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
             Modifier.sharedBounds(
                 sharedContentState = rememberSharedContentState(key = "media_$clickTarget"),
                 animatedVisibilityScope = animatedVisibilityScope,
-                boundsTransform = { _, _ -> boundsSpatialSpec },
+                boundsTransform = { initialBounds, targetBounds ->
+                    val isExpanding = initialBounds.width * initialBounds.height < targetBounds.width * targetBounds.height
+                    if (isExpanding) slowSpatialSpec else defaultSpatialSpec
+                },
+                enter = fadeIn(animationSpec = defaultEffectsSpec),
+                exit = fadeOut(animationSpec = fastEffectsSpec),
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
                 resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.Fit),
             )
