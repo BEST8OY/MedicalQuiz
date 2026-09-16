@@ -8,27 +8,30 @@ Kotlin Multiplatform (Android + Desktop) medical quiz app using Compose Multipla
 - **Modules**: `:app` (Android shell), `:composeApp` (shared KMP module — where all UI and logic lives)
 - **Entrypoints**: `app/...MainActivity.kt` (Android), `composeApp/src/desktopMain/kotlin/main.kt` (Desktop)
 - **Java 21** required for Gradle daemon; **JVM target 17** for Kotlin compilation
-- **Kotlin 2.4.0**, **AGP 9.2.1**, **Compose Multiplatform 1.12.0-alpha01**
+- **Kotlin 2.4.10**, **AGP 9.4.0**, **Compose Multiplatform 1.12.0-alpha02**
 
 ## Build & Test Commands
 
 ```bash
-# Desktop tests
+# Desktop tests & compilation check (primary verification command, fast ~4s)
 ./gradlew :composeApp:desktopTest --stacktrace
+
+# Quick desktop compilation check without running tests
+./gradlew :composeApp:compileKotlinDesktop --stacktrace
 
 # Lint (Android)
 ./gradlew lint --stacktrace
 
-# Full Android release build
+# Full Android release build (CI only)
 ./gradlew assembleRelease --stacktrace
 
-# Desktop release package
+# Desktop release package (slow ~7m: performs full whole-program ProGuard release optimization)
 ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
 ```
 
 No separate typecheck or formatter commands — compilation is the typecheck. No ktlint/detekt configured.
 
-**Important**: Android builds cannot be run locally — there is no Android SDK on this system. Android APKs are built exclusively via GitHub Actions CI. Only desktop builds (`desktopTest`, `packageReleaseDistributionForCurrentOS`) can be run locally.
+**Important**: Android builds cannot be run locally — there is no Android SDK on this system. Android APKs are built exclusively via GitHub Actions CI. Only desktop targets can be run locally: use `desktopTest` for rapid (~4s) verification and test passes; `packageReleaseDistributionForCurrentOS` runs whole-program ProGuard optimization (~7m) and should only be used when validating final distribution packaging.
 
 ## Architecture
 
@@ -44,7 +47,7 @@ No separate typecheck or formatter commands — compilation is the typecheck. No
 - **Platform code**: `androidMain/` and `desktopMain/` — expect/actual implementations
 - **Metro DI** (`dev.zacsweers.metro`) — compile-time dependency injection via `@DependencyGraph`
 - **Navigation 3** (`androidx.navigation3`) — not traditional Navigation Compose
-- **SQLite bundled** (`androidx.sqlite:sqlite-bundled`) for local databases
+- **SQLite bundled** (`androidx.sqlite:sqlite-bundled`) and **Room 3** (`androidx.room3`) for local databases
 - **Coil 3** for image loading, **Ksoup** for HTML parsing
 
 ## Conventions
@@ -52,7 +55,7 @@ No separate typecheck or formatter commands — compilation is the typecheck. No
 - Version catalog at `gradle/libs.versions.toml` — all dependencies versioned there
 - Material 3 dynamic colors on Android 12+; fallback `expressiveLightColorScheme()` on older/desktop
 - UI color reference: `docs/ui-colors.md`
-- Desktop release uses ProGuard (`proguard-desktop.pro`) with `com.guardsquare:proguard-gradle:7.9.0` in root `buildscript`; release builds enable obfuscation=false
+- Desktop release uses ProGuard (`proguard-desktop.pro`) with `com.guardsquare:proguard-gradle:7.10.0` in root `buildscript` and `version.set("7.10.0")` in `composeApp/build.gradle.kts`; release builds enable obfuscation=false. (Version 7.10.0 is required to support Kotlin 2.4+ metadata).
 - ABI splits enabled for Android release — only `arm64-v8a` by default
 - KMP Android target uses `com.android.kotlin.multiplatform.library` with `withHostTest {}` enabled
 

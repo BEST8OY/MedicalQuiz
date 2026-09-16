@@ -408,11 +408,78 @@ class QuizViewModelTest {
             filterStateHolder = FilterStateHolder(),
             ioDispatcher = StandardTestDispatcher(scheduler),
         )
+        // Immediately upon construction without advanceUntilIdle, toolbarTitle.value must be synchronous
+        assertEquals("My Custom Quiz", viewModel.toolbarTitle.value)
+        assertEquals("My Custom Quiz", viewModel.state.value.toolbarTitle)
+
         provider.installInto(holder)
         advanceUntilIdle()
 
         assertEquals("My Custom Quiz", viewModel.state.value.toolbarTitle)
         assertEquals("My Custom Quiz", viewModel.toolbarTitle.value)
+    }
+
+    @Test
+    fun restoredHistorySessionPreservesCustomSettingsOverGlobalChanges() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val settings = FakeSettingsRepository(
+            submissionMode = SubmissionMode.INSTANT,
+            isLoggingEnabled = true,
+        )
+        val savedStateHandle = SavedStateHandle(
+            mapOf(
+                "sessionId" to "history_session_123",
+                "isLoggingEnabled" to false,
+                "submissionMode" to SubmissionMode.MANUAL.name,
+            )
+        )
+        val viewModel = QuizViewModel(
+            settingsRepository = settings,
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            sessionRepository = FakeQuizSessionRepository(),
+            savedStateHandle = savedStateHandle,
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        // Restored history session rules are preserved despite global settings being INSTANT / true
+        assertEquals(SubmissionMode.MANUAL, viewModel.state.value.submissionMode)
+        assertFalse(viewModel.state.value.isLoggingEnabled)
+
+        // Global settings changing should not overwrite the restored history session rules
+        settings.setSubmissionMode(SubmissionMode.INSTANT)
+        settings.setLoggingEnabled(true)
+        advanceUntilIdle()
+
+        assertEquals(SubmissionMode.MANUAL, viewModel.state.value.submissionMode)
+        assertFalse(viewModel.state.value.isLoggingEnabled)
+    }
+
+    @Test
+    fun rapidConsecutiveQuestionLoadsCancelsInFlightAndLoadsLatest() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val viewModel = createViewModel(provider, holder)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals(1L, viewModel.state.value.currentQuestion?.id)
+
+        // Dispatch load for question 2 then immediately question 1
+        viewModel.loadQuestion(1) // q2
+        viewModel.loadQuestion(0) // q1
+        advanceUntilIdle()
+
+        // Final state reflects latest requested question (q1)
+        assertEquals(0, viewModel.state.value.currentQuestionIndex)
+        assertEquals(1L, viewModel.state.value.currentQuestion?.id)
+        assertFalse(viewModel.state.value.isLoading)
     }
 
     @Test

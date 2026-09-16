@@ -230,6 +230,7 @@ class FilterHubViewModel(
         ) { subjectIds, systemIds, performanceFilter ->
             Triple(subjectIds, systemIds, performanceFilter)
         }
+            .distinctUntilChanged()
             .onEach { (subjectIds, systemIds, performanceFilter) ->
                 _state.update {
                     it.copy(
@@ -249,6 +250,7 @@ class FilterHubViewModel(
         ) { isLoggingEnabled, submissionMode ->
             isLoggingEnabled to submissionMode
         }
+            .distinctUntilChanged()
             .onEach { (isLoggingEnabled, submissionMode) ->
                 _state.update {
                     it.copy(isLoggingEnabled = isLoggingEnabled, submissionMode = submissionMode)
@@ -301,6 +303,7 @@ class FilterHubViewModel(
         ) { subjectIds, systemIds, performanceFilter ->
             Triple(subjectIds, systemIds, performanceFilter)
         }
+            .distinctUntilChanged()
             .onEach { (subjectIds, systemIds, performanceFilter) ->
                 savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = subjectIds.toList()
                 savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = systemIds.toList()

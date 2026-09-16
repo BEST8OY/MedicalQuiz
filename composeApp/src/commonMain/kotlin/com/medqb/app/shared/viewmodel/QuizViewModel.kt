@@ -25,14 +25,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.getAndUpdate
@@ -66,44 +64,29 @@ class QuizViewModel(
         const val KEY_SESSION_ID = "sessionId"
     }
 
-    private val _state = MutableStateFlow(QuizUiState.EMPTY)
+    private val isSessionRestored = savedStateHandle.get<String>(KEY_SESSION_ID)?.isNotBlank() == true
+    private val _state = MutableStateFlow(restoreInitialState())
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
 
-    val toolbarTitle = state
+    val toolbarTitle: StateFlow<String> = state
         .map { it.toolbarTitle }
         .distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.Eagerly, "")
+        .stateIn(viewModelScope, SharingStarted.Eagerly, _state.value.toolbarTitle)
 
     private val sessionIdState: MutableStateFlow<String> = savedStateHandle.getMutableStateFlow(KEY_SESSION_ID, "")
     private val sessionId: String
         get() = sessionIdState.value
     private var filteredIdsJob: Job? = null
+    private var loadQuestionJob: Job? = null
     // Name of the database whose question ids were last (re)loaded. Distinguishes
     // "first load / db switched" from "filters legitimately produced zero results".
     private var loadedForDbName: String? = null
-    private var loadSeq = 0L
-
-    /**
-     * Navigation requests. A StateFlow (not a SharedFlow) so an emission made before
-     * the collector subscribes is never lost; [LoadRequest.seq] makes consecutive
-     * requests distinguishable, and collectLatest cancels any in-flight load when a
-     * newer request arrives — latest navigation wins.
-     */
-    private val loadRequests = MutableStateFlow<LoadRequest?>(null)
-
-    private data class LoadRequest(
-        val seq: Long,
-        val index: Int,
-        val resetAnswerState: Boolean,
-        val appendToHistory: Boolean,
-    )
 
     private fun updateSessionId(id: String) {
         sessionIdState.value = id
     }
 
     init {
-        restoreFromSavedState()
         observeSettings()
 
         viewModelScope.launch {
@@ -111,8 +94,7 @@ class QuizViewModel(
                 val dbName = active?.name ?: return@collect
 
                 val isFirstLoad = loadedForDbName == null
-                val dbChanged = dbName != loadedForDbName
-                if (isFirstLoad || dbChanged) {
+                if (dbName != loadedForDbName) {
                     loadedForDbName = dbName
                     _state.update { it.copy(databaseName = dbName, questionIds = emptyList()) }
                     // First load after process restore resumes the saved position;
@@ -124,61 +106,9 @@ class QuizViewModel(
                 }
             }
         }
-
-        viewModelScope.launch {
-            loadRequests.collectLatest { request ->
-                if (request == null) return@collectLatest
-
-                val ids = state.value.questionIds
-                val questionId = ids.getOrNull(request.index) ?: return@collectLatest
-
-                _state.update { it.copy(isLoading = true, currentPerformance = null) }
-                val active = activeDatabaseHolder.activeDatabase.value
-                val db = active?.provider
-                try {
-                    val result = loadQuestionUseCase(
-                        db = db,
-                        dbName = state.value.databaseName,
-                        questionId = questionId,
-                        isLoggingEnabled = state.value.isLoggingEnabled,
-                    )
-                    currentCoroutineContext().ensureActive()
-                    // The database was switched while this load was in flight —
-                    // drop the result instead of publishing stale question state.
-                    if (active != null && activeDatabaseHolder.activeDatabase.value !== active) {
-                        return@collectLatest
-                    }
-                    _state.update {
-                        it.copy(currentQuestionIndex = request.index)
-                            .copyWithQuestion(
-                                question = result.question,
-                                answers = result.answers,
-                                correctAnswerId = result.correctAnswerId,
-                                questionHighlights = result.questionHighlights,
-                                explanationHighlights = result.explanationHighlights,
-                                resetAnswerState = request.resetAnswerState
-                            )
-                            .copy(currentPerformance = result.performance)
-                    }
-                    persistStateSnapshot()
-                    if (request.appendToHistory) {
-                        appendToHistory()
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Logger.e("QuizViewModel", "Error loading question $questionId", e)
-                    emitSnackbar("Failed to load question: ${e.message}")
-                } finally {
-                    if (currentCoroutineContext().isActive) {
-                        _state.update { it.copy(isLoading = false) }
-                    }
-                }
-            }
-        }
     }
 
-    private fun restoreFromSavedState() {
+    private fun restoreInitialState(): QuizUiState {
         val savedDatabaseName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
         val savedEntryName = savedStateHandle.get<String>(KEY_ENTRY_NAME).orEmpty()
         val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: 0
@@ -189,15 +119,13 @@ class QuizViewModel(
             ?.let { runCatching { SubmissionMode.valueOf(it) }.getOrNull() }
             ?: settingsRepository.submissionMode.value
 
-        _state.update {
-            it.copy(
-                databaseName = savedDatabaseName,
-                entryName = savedEntryName,
-                currentQuestionIndex = savedQuestionIndex.coerceAtLeast(0),
-                isLoggingEnabled = savedIsLoggingEnabled,
-                submissionMode = savedSubmissionMode,
-            )
-        }
+        return QuizUiState.EMPTY.copy(
+            databaseName = savedDatabaseName,
+            entryName = savedEntryName,
+            currentQuestionIndex = savedQuestionIndex.coerceAtLeast(0),
+            isLoggingEnabled = savedIsLoggingEnabled,
+            submissionMode = savedSubmissionMode,
+        )
     }
 
     private fun persistStateSnapshot(snapshot: QuizUiState = state.value) {
@@ -309,8 +237,53 @@ class QuizViewModel(
         appendToHistory: Boolean = true,
     ) {
         val ids = state.value.questionIds
-        if (ids.getOrNull(index) == null) return
-        loadRequests.value = LoadRequest(++loadSeq, index, resetAnswerState, appendToHistory)
+        val questionId = ids.getOrNull(index) ?: return
+
+        loadQuestionJob?.cancel()
+        loadQuestionJob = viewModelScope.launch(ioDispatcher) {
+            _state.update { it.copy(isLoading = true, currentPerformance = null) }
+            val active = activeDatabaseHolder.activeDatabase.value
+            val db = active?.provider
+            try {
+                val result = loadQuestionUseCase(
+                    db = db,
+                    dbName = state.value.databaseName,
+                    questionId = questionId,
+                    isLoggingEnabled = state.value.isLoggingEnabled,
+                )
+                ensureActive()
+                // The database was switched while this load was in flight —
+                // drop the result instead of publishing stale question state.
+                if (active != null && activeDatabaseHolder.activeDatabase.value !== active) {
+                    return@launch
+                }
+                _state.update {
+                    it.copy(currentQuestionIndex = index)
+                        .copyWithQuestion(
+                            question = result.question,
+                            answers = result.answers,
+                            correctAnswerId = result.correctAnswerId,
+                            questionHighlights = result.questionHighlights,
+                            explanationHighlights = result.explanationHighlights,
+                            resetAnswerState = resetAnswerState
+                        )
+                        .copy(currentPerformance = result.performance)
+                }
+                persistStateSnapshot()
+                if (appendToHistory) {
+                    appendToHistory()
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("QuizViewModel", "Error loading question $questionId", e)
+                emitSnackbar("Failed to load question: ${e.message}")
+            } finally {
+                if (isActive) {
+                    _state.update { it.copy(isLoading = false) }
+                }
+            }
+        }
     }
 
     fun loadNext() {
@@ -401,29 +374,31 @@ class QuizViewModel(
         selectedAnswerId: Int
     ) {
         val wasCorrect = correctAnswerId == selectedAnswerId
-        val previous = state.value.currentPerformance
-
-        val updated = if (previous != null) {
-            previous.copy(
-                lastCorrect = wasCorrect,
-                everCorrect = previous.everCorrect || wasCorrect,
-                everIncorrect = previous.everIncorrect || !wasCorrect,
-                attempts = previous.attempts + 1,
-                correctCount = previous.correctCount + (if (wasCorrect) 1 else 0),
-                incorrectCount = previous.incorrectCount + (if (!wasCorrect) 1 else 0)
-            )
-        } else {
-            QuestionPerformance(
-                qid = questionId,
-                lastCorrect = wasCorrect,
-                everCorrect = wasCorrect,
-                everIncorrect = !wasCorrect,
-                attempts = 1,
-                correctCount = if (wasCorrect) 1 else 0,
-                incorrectCount = if (!wasCorrect) 1 else 0
-            )
+        _state.update { current ->
+            if (current.currentQuestion?.id != questionId) return@update current
+            val previous = current.currentPerformance
+            val updated = if (previous != null) {
+                previous.copy(
+                    lastCorrect = wasCorrect,
+                    everCorrect = previous.everCorrect || wasCorrect,
+                    everIncorrect = previous.everIncorrect || !wasCorrect,
+                    attempts = previous.attempts + 1,
+                    correctCount = previous.correctCount + (if (wasCorrect) 1 else 0),
+                    incorrectCount = previous.incorrectCount + (if (!wasCorrect) 1 else 0)
+                )
+            } else {
+                QuestionPerformance(
+                    qid = questionId,
+                    lastCorrect = wasCorrect,
+                    everCorrect = wasCorrect,
+                    everIncorrect = !wasCorrect,
+                    attempts = 1,
+                    correctCount = if (wasCorrect) 1 else 0,
+                    incorrectCount = if (!wasCorrect) 1 else 0
+                )
+            }
+            current.copy(currentPerformance = updated)
         }
-        _state.update { it.copy(currentPerformance = updated) }
     }
 
     fun resetAnswerState() {
@@ -532,8 +507,8 @@ class QuizViewModel(
                     it.copy(
                         showMetadata = settings.metadata,
                         fontScalePreference = settings.fontScale,
-                        isLoggingEnabled = settings.isLoggingEnabled,
-                        submissionMode = settings.submissionMode,
+                        isLoggingEnabled = if (isSessionRestored) it.isLoggingEnabled else settings.isLoggingEnabled,
+                        submissionMode = if (isSessionRestored) it.submissionMode else settings.submissionMode,
                     )
                 }
             }

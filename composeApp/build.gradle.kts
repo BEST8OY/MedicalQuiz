@@ -162,6 +162,7 @@ compose.desktop {
         
         // Enable ProGuard for release builds - significantly reduces size
         buildTypes.release.proguard {
+            version.set("7.10.0")
             isEnabled.set(true)
             obfuscate.set(false) // Keep readable stack traces
             optimize.set(true)
