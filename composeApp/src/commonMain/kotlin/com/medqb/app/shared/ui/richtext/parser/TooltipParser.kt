@@ -14,6 +14,10 @@ import kotlinx.serialization.json.jsonPrimitive
  */
 internal object TooltipParser {
 
+    private val tooltipJsonKeys = listOf(
+        "description", "text", "content", "value", "body", "tooltip", "message"
+    )
+
     /**
      * Attribute candidates that may contain tooltip text.
      */
@@ -112,8 +116,7 @@ internal object TooltipParser {
             // Try parsing as JSON object
             if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
                 val json = Json.parseToJsonElement(trimmed).jsonObject
-                val keys = listOf("description", "text", "content", "value", "body", "tooltip", "message")
-                for (key in keys) {
+                for (key in tooltipJsonKeys) {
                     val value = json[key]?.jsonPrimitive?.contentOrNull
                     if (!value.isNullOrBlank()) {
                         return stripHtml(value)
@@ -125,8 +128,7 @@ internal object TooltipParser {
                 val array = Json.parseToJsonElement(trimmed).jsonArray
                 for (element in array) {
                     val candidate = if (element is kotlinx.serialization.json.JsonObject) {
-                        val keys = listOf("description", "text", "content", "value", "body", "tooltip", "message")
-                        keys.firstNotNullOfOrNull { key ->
+                        tooltipJsonKeys.firstNotNullOfOrNull { key ->
                             element[key]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
                         }
                     } else {

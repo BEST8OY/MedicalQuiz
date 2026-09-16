@@ -12,7 +12,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
 import com.medqb.app.shared.ui.richtext.RichTextPalette
 
 /**
@@ -57,41 +56,6 @@ internal enum class InlineHighlight {
 }
 
 /**
- * Builder class for constructing InlineStyle instances.
- */
-internal class InlineStyleBuilder(initial: InlineStyle = InlineStyle()) {
-    var bold: Boolean = initial.bold
-    var italic: Boolean = initial.italic
-    var underline: Boolean = initial.underline
-    var monospace: Boolean = initial.monospace
-    var superscript: Boolean = initial.superscript
-    var subscript: Boolean = initial.subscript
-    var link: String? = initial.link
-    var highlight: InlineHighlight? = initial.highlight
-    var dictionary: Boolean = initial.dictionary
-    var preserveWhitespace: Boolean = initial.preserveWhitespace
-    var smallText: Boolean = initial.smallText
-    var textColor: Color? = initial.textColor
-    var tooltip: String? = initial.tooltip
-
-    fun build(): InlineStyle = InlineStyle(
-        bold = bold,
-        italic = italic,
-        underline = underline,
-        monospace = monospace,
-        superscript = superscript,
-        subscript = subscript,
-        link = link,
-        highlight = highlight,
-        dictionary = dictionary,
-        preserveWhitespace = preserveWhitespace,
-        smallText = smallText,
-        textColor = textColor,
-        tooltip = tooltip
-    )
-}
-
-/**
  * Applies CSS class styles to an InlineStyle.
  *
  * @param classes Set of CSS class names
@@ -105,33 +69,20 @@ internal fun InlineStyle.applyClassStyles(
     showSelectedHighlight: Boolean
 ): InlineStyle {
     if (classes.isEmpty()) return this
-    val builder = InlineStyleBuilder(this)
+    var current = this
     classes.forEach { rawClass ->
-        when (rawClass.lowercase()) {
-            "important", "wichtig" -> {
-                builder.highlight = InlineHighlight.IMPORTANT
-                builder.bold = true
-            }
-            "selected" -> if (showSelectedHighlight) {
-                builder.highlight = InlineHighlight.SELECTED
-            }
-            "dictionary" -> {
-                builder.dictionary = true
-                builder.underline = true
-            }
-            "nowrap" -> builder.preserveWhitespace = true
-            "scientific-name" -> builder.italic = true
-            "abstract" -> {
-                builder.smallText = true
-                builder.textColor = palette.abstractText
-            }
-            "metalink" -> {
-                builder.textColor = palette.linkText
-                builder.italic = true
-            }
+        current = when (rawClass.lowercase()) {
+            "important", "wichtig" -> current.copy(highlight = InlineHighlight.IMPORTANT, bold = true)
+            "selected" -> if (showSelectedHighlight) current.copy(highlight = InlineHighlight.SELECTED) else current
+            "dictionary" -> current.copy(dictionary = true, underline = true)
+            "nowrap" -> current.copy(preserveWhitespace = true)
+            "scientific-name" -> current.copy(italic = true)
+            "abstract" -> current.copy(smallText = true, textColor = palette.abstractText)
+            "metalink" -> current.copy(textColor = palette.linkText, italic = true)
+            else -> current
         }
     }
-    return builder.build()
+    return current
 }
 
 /**

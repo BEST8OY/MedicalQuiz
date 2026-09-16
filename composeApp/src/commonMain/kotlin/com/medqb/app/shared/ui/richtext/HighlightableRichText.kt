@@ -471,15 +471,24 @@ private fun getBlockTextLength(block: RichTextBlock): Int {
     return when (block) {
         is RichTextBlock.Paragraph -> block.text.length
         is RichTextBlock.Heading -> block.text.length
-        is RichTextBlock.BulletList -> block.items.sumOf { it.length + BLOCK_SEPARATOR_LENGTH }
-        is RichTextBlock.OrderedList -> block.items.sumOf { it.length + BLOCK_SEPARATOR_LENGTH }
+        is RichTextBlock.BulletList -> {
+            if (block.items.isEmpty()) 0
+            else block.items.sumOf { it.length } + (block.items.size - 1) * BLOCK_SEPARATOR_LENGTH
+        }
+        is RichTextBlock.OrderedList -> {
+            if (block.items.isEmpty()) 0
+            else block.items.sumOf { it.length } + (block.items.size - 1) * BLOCK_SEPARATOR_LENGTH
+        }
         is RichTextBlock.CodeBlock -> block.text.length
         is RichTextBlock.Table -> {
             (block.headerRows + block.bodyRows).sumOf { row ->
                 row.cells.sumOf { it.text.length }
             }
         }
-        is RichTextBlock.AbstractBlock -> block.blocks.sumOf { getBlockTextLength(it) + BLOCK_SEPARATOR_LENGTH }
+        is RichTextBlock.AbstractBlock -> {
+            val titleLength = if (block.title != null) block.title.length + BLOCK_SEPARATOR_LENGTH else 0
+            titleLength + block.blocks.sumOf { getBlockTextLength(it) + BLOCK_SEPARATOR_LENGTH }
+        }
         is RichTextBlock.Media -> 0
         RichTextBlock.Divider -> 0
     }

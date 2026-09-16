@@ -6,7 +6,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.richtext.parser.RichTextParser
 import com.medqb.app.shared.ui.theme.Spacing
 
@@ -44,11 +43,9 @@ fun RichText(
 }
 
 @Composable
-@Suppress("UNUSED_PARAMETER")
 fun RichText(
     blocks: List<RichTextBlock>,
     modifier: Modifier = Modifier,
-    showSelectedHighlight: Boolean = false,
     onLinkClick: ((String) -> Unit)? = null,
     onMediaClick: ((String) -> Unit)? = null,
     onTooltipClick: ((String) -> Unit)? = null
@@ -85,8 +82,8 @@ private fun rememberRichTextBlocks(
     palette: RichTextPalette,
     showSelectedHighlight: Boolean
 ): List<RichTextBlock> {
-    val sanitizedHtml = remember(rawHtml) { rawHtml.trim() }
-    return remember(sanitizedHtml, palette, showSelectedHighlight) {
+    return remember(rawHtml, palette, showSelectedHighlight) {
+        val sanitizedHtml = rawHtml.trim()
         if (sanitizedHtml.isEmpty()) emptyList()
         else RichTextParser.parse(sanitizedHtml, palette, showSelectedHighlight)
     }

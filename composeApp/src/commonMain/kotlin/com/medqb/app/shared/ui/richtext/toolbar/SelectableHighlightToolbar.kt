@@ -275,33 +275,10 @@ private fun contentColorFor(backgroundColor: Color): Color {
     return if (backgroundColor.luminance() > 0.5f) Color.Black else Color.White
 }
 
-internal fun HighlightColor.toComposeColor(): Color {
-    val hex = this.hex.removePrefix("#")
-    val colorLong = hex.toLongOrNull(16)
-    return when {
-        colorLong == null -> Color(0xFFFFEB3B)
-        hex.length == 8 -> Color(
-            alpha = ((colorLong shr 24) and 0xFF) / 255f,
-            red = ((colorLong shr 16) and 0xFF) / 255f,
-            green = ((colorLong shr 8) and 0xFF) / 255f,
-            blue = (colorLong and 0xFF) / 255f
-        )
-        hex.length == 6 -> Color(
-            red = ((colorLong shr 16) and 0xFF) / 255f,
-            green = ((colorLong shr 8) and 0xFF) / 255f,
-            blue = (colorLong and 0xFF) / 255f
-        )
-        hex.length == 3 -> Color(
-            red = ((colorLong shr 8) and 0xF) * 0x11 / 255f,
-            green = ((colorLong shr 4) and 0xF) * 0x11 / 255f,
-            blue = (colorLong and 0xF) * 0x11 / 255f
-        )
-        hex.length == 4 -> Color(
-            alpha = ((colorLong shr 12) and 0xF) * 0x11 / 255f,
-            red = ((colorLong shr 8) and 0xF) * 0x11 / 255f,
-            green = ((colorLong shr 4) and 0xF) * 0x11 / 255f,
-            blue = (colorLong and 0xF) * 0x11 / 255f
-        )
-        else -> Color(0xFFFFEB3B)
-    }
+internal fun HighlightColor.toComposeColor(): Color = when (this) {
+    HighlightColor.YELLOW -> Color(0xFFFFEB3B)
+    HighlightColor.GREEN -> Color(0xFF4CAF50)
+    HighlightColor.BLUE -> Color(0xFF2196F3)
+    HighlightColor.PINK -> Color(0xFFE91E63)
+    HighlightColor.ORANGE -> Color(0xFFFF9800)
 }

@@ -39,7 +39,11 @@ internal class KsoupElement(
 
     /** Cached CSS class names parsed from the class attribute. */
     private val _classNames: Set<String> by lazy {
-        attributes["class"]?.split(" ")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+        attributes["class"]?.let { raw ->
+            raw.splitToSequence(' ', '\t', '\n', '\r')
+                .filter { it.isNotEmpty() }
+                .toSet()
+        } ?: emptySet()
     }
 
     /** Cache for ancestor class lookups. */
@@ -77,11 +81,9 @@ internal class KsoupElement(
      * @return The combined text content
      */
     fun text(): String {
-        val sb = StringBuilderPool.obtain()
+        val sb = StringBuilder()
         collectText(this, sb)
-        val text = sb.toString()
-        StringBuilderPool.recycle(sb)
-        return text
+        return sb.toString()
     }
 
     private fun collectText(node: KsoupNode, sb: StringBuilder) {

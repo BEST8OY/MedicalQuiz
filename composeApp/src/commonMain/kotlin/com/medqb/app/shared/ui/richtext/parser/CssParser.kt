@@ -116,10 +116,9 @@ internal object CssParser {
                 else -> null // Unknown value: treat as absent per HTML spec
             }
         }
-        val style = styleAttr.lowercase()
-        if (style.contains("text-align")) {
-            val value = style.substringAfter("text-align").substringAfter(":").substringBefore(";").trim()
-            return when (value) {
+        val cssTextAlign = extractValue(styleAttr, "text-align")?.lowercase()
+        if (cssTextAlign != null) {
+            return when (cssTextAlign) {
                 "center" -> TextAlign.Center
                 "right", "end" -> TextAlign.End
                 "justify" -> TextAlign.Justify

@@ -6,15 +6,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
 
@@ -90,16 +92,16 @@ internal fun RichTextTooltipBottomSheet(
             }
         ) {
             Column(
-                modifier = androidx.compose.ui.Modifier
+                modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = Inset.Medium, vertical = Spacing.ExtraSmall),
                 verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)
             ) {
-                androidx.compose.material3.Text(
+                Text(
                     text = it.title,
-                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium
                 )
-                androidx.compose.material3.Text(text = it.message)
+                Text(text = it.message)
             }
         }
     }

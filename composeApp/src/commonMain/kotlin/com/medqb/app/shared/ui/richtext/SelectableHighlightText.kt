@@ -27,6 +27,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
@@ -97,6 +98,12 @@ internal fun SelectableHighlightText(
         }
     }
 
+    val resolvedFontSize = if (textStyle.fontSize == TextUnit.Unspecified) {
+        MaterialTheme.typography.bodyMedium.fontSize
+    } else {
+        textStyle.fontSize
+    }
+
     Box(
         modifier = modifier.onSizeChanged { state.containerSize = it }
     ) {
@@ -145,20 +152,12 @@ internal fun SelectableHighlightText(
                 ),
             style = textStyle.copy(
                 color = if (color != Color.Unspecified) color else if (textStyle.color != Color.Unspecified) textStyle.color else LocalContentColor.current,
-                lineHeight = (if (textStyle.fontSize == androidx.compose.ui.unit.TextUnit.Unspecified) {
-                    MaterialTheme.typography.bodyMedium.fontSize
-                } else {
-                    textStyle.fontSize
-                }) * LINE_HEIGHT_MULTIPLIER,
+                lineHeight = resolvedFontSize * LINE_HEIGHT_MULTIPLIER,
                 lineHeightStyle = LineHeightStyle(
                     alignment = LineHeightStyle.Alignment.Center,
                     trim = LineHeightStyle.Trim.None
                 ),
-                fontSize = if (textStyle.fontSize == androidx.compose.ui.unit.TextUnit.Unspecified) {
-                    MaterialTheme.typography.bodyMedium.fontSize
-                } else {
-                    textStyle.fontSize
-                },
+                fontSize = resolvedFontSize,
             ),
             onTextLayout = { state.layoutResult = it }
         )
