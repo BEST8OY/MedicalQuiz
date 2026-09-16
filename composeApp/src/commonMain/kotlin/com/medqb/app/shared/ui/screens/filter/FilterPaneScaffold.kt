@@ -130,7 +130,7 @@ private fun FilterPaneItem(
         checked = selected,
         onCheckedChange = { onClick() },
         shapes = shapes,
-        colors = ToggleButtonDefaults.toggleButtonColors(
+        colors = ToggleButtonDefaults.colors(
             containerColor = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,

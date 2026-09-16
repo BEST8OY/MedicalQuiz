@@ -8,7 +8,7 @@ Kotlin Multiplatform (Android + Desktop) medical quiz app using Compose Multipla
 - **Modules**: `:app` (Android shell), `:composeApp` (shared KMP module — where all UI and logic lives)
 - **Entrypoints**: `app/...MainActivity.kt` (Android), `composeApp/src/desktopMain/kotlin/main.kt` (Desktop)
 - **Java 21** required for Gradle daemon; **JVM target 17** for Kotlin compilation
-- **Kotlin 2.4.20**, **AGP 9.4.0**, **Compose Multiplatform 1.12.0-alpha02**
+- **Kotlin 2.4.20**, **AGP 9.4.0**, **Compose Multiplatform 1.13.0-alpha01**
 
 ## Build & Test Commands
 
