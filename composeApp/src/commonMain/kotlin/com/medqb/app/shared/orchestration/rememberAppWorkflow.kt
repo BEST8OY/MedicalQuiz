@@ -11,25 +11,18 @@ import androidx.compose.runtime.setValue
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.data.database.PerformanceFilter
-import com.medqb.app.shared.navigation.QuizLaunchSource
 
 private val AppWorkflowStateSaver = Saver<AppWorkflowState, List<Any?>>(
     save = { state ->
         listOf(
             state.selectedDatabase,
             state.initializedDatabase,
-            state.pendingLaunchSource?.name,
-            state.activeQuizLaunchSource.name,
-            state.requestedFilterPane?.name,
         )
     },
     restore = { list ->
         AppWorkflowState(
             selectedDatabase = list[0] as String?,
             initializedDatabase = list[1] as String?,
-            pendingLaunchSource = (list[2] as String?)?.let { QuizLaunchSource.valueOf(it) },
-            activeQuizLaunchSource = QuizLaunchSource.valueOf(list[3] as String),
-            requestedFilterPane = (list[4] as String?)?.let { RequestedFilterPane.valueOf(it) },
         )
     }
 )
@@ -47,7 +40,6 @@ fun rememberAppWorkflow(
     LaunchedEffect(
         workflowState.selectedDatabase,
         workflowState.initializedDatabase,
-        workflowState.pendingLaunchSource,
     ) {
         val decision = workflowCoordinator.handleDatabaseSelection(workflowState, userDataManager)
         if (decision != null) {
@@ -69,12 +61,6 @@ fun rememberAppWorkflow(
         }
     }
 
-    val onStandardQuizLaunchPrepared = remember(workflowCoordinator) {
-        { ->
-            workflowState = workflowCoordinator.standardQuizLaunchPrepared(workflowState)
-        }
-    }
-
     val onHistoryLaunchPrepared = remember(workflowCoordinator) {
         { matchingDatabase: String ->
             workflowState = workflowCoordinator.historyLaunchPrepared(
@@ -91,32 +77,19 @@ fun rememberAppWorkflow(
         }
     }
 
-    val onQuizReturn = remember(workflowCoordinator) {
-        { ->
-            workflowState = workflowCoordinator.quizReturnedToFilter(workflowState)
-            val targetPane = workflowState.requestedFilterPane
-            workflowState = workflowState.copy(requestedFilterPane = null)
-            targetPane
-        }
-    }
-
     return remember(
         workflowState,
         onDatabaseSelected,
         onDatabaseSelectionRequested,
-        onStandardQuizLaunchPrepared,
         onHistoryLaunchPrepared,
         onFilterSubjectsSync,
-        onQuizReturn,
     ) {
         AppWorkflowHandle(
             state = workflowState,
             onDatabaseSelected = onDatabaseSelected,
             onDatabaseSelectionRequested = onDatabaseSelectionRequested,
-            onStandardQuizLaunchPrepared = onStandardQuizLaunchPrepared,
             onHistoryLaunchPrepared = onHistoryLaunchPrepared,
             onFilterSubjectsSync = onFilterSubjectsSync,
-            onQuizReturn = onQuizReturn,
         )
     }
 }
@@ -125,8 +98,6 @@ class AppWorkflowHandle(
     val state: AppWorkflowState,
     val onDatabaseSelected: (String) -> Unit,
     val onDatabaseSelectionRequested: () -> Unit,
-    val onStandardQuizLaunchPrepared: () -> Unit,
     val onHistoryLaunchPrepared: (String) -> Unit,
     val onFilterSubjectsSync: (Set<Long>, Set<Long>, PerformanceFilter) -> Unit,
-    val onQuizReturn: () -> RequestedFilterPane?,
 )

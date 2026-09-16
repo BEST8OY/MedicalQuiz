@@ -22,14 +22,16 @@ class MediaNavigationCoordinator(
 ) {
 
     /**
-     * Resolves a list of file names into a [MediaViewerRequest] that is
+     * Resolves a list of file names into a [MedQBRoutes.MediaViewer] route that is
      * ready to be applied to the navigator, or `null` when no playable
      * media files are available.
+     *
+     * This resolution does not block navigation on loading descriptions.
      */
-    suspend fun resolveMediaViewerRequest(
+    suspend fun resolveMediaViewerRoute(
         files: List<String>,
         startIndex: Int,
-    ): MediaViewerRequest? {
+    ): MedQBRoutes.MediaViewer? {
         val availableFiles = mutableListOf<String>()
         for (fileName in files) {
             val isPlayableType = when (MediaTypeUtils.fromFileName(fileName)) {
@@ -53,25 +55,18 @@ class MediaNavigationCoordinator(
         } else 0
         val safeIndex = newIndex.coerceIn(0, availableFiles.lastIndex)
 
-        val mediaDescriptions = withContext(Dispatchers.IO) {
-            mediaDescriptionRepository.load()
-        }
-
-        return MediaViewerRequest(
-            route = MedQBRoutes.MediaViewer(
-                files = availableFiles,
-                startIndex = safeIndex,
-            ),
-            mediaDescriptions = mediaDescriptions,
+        return MedQBRoutes.MediaViewer(
+            files = availableFiles,
+            startIndex = safeIndex,
         )
     }
-}
 
-/**
- * Result of [MediaNavigationCoordinator.resolveMediaViewerRequest],
- * bundling the route to navigate to and the loaded descriptions.
- */
-data class MediaViewerRequest(
-    val route: MedQBRoutes.MediaViewer,
-    val mediaDescriptions: Map<String, MediaDescription>,
-)
+    /**
+     * Loads media descriptions asynchronously with IO dispatcher.
+     */
+    suspend fun loadDescriptions(): Map<String, MediaDescription> {
+        return withContext(Dispatchers.IO) {
+            mediaDescriptionRepository.load()
+        }
+    }
+}

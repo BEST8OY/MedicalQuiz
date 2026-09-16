@@ -1,5 +1,7 @@
 package com.medqb.app.shared
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
@@ -7,7 +9,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.navigation3.runtime.metadata
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -31,42 +32,32 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.subclass
 import kotlinx.serialization.modules.polymorphic
 import coil3.compose.setSingletonImageLoaderFactory
-import com.medqb.app.shared.data.MediaDescription
 import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.domain.AppIntent
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.navigation.rememberMedQBNavEntries
-import com.medqb.app.shared.ui.screens.filter.FilterPane
-import com.medqb.app.shared.orchestration.RequestedFilterPane
 import com.medqb.app.shared.orchestration.rememberAppWorkflow
 import com.medqb.app.shared.ui.theme.AppTheme
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
-import com.medqb.app.shared.ui.entry.DatabaseSelectionEntry
-import com.medqb.app.shared.ui.entry.FilterEntry
-import com.medqb.app.shared.ui.entry.HtmlViewerEntry
-import com.medqb.app.shared.ui.entry.MediaViewerEntry
-import com.medqb.app.shared.ui.entry.QuizEntry
-import com.medqb.app.shared.ui.entry.SettingsEntry
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 private val START_DESTINATION: MedQBRoutes = MedQBRoutes.DatabaseSelection
@@ -103,8 +94,8 @@ fun App() {
         val graph = LocalAppGraph.current
 
         val appShutdownScope = remember {
-            kotlinx.coroutines.CoroutineScope(
-                kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.IO
             )
         }
         DisposableEffect(graph.userDataManager) {
@@ -124,16 +115,14 @@ fun App() {
             userDataManager = graph.userDataManager,
         )
 
-        val mediaDescriptionsFlow = remember { MutableStateFlow<Map<String, MediaDescription>>(emptyMap()) }
         val snackbarHostState = remember { SnackbarHostState() }
 
-        val navigateToMediaViewer = remember(scope, graph.mediaNavigationCoordinator, mediaDescriptionsFlow, navigator) {
+        val navigateToMediaViewer = remember(scope, graph.mediaNavigationCoordinator, navigator) {
             { files: List<String>, index: Int ->
                 scope.launch {
-                    val request = graph.mediaNavigationCoordinator.resolveMediaViewerRequest(files, index)
-                    if (request != null) {
-                        mediaDescriptionsFlow.value = request.mediaDescriptions
-                        navigator.navigateTo(request.route)
+                    val route = graph.mediaNavigationCoordinator.resolveMediaViewerRoute(files, index)
+                    if (route != null) {
+                        navigator.navigateTo(route)
                     }
                 }
             }
@@ -187,15 +176,9 @@ fun App() {
             }
         }
 
-        val returnQuizToFilter: () -> Unit = remember(workflow, navigator) {
+        val returnQuizToFilter: () -> Unit = remember(navigator) {
             {
-                val targetPane = workflow.onQuizReturn()
-                val paneName = when (targetPane) {
-                    RequestedFilterPane.Filters -> FilterPane.Filters.name
-                    RequestedFilterPane.History -> FilterPane.History.name
-                    null -> null
-                }
-                navigator.returnQuizToFilter(paneName)
+                navigator.returnQuizToFilter()
             }
         }
 
@@ -204,7 +187,6 @@ fun App() {
             workflow = workflow,
             navigator = navigator,
             mediaHandler = mediaHandler,
-            mediaDescriptionsFlow = mediaDescriptionsFlow,
             snackbarHostState = snackbarHostState,
             onReturnQuizToFilter = returnQuizToFilter,
         )
@@ -213,6 +195,17 @@ fun App() {
             @OptIn(ExperimentalSharedTransitionApi::class)
             SharedTransitionLayout {
                 CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
+                    val popTransition: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform = {
+                        (slideInHorizontally(
+                            animationSpec = motionScheme.defaultSpatialSpec(),
+                            initialOffsetX = { -(it * 0.3f).toInt() }
+                        ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
+                            (slideOutHorizontally(
+                                animationSpec = motionScheme.defaultSpatialSpec(),
+                                targetOffsetX = { it }
+                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
+                    }
+
                     NavDisplay(
                         backStack = backStack,
                         onBack = {
@@ -239,26 +232,8 @@ fun App() {
                                 targetOffsetX = { -(it * 0.3f).toInt() }
                             ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
                         },
-                        popTransitionSpec = {
-                            (slideInHorizontally(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
-                                initialOffsetX = { -(it * 0.3f).toInt() }
-                            ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
-                            (slideOutHorizontally(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
-                                targetOffsetX = { it }
-                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
-                        },
-                        predictivePopTransitionSpec = {
-                            (slideInHorizontally(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
-                                initialOffsetX = { -(it * 0.3f).toInt() }
-                            ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
-                            (slideOutHorizontally(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
-                                targetOffsetX = { it }
-                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
-                        }
+                        popTransitionSpec = popTransition,
+                        predictivePopTransitionSpec = { popTransition() }
                     )
                 }
             }

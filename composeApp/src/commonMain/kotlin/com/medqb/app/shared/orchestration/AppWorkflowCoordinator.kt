@@ -2,7 +2,6 @@ package com.medqb.app.shared.orchestration
 
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.UserDataManager
-import com.medqb.app.shared.navigation.QuizLaunchSource
 import dev.zacsweers.metro.Inject
 
 /**
@@ -40,8 +39,6 @@ class AppWorkflowCoordinator(
         val dbName = state.selectedDatabase ?: return null
         return startupCoordinator.handleDatabaseSelection(
             selectedDatabase = dbName,
-            initializedDatabase = state.initializedDatabase,
-            pendingLaunchSource = state.pendingLaunchSource,
             userDataManager = userDataManager,
         )
     }
@@ -55,7 +52,6 @@ class AppWorkflowCoordinator(
     ): AppWorkflowState {
         return state.copy(
             initializedDatabase = decision.initializedDatabase,
-            pendingLaunchSource = decision.pendingLaunchSource,
         )
     }
 
@@ -67,8 +63,6 @@ class AppWorkflowCoordinator(
         return state.copy(
             selectedDatabase = dbName,
             initializedDatabase = null,
-            pendingLaunchSource = null,
-            activeQuizLaunchSource = QuizLaunchSource.Standard,
         )
     }
 
@@ -79,7 +73,6 @@ class AppWorkflowCoordinator(
         return state.copy(
             selectedDatabase = null,
             initializedDatabase = null,
-            activeQuizLaunchSource = QuizLaunchSource.Standard,
         )
     }
 
@@ -87,7 +80,7 @@ class AppWorkflowCoordinator(
 
     /**
      * Called when a history entry has been restored and the quiz screen
-     * should open.
+     * should open with the matching database.
      */
     fun historyLaunchPrepared(
         state: AppWorkflowState,
@@ -95,34 +88,6 @@ class AppWorkflowCoordinator(
     ): AppWorkflowState {
         return state.copy(
             selectedDatabase = matchingDatabase,
-            pendingLaunchSource = QuizLaunchSource.History,
-            activeQuizLaunchSource = QuizLaunchSource.History,
-        )
-    }
-
-    /**
-     * Called when the user starts a standard (non-history) quiz.
-     */
-    fun standardQuizLaunchPrepared(state: AppWorkflowState): AppWorkflowState {
-        return state.copy(
-            activeQuizLaunchSource = QuizLaunchSource.Standard,
-        )
-    }
-
-    // ── Quiz → Filter return flow ────────────────────────────────────────
-
-    /**
-     * Called when the quiz exits and the user returns to the filter screen.
-     */
-    fun quizReturnedToFilter(state: AppWorkflowState): AppWorkflowState {
-        val targetPane = when (state.activeQuizLaunchSource) {
-            QuizLaunchSource.History -> RequestedFilterPane.History
-            QuizLaunchSource.Standard -> RequestedFilterPane.Filters
-        }
-        return state.copy(
-            pendingLaunchSource = null,
-            activeQuizLaunchSource = QuizLaunchSource.Standard,
-            requestedFilterPane = targetPane,
         )
     }
 }

@@ -4,7 +4,6 @@ import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.DatabaseManager
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.UserDataManager
-import com.medqb.app.shared.navigation.QuizLaunchSource
 import com.medqb.app.shared.platform.FileSystemHelper
 import dev.zacsweers.metro.Inject
 
@@ -31,8 +30,6 @@ class AppStartupCoordinator(
 
     suspend fun handleDatabaseSelection(
         selectedDatabase: String?,
-        initializedDatabase: String?,
-        pendingLaunchSource: QuizLaunchSource?,
         userDataManager: UserDataManager,
     ): DatabaseSelectionDecision? {
         val dbName = selectedDatabase ?: return null
@@ -40,7 +37,6 @@ class AppStartupCoordinator(
 
         return DatabaseSelectionDecision(
             initializedDatabase = resolvedDatabase,
-            pendingLaunchSource = pendingLaunchSource,
         )
     }
 
@@ -60,5 +56,4 @@ class AppStartupCoordinator(
 
 data class DatabaseSelectionDecision(
     val initializedDatabase: String,
-    val pendingLaunchSource: QuizLaunchSource?,
 )

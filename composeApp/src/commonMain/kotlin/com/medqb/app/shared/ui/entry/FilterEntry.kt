@@ -46,7 +46,6 @@ fun FilterEntry(
 
     val onStartQuiz = dropUnlessResumed {
         snackbarHostState.currentSnackbarData?.dismiss()
-        workflow.onStandardQuizLaunchPrepared()
         navigator.navigateTo(MedQBRoutes.Quiz())
     }
 

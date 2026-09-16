@@ -1,5 +1,6 @@
 package com.medqb.app.shared.navigation
 
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -17,7 +18,6 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.metadata
 import androidx.navigation3.ui.NavDisplay
-import com.medqb.app.shared.data.MediaDescription
 import com.medqb.app.shared.di.AppGraph
 import com.medqb.app.shared.orchestration.AppWorkflowHandle
 import com.medqb.app.shared.ui.entry.DatabaseSelectionEntry
@@ -27,7 +27,6 @@ import com.medqb.app.shared.ui.entry.MediaViewerEntry
 import com.medqb.app.shared.ui.entry.QuizEntry
 import com.medqb.app.shared.ui.entry.SettingsEntry
 import com.medqb.app.shared.ui.media.MediaHandler
-import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * Builds the Navigation 3 [entryProvider] mapping [MedQBRoutes] to their composable entries.
@@ -41,7 +40,6 @@ fun rememberMedQBNavEntries(
     workflow: AppWorkflowHandle,
     navigator: AppNavigator,
     mediaHandler: MediaHandler,
-    mediaDescriptionsFlow: MutableStateFlow<Map<String, MediaDescription>>,
     snackbarHostState: SnackbarHostState,
     onReturnQuizToFilter: () -> Unit,
 ): (NavKey) -> NavEntry<NavKey> {
@@ -51,11 +49,29 @@ fun rememberMedQBNavEntries(
         workflow,
         navigator,
         mediaHandler,
-        mediaDescriptionsFlow,
         snackbarHostState,
         onReturnQuizToFilter,
         motionScheme,
     ) {
+        val settingsPopTransition: () -> ContentTransform = {
+            fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                (fadeOut(animationSpec = motionScheme.fastEffectsSpec()) +
+                    scaleOut(animationSpec = motionScheme.fastSpatialSpec(), targetScale = 0.96f))
+        }
+
+        val mediaViewerFadeTransition: () -> ContentTransform = {
+            fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                fadeOut(animationSpec = motionScheme.defaultEffectsSpec())
+        }
+
+        val htmlViewerPopTransition: () -> ContentTransform = {
+            fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                (slideOutVertically(
+                    animationSpec = motionScheme.defaultSpatialSpec(),
+                    targetOffsetY = { (it * 0.25f).toInt() }
+                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
+        }
+
         entryProvider<NavKey> {
             entry<MedQBRoutes.DatabaseSelection> {
                 DatabaseSelectionEntry(
@@ -79,7 +95,6 @@ fun rememberMedQBNavEntries(
                 QuizEntry(
                     route = route,
                     graph = graph,
-                    workflow = workflow,
                     navigator = navigator,
                     mediaHandler = mediaHandler,
                     onReturnToFilter = onReturnQuizToFilter,
@@ -93,16 +108,8 @@ fun rememberMedQBNavEntries(
                             scaleIn(animationSpec = motionScheme.defaultSpatialSpec(), initialScale = 0.96f)) togetherWith
                             fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                     }
-                    put(NavDisplay.PopTransitionKey) {
-                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            (fadeOut(animationSpec = motionScheme.fastEffectsSpec()) +
-                                scaleOut(animationSpec = motionScheme.fastSpatialSpec(), targetScale = 0.96f))
-                    }
-                    put(NavDisplay.PredictivePopTransitionKey) {
-                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            (fadeOut(animationSpec = motionScheme.fastEffectsSpec()) +
-                                scaleOut(animationSpec = motionScheme.fastSpatialSpec(), targetScale = 0.96f))
-                    }
+                    put(NavDisplay.PopTransitionKey) { settingsPopTransition() }
+                    put(NavDisplay.PredictivePopTransitionKey) { settingsPopTransition() }
                 }
             ) {
                 SettingsEntry(
@@ -117,14 +124,8 @@ fun rememberMedQBNavEntries(
                         fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
                             fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                     }
-                    put(NavDisplay.PopTransitionKey) {
-                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            fadeOut(animationSpec = motionScheme.defaultEffectsSpec())
-                    }
-                    put(NavDisplay.PredictivePopTransitionKey) {
-                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            fadeOut(animationSpec = motionScheme.defaultEffectsSpec())
-                    }
+                    put(NavDisplay.PopTransitionKey) { mediaViewerFadeTransition() }
+                    put(NavDisplay.PredictivePopTransitionKey) { mediaViewerFadeTransition() }
                 }
             ) { key ->
                 MediaViewerEntry(
@@ -132,7 +133,6 @@ fun rememberMedQBNavEntries(
                     graph = graph,
                     navigator = navigator,
                     mediaHandler = mediaHandler,
-                    mediaDescriptionsFlow = mediaDescriptionsFlow,
                 )
             }
 
@@ -145,20 +145,8 @@ fun rememberMedQBNavEntries(
                         ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
                             fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                     }
-                    put(NavDisplay.PopTransitionKey) {
-                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            (slideOutVertically(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
-                                targetOffsetY = { (it * 0.25f).toInt() }
-                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
-                    }
-                    put(NavDisplay.PredictivePopTransitionKey) {
-                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            (slideOutVertically(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
-                                targetOffsetY = { (it * 0.25f).toInt() }
-                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
-                    }
+                    put(NavDisplay.PopTransitionKey) { htmlViewerPopTransition() }
+                    put(NavDisplay.PredictivePopTransitionKey) { htmlViewerPopTransition() }
                 }
             ) { key ->
                 HtmlViewerEntry(

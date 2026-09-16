@@ -14,36 +14,32 @@ class AppNavigator(
     val currentRoute: MedQBRoutes?
         get() = backStack.lastOrNull() as? MedQBRoutes
 
+    val canNavigateBack: Boolean
+        get() = backStack.size > 1
+
     fun navigateTo(route: MedQBRoutes) {
         if (currentRoute != route) {
             backStack.add(route)
         }
     }
 
-    fun switchTo(route: MedQBRoutes) {
-        if (currentRoute != route) {
-            backStack.removeLastOrNull()
-            backStack.add(route)
-        }
-    }
-
     fun navigateBack(): Boolean {
-        if (backStack.size <= 1) return false
+        if (!canNavigateBack) return false
         backStack.removeLastOrNull()
         return true
     }
 
     fun popToDatabaseSelection() {
-        while (backStack.size > 1) {
-            backStack.removeLastOrNull()
+        if (backStack.size > 1) {
+            backStack.subList(1, backStack.size).clear()
         }
     }
 
     fun returnQuizToFilter(targetPaneName: String? = null) {
         val filterIndex = backStack.indexOfLast { it is MedQBRoutes.Filter }
         if (filterIndex >= 0) {
-            while (backStack.size > filterIndex + 1) {
-                backStack.removeLastOrNull()
+            if (backStack.size > filterIndex + 1) {
+                backStack.subList(filterIndex + 1, backStack.size).clear()
             }
         } else {
             popToDatabaseSelection()

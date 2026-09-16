@@ -3,7 +3,9 @@ package com.medqb.app.shared.ui.entry
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.produceState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.MediaDescription
 import com.medqb.app.shared.di.AppGraph
@@ -11,7 +13,6 @@ import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.screens.media.MediaViewerScreen
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 @Composable
@@ -20,10 +21,13 @@ fun MediaViewerEntry(
     graph: AppGraph,
     navigator: AppNavigator,
     mediaHandler: MediaHandler,
-    mediaDescriptionsFlow: MutableStateFlow<Map<String, MediaDescription>>,
 ) {
     val scope = rememberCoroutineScope()
-    val mediaDescriptions by mediaDescriptionsFlow.collectAsStateWithLifecycle()
+    val mediaDescriptions by produceState<Map<String, MediaDescription>>(
+        initialValue = emptyMap(),
+    ) {
+        value = graph.mediaNavigationCoordinator.loadDescriptions()
+    }
     val fontScalePreference = graph.settingsRepository.fontScalePreference
         .collectAsStateWithLifecycle(null).value
 
@@ -54,7 +58,7 @@ fun MediaViewerEntry(
                 }
             }
         },
-        onBack = {
+        onBack = dropUnlessResumed {
             navigator.navigateBack()
         }
     )

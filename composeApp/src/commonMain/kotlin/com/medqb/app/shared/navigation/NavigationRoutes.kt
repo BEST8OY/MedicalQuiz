@@ -6,9 +6,8 @@ import kotlinx.serialization.Serializable
 /**
  * Navigation routes for MedQB application using Navigation 3.
  *
- * Routes are split into:
- * - persistent routes: restored on app restart
- * - transient routes: skipped when restoring navigation state (media/html overlays)
+ * All routes implement [NavKey] and are registered in SavedStateConfiguration
+ * for state restoration across process recreation.
  */
 @Serializable
 sealed interface MedQBRoutes : NavKey {
@@ -43,10 +42,4 @@ sealed interface MedQBRoutes : NavKey {
     data class HtmlViewer(
         val fileName: String,
     ) : MedQBRoutes
-}
-
-@Serializable
-enum class QuizLaunchSource {
-    Standard,
-    History,
 }
