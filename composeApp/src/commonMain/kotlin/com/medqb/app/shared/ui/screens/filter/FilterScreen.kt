@@ -25,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.FitnessCenter
+import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.ui.theme.Inset
@@ -38,6 +40,9 @@ internal fun FilterScreen(
     systemCount: Int,
     performanceFilter: PerformanceFilter,
     performanceLabel: String,
+    selectedDifficultyTiers: Set<DifficultyTier> = emptySet(),
+    difficultyLabel: String = "All Difficulties",
+    isDifficultyAvailable: Boolean = false,
     previewCount: Int,
     isLoggingEnabled: Boolean,
     onLoggingToggle: (Boolean) -> Unit,
@@ -47,12 +52,19 @@ internal fun FilterScreen(
     onSelectSubjects: () -> Unit,
     onSelectSystems: () -> Unit,
     onSelectPerformance: () -> Unit,
+    onSelectDifficulty: () -> Unit = {},
     onStart: () -> Unit,
     onClearFilters: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val hasPreview = previewCount > 0
-    val hasFilters = subjectCount > 0 || systemCount > 0 || performanceFilter != PerformanceFilter.ALL
+    val isDifficultyActive = isDifficultyAvailable &&
+        selectedDifficultyTiers.isNotEmpty() &&
+        selectedDifficultyTiers.size < DifficultyTier.entries.size
+    val hasFilters = subjectCount > 0 ||
+        systemCount > 0 ||
+        performanceFilter != PerformanceFilter.ALL ||
+        isDifficultyActive
 
     Surface(modifier = modifier.fillMaxSize()) {
         Box(
@@ -104,13 +116,29 @@ internal fun FilterScreen(
                             )
                         }
 
-                        FilterSelectionCard(
-                            title = "Performance",
-                            subtitle = performanceLabel,
-                            icon = Icons.AutoMirrored.Filled.TrendingUp,
-                            isActive = performanceFilter != PerformanceFilter.ALL,
-                            onClick = onSelectPerformance
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.Medium)
+                        ) {
+                            FilterSelectionCard(
+                                title = "Performance",
+                                subtitle = performanceLabel,
+                                icon = Icons.AutoMirrored.Filled.TrendingUp,
+                                isActive = performanceFilter != PerformanceFilter.ALL,
+                                onClick = onSelectPerformance,
+                                modifier = Modifier.weight(1f),
+                            )
+
+                            FilterSelectionCard(
+                                title = "Difficulty",
+                                subtitle = if (!isDifficultyAvailable) "Not available for this bank" else difficultyLabel,
+                                icon = Icons.Filled.FitnessCenter,
+                                isActive = isDifficultyActive,
+                                enabled = isDifficultyAvailable,
+                                onClick = onSelectDifficulty,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
 
                         ToggleCard(
                             icon = Icons.Filled.History,
@@ -142,5 +170,14 @@ internal fun FilterScreen(
                 }
             }
         }
+    }
+}
+
+internal fun formatDifficultyLabel(selectedTiers: Set<DifficultyTier>): String {
+    return when {
+        selectedTiers.isEmpty() || selectedTiers.size == DifficultyTier.entries.size -> "All Difficulties"
+        selectedTiers.size == 1 -> selectedTiers.first().displayName
+        selectedTiers.size == 2 -> selectedTiers.sortedBy { it.ordinal }.joinToString(", ") { it.displayName }
+        else -> "${selectedTiers.size} selected"
     }
 }

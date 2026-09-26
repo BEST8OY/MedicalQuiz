@@ -15,9 +15,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.QuizSessionRepository
+import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.domain.SnackbarMessage
+import com.medqb.app.shared.ui.dialogs.DifficultyFilterDialog
 import com.medqb.app.shared.ui.dialogs.PerformanceFilterDialog
 import com.medqb.app.shared.ui.dialogs.SubjectFilterDialog
 import com.medqb.app.shared.ui.dialogs.SystemFilterDialog
@@ -62,6 +64,7 @@ internal fun FilterHubScreen(
         onFetchSystems = { viewModel.fetchSystems() },
         onApplySelectedSystems = { viewModel.applySelectedSystems(it) },
         onSelectPerformanceFilter = { viewModel.setPerformanceFilter(it) },
+        onSelectDifficultyFilters = { viewModel.setDifficultyFilters(it) },
         onShowSnackbar = onShowSnackbar,
         onDismissSnackbar = onDismissSnackbar,
         modifier = modifier,
@@ -86,15 +89,18 @@ internal fun FilterHubContent(
     onFetchSystems: () -> Unit,
     onApplySelectedSystems: (Set<Long>) -> Unit,
     onSelectPerformanceFilter: (PerformanceFilter) -> Unit,
+    onSelectDifficultyFilters: (Set<DifficultyTier>) -> Unit = {},
     onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
     onDismissSnackbar: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val performanceLabel = formatPerformanceLabel(state.performanceFilter)
+    val difficultyLabel = formatDifficultyLabel(state.selectedDifficultyTiers)
 
     var showSubjectDialog by rememberSaveable { mutableStateOf(false) }
     var showSystemDialog by rememberSaveable { mutableStateOf(false) }
     var showPerformanceDialog by rememberSaveable { mutableStateOf(false) }
+    var showDifficultyDialog by rememberSaveable { mutableStateOf(false) }
 
     var historySelectionMode by rememberSaveable { mutableStateOf(false) }
 
@@ -124,6 +130,9 @@ internal fun FilterHubContent(
                             systemCount = state.selectedSystemIds.size,
                             performanceFilter = state.performanceFilter,
                             performanceLabel = performanceLabel,
+                            selectedDifficultyTiers = state.selectedDifficultyTiers,
+                            difficultyLabel = difficultyLabel,
+                            isDifficultyAvailable = state.isDifficultyAvailable,
                             previewCount = state.previewQuestionCount,
                             isLoggingEnabled = state.isLoggingEnabled,
                             onLoggingToggle = onLoggingToggle,
@@ -133,6 +142,7 @@ internal fun FilterHubContent(
                             onSelectSubjects = { showSubjectDialog = true },
                             onSelectSystems = { showSystemDialog = true },
                             onSelectPerformance = { showPerformanceDialog = true },
+                            onSelectDifficulty = { showDifficultyDialog = true },
                             onStart = {
                                 onDismissSnackbar()
                                 onStartQuiz()
@@ -195,6 +205,18 @@ internal fun FilterHubContent(
                 showPerformanceDialog = false
             },
             onDismiss = { showPerformanceDialog = false }
+        )
+    }
+
+    if (showDifficultyDialog) {
+        DifficultyFilterDialog(
+            selectedTiers = state.selectedDifficultyTiers,
+            counts = state.difficultyCounts,
+            onApply = { selected ->
+                onSelectDifficultyFilters(selected)
+                showDifficultyDialog = false
+            },
+            onDismiss = { showDifficultyDialog = false }
         )
     }
 }

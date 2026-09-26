@@ -37,6 +37,16 @@ internal fun computeMetadataSections(question: Question?): List<MetadataSection>
     val sections = mutableListOf<MetadataSection>()
     sections += MetadataSection.Chips(label = "ID", values = listOf("#${currentQuestion.id}"))
 
+    currentQuestion.difficultyTier?.let { tier ->
+        val label = if (currentQuestion.pplTaken != null && currentQuestion.pplTaken > 0 && currentQuestion.corrTaken != null) {
+            val rate = ((currentQuestion.corrTaken / currentQuestion.pplTaken) * 100).toInt()
+            "${tier.displayName} ($rate% correct)"
+        } else {
+            tier.displayName
+        }
+        sections += MetadataSection.Chips(label = "Difficulty", values = listOf(label))
+    }
+
     extractMetadataList(currentQuestion.subName)
         .takeIf { it.isNotEmpty() }
         ?.let { values ->
