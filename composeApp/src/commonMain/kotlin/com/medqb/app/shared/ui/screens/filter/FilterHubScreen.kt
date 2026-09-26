@@ -225,9 +225,10 @@ private fun formatPerformanceLabel(filter: PerformanceFilter): String {
     return when (filter) {
         PerformanceFilter.ALL -> "All Questions"
         PerformanceFilter.UNANSWERED -> "Not Attempted"
-        PerformanceFilter.LAST_CORRECT -> "Last Attempt Correct"
-        PerformanceFilter.LAST_INCORRECT -> "Last Attempt Incorrect"
+        PerformanceFilter.LAST_CORRECT -> "Last Correct"
+        PerformanceFilter.LAST_INCORRECT -> "Last Incorrect"
         PerformanceFilter.EVER_CORRECT -> "Ever Correct"
         PerformanceFilter.EVER_INCORRECT -> "Ever Incorrect"
     }
 }
+

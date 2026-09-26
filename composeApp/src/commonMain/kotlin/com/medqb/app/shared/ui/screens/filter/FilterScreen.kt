@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material3.Surface
@@ -25,7 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.filled.FitnessCenter
 import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.SubmissionMode
@@ -67,10 +69,11 @@ internal fun FilterScreen(
         isDifficultyActive
 
     Surface(modifier = modifier.fillMaxSize()) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopCenter
         ) {
+            val isWideScreen = maxWidth >= ScreenLayout.CompactWidthBreakpoint
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -94,7 +97,9 @@ internal fun FilterScreen(
 
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.Medium)) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Max),
                             horizontalArrangement = Arrangement.spacedBy(Spacing.Medium)
                         ) {
                             FilterSelectionCard(
@@ -103,7 +108,9 @@ internal fun FilterScreen(
                                 icon = Icons.Filled.Category,
                                 isActive = subjectCount > 0,
                                 onClick = onSelectSubjects,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
                             )
 
                             FilterSelectionCard(
@@ -112,21 +119,49 @@ internal fun FilterScreen(
                                 icon = Icons.Filled.Layers,
                                 isActive = systemCount > 0,
                                 onClick = onSelectSystems,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
                             )
                         }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.Medium)
-                        ) {
+                        if (isWideScreen) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(IntrinsicSize.Max),
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.Medium)
+                            ) {
+                                FilterSelectionCard(
+                                    title = "Performance",
+                                    subtitle = performanceLabel,
+                                    icon = Icons.AutoMirrored.Filled.TrendingUp,
+                                    isActive = performanceFilter != PerformanceFilter.ALL,
+                                    onClick = onSelectPerformance,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                )
+
+                                FilterSelectionCard(
+                                    title = "Difficulty",
+                                    subtitle = if (!isDifficultyAvailable) "Not available for this bank" else difficultyLabel,
+                                    icon = Icons.Filled.FitnessCenter,
+                                    isActive = isDifficultyActive,
+                                    enabled = isDifficultyAvailable,
+                                    onClick = onSelectDifficulty,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                )
+                            }
+                        } else {
                             FilterSelectionCard(
                                 title = "Performance",
                                 subtitle = performanceLabel,
                                 icon = Icons.AutoMirrored.Filled.TrendingUp,
                                 isActive = performanceFilter != PerformanceFilter.ALL,
                                 onClick = onSelectPerformance,
-                                modifier = Modifier.weight(1f),
                             )
 
                             FilterSelectionCard(
@@ -136,7 +171,6 @@ internal fun FilterScreen(
                                 isActive = isDifficultyActive,
                                 enabled = isDifficultyAvailable,
                                 onClick = onSelectDifficulty,
-                                modifier = Modifier.weight(1f),
                             )
                         }
 
