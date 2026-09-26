@@ -1,6 +1,7 @@
 package com.medqb.app.shared.data.dao
 
 import androidx.sqlite.SQLiteConnection
+import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.local.dao.RoomLogDao
 import com.medqb.app.shared.data.models.Answer
@@ -16,11 +17,46 @@ class QuestionDao(
     private val isStringIds: () -> Boolean,
     private val getLogDao: suspend () -> RoomLogDao,
 ) {
+    private var difficultyIndex: DifficultyIndex = DifficultyIndex.EMPTY
+
+    suspend fun initDifficultyIndex() = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            initDifficultyIndexUnderLock()
+        }
+    }
+
+    fun isDifficultyAvailable(): Boolean = difficultyIndex.isAvailable
+
+    fun getDifficultyCounts(): Map<DifficultyTier, Int> = difficultyIndex.tierCounts
+
+    fun getDifficultyTier(qid: Long): DifficultyTier? = difficultyIndex.getTier(qid)
+
+    private fun initDifficultyIndexUnderLock() {
+        val stats = mutableListOf<Pair<Long, Double>>()
+        try {
+            val sql = "SELECT id, pplTaken, corrTaken FROM Questions WHERE pplTaken IS NOT NULL AND pplTaken > 0 AND corrTaken IS NOT NULL"
+            getConnection().prepare(sql).use { stmt ->
+                while (stmt.step()) {
+                    val id = stmt.getLong(0)
+                    val ppl = stmt.getDouble(1)
+                    val corr = stmt.getDouble(2)
+                    if (ppl > 0.0) {
+                        stats.add(id to (corr / ppl))
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            // Questions table may not exist or columns missing in some test databases
+        }
+        difficultyIndex = DifficultyIndex.build(stats)
+    }
+
     suspend fun getQuestionIds(
         dbName: String,
         subjectIds: List<Long>?,
         systemIds: List<Long>?,
-        performanceFilter: PerformanceFilter
+        performanceFilter: PerformanceFilter,
+        difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): List<Long> = withContext(Dispatchers.IO) {
         mutex.withLock {
             val perfMatcher = resolvePerformanceMatcher(dbName, performanceFilter)
@@ -51,7 +87,9 @@ class QuestionDao(
                 bindArgs(stmt, args)
                 while (stmt.step()) {
                     val qid = stmt.getLong(0)
-                    if (perfMatcher == null || perfMatcher(qid)) {
+                    if ((perfMatcher == null || perfMatcher(qid)) &&
+                        difficultyIndex.matches(qid, difficultyFilters)
+                    ) {
                         result.add(qid)
                     }
                 }
@@ -111,7 +149,8 @@ class QuestionDao(
                     subId = subIdStr,
                     sysId = sysIdStr,
                     subName = subName,
-                    sysName = sysName
+                    sysName = sysName,
+                    difficultyTier = difficultyIndex.getTier(stmt.getLong(0))
                 )
             }
         }
@@ -146,7 +185,8 @@ class QuestionDao(
         subjectIds: List<Long>?,
         systemIds: List<Long>?,
         performanceFilter: PerformanceFilter,
-    ): Int = getQuestionIds(dbName, subjectIds, systemIds, performanceFilter).size
+        difficultyFilters: Set<DifficultyTier> = emptySet(),
+    ): Int = getQuestionIds(dbName, subjectIds, systemIds, performanceFilter, difficultyFilters).size
 
     /**
      * Returns a predicate selecting question ids that satisfy [performanceFilter] according

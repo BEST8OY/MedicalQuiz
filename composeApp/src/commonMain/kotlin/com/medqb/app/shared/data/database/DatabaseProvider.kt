@@ -17,7 +17,8 @@ interface DatabaseProvider {
     suspend fun getQuestionIds(
         subjectIds: List<Long>? = null,
         systemIds: List<Long>? = null,
-        performanceFilter: PerformanceFilter = PerformanceFilter.ALL
+        performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
+        difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): List<Long>
 
     suspend fun getQuestionById(id: Long): Question?
@@ -30,7 +31,11 @@ interface DatabaseProvider {
         subjectIds: List<Long>?,
         systemIds: List<Long>?,
         performanceFilter: PerformanceFilter,
+        difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): Int
+
+    suspend fun isDifficultyAvailable(): Boolean = false
+    suspend fun getDifficultyCounts(): Map<DifficultyTier, Int> = emptyMap()
 
     suspend fun getSubjects(): List<Subject>
     suspend fun getSystems(subjectIds: List<Long>? = null): List<System>

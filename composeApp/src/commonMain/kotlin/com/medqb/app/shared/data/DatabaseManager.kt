@@ -6,6 +6,7 @@ import com.medqb.app.shared.data.dao.LogDao
 import com.medqb.app.shared.data.dao.QuestionDao
 import com.medqb.app.shared.data.dao.SubjectDao
 import com.medqb.app.shared.data.database.DatabaseProvider
+import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.database.QuestionDetails
 import com.medqb.app.shared.data.database.QuestionPerformance
@@ -58,6 +59,7 @@ class DatabaseManager(
                 throw e
             }
         }
+        questionDao.initDifficultyIndex()
     }
 
     private fun checkSchema() {
@@ -90,8 +92,9 @@ class DatabaseManager(
     override suspend fun getQuestionIds(
         subjectIds: List<Long>?,
         systemIds: List<Long>?,
-        performanceFilter: PerformanceFilter
-    ): List<Long> = questionDao.getQuestionIds(dbName, subjectIds, systemIds, performanceFilter)
+        performanceFilter: PerformanceFilter,
+        difficultyFilters: Set<DifficultyTier>,
+    ): List<Long> = questionDao.getQuestionIds(dbName, subjectIds, systemIds, performanceFilter, difficultyFilters)
 
     override suspend fun getQuestionById(id: Long): Question? = questionDao.getQuestionById(id)
 
@@ -112,7 +115,12 @@ class DatabaseManager(
         subjectIds: List<Long>?,
         systemIds: List<Long>?,
         performanceFilter: PerformanceFilter,
-    ): Int = questionDao.countQuestionIds(dbName, subjectIds, systemIds, performanceFilter)
+        difficultyFilters: Set<DifficultyTier>,
+    ): Int = questionDao.countQuestionIds(dbName, subjectIds, systemIds, performanceFilter, difficultyFilters)
+
+    override suspend fun isDifficultyAvailable(): Boolean = questionDao.isDifficultyAvailable()
+
+    override suspend fun getDifficultyCounts(): Map<DifficultyTier, Int> = questionDao.getDifficultyCounts()
 
     override suspend fun getSubjects(): List<Subject> = subjectDao.getSubjects()
 

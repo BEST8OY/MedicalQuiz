@@ -5,6 +5,7 @@ import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
 import com.medqb.app.shared.data.database.DatabaseProvider
+import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.database.QuestionDetails
 import com.medqb.app.shared.data.database.QuestionPerformance
@@ -244,6 +245,7 @@ class FakeDatabaseProvider(
         subjectIds: List<Long>?,
         systemIds: List<Long>?,
         performanceFilter: PerformanceFilter,
+        difficultyFilters: Set<DifficultyTier>,
     ): List<Long> = listOf(1L, 2L)
 
     override suspend fun getQuestionById(id: Long) = detailsFor(id)?.question
@@ -261,6 +263,7 @@ class FakeDatabaseProvider(
         subjectIds: List<Long>?,
         systemIds: List<Long>?,
         performanceFilter: PerformanceFilter,
+        difficultyFilters: Set<DifficultyTier>,
     ): Int = if (performanceFilter == PerformanceFilter.ALL) 10 else 3
 
     var seededSubjects: List<Subject> = emptyList()

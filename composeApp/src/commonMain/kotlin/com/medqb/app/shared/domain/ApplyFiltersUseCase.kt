@@ -4,6 +4,8 @@ import com.medqb.app.shared.data.database.DatabaseProvider
 import com.medqb.app.shared.data.database.PerformanceFilter
 import dev.zacsweers.metro.Inject
 
+import com.medqb.app.shared.data.database.DifficultyTier
+
 @Inject
 class ApplyFiltersUseCase {
 
@@ -45,11 +47,13 @@ class ApplyFiltersUseCase {
         selectedSubjectIds: Set<Long>,
         selectedSystemIds: Set<Long>,
         performanceFilter: PerformanceFilter,
+        difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): Int {
         return db?.countQuestionIds(
             subjectIds = selectedSubjectIds.toList(),
             systemIds = selectedSystemIds.toList(),
             performanceFilter = performanceFilter,
+            difficultyFilters = difficultyFilters,
         ) ?: 0
     }
 
