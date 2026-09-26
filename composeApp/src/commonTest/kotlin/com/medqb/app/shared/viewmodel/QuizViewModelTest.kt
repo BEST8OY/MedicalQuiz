@@ -3,6 +3,7 @@ package com.medqb.app.shared.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.FilterStateHolder
+import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
@@ -521,4 +522,33 @@ class QuizViewModelTest {
         val reloadedPerformance = viewModel.state.value.currentPerformance
         assertTrue(reloadedPerformance != null && reloadedPerformance.attempts == 7)
     }
+
+    @Test
+    fun appendToHistoryRecordsSelectedDifficultyTiers() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val sessionRepo = FakeQuizSessionRepository()
+        val filterHolder = FilterStateHolder()
+        filterHolder.updateDifficultyTiers(setOf(DifficultyTier.INTERMEDIATE))
+
+        val viewModel = QuizViewModel(
+            settingsRepository = FakeSettingsRepository(),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            sessionRepository = sessionRepo,
+            savedStateHandle = SavedStateHandle(),
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = filterHolder,
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        viewModel.loadQuestion(0)
+        advanceUntilIdle()
+
+        assertEquals(setOf(DifficultyTier.INTERMEDIATE), sessionRepo.lastAppendedDifficultyTiers)
+    }
 }
+

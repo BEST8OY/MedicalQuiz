@@ -1,5 +1,6 @@
 package com.medqb.app.shared.data
 
+import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.local.entity.QuizHistoryEntity
 import com.medqb.app.shared.data.models.SubmissionMode
@@ -55,6 +56,7 @@ class DefaultQuizSessionRepository(
         submissionMode: SubmissionMode,
         currentSessionId: String,
         entryName: String,
+        selectedDifficultyTiers: Set<DifficultyTier>,
     ): String {
         if (databaseName.isBlank()) {
             Logger.e("QuizSession", "Cannot append history: databaseName is blank")
@@ -80,6 +82,7 @@ class DefaultQuizSessionRepository(
                 updatedAt = now,
                 isLoggingEnabled = isLoggingEnabled,
                 submissionMode = submissionMode.name,
+                selectedDifficultyTiers = selectedDifficultyTiers.map { it.name }.sorted().joinToString(","),
             )
         }
 
@@ -112,6 +115,7 @@ class DefaultQuizSessionRepository(
                 updatedAt = entry.updatedAtEpochMillis,
                 isLoggingEnabled = entry.isLoggingEnabled,
                 submissionMode = entry.submissionMode.name,
+                selectedDifficultyTiers = entry.selectedDifficultyTiers.map { it.name }.sorted().joinToString(","),
             )
         }
 
@@ -134,4 +138,7 @@ private fun QuizHistoryEntity.toQuizSession() = QuizSessionRepository.QuizSessio
     updatedAtEpochMillis = updatedAt,
     isLoggingEnabled = isLoggingEnabled,
     submissionMode = runCatching { SubmissionMode.valueOf(submissionMode) }.getOrDefault(SubmissionMode.INSTANT),
+    selectedDifficultyTiers = selectedDifficultyTiers.split(",")
+        .mapNotNull { runCatching { DifficultyTier.valueOf(it.trim()) }.getOrNull() }
+        .toSet(),
 )

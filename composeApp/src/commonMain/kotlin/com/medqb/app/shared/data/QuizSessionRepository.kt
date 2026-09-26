@@ -1,5 +1,6 @@
 package com.medqb.app.shared.data
 
+import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.models.SubmissionMode
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +24,7 @@ interface QuizSessionRepository {
         submissionMode: SubmissionMode = SubmissionMode.INSTANT,
         currentSessionId: String = "",
         entryName: String = "",
+        selectedDifficultyTiers: Set<DifficultyTier> = emptySet(),
     ): String
 
     suspend fun deleteHistoryEntries(entryIds: Set<String>)
@@ -44,5 +46,6 @@ interface QuizSessionRepository {
         val updatedAtEpochMillis: Long = 0,
         val isLoggingEnabled: Boolean = false,
         val submissionMode: SubmissionMode = SubmissionMode.INSTANT,
+        val selectedDifficultyTiers: Set<DifficultyTier> = emptySet(),
     )
 }

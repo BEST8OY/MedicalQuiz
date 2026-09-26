@@ -10,6 +10,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.UserDataManager
+import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.PerformanceFilter
 
 private val AppWorkflowStateSaver = Saver<AppWorkflowState, List<Any?>>(
@@ -70,10 +71,11 @@ fun rememberAppWorkflow(
     }
 
     val onFilterSubjectsSync = remember(filterStateHolder) {
-        { subjectIds: Set<Long>, systemIds: Set<Long>, perfFilter: PerformanceFilter ->
+        { subjectIds: Set<Long>, systemIds: Set<Long>, perfFilter: PerformanceFilter, difficultyTiers: Set<DifficultyTier> ->
             filterStateHolder.updateSubjectIds(subjectIds)
             filterStateHolder.updateSystemIds(systemIds)
             filterStateHolder.updatePerformanceFilter(perfFilter)
+            filterStateHolder.updateDifficultyTiers(difficultyTiers)
         }
     }
 
@@ -99,5 +101,5 @@ class AppWorkflowHandle(
     val onDatabaseSelected: (String) -> Unit,
     val onDatabaseSelectionRequested: () -> Unit,
     val onHistoryLaunchPrepared: (String) -> Unit,
-    val onFilterSubjectsSync: (Set<Long>, Set<Long>, PerformanceFilter) -> Unit,
+    val onFilterSubjectsSync: (Set<Long>, Set<Long>, PerformanceFilter, Set<DifficultyTier>) -> Unit,
 )

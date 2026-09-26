@@ -26,5 +26,8 @@ data class QuizHistoryEntity(
     @ColumnInfo(name = "is_logging_enabled")
     val isLoggingEnabled: Boolean = false,
     @ColumnInfo(name = "submission_mode")
-    val submissionMode: String = "INSTANT"
+    val submissionMode: String = "INSTANT",
+    @ColumnInfo(name = "selected_difficulty_tiers", defaultValue = "")
+    val selectedDifficultyTiers: String = "",
 )
+

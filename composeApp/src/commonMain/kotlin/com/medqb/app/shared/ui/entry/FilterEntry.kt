@@ -59,6 +59,7 @@ fun FilterEntry(
                         entry.selectedSubjectIds.toSet(),
                         entry.selectedSystemIds.toSet(),
                         entry.performanceFilter,
+                        entry.selectedDifficultyTiers,
                     )
                     workflow.onHistoryLaunchPrepared(matchingDatabase)
                     navigator.navigateTo(

@@ -220,6 +220,7 @@ class QuizViewModel(
                 submissionMode = state.value.submissionMode,
                 currentSessionId = sessionId,
                 entryName = state.value.entryName,
+                selectedDifficultyTiers = filterStateHolder.selectedDifficultyTiers.value,
             )
             if (newSessionId.isNotBlank()) {
                 updateSessionId(newSessionId)

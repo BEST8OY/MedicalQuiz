@@ -43,6 +43,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.QuizSessionRepository
+import com.medqb.app.shared.data.database.DifficultyTier
+import com.medqb.app.shared.ui.screens.filter.formatDifficultyLabel
 import com.medqb.app.shared.ui.theme.IconSize
 import com.medqb.app.shared.ui.theme.Spacing
 import kotlinx.coroutines.launch
@@ -184,8 +186,11 @@ internal fun HistoryItemCard(
                             color = subtitleColor,
                         )
                     }
+                    val difficultyLabel = if (entry.selectedDifficultyTiers.isNotEmpty() && entry.selectedDifficultyTiers.size < DifficultyTier.entries.size) {
+                        " \u00B7 " + formatDifficultyLabel(entry.selectedDifficultyTiers)
+                    } else ""
                     Text(
-                        text = "Q${entry.currentQuestionIndex + 1} \u00B7 ${relativeTimestamp(entry.updatedAtEpochMillis)}",
+                        text = "Q${entry.currentQuestionIndex + 1}$difficultyLabel \u00B7 ${relativeTimestamp(entry.updatedAtEpochMillis)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = subtitleColor,
                     )

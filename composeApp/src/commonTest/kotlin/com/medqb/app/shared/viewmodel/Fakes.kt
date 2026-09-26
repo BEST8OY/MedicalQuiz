@@ -131,6 +131,7 @@ class FakeQuizSessionRepository : QuizSessionRepository {
     override val historyEntries = MutableStateFlow<List<QuizSessionRepository.QuizSession>>(emptyList())
     var nextSessionId = "session-1"
     val appended = mutableListOf<String>()
+    var lastAppendedDifficultyTiers: Set<DifficultyTier> = emptySet()
 
     override suspend fun listHistory() = emptyList<QuizSessionRepository.QuizSession>()
 
@@ -144,8 +145,10 @@ class FakeQuizSessionRepository : QuizSessionRepository {
         submissionMode: SubmissionMode,
         currentSessionId: String,
         entryName: String,
+        selectedDifficultyTiers: Set<DifficultyTier>,
     ): String {
         appended += databaseName
+        lastAppendedDifficultyTiers = selectedDifficultyTiers
         return currentSessionId.ifBlank { nextSessionId }
     }
 

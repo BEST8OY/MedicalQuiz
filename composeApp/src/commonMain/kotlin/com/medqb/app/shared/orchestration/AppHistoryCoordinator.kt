@@ -51,6 +51,7 @@ class AppHistoryCoordinator(
                     subjectIds = entry.selectedSubjectIds,
                     systemIds = entry.selectedSystemIds,
                     performanceFilter = entry.performanceFilter,
+                    difficultyFilters = entry.selectedDifficultyTiers,
                 ) ?: emptyList()
                 questionIds.forEach { qid ->
                     appendLine(qid)

@@ -22,10 +22,12 @@ interface RoomSessionHistoryDao {
         """
         INSERT INTO quiz_history
         (session_id, database_name, entry_name, selected_subject_ids, selected_system_ids,
-         performance_filter, current_question_index, updated_at, is_logging_enabled, submission_mode)
+         performance_filter, current_question_index, updated_at, is_logging_enabled, submission_mode,
+         selected_difficulty_tiers)
         VALUES
         (:sessionId, :databaseName, :entryName, :selectedSubjectIds, :selectedSystemIds,
-         :performanceFilter, :currentQuestionIndex, :updatedAt, :isLoggingEnabled, :submissionMode)
+         :performanceFilter, :currentQuestionIndex, :updatedAt, :isLoggingEnabled, :submissionMode,
+         :selectedDifficultyTiers)
         ON CONFLICT(session_id) DO UPDATE SET
             database_name = excluded.database_name,
             entry_name = CASE WHEN excluded.entry_name = '' THEN quiz_history.entry_name ELSE excluded.entry_name END,
@@ -35,7 +37,8 @@ interface RoomSessionHistoryDao {
             current_question_index = excluded.current_question_index,
             updated_at = excluded.updated_at,
             is_logging_enabled = excluded.is_logging_enabled,
-            submission_mode = excluded.submission_mode
+            submission_mode = excluded.submission_mode,
+            selected_difficulty_tiers = excluded.selected_difficulty_tiers
         """
     )
     suspend fun upsertHistory(
@@ -49,6 +52,7 @@ interface RoomSessionHistoryDao {
         updatedAt: Long,
         isLoggingEnabled: Boolean,
         submissionMode: String,
+        selectedDifficultyTiers: String,
     )
 
     @Query("SELECT * FROM quiz_history ORDER BY updated_at DESC")
