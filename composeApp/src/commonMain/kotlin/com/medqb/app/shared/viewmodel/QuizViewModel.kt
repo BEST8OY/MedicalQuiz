@@ -419,7 +419,8 @@ class QuizViewModel(
                 val ids = db?.getQuestionIds(
                     subjectIds = filterStateHolder.selectedSubjectIds.value.toList(),
                     systemIds = filterStateHolder.selectedSystemIds.value.toList(),
-                    performanceFilter = filterStateHolder.performanceFilter.value
+                    performanceFilter = filterStateHolder.performanceFilter.value,
+                    difficultyFilters = filterStateHolder.selectedDifficultyTiers.value,
                 ) ?: emptyList()
 
                 // Database switched mid-query — a newer load for the new database is

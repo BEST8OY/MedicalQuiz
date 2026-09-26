@@ -1,5 +1,6 @@
 package com.medqb.app.shared.data
 
+import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.di.AppScope
 import dev.zacsweers.metro.Inject
@@ -10,7 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Shared filter state holder scoped to the app graph.
- * Holds active query filter selections (subjects, systems, performance filter).
+ * Holds active query filter selections (subjects, systems, performance filter, difficulty tiers).
  */
 @Inject
 @SingleIn(AppScope::class)
@@ -24,6 +25,9 @@ class FilterStateHolder {
     private val _performanceFilter = MutableStateFlow(PerformanceFilter.ALL)
     val performanceFilter: StateFlow<PerformanceFilter> = _performanceFilter.asStateFlow()
 
+    private val _selectedDifficultyTiers = MutableStateFlow<Set<DifficultyTier>>(emptySet())
+    val selectedDifficultyTiers: StateFlow<Set<DifficultyTier>> = _selectedDifficultyTiers.asStateFlow()
+
     fun updateSubjectIds(ids: Set<Long>) {
         _selectedSubjectIds.value = ids
     }
@@ -36,9 +40,14 @@ class FilterStateHolder {
         _performanceFilter.value = filter
     }
 
+    fun updateDifficultyTiers(tiers: Set<DifficultyTier>) {
+        _selectedDifficultyTiers.value = tiers
+    }
+
     fun reset() {
         _selectedSubjectIds.value = emptySet()
         _selectedSystemIds.value = emptySet()
         _performanceFilter.value = PerformanceFilter.ALL
+        _selectedDifficultyTiers.value = emptySet()
     }
 }

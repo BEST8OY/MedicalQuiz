@@ -7,6 +7,7 @@ import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.QuizSessionRepository
+import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.SnackbarSink
@@ -57,12 +58,14 @@ class FilterHubViewModel(
         const val KEY_SELECTED_SUBJECT_IDS = "selected_subject_ids"
         const val KEY_SELECTED_SYSTEM_IDS = "selected_system_ids"
         const val KEY_PERFORMANCE_FILTER = "performance_filter"
+        const val KEY_SELECTED_DIFFICULTY_TIERS = "selected_difficulty_tiers"
         const val KEY_ACTIVE_PANE = "activePane"
 
         private data class PreviewFilterParameters(
             val subjects: Set<Long>,
             val systems: Set<Long>,
             val performance: PerformanceFilter,
+            val difficulties: Set<DifficultyTier>,
             val db: com.medqb.app.shared.data.database.DatabaseProvider?,
         )
     }
@@ -90,6 +93,7 @@ class FilterHubViewModel(
         }
 
         setupDatabaseNameTracking()
+        setupDifficultyTracking()
         setupSubjectsFlow()
         setupSystemsFlow()
         setupPreviewCountFlow()
@@ -121,6 +125,28 @@ class FilterHubViewModel(
                 } else {
                     _state.update { it.copy(databaseName = "") }
                     databaseNameState.value = ""
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    private fun setupDifficultyTracking() {
+        activeDatabaseHolder.activeDatabase
+            .flatMapLatest { active ->
+                flow {
+                    val db = active?.provider
+                    if (db == null) {
+                        emit(false to emptyMap<DifficultyTier, Int>())
+                    } else {
+                        val isAvail = db.isDifficultyAvailable()
+                        val counts = if (isAvail) db.getDifficultyCounts() else emptyMap()
+                        emit(isAvail to counts)
+                    }
+                }
+            }
+            .onEach { (isAvail, counts) ->
+                _state.update {
+                    it.copy(isDifficultyAvailable = isAvail, difficultyCounts = counts)
                 }
             }
             .launchIn(viewModelScope)
@@ -190,9 +216,10 @@ class FilterHubViewModel(
             filterStateHolder.selectedSubjectIds,
             filterStateHolder.selectedSystemIds,
             filterStateHolder.performanceFilter,
+            filterStateHolder.selectedDifficultyTiers,
             activeDatabaseHolder.activeDatabase,
-        ) { subjects, systems, perf, active ->
-            PreviewFilterParameters(subjects, systems, perf, active?.provider)
+        ) { subjects, systems, perf, diffs, active ->
+            PreviewFilterParameters(subjects, systems, perf, diffs, active?.provider)
         }
             .flatMapLatest { params ->
                 flow {
@@ -203,6 +230,7 @@ class FilterHubViewModel(
                                 selectedSubjectIds = params.subjects,
                                 selectedSystemIds = params.systems,
                                 performanceFilter = params.performance,
+                                difficultyFilters = params.difficulties,
                             )
                         } catch (e: CancellationException) {
                             throw e
@@ -220,28 +248,37 @@ class FilterHubViewModel(
 
     /**
      * Single reduction of shared filter-holder state into UiState — one collector
-     * instead of three parallel mirrors, so partial-update interleavings are impossible.
+     * instead of parallel mirrors, so partial-update interleavings are impossible.
      */
     private fun setupFilterSelectionSync() {
         combine(
             filterStateHolder.selectedSubjectIds,
             filterStateHolder.selectedSystemIds,
             filterStateHolder.performanceFilter,
-        ) { subjectIds, systemIds, performanceFilter ->
-            Triple(subjectIds, systemIds, performanceFilter)
+            filterStateHolder.selectedDifficultyTiers,
+        ) { subjectIds, systemIds, performanceFilter, difficultyTiers ->
+            FilterSelection(subjectIds, systemIds, performanceFilter, difficultyTiers)
         }
             .distinctUntilChanged()
-            .onEach { (subjectIds, systemIds, performanceFilter) ->
+            .onEach { selection ->
                 _state.update {
                     it.copy(
-                        selectedSubjectIds = subjectIds,
-                        selectedSystemIds = systemIds,
-                        performanceFilter = performanceFilter
+                        selectedSubjectIds = selection.subjectIds,
+                        selectedSystemIds = selection.systemIds,
+                        performanceFilter = selection.performanceFilter,
+                        selectedDifficultyTiers = selection.difficultyTiers,
                     )
                 }
             }
             .launchIn(viewModelScope)
     }
+
+    private data class FilterSelection(
+        val subjectIds: Set<Long>,
+        val systemIds: Set<Long>,
+        val performanceFilter: PerformanceFilter,
+        val difficultyTiers: Set<DifficultyTier>,
+    )
 
     private fun setupSettingsCollectors() {
         combine(
@@ -288,6 +325,11 @@ class FilterHubViewModel(
                 filterStateHolder.updatePerformanceFilter(it)
             }
         }
+        savedStateHandle.get<List<String>>(KEY_SELECTED_DIFFICULTY_TIERS)?.mapNotNull { name ->
+            runCatching { DifficultyTier.valueOf(name) }.getOrNull()
+        }?.toSet()?.let {
+            filterStateHolder.updateDifficultyTiers(it)
+        }
     }
 
     /**
@@ -300,14 +342,16 @@ class FilterHubViewModel(
             filterStateHolder.selectedSubjectIds,
             filterStateHolder.selectedSystemIds,
             filterStateHolder.performanceFilter,
-        ) { subjectIds, systemIds, performanceFilter ->
-            Triple(subjectIds, systemIds, performanceFilter)
+            filterStateHolder.selectedDifficultyTiers,
+        ) { subjectIds, systemIds, performanceFilter, difficultyTiers ->
+            FilterSelection(subjectIds, systemIds, performanceFilter, difficultyTiers)
         }
             .distinctUntilChanged()
-            .onEach { (subjectIds, systemIds, performanceFilter) ->
-                savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = subjectIds.toList()
-                savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = systemIds.toList()
-                savedStateHandle[KEY_PERFORMANCE_FILTER] = performanceFilter.name
+            .onEach { selection ->
+                savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = selection.subjectIds.toList()
+                savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = selection.systemIds.toList()
+                savedStateHandle[KEY_PERFORMANCE_FILTER] = selection.performanceFilter.name
+                savedStateHandle[KEY_SELECTED_DIFFICULTY_TIERS] = selection.difficultyTiers.map { it.name }
             }
             .launchIn(viewModelScope)
     }
@@ -352,6 +396,10 @@ class FilterHubViewModel(
 
     fun setPerformanceFilter(filter: PerformanceFilter) {
         filterStateHolder.updatePerformanceFilter(filter)
+    }
+
+    fun setDifficultyFilters(tiers: Set<DifficultyTier>) {
+        filterStateHolder.updateDifficultyTiers(tiers)
     }
 
     fun clearAllFilters() {

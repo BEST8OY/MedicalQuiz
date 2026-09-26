@@ -4,9 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.LocalContentRepository
+import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
+import com.medqb.app.shared.ui.screens.filter.formatDifficultyLabel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -228,5 +230,44 @@ class FilterHubViewModelTest {
 
         // Simply opening the dialog does NOT call fetchSystems(), so state remains Success
         assertEquals(listOf(nbmeSystem), (viewModel.state.value.systemsResource as Resource.Success).data)
+    }
+
+    @Test
+    fun difficultyFilterSelectionMirrorsHolderAndPersists() = runHubTest {
+        val provider = FakeDatabaseProvider()
+        val filterStateHolder = FilterStateHolder()
+        val savedStateHandle = SavedStateHandle()
+        val holder = ActiveDatabaseHolder()
+        val viewModel = createViewModel(provider, holder, filterStateHolder, savedStateHandle)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        viewModel.setDifficultyFilters(setOf(DifficultyTier.EASY, DifficultyTier.INTERMEDIATE))
+        advanceUntilIdle()
+
+        assertEquals(
+            setOf(DifficultyTier.EASY, DifficultyTier.INTERMEDIATE),
+            viewModel.state.value.selectedDifficultyTiers
+        )
+        val persisted = savedStateHandle.get<List<String>>("selected_difficulty_tiers")
+        assertEquals(setOf("EASY", "INTERMEDIATE"), persisted?.toSet())
+
+        // Reset clears difficulty
+        viewModel.clearAllFilters()
+        advanceUntilIdle()
+        assertEquals(emptySet(), viewModel.state.value.selectedDifficultyTiers)
+        assertEquals(emptyList(), savedStateHandle.get<List<String>>("selected_difficulty_tiers"))
+    }
+
+    @Test
+    fun formatDifficultyLabelFormatsAppropriately() {
+        assertEquals("All Difficulties", formatDifficultyLabel(emptySet()))
+        assertEquals("All Difficulties", formatDifficultyLabel(DifficultyTier.entries.toSet()))
+        assertEquals("Very Easy", formatDifficultyLabel(setOf(DifficultyTier.VERY_EASY)))
+        assertEquals("Very Easy, Easy", formatDifficultyLabel(setOf(DifficultyTier.EASY, DifficultyTier.VERY_EASY)))
+        assertEquals(
+            "3 selected",
+            formatDifficultyLabel(setOf(DifficultyTier.VERY_EASY, DifficultyTier.EASY, DifficultyTier.INTERMEDIATE))
+        )
     }
 }
