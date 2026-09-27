@@ -44,6 +44,7 @@ class UserDataManager {
                 val db = Room.databaseBuilder<UserDatabase>(dbPath)
                     .setDriver(BundledSQLiteDriver())
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+                    .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 database = db
                 db

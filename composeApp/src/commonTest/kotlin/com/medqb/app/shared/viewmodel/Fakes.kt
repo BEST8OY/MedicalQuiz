@@ -131,6 +131,10 @@ class FakeQuizSessionRepository : QuizSessionRepository {
     override val historyEntries = MutableStateFlow<List<QuizSessionRepository.QuizSession>>(emptyList())
     var nextSessionId = "session-1"
     val appended = mutableListOf<String>()
+    var lastAppendedSubjectIds: Set<Long> = emptySet()
+    var lastAppendedExcludedSubjectIds: Set<Long> = emptySet()
+    var lastAppendedSystemIds: Set<Long> = emptySet()
+    var lastAppendedExcludedSystemIds: Set<Long> = emptySet()
     var lastAppendedDifficultyTiers: Set<DifficultyTier> = emptySet()
 
     override suspend fun listHistory() = emptyList<QuizSessionRepository.QuizSession>()
@@ -138,7 +142,9 @@ class FakeQuizSessionRepository : QuizSessionRepository {
     override suspend fun appendToHistory(
         databaseName: String,
         selectedSubjectIds: Set<Long>,
+        excludedSubjectIds: Set<Long>,
         selectedSystemIds: Set<Long>,
+        excludedSystemIds: Set<Long>,
         performanceFilter: PerformanceFilter,
         currentQuestionIndex: Int,
         isLoggingEnabled: Boolean,
@@ -148,6 +154,10 @@ class FakeQuizSessionRepository : QuizSessionRepository {
         selectedDifficultyTiers: Set<DifficultyTier>,
     ): String {
         appended += databaseName
+        lastAppendedSubjectIds = selectedSubjectIds
+        lastAppendedExcludedSubjectIds = excludedSubjectIds
+        lastAppendedSystemIds = selectedSystemIds
+        lastAppendedExcludedSystemIds = excludedSystemIds
         lastAppendedDifficultyTiers = selectedDifficultyTiers
         return currentSessionId.ifBlank { nextSessionId }
     }

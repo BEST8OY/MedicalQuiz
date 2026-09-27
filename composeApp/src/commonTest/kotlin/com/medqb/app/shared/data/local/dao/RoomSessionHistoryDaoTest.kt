@@ -39,6 +39,8 @@ class RoomSessionHistoryDaoTest {
                 isLoggingEnabled = true,
                 submissionMode = "INSTANT",
                 selectedDifficultyTiers = "EASY,DIFFICULT",
+                excludedSubjectIds = "5",
+                excludedSystemIds = "6",
             )
 
             val created = dao.getHistory("s1")
@@ -46,6 +48,8 @@ class RoomSessionHistoryDaoTest {
             assertEquals("Cardio Quiz 1", created.entryName)
             assertEquals("cardiology", created.databaseName)
             assertEquals(1000L, created.updatedAt)
+            assertEquals("5", created.excludedSubjectIds)
+            assertEquals("6", created.excludedSystemIds)
 
             // Update with blank entryName -> must preserve existing name
             dao.upsertHistory(

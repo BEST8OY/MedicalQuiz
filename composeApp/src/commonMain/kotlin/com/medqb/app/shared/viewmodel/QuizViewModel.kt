@@ -213,7 +213,9 @@ class QuizViewModel(
             val newSessionId = sessionRepository.appendToHistory(
                 databaseName = state.value.databaseName,
                 selectedSubjectIds = filterStateHolder.selectedSubjectIds.value,
+                excludedSubjectIds = filterStateHolder.excludedSubjectIds.value,
                 selectedSystemIds = filterStateHolder.selectedSystemIds.value,
+                excludedSystemIds = filterStateHolder.excludedSystemIds.value,
                 performanceFilter = filterStateHolder.performanceFilter.value,
                 currentQuestionIndex = state.value.currentQuestionIndex,
                 isLoggingEnabled = state.value.isLoggingEnabled,

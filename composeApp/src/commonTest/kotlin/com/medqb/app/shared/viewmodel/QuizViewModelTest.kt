@@ -597,5 +597,40 @@ class QuizViewModelTest {
         assertEquals(listOf(100L), receivedSystemIds)
         assertEquals(listOf(200L), receivedExcludedSystemIds)
     }
+
+    @Test
+    fun appendToHistoryRecordsExcludedSubjectsAndSystems() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val filterHolder = FilterStateHolder()
+        val sessionRepo = FakeQuizSessionRepository()
+
+        filterHolder.updateSubjectIds(setOf(14L))
+        filterHolder.updateExcludedSubjectIds(setOf(21L))
+        filterHolder.updateSystemIds(setOf(100L))
+        filterHolder.updateExcludedSystemIds(setOf(200L))
+
+        val viewModel = QuizViewModel(
+            settingsRepository = FakeSettingsRepository(),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            sessionRepository = sessionRepo,
+            savedStateHandle = SavedStateHandle(),
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = filterHolder,
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        viewModel.loadQuestion(0, appendToHistory = true)
+        advanceUntilIdle()
+
+        assertEquals(setOf(14L), sessionRepo.lastAppendedSubjectIds)
+        assertEquals(setOf(21L), sessionRepo.lastAppendedExcludedSubjectIds)
+        assertEquals(setOf(100L), sessionRepo.lastAppendedSystemIds)
+        assertEquals(setOf(200L), sessionRepo.lastAppendedExcludedSystemIds)
+    }
 }
 

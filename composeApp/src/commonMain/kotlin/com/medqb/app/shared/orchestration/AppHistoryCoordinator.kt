@@ -49,7 +49,9 @@ class AppHistoryCoordinator(
                 if (entry.databaseName != activeDbName) return@forEach
                 val questionIds = db?.getQuestionIds(
                     subjectIds = entry.selectedSubjectIds,
+                    excludedSubjectIds = entry.excludedSubjectIds,
                     systemIds = entry.selectedSystemIds,
+                    excludedSystemIds = entry.excludedSystemIds,
                     performanceFilter = entry.performanceFilter,
                     difficultyFilters = entry.selectedDifficultyTiers,
                 ) ?: emptyList()

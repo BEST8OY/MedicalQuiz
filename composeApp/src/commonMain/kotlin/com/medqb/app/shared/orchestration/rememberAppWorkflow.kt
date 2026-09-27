@@ -71,9 +71,9 @@ fun rememberAppWorkflow(
     }
 
     val onFilterSubjectsSync = remember(filterStateHolder) {
-        { subjectIds: Set<Long>, systemIds: Set<Long>, perfFilter: PerformanceFilter, difficultyTiers: Set<DifficultyTier> ->
-            filterStateHolder.updateSubjectIds(subjectIds)
-            filterStateHolder.updateSystemIds(systemIds)
+        { subjectIds: Set<Long>, excludedSubjectIds: Set<Long>, systemIds: Set<Long>, excludedSystemIds: Set<Long>, perfFilter: PerformanceFilter, difficultyTiers: Set<DifficultyTier> ->
+            filterStateHolder.setSubjects(subjectIds, excludedSubjectIds)
+            filterStateHolder.setSystems(systemIds, excludedSystemIds)
             filterStateHolder.updatePerformanceFilter(perfFilter)
             filterStateHolder.updateDifficultyTiers(difficultyTiers)
         }
@@ -101,5 +101,12 @@ class AppWorkflowHandle(
     val onDatabaseSelected: (String) -> Unit,
     val onDatabaseSelectionRequested: () -> Unit,
     val onHistoryLaunchPrepared: (String) -> Unit,
-    val onFilterSubjectsSync: (Set<Long>, Set<Long>, PerformanceFilter, Set<DifficultyTier>) -> Unit,
+    val onFilterSubjectsSync: (
+        subjectIds: Set<Long>,
+        excludedSubjectIds: Set<Long>,
+        systemIds: Set<Long>,
+        excludedSystemIds: Set<Long>,
+        perfFilter: PerformanceFilter,
+        difficultyTiers: Set<DifficultyTier>,
+    ) -> Unit,
 )

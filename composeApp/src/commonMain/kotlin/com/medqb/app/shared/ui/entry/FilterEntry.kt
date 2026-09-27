@@ -57,7 +57,9 @@ fun FilterEntry(
                 onSuccess = { matchingDatabase ->
                     workflow.onFilterSubjectsSync(
                         entry.selectedSubjectIds.toSet(),
+                        entry.excludedSubjectIds.toSet(),
                         entry.selectedSystemIds.toSet(),
+                        entry.excludedSystemIds.toSet(),
                         entry.performanceFilter,
                         entry.selectedDifficultyTiers,
                     )
