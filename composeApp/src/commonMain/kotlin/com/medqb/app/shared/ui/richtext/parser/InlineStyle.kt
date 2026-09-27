@@ -72,7 +72,8 @@ internal fun InlineStyle.applyClassStyles(
     var current = this
     classes.forEach { rawClass ->
         current = when (rawClass.lowercase()) {
-            "important", "wichtig" -> current.copy(highlight = InlineHighlight.IMPORTANT, bold = true)
+            "important" -> current.copy(highlight = InlineHighlight.IMPORTANT, bold = true)
+            "wichtig" -> current.copy(bold = true)
             "selected" -> if (showSelectedHighlight) current.copy(highlight = InlineHighlight.SELECTED) else current
             "dictionary" -> current.copy(dictionary = true, underline = true)
             "nowrap" -> current.copy(preserveWhitespace = true)

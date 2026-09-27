@@ -90,7 +90,8 @@ internal object RichTextParserConfig {
         "font-weight-bold",
         "fontweightbold",
         "strong",
-        "important"
+        "important",
+        "wichtig"
     )
 
     /**

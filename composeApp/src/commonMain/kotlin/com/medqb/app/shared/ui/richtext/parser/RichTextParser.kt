@@ -200,11 +200,7 @@ private class RichTextDomParser(
                         }
                         "div", "section", "article", "blockquote" -> {
                             flushInlineParagraph()
-                            if (node.classNames().any { it.equals("abstract", ignoreCase = true) }) {
-                                parseAbstractBlock(node, depth + 1)?.let(blocks::add)
-                            } else {
-                                blocks += parse(node.children, nextStyles, depth + 1)
-                            }
+                            blocks += parse(node.children, nextStyles, depth + 1)
                         }
                         "img" -> {
                             flushInlineParagraph()
