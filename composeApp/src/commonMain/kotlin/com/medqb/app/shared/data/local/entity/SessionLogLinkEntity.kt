@@ -15,9 +15,15 @@ import androidx.room3.PrimaryKey
             parentColumns = ["session_id"],
             childColumns = ["session_id"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = LogEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["log_rowid"],
+            onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("session_id"), Index("log_rowid")]
+    indices = [Index("log_rowid")]
 )
 data class SessionLogLinkEntity(
     @ColumnInfo(name = "session_id")

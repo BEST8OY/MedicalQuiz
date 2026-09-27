@@ -7,7 +7,7 @@ import androidx.room3.PrimaryKey
 
 @Entity(
     tableName = "logs",
-    indices = [Index(value = ["db_name", "qid"])]
+    indices = [Index(value = ["db_name", "qid", "id"])]
 )
 data class LogEntity(
     @PrimaryKey(autoGenerate = true)

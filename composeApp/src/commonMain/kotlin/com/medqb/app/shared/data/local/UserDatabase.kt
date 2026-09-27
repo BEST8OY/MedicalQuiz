@@ -27,7 +27,7 @@ import com.medqb.app.shared.data.local.entity.TextHighlightEntity
         SessionLogLinkEntity::class,
         QuizHistoryEntity::class,
     ],
-    version = 3,
+    version = 1,
     exportSchema = true
 )
 @ConstructedBy(UserDatabaseConstructor::class)

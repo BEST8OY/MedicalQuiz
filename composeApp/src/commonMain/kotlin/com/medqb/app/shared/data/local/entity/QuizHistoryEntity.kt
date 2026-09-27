@@ -2,9 +2,13 @@ package com.medqb.app.shared.data.local.entity
 
 import androidx.room3.ColumnInfo
 import androidx.room3.Entity
+import androidx.room3.Index
 import androidx.room3.PrimaryKey
 
-@Entity(tableName = "quiz_history")
+@Entity(
+    tableName = "quiz_history",
+    indices = [Index("updated_at")]
+)
 data class QuizHistoryEntity(
     @PrimaryKey
     @ColumnInfo(name = "session_id")
