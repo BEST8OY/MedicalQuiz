@@ -49,6 +49,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -314,16 +318,18 @@ private fun <T> ColumnScope.SelectionListContent(
         if (searchQuery.isBlank()) allIds
         else filteredItems.map { idProvider(it) }.toSet()
     }
-    val isAllSelected = currentIncluded.size == effectiveSelectAllIds.size && currentExcluded.isEmpty() && effectiveSelectAllIds.isNotEmpty()
+    val isAllSelected = effectiveSelectAllIds.isNotEmpty() &&
+        effectiveSelectAllIds.all { it in currentIncluded }
 
     val listState = rememberLazyListState()
 
-    val subtitle = when {
+    val baseSubtitle = when {
         currentIncluded.isEmpty() && currentExcluded.isEmpty() -> "All items (none excluded)"
         currentIncluded.isNotEmpty() && currentExcluded.isEmpty() -> "${currentIncluded.size} of ${items.size} included"
         currentIncluded.isEmpty() && currentExcluded.isNotEmpty() -> "All except ${currentExcluded.size} excluded"
         else -> "${currentIncluded.size} included • ${currentExcluded.size} excluded"
     }
+    val subtitle = if (searchQuery.isBlank()) baseSubtitle else "$baseSubtitle (${filteredItems.size} shown)"
 
     val selectAllLabel = if (searchQuery.isNotBlank()) {
         "Select visible (${effectiveSelectAllIds.size})"
@@ -411,8 +417,13 @@ private fun <T> ColumnScope.SelectionListContent(
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)) {
             TextButton(
                 onClick = {
-                    currentIncluded = effectiveSelectAllIds.toMutableSet()
-                    currentExcluded = mutableSetOf()
+                    if (searchQuery.isBlank()) {
+                        currentIncluded = effectiveSelectAllIds.toMutableSet()
+                        currentExcluded = mutableSetOf()
+                    } else {
+                        currentIncluded = (currentIncluded + effectiveSelectAllIds).toMutableSet()
+                        currentExcluded = (currentExcluded - effectiveSelectAllIds).toMutableSet()
+                    }
                 },
                 enabled = !isAllSelected,
                 contentPadding = PaddingValues(horizontal = Spacing.Small, vertical = 0.dp)
@@ -532,7 +543,15 @@ private fun SelectionItem(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .semantics {
+                role = Role.Checkbox
+                stateDescription = when (state) {
+                    ItemFilterState.INCLUDED -> "Included"
+                    ItemFilterState.EXCLUDED -> "Excluded"
+                    ItemFilterState.NEUTRAL -> "Not selected"
+                }
+            },
         color = backgroundColor,
         shape = MaterialTheme.shapes.small,
     ) {

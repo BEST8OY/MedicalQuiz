@@ -226,8 +226,12 @@ internal fun formatSelectionSubtitle(
 ): String {
     return when {
         includedCount == 0 && excludedCount == 0 -> "All $plural"
-        includedCount > 0 && excludedCount == 0 -> "$includedCount selected"
-        includedCount == 0 && excludedCount > 0 -> "All except $excludedCount"
+        includedCount > 0 && excludedCount == 0 -> {
+            if (includedCount == 1) "1 $singular selected" else "$includedCount selected"
+        }
+        includedCount == 0 && excludedCount > 0 -> {
+            if (excludedCount == 1) "All except 1 $singular" else "All except $excludedCount"
+        }
         else -> "$includedCount selected • $excludedCount excluded"
     }
 }
