@@ -1,5 +1,7 @@
 package com.medqb.app.shared.data
 
+import com.medqb.app.shared.data.local.entity.TextHighlightEntity
+import com.medqb.app.shared.data.local.entity.toDomain
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.TextHighlight
@@ -8,6 +10,7 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.time.Clock
 
 /**
  * Room-backed [TextHighlightsRepository].
@@ -30,12 +33,17 @@ class DefaultTextHighlightsRepository(
 
     private val mutationMutex = Mutex()
 
+    private suspend fun getAllHighlights(dbName: String, questionId: Long): List<TextHighlight> =
+        userDataManager.textHighlightDao()
+            .getAllForQuestion(dbName, questionId)
+            .map { it.toDomain() }
+
     override suspend fun getHighlightsForQuestion(
         dbName: String,
         questionId: Long,
     ): List<TextHighlight> {
         if (dbName.isEmpty()) return emptyList()
-        return userDataManager.getAllTextHighlightsForQuestion(dbName, questionId)
+        return getAllHighlights(dbName, questionId)
     }
 
     override suspend fun addHighlight(
@@ -55,8 +63,7 @@ class DefaultTextHighlightsRepository(
         }
 
         mutationMutex.withLock {
-            val sectionHighlights = userDataManager
-                .getAllTextHighlightsForQuestion(dbName, questionId)
+            val sectionHighlights = getAllHighlights(dbName, questionId)
                 .filter { it.section == section }
             val overlappingHighlights = sectionHighlights.filter {
                 it.overlapsStrictly(normalizedStart, normalizedEnd)
@@ -69,7 +76,7 @@ class DefaultTextHighlightsRepository(
                     it.color == color
             }
             if (exactSameHighlight != null && overlappingHighlights.size == 1) {
-                return userDataManager.getAllTextHighlightsForQuestion(dbName, questionId)
+                return getAllHighlights(dbName, questionId)
             }
 
             val mergedStart = minOf(
@@ -89,18 +96,23 @@ class DefaultTextHighlightsRepository(
                 overlappingHighlights = overlappingHighlights
             )
 
-            userDataManager.replaceTextHighlightsWithMerged(
+            val now = Clock.System.now().toEpochMilliseconds()
+            val insertEntity = TextHighlightEntity(
                 dbName = dbName,
                 questionId = questionId,
-                section = section,
-                removeHighlightIds = overlappingHighlights.map { it.id },
+                section = section.name,
                 startOffset = mergedStart,
                 endOffset = mergedEnd,
                 highlightedText = mergedHighlightedText,
-                color = color
+                color = color.name,
+                createdAt = now
+            )
+            userDataManager.textHighlightDao().replaceWithMerged(
+                removeIds = overlappingHighlights.map { it.id },
+                insert = insertEntity
             )
 
-            return userDataManager.getAllTextHighlightsForQuestion(dbName, questionId)
+            return getAllHighlights(dbName, questionId)
         }
     }
 
@@ -110,8 +122,8 @@ class DefaultTextHighlightsRepository(
         highlightId: Long,
     ): List<TextHighlight> {
         mutationMutex.withLock {
-            userDataManager.removeTextHighlight(highlightId)
-            return userDataManager.getAllTextHighlightsForQuestion(dbName, questionId)
+            userDataManager.textHighlightDao().deleteById(highlightId)
+            return getAllHighlights(dbName, questionId)
         }
     }
 
@@ -122,8 +134,8 @@ class DefaultTextHighlightsRepository(
         color: HighlightColor,
     ): List<TextHighlight> {
         mutationMutex.withLock {
-            userDataManager.updateTextHighlightColor(highlightId, color)
-            return userDataManager.getAllTextHighlightsForQuestion(dbName, questionId)
+            userDataManager.textHighlightDao().updateColor(highlightId, color.name)
+            return getAllHighlights(dbName, questionId)
         }
     }
 
