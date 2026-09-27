@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
@@ -55,9 +54,6 @@ import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.LocalSharedTransitionScope
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 private val START_DESTINATION: MedQBRoutes = MedQBRoutes.DatabaseSelection
@@ -93,19 +89,6 @@ fun App() {
         val scope = rememberCoroutineScope()
         val graph = LocalAppGraph.current
 
-        val appShutdownScope = remember {
-            CoroutineScope(
-                SupervisorJob() + Dispatchers.IO
-            )
-        }
-        DisposableEffect(graph.userDataManager) {
-            onDispose {
-                appShutdownScope.launch {
-                    graph.userDataManager.close()
-                    graph.activeDatabaseHolder.closeDatabase()
-                }
-            }
-        }
 
         val backStack = rememberNavBackStack(navConfig, START_DESTINATION)
         val navigator = remember(backStack) { AppNavigator(backStack) }

@@ -1,6 +1,7 @@
 package com.medqb.app.shared.data
 
 import androidx.room3.Room
+import androidx.room3.RoomDatabase
 import androidx.room3.withWriteTransaction
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.medqb.app.shared.data.local.UserDatabase
@@ -45,7 +46,7 @@ class UserDataManager {
             try {
                 val db = Room.databaseBuilder<UserDatabase>(dbPath)
                     .setDriver(BundledSQLiteDriver())
-                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                     .build()
                 database = db
                 db
