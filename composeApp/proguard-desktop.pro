@@ -147,8 +147,13 @@
 -keep class com.sun.jna.platform.** { *; }
 -dontwarn com.sun.jna.platform.**
 
-# ==================== SQLITE ====================
+# ==================== ROOM 3 & SQLITE ====================
 -dontwarn androidx.sqlite.**
+-dontwarn androidx.room3.**
+-keep class * extends androidx.room3.RoomDatabase { *; }
+-keep class * implements androidx.room3.RoomDatabaseConstructor { *; }
+-keep class com.medqb.app.shared.data.local.**_Impl { *; }
+-keep class com.medqb.app.shared.data.local.entity.** { *; }
 
 # ==================== APP SPECIFIC ====================
 
