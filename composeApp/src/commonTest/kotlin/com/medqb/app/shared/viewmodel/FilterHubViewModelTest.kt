@@ -439,4 +439,34 @@ class FilterHubViewModelTest {
         assertEquals(520, viewModel.state.value.previewQuestionCount)
         assertEquals(25, viewModel.state.value.difficultyCounts[DifficultyTier.VERY_DIFFICULT])
     }
+
+    @Test
+    fun excludingSubjectWithoutInclusionPreservesExistingSelectedAndExcludedSystems() = runHubTest {
+        val provider = FakeDatabaseProvider()
+        provider.seededSystems = listOf(
+            System(id = 100L, name = "Cardiovascular", count = 200),
+            System(id = 200L, name = "Pulmonary", count = 150),
+        )
+        val filterStateHolder = FilterStateHolder()
+        val holder = ActiveDatabaseHolder()
+        val viewModel = createViewModel(provider, holder, filterStateHolder = filterStateHolder)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        // User first selects Cardio (100) and excludes Pulm (200)
+        viewModel.applySelectedSystems(newSystemIds = setOf(100L), excludedSystemIds = setOf(200L))
+        advanceUntilIdle()
+        assertEquals(setOf(100L), viewModel.state.value.selectedSystemIds)
+        assertEquals(setOf(200L), viewModel.state.value.excludedSystemIds)
+
+        // User then opens subjects dialog and ONLY excludes Gynecology (21), no included subjects
+        viewModel.applySelectedSubjects(newSubjectIds = emptySet(), excludedSubjectIds = setOf(21L))
+        advanceUntilIdle()
+
+        // Systems must remain preserved!
+        assertEquals(setOf(100L), viewModel.state.value.selectedSystemIds)
+        assertEquals(setOf(200L), viewModel.state.value.excludedSystemIds)
+        assertEquals(emptySet(), viewModel.state.value.selectedSubjectIds)
+        assertEquals(setOf(21L), viewModel.state.value.excludedSubjectIds)
+    }
 }

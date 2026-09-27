@@ -14,14 +14,12 @@ class ApplyFiltersUseCase {
         newSubjectIds: Set<Long>,
         previouslySelectedSystems: Set<Long>,
     ): Set<Long> {
-        val validSystems = if (newSubjectIds.isEmpty()) {
-            emptySet()
-        } else {
-            db?.getSystems(newSubjectIds.toList())
-                ?.map { it.id }
-                ?.toSet()
-                ?: emptySet()
-        }
+        if (newSubjectIds.isEmpty()) return previouslySelectedSystems
+
+        val validSystems = db?.getSystems(newSubjectIds.toList())
+            ?.map { it.id }
+            ?.toSet()
+            ?: emptySet()
 
         return previouslySelectedSystems.intersect(validSystems)
     }
