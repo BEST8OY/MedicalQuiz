@@ -18,9 +18,9 @@ data class QuizHistoryEntity(
     @ColumnInfo(name = "entry_name")
     val entryName: String = "",
     @ColumnInfo(name = "selected_subject_ids")
-    val selectedSubjectIds: String = "[]",
+    val selectedSubjectIds: String = "",
     @ColumnInfo(name = "selected_system_ids")
-    val selectedSystemIds: String = "[]",
+    val selectedSystemIds: String = "",
     @ColumnInfo(name = "performance_filter")
     val performanceFilter: String = "ALL",
     @ColumnInfo(name = "current_question_index")

@@ -70,20 +70,22 @@ class DefaultQuizSessionRepository(
             buildSessionId(databaseName, now)
         }
 
+        val entity = QuizHistoryEntity(
+            sessionId = sessionId,
+            databaseName = databaseName,
+            entryName = entryName,
+            selectedSubjectIds = selectedSubjectIds.toSortedSet().joinToString(","),
+            selectedSystemIds = selectedSystemIds.toSortedSet().joinToString(","),
+            performanceFilter = performanceFilter.name,
+            currentQuestionIndex = currentQuestionIndex,
+            updatedAt = now,
+            isLoggingEnabled = isLoggingEnabled,
+            submissionMode = submissionMode.name,
+            selectedDifficultyTiers = selectedDifficultyTiers.map { it.name }.sorted().joinToString(","),
+        )
+
         withContext(Dispatchers.IO) {
-            userDataManager.sessionHistoryDao().upsertHistory(
-                sessionId = sessionId,
-                databaseName = databaseName,
-                entryName = entryName,
-                selectedSubjectIds = selectedSubjectIds.toSortedSet().joinToString(","),
-                selectedSystemIds = selectedSystemIds.toSortedSet().joinToString(","),
-                performanceFilter = performanceFilter.name,
-                currentQuestionIndex = currentQuestionIndex,
-                updatedAt = now,
-                isLoggingEnabled = isLoggingEnabled,
-                submissionMode = submissionMode.name,
-                selectedDifficultyTiers = selectedDifficultyTiers.map { it.name }.sorted().joinToString(","),
-            )
+            userDataManager.sessionHistoryDao().upsertHistory(entity)
         }
 
         return sessionId
@@ -106,19 +108,7 @@ class DefaultQuizSessionRepository(
 
     override suspend fun restoreDeletedHistoryEntry(entry: QuizSessionRepository.QuizSession) =
         withContext(Dispatchers.IO) {
-            userDataManager.sessionHistoryDao().upsertHistory(
-                sessionId = entry.id,
-                databaseName = entry.databaseName,
-                entryName = entry.entryName,
-                selectedSubjectIds = entry.selectedSubjectIds.joinToString(","),
-                selectedSystemIds = entry.selectedSystemIds.joinToString(","),
-                performanceFilter = entry.performanceFilter.name,
-                currentQuestionIndex = entry.currentQuestionIndex,
-                updatedAt = entry.updatedAtEpochMillis,
-                isLoggingEnabled = entry.isLoggingEnabled,
-                submissionMode = entry.submissionMode.name,
-                selectedDifficultyTiers = entry.selectedDifficultyTiers.map { it.name }.sorted().joinToString(","),
-            )
+            userDataManager.sessionHistoryDao().upsertHistory(entry.toEntity())
         }
 
     override suspend fun restoreHistoryEntry(entryId: String): QuizSessionRepository.QuizSession? =
@@ -128,6 +118,20 @@ class DefaultQuizSessionRepository(
 
     private fun buildSessionId(databaseName: String, now: Long): String = "$databaseName-$now"
 }
+
+private fun QuizSessionRepository.QuizSession.toEntity() = QuizHistoryEntity(
+    sessionId = id,
+    databaseName = databaseName,
+    entryName = entryName,
+    selectedSubjectIds = selectedSubjectIds.joinToString(","),
+    selectedSystemIds = selectedSystemIds.joinToString(","),
+    performanceFilter = performanceFilter.name,
+    currentQuestionIndex = currentQuestionIndex,
+    updatedAt = updatedAtEpochMillis,
+    isLoggingEnabled = isLoggingEnabled,
+    submissionMode = submissionMode.name,
+    selectedDifficultyTiers = selectedDifficultyTiers.map { it.name }.sorted().joinToString(","),
+)
 
 private fun QuizHistoryEntity.toQuizSession() = QuizSessionRepository.QuizSession(
     id = sessionId,

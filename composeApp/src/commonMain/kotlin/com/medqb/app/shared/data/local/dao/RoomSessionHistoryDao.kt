@@ -70,9 +70,6 @@ interface RoomSessionHistoryDao {
     @Query("UPDATE quiz_history SET entry_name = :name WHERE session_id = :sessionId")
     suspend fun renameHistory(sessionId: String, name: String)
 
-    @Query("DELETE FROM session_log_links WHERE log_rowid IN (:logRowids)")
-    suspend fun cleanupLinksForLogs(logRowids: List<Long>)
-
     @Query(
         """
         DELETE FROM quiz_sessions 
@@ -81,4 +78,18 @@ interface RoomSessionHistoryDao {
         """
     )
     suspend fun deleteOrphanedSessions()
+
+    suspend fun upsertHistory(entity: QuizHistoryEntity) = upsertHistory(
+        sessionId = entity.sessionId,
+        databaseName = entity.databaseName,
+        entryName = entity.entryName,
+        selectedSubjectIds = entity.selectedSubjectIds,
+        selectedSystemIds = entity.selectedSystemIds,
+        performanceFilter = entity.performanceFilter,
+        currentQuestionIndex = entity.currentQuestionIndex,
+        updatedAt = entity.updatedAt,
+        isLoggingEnabled = entity.isLoggingEnabled,
+        submissionMode = entity.submissionMode,
+        selectedDifficultyTiers = entity.selectedDifficultyTiers,
+    )
 }

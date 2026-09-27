@@ -4,10 +4,7 @@ import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.data.local.entity.LogEntity
 import com.medqb.app.shared.data.local.entity.QuizSessionEntity
 import com.medqb.app.shared.data.local.entity.SessionLogLinkEntity
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 
 /**
  * Writes answer logs and their session links. Both live in the same user database,
@@ -16,7 +13,6 @@ import kotlin.time.ExperimentalTime
 class LogDao(
     private val userDataManager: UserDataManager,
 ) {
-    @OptIn(ExperimentalTime::class)
     suspend fun logAnswer(
         dbName: String,
         qid: Long,
@@ -25,10 +21,7 @@ class LogDao(
         time: Long,
         sessionId: String
     ) {
-        val now = Clock.System.now()
-        val dateTime = now.toLocalDateTime(TimeZone.currentSystemDefault())
-        val monthNum = dateTime.month.ordinal + 1
-        val dateString = "${dateTime.year}-${monthNum.toString().padStart(2, '0')}-${dateTime.day.toString().padStart(2, '0')} ${dateTime.hour.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')}:${dateTime.second.toString().padStart(2, '0')}"
+        val dateString = Clock.System.now().toString()
 
         val logEntity = LogEntity(
             dbName = dbName,
