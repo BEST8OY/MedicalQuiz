@@ -53,14 +53,6 @@ class LogDao(
     }
 
     suspend fun clearLogForQuestion(dbName: String, qid: Long) {
-        val logDao = userDataManager.logDao()
-        val rowids = logDao.getLogRowIds(dbName, qid)
-        val historyDao = userDataManager.sessionHistoryDao()
-        userDataManager.withTransaction {
-            logDao.clearForQuestion(dbName, qid)
-            if (rowids.isNotEmpty()) {
-                historyDao.cleanupLinksForLogs(rowids)
-            }
-        }
+        userDataManager.logDao().clearForQuestion(dbName, qid)
     }
 }

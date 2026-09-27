@@ -91,9 +91,11 @@ class DefaultQuizSessionRepository(
 
     override suspend fun deleteHistoryEntries(entryIds: Set<String>) = withContext(Dispatchers.IO) {
         if (entryIds.isEmpty()) return@withContext
-        val dao = userDataManager.sessionHistoryDao()
-        dao.deleteHistory(entryIds.toList())
-        dao.deleteOrphanedSessions()
+        userDataManager.withTransaction {
+            val dao = userDataManager.sessionHistoryDao()
+            dao.deleteHistory(entryIds.toList())
+            dao.deleteOrphanedSessions()
+        }
     }
 
     override suspend fun renameHistoryEntry(entryId: String, newName: String) = withContext(Dispatchers.IO) {
