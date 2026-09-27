@@ -270,4 +270,61 @@ class FilterHubViewModelTest {
             formatDifficultyLabel(setOf(DifficultyTier.VERY_EASY, DifficultyTier.EASY, DifficultyTier.INTERMEDIATE))
         )
     }
+
+    @Test
+    fun difficultyCountsUpdateWhenSubjectsOrSystemsChange() = runHubTest {
+        val provider = FakeDatabaseProvider()
+        provider.difficultyAvailable = true
+        provider.difficultyCountsProvider = { subjects, systems, perf ->
+            when {
+                subjects == listOf(10L) -> mapOf(
+                    DifficultyTier.VERY_DIFFICULT to 0,
+                    DifficultyTier.EASY to 4,
+                )
+                systems == listOf(20L) -> mapOf(
+                    DifficultyTier.VERY_DIFFICULT to 1,
+                    DifficultyTier.EASY to 2,
+                )
+                perf == PerformanceFilter.UNANSWERED -> mapOf(
+                    DifficultyTier.VERY_DIFFICULT to 3,
+                    DifficultyTier.EASY to 5,
+                )
+                else -> mapOf(
+                    DifficultyTier.VERY_DIFFICULT to 10,
+                    DifficultyTier.EASY to 20,
+                )
+            }
+        }
+
+        val filterStateHolder = FilterStateHolder()
+        val holder = ActiveDatabaseHolder()
+        val viewModel = createViewModel(provider, holder, filterStateHolder = filterStateHolder)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        // Global bank counts initially
+        assertTrue(viewModel.state.value.isDifficultyAvailable)
+        assertEquals(10, viewModel.state.value.difficultyCounts[DifficultyTier.VERY_DIFFICULT])
+        assertEquals(20, viewModel.state.value.difficultyCounts[DifficultyTier.EASY])
+
+        // Scoped by subject
+        filterStateHolder.updateSubjectIds(setOf(10L))
+        advanceUntilIdle()
+        assertEquals(0, viewModel.state.value.difficultyCounts[DifficultyTier.VERY_DIFFICULT])
+        assertEquals(4, viewModel.state.value.difficultyCounts[DifficultyTier.EASY])
+
+        // Scoped by system
+        filterStateHolder.updateSubjectIds(emptySet())
+        filterStateHolder.updateSystemIds(setOf(20L))
+        advanceUntilIdle()
+        assertEquals(1, viewModel.state.value.difficultyCounts[DifficultyTier.VERY_DIFFICULT])
+        assertEquals(2, viewModel.state.value.difficultyCounts[DifficultyTier.EASY])
+
+        // Scoped by performance filter
+        filterStateHolder.updateSystemIds(emptySet())
+        filterStateHolder.updatePerformanceFilter(PerformanceFilter.UNANSWERED)
+        advanceUntilIdle()
+        assertEquals(3, viewModel.state.value.difficultyCounts[DifficultyTier.VERY_DIFFICULT])
+        assertEquals(5, viewModel.state.value.difficultyCounts[DifficultyTier.EASY])
+    }
 }

@@ -57,6 +57,19 @@ class ApplyFiltersUseCase {
         ) ?: 0
     }
 
+    suspend fun getDifficultyCounts(
+        db: DatabaseProvider?,
+        selectedSubjectIds: Set<Long>,
+        selectedSystemIds: Set<Long>,
+        performanceFilter: PerformanceFilter,
+    ): Map<DifficultyTier, Int> {
+        return db?.getDifficultyCounts(
+            subjectIds = selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList(),
+            systemIds = selectedSystemIds.takeIf { it.isNotEmpty() }?.toList(),
+            performanceFilter = performanceFilter,
+        ) ?: emptyMap()
+    }
+
     fun subjectsForSystemsFetch(subjectIds: Set<Long>): List<Long>? =
         subjectIds.takeIf { it.isNotEmpty() }?.toList()
 

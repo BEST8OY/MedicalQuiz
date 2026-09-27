@@ -29,6 +29,43 @@ class QuestionDao(
 
     fun getDifficultyCounts(): Map<DifficultyTier, Int> = difficultyIndex.tierCounts
 
+    suspend fun getDifficultyCounts(
+        dbName: String,
+        subjectIds: List<Long>? = null,
+        systemIds: List<Long>? = null,
+        performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
+    ): Map<DifficultyTier, Int> {
+        if (!difficultyIndex.isAvailable) return emptyMap()
+
+        val hasSubjectFilter = !subjectIds.isNullOrEmpty()
+        val hasSystemFilter = !systemIds.isNullOrEmpty()
+        val hasPerfFilter = performanceFilter != PerformanceFilter.ALL
+
+        if (!hasSubjectFilter && !hasSystemFilter && !hasPerfFilter) {
+            return difficultyIndex.tierCounts
+        }
+
+        val qids = getQuestionIds(
+            dbName = dbName,
+            subjectIds = subjectIds,
+            systemIds = systemIds,
+            performanceFilter = performanceFilter,
+            difficultyFilters = emptySet(),
+        )
+
+        val counts = mutableMapOf<DifficultyTier, Int>()
+        for (tier in difficultyIndex.tierCounts.keys) {
+            counts[tier] = 0
+        }
+        for (qid in qids) {
+            val tier = difficultyIndex.getTier(qid)
+            if (tier != null) {
+                counts[tier] = (counts[tier] ?: 0) + 1
+            }
+        }
+        return counts
+    }
+
     fun getDifficultyTier(qid: Long): DifficultyTier? = difficultyIndex.getTier(qid)
 
     private fun initDifficultyIndexUnderLock() {

@@ -159,10 +159,10 @@ private fun DifficultyFilterItem(
                     },
                 )
 
-                val countText = if (count != null && count > 0) {
-                    "${tier.description} • $count questions"
-                } else {
-                    tier.description
+                val countText = when {
+                    count == null -> tier.description
+                    count == 1 -> "${tier.description} • 1 question"
+                    else -> "${tier.description} • $count questions"
                 }
 
                 Text(

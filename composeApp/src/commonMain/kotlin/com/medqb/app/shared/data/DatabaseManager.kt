@@ -120,7 +120,16 @@ class DatabaseManager(
 
     override suspend fun isDifficultyAvailable(): Boolean = questionDao.isDifficultyAvailable()
 
-    override suspend fun getDifficultyCounts(): Map<DifficultyTier, Int> = questionDao.getDifficultyCounts()
+    override suspend fun getDifficultyCounts(
+        subjectIds: List<Long>?,
+        systemIds: List<Long>?,
+        performanceFilter: PerformanceFilter,
+    ): Map<DifficultyTier, Int> = questionDao.getDifficultyCounts(
+        dbName = dbName,
+        subjectIds = subjectIds,
+        systemIds = systemIds,
+        performanceFilter = performanceFilter,
+    )
 
     override suspend fun getSubjects(): List<Subject> = subjectDao.getSubjects()
 

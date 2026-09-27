@@ -35,7 +35,11 @@ interface DatabaseProvider {
     ): Int
 
     suspend fun isDifficultyAvailable(): Boolean = false
-    suspend fun getDifficultyCounts(): Map<DifficultyTier, Int> = emptyMap()
+    suspend fun getDifficultyCounts(
+        subjectIds: List<Long>? = null,
+        systemIds: List<Long>? = null,
+        performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
+    ): Map<DifficultyTier, Int> = emptyMap()
 
     suspend fun getSubjects(): List<Subject>
     suspend fun getSystems(subjectIds: List<Long>? = null): List<System>

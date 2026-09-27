@@ -269,6 +269,18 @@ class FakeDatabaseProvider(
         difficultyFilters: Set<DifficultyTier>,
     ): Int = if (performanceFilter == PerformanceFilter.ALL) 10 else 3
 
+    var difficultyAvailable: Boolean = false
+    var difficultyCountsProvider: ((List<Long>?, List<Long>?, PerformanceFilter) -> Map<DifficultyTier, Int>)? = null
+
+    override suspend fun isDifficultyAvailable(): Boolean = difficultyAvailable
+
+    override suspend fun getDifficultyCounts(
+        subjectIds: List<Long>?,
+        systemIds: List<Long>?,
+        performanceFilter: PerformanceFilter,
+    ): Map<DifficultyTier, Int> =
+        difficultyCountsProvider?.invoke(subjectIds, systemIds, performanceFilter) ?: emptyMap()
+
     var seededSubjects: List<Subject> = emptyList()
     var seededSystems: List<System> = emptyList()
 

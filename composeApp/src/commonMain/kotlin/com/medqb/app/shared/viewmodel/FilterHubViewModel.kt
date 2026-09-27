@@ -68,6 +68,13 @@ class FilterHubViewModel(
             val difficulties: Set<DifficultyTier>,
             val db: com.medqb.app.shared.data.database.DatabaseProvider?,
         )
+
+        private data class DifficultyFilterParameters(
+            val db: com.medqb.app.shared.data.database.DatabaseProvider?,
+            val subjects: Set<Long>,
+            val systems: Set<Long>,
+            val performance: PerformanceFilter,
+        )
     }
 
     private val _state = MutableStateFlow(FilterUiState.EMPTY)
@@ -131,15 +138,40 @@ class FilterHubViewModel(
     }
 
     private fun setupDifficultyTracking() {
-        activeDatabaseHolder.activeDatabase
-            .flatMapLatest { active ->
+        combine(
+            activeDatabaseHolder.activeDatabase,
+            filterStateHolder.selectedSubjectIds,
+            filterStateHolder.selectedSystemIds,
+            filterStateHolder.performanceFilter,
+        ) { active, subjects, systems, perf ->
+            DifficultyFilterParameters(active?.provider, subjects, systems, perf)
+        }
+            .flatMapLatest { params ->
                 flow {
-                    val db = active?.provider
+                    val db = params.db
                     if (db == null) {
                         emit(false to emptyMap<DifficultyTier, Int>())
                     } else {
                         val isAvail = db.isDifficultyAvailable()
-                        val counts = if (isAvail) db.getDifficultyCounts() else emptyMap()
+                        val counts = if (isAvail) {
+                            withContext(ioDispatcher) {
+                                try {
+                                    applyFiltersUseCase.getDifficultyCounts(
+                                        db = db,
+                                        selectedSubjectIds = params.subjects,
+                                        selectedSystemIds = params.systems,
+                                        performanceFilter = params.performance,
+                                    )
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    Logger.e("FilterHubViewModel", "Error fetching difficulty counts", e)
+                                    emptyMap()
+                                }
+                            }
+                        } else {
+                            emptyMap()
+                        }
                         emit(isAvail to counts)
                     }
                 }
