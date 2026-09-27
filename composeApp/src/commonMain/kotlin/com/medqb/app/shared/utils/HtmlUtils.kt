@@ -48,6 +48,12 @@ object HtmlUtils {
         private var hintDivDepth = 0
         private var skipDepth = 0
 
+        private val VOID_TAGS = setOf(
+            "br", "hr", "img", "input", "meta", "link", "area", "base", "col", "embed", "param", "source", "track", "wbr"
+        )
+        private val LEARNING_CARD_CLICK_REGEX = Regex("""toLearningcard\(\s*['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?""")
+        private val LEARNING_CARD_HREF_REGEX = Regex("""linkLearningcard\(\s*['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?""")
+
         private fun appendAttributes(attributes: Map<String, String>, builder: StringBuilder) {
             attributes.forEach { (k, v) ->
                 // Escape double quotes to &quot; to ensure valid HTML attribute syntax
@@ -72,28 +78,50 @@ object HtmlUtils {
                 skipDepth = 1
                 return
             }
-            
-            if (inHintDiv) {
-                if (name.equals("div", ignoreCase = true)) hintDivDepth++
-                hintBuilder.append("<$name")
-                appendAttributes(attributes, hintBuilder)
-                hintBuilder.append(">")
-            } else {
-                // Remove onclick handlers that toggle hint
-                val filteredAttrs = attributes.filterNot { (k, v) -> k.equals("onclick", ignoreCase = true) && v.contains("hintdiv") }
-                val finalAttrs = filteredAttrs.toMutableMap()
-                
-                // Fix learning card links
-                if (name.equals("a", ignoreCase = true)) {
-                    val href = finalAttrs["href"]
-                    val learningCardId = finalAttrs["data-learningcard-id"]
-                    if ((href.isNullOrBlank() || href.contains("{{")) && !learningCardId.isNullOrBlank()) {
-                        val anchor = finalAttrs["data-anker"]
-                        val newHref = if (anchor != null) "learningcard://$learningCardId/$anchor" else "learningcard://$learningCardId"
-                        finalAttrs["href"] = newHref
+
+            // Remove onclick handlers that toggle hint
+            val filteredAttrs = attributes.filterNot { (k, v) -> k.equals("onclick", ignoreCase = true) && v.contains("hintdiv") }
+            val finalAttrs = filteredAttrs.toMutableMap()
+
+            // Fix learning card links (supporting both question content and hint content)
+            if (name.equals("a", ignoreCase = true)) {
+                val href = finalAttrs["href"]
+                var learningCardId = finalAttrs["data-learningcard-id"]
+                var anchor = finalAttrs["data-anker"]
+
+                if (learningCardId.isNullOrBlank()) {
+                    val ngClick = finalAttrs["ng-click"]
+                    if (ngClick != null) {
+                        val match = LEARNING_CARD_CLICK_REGEX.find(ngClick)
+                        if (match != null) {
+                            learningCardId = match.groupValues[1]
+                            anchor = match.groupValues.getOrNull(2)?.takeIf { it.isNotBlank() }
+                        }
+                    }
+                }
+                if (learningCardId.isNullOrBlank()) {
+                    val ngHref = finalAttrs["ng-href"]
+                    if (ngHref != null) {
+                        val match = LEARNING_CARD_HREF_REGEX.find(ngHref)
+                        if (match != null) {
+                            learningCardId = match.groupValues[1]
+                            anchor = match.groupValues.getOrNull(2)?.takeIf { it.isNotBlank() }
+                        }
                     }
                 }
 
+                if ((href.isNullOrBlank() || href.contains("{{")) && !learningCardId.isNullOrBlank()) {
+                    val newHref = if (anchor != null) "learningcard://$learningCardId/$anchor" else "learningcard://$learningCardId"
+                    finalAttrs["href"] = newHref
+                }
+            }
+
+            if (inHintDiv) {
+                if (name.equals("div", ignoreCase = true)) hintDivDepth++
+                hintBuilder.append("<$name")
+                appendAttributes(finalAttrs, hintBuilder)
+                hintBuilder.append(">")
+            } else {
                 contentBuilder.append("<$name")
                 appendAttributes(finalAttrs, contentBuilder)
                 contentBuilder.append(">")
@@ -115,8 +143,12 @@ object HtmlUtils {
                 return
             }
 
+            val lowerName = name.lowercase()
+            // Do not emit closing tags for HTML void elements (e.g. </br>, </img>, </hr>)
+            if (lowerName in VOID_TAGS) return
+
             if (inHintDiv) {
-                if (name.equals("div", ignoreCase = true)) {
+                if (lowerName == "div") {
                     hintDivDepth--
                     if (hintDivDepth == 0) {
                         inHintDiv = false
