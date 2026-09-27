@@ -245,15 +245,39 @@ object HtmlUtils {
         .substringBefore('#')
         .trim()
 
+    fun resolveWebUrl(url: String): String {
+        val trimmed = url.trim()
+        if (trimmed.startsWith("learningcard://")) {
+            val path = trimmed.removePrefix("learningcard://")
+            val cardId = path.substringBefore('/')
+            val anchor = path.substringAfter('/', "").takeIf { it.isNotBlank() }
+            return if (anchor != null) {
+                "https://next.amboss.com/us/article/$cardId#$anchor"
+            } else {
+                "https://next.amboss.com/us/article/$cardId"
+            }
+        }
+        return trimmed
+    }
+
+    private val SPAN_LEARNING_CARD_REGEX = Regex(
+        """<span(\s+[^>]*data-learningcard-id[^>]*)>(.*?)(?:</a>|</span>)""",
+        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+    )
+
     fun sanitizeForRichText(html: String): String {
         if (html.isBlank()) return ""
         val withoutScripts = removeScriptArtifacts(html)
         val withoutStyles = removeStyleArtifacts(withoutScripts)
         val cleanedNbme = cleanNbmeArtifacts(withoutStyles)
-        val withNormalizedImages = rewriteImageSources(cleanedNbme)
+        val normalizedSpans = normalizeLearningCardSpans(cleanedNbme)
+        val withNormalizedImages = rewriteImageSources(normalizedSpans)
         val rewritten = rewriteAnchorTags(withNormalizedImages)
         return ensureHtmlStructure(rewritten.trim())
     }
+
+    private fun normalizeLearningCardSpans(html: String): String = html
+        .replace(SPAN_LEARNING_CARD_REGEX, "<a$1>$2</a>")
 
     private fun removeScriptArtifacts(html: String): String = html
         .replace(SCRIPT_REGEX, "")

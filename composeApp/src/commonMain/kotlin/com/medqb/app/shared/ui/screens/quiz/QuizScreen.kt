@@ -158,7 +158,7 @@ private fun QuizQuestionCard(
             if (normalizedUrl.isNotEmpty()) {
                 if (!mediaHandler.handleMediaLink(normalizedUrl)) {
                     try {
-                        uriHandler.openUri(normalizedUrl)
+                        uriHandler.openUri(HtmlUtils.resolveWebUrl(normalizedUrl))
                     } catch (e: Exception) {
                         // Ignore
                     }
