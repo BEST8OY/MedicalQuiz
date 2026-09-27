@@ -73,12 +73,13 @@ internal fun RichTextTableShell(
         buildList {
             renderModel.rows.forEachIndexed { rowIndex, row ->
                 row.cells.forEachIndexed { cellIndex, cell ->
-                    if (cell.isVisible && cell.rowSpan > 1) {
+                    val endRow = (rowIndex + cell.rowSpan - 1).coerceAtMost(renderModel.rows.lastIndex)
+                    if (cell.isVisible && cell.rowSpan > 1 && endRow > rowIndex) {
                         add(RowspanAnchorInfo(
                             cell = cell,
                             cellIndex = cellIndex,
                             startRow = rowIndex,
-                            endRow = (rowIndex + cell.rowSpan - 1).coerceAtMost(renderModel.rows.lastIndex)
+                            endRow = endRow
                         ))
                     }
                 }
@@ -403,7 +404,11 @@ internal fun RichTextBlock.Table.toRenderModel(): TableRenderModel {
         addAll(headerRows)
         addAll(bodyRows)
     }
-    val renderedRows = orderedRows.map { builder.renderRow(it) }
+    val totalRows = orderedRows.size
+    val renderedRows = orderedRows.mapIndexed { index, row ->
+        val remainingRows = totalRows - index
+        builder.renderRow(row, remainingRows)
+    }
     val columnCount = maxOf(columnCount, builder.columnCount)
     return TableRenderModel(rows = renderedRows, columnCount = columnCount)
 }
@@ -413,7 +418,7 @@ private class TableGridBuilder {
     var columnCount: Int = 0
         private set
 
-    fun renderRow(row: RichTextTableRow): TableRenderedRow {
+    fun renderRow(row: RichTextTableRow, remainingRows: Int = Int.MAX_VALUE): TableRenderedRow {
         val pendingCells = ArrayDeque(row.cells)
         val renderedCells = mutableListOf<TableRenderedCell>()
         var columnIndex = 0
@@ -443,12 +448,14 @@ private class TableGridBuilder {
                     columnIndex += 1
                 }
                 null -> {
-                    val cell = if (pendingCells.isEmpty()) {
+                    val rawCell = if (pendingCells.isEmpty()) {
                         columnIndex += 1
                         continue
                     } else {
                         pendingCells.removeFirst()
                     }
+                    val effectiveRowSpan = rawCell.rowSpan.coerceIn(1, remainingRows.coerceAtLeast(1))
+                    val cell = if (effectiveRowSpan != rawCell.rowSpan) rawCell.copy(rowSpan = effectiveRowSpan) else rawCell
                     val spanWidth = cell.columnSpan.coerceAtLeast(1)
                     ensureSlots(columnIndex + spanWidth)
                     renderedCells += TableRenderedCell(
@@ -570,7 +577,6 @@ internal fun TableRowContent(
                 )
                 val cellBackground = when {
                     cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.secondaryContainer
-                    cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer
                     else -> Color.Transparent
                 }
                 Surface(
