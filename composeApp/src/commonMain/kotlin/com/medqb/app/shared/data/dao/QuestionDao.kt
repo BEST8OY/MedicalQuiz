@@ -32,23 +32,29 @@ class QuestionDao(
     suspend fun getDifficultyCounts(
         dbName: String,
         subjectIds: List<Long>? = null,
+        excludedSubjectIds: List<Long>? = null,
         systemIds: List<Long>? = null,
+        excludedSystemIds: List<Long>? = null,
         performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
     ): Map<DifficultyTier, Int> {
         if (!difficultyIndex.isAvailable) return emptyMap()
 
         val hasSubjectFilter = !subjectIds.isNullOrEmpty()
+        val hasExcludedSubjectFilter = !excludedSubjectIds.isNullOrEmpty()
         val hasSystemFilter = !systemIds.isNullOrEmpty()
+        val hasExcludedSystemFilter = !excludedSystemIds.isNullOrEmpty()
         val hasPerfFilter = performanceFilter != PerformanceFilter.ALL
 
-        if (!hasSubjectFilter && !hasSystemFilter && !hasPerfFilter) {
+        if (!hasSubjectFilter && !hasExcludedSubjectFilter && !hasSystemFilter && !hasExcludedSystemFilter && !hasPerfFilter) {
             return difficultyIndex.tierCounts
         }
 
         val qids = getQuestionIds(
             dbName = dbName,
             subjectIds = subjectIds,
+            excludedSubjectIds = excludedSubjectIds,
             systemIds = systemIds,
+            excludedSystemIds = excludedSystemIds,
             performanceFilter = performanceFilter,
             difficultyFilters = emptySet(),
         )
@@ -91,7 +97,9 @@ class QuestionDao(
     suspend fun getQuestionIds(
         dbName: String,
         subjectIds: List<Long>?,
+        excludedSubjectIds: List<Long>? = null,
         systemIds: List<Long>?,
+        excludedSystemIds: List<Long>? = null,
         performanceFilter: PerformanceFilter,
         difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): List<Long> = withContext(Dispatchers.IO) {
@@ -105,8 +113,16 @@ class QuestionDao(
                 whereClauses.add(buildMultiValueCondition("q.subId", it, args))
             }
 
+            excludedSubjectIds?.takeIf { it.isNotEmpty() }?.let {
+                whereClauses.add(buildMultiValueExcludeCondition("q.subId", it, args))
+            }
+
             systemIds?.takeIf { it.isNotEmpty() }?.let {
                 whereClauses.add(buildMultiValueCondition("q.sysId", it, args))
+            }
+
+            excludedSystemIds?.takeIf { it.isNotEmpty() }?.let {
+                whereClauses.add(buildMultiValueExcludeCondition("q.sysId", it, args))
             }
 
             val sql = buildString {
@@ -220,10 +236,20 @@ class QuestionDao(
     suspend fun countQuestionIds(
         dbName: String,
         subjectIds: List<Long>?,
+        excludedSubjectIds: List<Long>? = null,
         systemIds: List<Long>?,
+        excludedSystemIds: List<Long>? = null,
         performanceFilter: PerformanceFilter,
         difficultyFilters: Set<DifficultyTier> = emptySet(),
-    ): Int = getQuestionIds(dbName, subjectIds, systemIds, performanceFilter, difficultyFilters).size
+    ): Int = getQuestionIds(
+        dbName = dbName,
+        subjectIds = subjectIds,
+        excludedSubjectIds = excludedSubjectIds,
+        systemIds = systemIds,
+        excludedSystemIds = excludedSystemIds,
+        performanceFilter = performanceFilter,
+        difficultyFilters = difficultyFilters,
+    ).size
 
     /**
      * Returns a predicate selecting question ids that satisfy [performanceFilter] according
@@ -303,6 +329,35 @@ class QuestionDao(
                         "instr(',' || $columnAlias || ',', ',' || ? || ',') > 0"
                     }
                     "(${conditions.joinToString(" OR ")})"
+                }
+            }
+        }
+    }
+
+    private fun buildMultiValueExcludeCondition(
+        columnAlias: String,
+        ids: List<Long>,
+        args: MutableList<Any>
+    ): String {
+        val normalizedIds = ids.distinct()
+        if (normalizedIds.isEmpty()) return "1=1"
+
+        if (!isStringIds()) {
+            val placeholders = normalizedIds.joinToString(",") { "?" }
+            args.addAll(normalizedIds)
+            return "($columnAlias IS NULL OR $columnAlias NOT IN ($placeholders))"
+        } else {
+            return when (normalizedIds.size) {
+                1 -> {
+                    args.add(normalizedIds[0].toString())
+                    "($columnAlias IS NULL OR instr(',' || $columnAlias || ',', ',' || ? || ',') = 0)"
+                }
+                else -> {
+                    val conditions = normalizedIds.map { id ->
+                        args.add(id.toString())
+                        "instr(',' || $columnAlias || ',', ',' || ? || ',') = 0"
+                    }
+                    "($columnAlias IS NULL OR (${conditions.joinToString(" AND ")}))"
                 }
             }
         }

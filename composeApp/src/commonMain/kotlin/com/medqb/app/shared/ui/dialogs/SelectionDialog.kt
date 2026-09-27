@@ -1,5 +1,7 @@
 package com.medqb.app.shared.ui.dialogs
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,9 +15,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
@@ -62,6 +67,18 @@ import com.medqb.app.shared.ui.theme.Layout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.Resource
 
+enum class ItemFilterState {
+    NEUTRAL,
+    INCLUDED,
+    EXCLUDED;
+
+    fun next(): ItemFilterState = when (this) {
+        NEUTRAL -> INCLUDED
+        INCLUDED -> EXCLUDED
+        EXCLUDED -> NEUTRAL
+    }
+}
+
 /**
  * Selection dialog for subjects filter.
  */
@@ -69,7 +86,8 @@ import com.medqb.app.shared.utils.Resource
 fun SubjectFilterDialog(
     resource: Resource<List<Subject>>,
     selectedIds: Set<Long>,
-    onApply: (Set<Long>) -> Unit,
+    excludedIds: Set<Long> = emptySet(),
+    onApply: (included: Set<Long>, excluded: Set<Long>) -> Unit,
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -77,6 +95,7 @@ fun SubjectFilterDialog(
         title = "Select subjects",
         resource = resource,
         selectedIds = selectedIds,
+        excludedIds = excludedIds,
         labelProvider = { it.name },
         idProvider = { it.id },
         emptyMessage = "No subjects found",
@@ -93,7 +112,8 @@ fun SubjectFilterDialog(
 fun SystemFilterDialog(
     resource: Resource<List<System>>,
     selectedIds: Set<Long>,
-    onApply: (Set<Long>) -> Unit,
+    excludedIds: Set<Long> = emptySet(),
+    onApply: (included: Set<Long>, excluded: Set<Long>) -> Unit,
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -101,6 +121,7 @@ fun SystemFilterDialog(
         title = "Select systems",
         resource = resource,
         selectedIds = selectedIds,
+        excludedIds = excludedIds,
         labelProvider = { it.name },
         idProvider = { it.id },
         emptyMessage = "No systems found",
@@ -115,10 +136,11 @@ private fun <T> SelectionDialog(
     title: String,
     resource: Resource<List<T>>,
     selectedIds: Set<Long>,
+    excludedIds: Set<Long>,
     labelProvider: (T) -> String,
     idProvider: (T) -> Long,
     emptyMessage: String,
-    onApply: (Set<Long>) -> Unit,
+    onApply: (included: Set<Long>, excluded: Set<Long>) -> Unit,
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -143,6 +165,7 @@ private fun <T> SelectionDialog(
                     SelectionListContent(
                         items = data,
                         selectedIds = selectedIds,
+                        excludedIds = excludedIds,
                         labelProvider = labelProvider,
                         idProvider = idProvider,
                         onApply = onApply,
@@ -262,13 +285,17 @@ private fun ColumnScope.SelectionEmptyBody(
 private fun <T> ColumnScope.SelectionListContent(
     items: List<T>,
     selectedIds: Set<Long>,
+    excludedIds: Set<Long>,
     labelProvider: (T) -> String,
     idProvider: (T) -> Long,
-    onApply: (Set<Long>) -> Unit,
+    onApply: (included: Set<Long>, excluded: Set<Long>) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var currentSelection by remember(selectedIds) {
+    var currentIncluded by remember(selectedIds) {
         mutableStateOf(selectedIds.toMutableSet())
+    }
+    var currentExcluded by remember(excludedIds) {
+        mutableStateOf(excludedIds.toMutableSet())
     }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
@@ -287,14 +314,15 @@ private fun <T> ColumnScope.SelectionListContent(
         if (searchQuery.isBlank()) allIds
         else filteredItems.map { idProvider(it) }.toSet()
     }
-    val isAllSelected = currentSelection.size == effectiveSelectAllIds.size && effectiveSelectAllIds.isNotEmpty()
+    val isAllSelected = currentIncluded.size == effectiveSelectAllIds.size && currentExcluded.isEmpty() && effectiveSelectAllIds.isNotEmpty()
 
     val listState = rememberLazyListState()
 
-    val subtitle = if (searchQuery.isBlank()) {
-        "${currentSelection.size} of ${items.size} selected"
-    } else {
-        "${currentSelection.size} of ${items.size} selected (${filteredItems.size} shown)"
+    val subtitle = when {
+        currentIncluded.isEmpty() && currentExcluded.isEmpty() -> "All items (none excluded)"
+        currentIncluded.isNotEmpty() && currentExcluded.isEmpty() -> "${currentIncluded.size} of ${items.size} included"
+        currentIncluded.isEmpty() && currentExcluded.isNotEmpty() -> "All except ${currentExcluded.size} excluded"
+        else -> "${currentIncluded.size} included • ${currentExcluded.size} excluded"
     }
 
     val selectAllLabel = if (searchQuery.isNotBlank()) {
@@ -350,6 +378,20 @@ private fun <T> ColumnScope.SelectionListContent(
         )
     )
 
+    // Help banner explaining 3-state tap
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Inset.Large, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "💡 Tap row to cycle:  [✓] Include  →  [✕] Exclude  →  Clear",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+        )
+    }
+
     // Consolidated Row: Subtitle (Left) + Actions (Right)
     Row(
         modifier = Modifier
@@ -368,7 +410,10 @@ private fun <T> ColumnScope.SelectionListContent(
         )
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)) {
             TextButton(
-                onClick = { currentSelection = effectiveSelectAllIds.toMutableSet() },
+                onClick = {
+                    currentIncluded = effectiveSelectAllIds.toMutableSet()
+                    currentExcluded = mutableSetOf()
+                },
                 enabled = !isAllSelected,
                 contentPadding = PaddingValues(horizontal = Spacing.Small, vertical = 0.dp)
             ) {
@@ -376,8 +421,11 @@ private fun <T> ColumnScope.SelectionListContent(
             }
 
             TextButton(
-                onClick = { currentSelection = mutableSetOf() },
-                enabled = currentSelection.isNotEmpty(),
+                onClick = {
+                    currentIncluded = mutableSetOf()
+                    currentExcluded = mutableSetOf()
+                },
+                enabled = currentIncluded.isNotEmpty() || currentExcluded.isNotEmpty(),
                 contentPadding = PaddingValues(horizontal = Spacing.Small, vertical = 0.dp)
             ) {
                 Text("Clear", style = MaterialTheme.typography.labelSmall)
@@ -407,16 +455,36 @@ private fun <T> ColumnScope.SelectionListContent(
             key = { idProvider(it) }
         ) { item ->
             val itemId = idProvider(item)
-            val isChecked = currentSelection.contains(itemId)
+            val state = when {
+                itemId in currentIncluded -> ItemFilterState.INCLUDED
+                itemId in currentExcluded -> ItemFilterState.EXCLUDED
+                else -> ItemFilterState.NEUTRAL
+            }
 
             SelectionItem(
                 label = labelProvider(item),
-                isChecked = isChecked,
+                state = state,
                 compactMode = isCompactHeight,
-                onCheckedChange = { checked ->
-                    currentSelection = currentSelection.toMutableSet().apply {
-                        if (checked) add(itemId) else remove(itemId)
+                onClick = {
+                    val next = state.next()
+                    val newIncluded = currentIncluded.toMutableSet()
+                    val newExcluded = currentExcluded.toMutableSet()
+                    when (next) {
+                        ItemFilterState.NEUTRAL -> {
+                            newIncluded.remove(itemId)
+                            newExcluded.remove(itemId)
+                        }
+                        ItemFilterState.INCLUDED -> {
+                            newIncluded.add(itemId)
+                            newExcluded.remove(itemId)
+                        }
+                        ItemFilterState.EXCLUDED -> {
+                            newIncluded.remove(itemId)
+                            newExcluded.add(itemId)
+                        }
                     }
+                    currentIncluded = newIncluded
+                    currentExcluded = newExcluded
                 }
             )
         }
@@ -441,7 +509,7 @@ private fun <T> ColumnScope.SelectionListContent(
 
     DialogActions(
         primaryText = "Apply",
-        onPrimary = { onApply(currentSelection.toSet()) },
+        onPrimary = { onApply(currentIncluded.toSet(), currentExcluded.toSet()) },
         secondaryText = "Cancel",
         onSecondary = onDismiss
     )
@@ -450,39 +518,68 @@ private fun <T> ColumnScope.SelectionListContent(
 @Composable
 private fun SelectionItem(
     label: String,
-    isChecked: Boolean,
+    state: ItemFilterState,
     compactMode: Boolean = false,
-    onCheckedChange: (Boolean) -> Unit
+    onClick: () -> Unit,
 ) {
-    val backgroundColor = if (isChecked) {
-        MaterialTheme.colorScheme.secondaryContainer
-    } else {
-        Color.Transparent
+    val backgroundColor = when (state) {
+        ItemFilterState.INCLUDED -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+        ItemFilterState.EXCLUDED -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
+        ItemFilterState.NEUTRAL -> Color.Transparent
     }
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
-            .clickable { onCheckedChange(!isChecked) },
+            .clickable(onClick = onClick),
         color = backgroundColor,
-        shape = MaterialTheme.shapes.small
+        shape = MaterialTheme.shapes.small,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
                     horizontal = Inset.Small,
-                    vertical = if (compactMode) DialogLayout.CompactItemPadding else Inset.Small
+                    vertical = if (compactMode) DialogLayout.CompactItemPadding else Inset.Small,
                 ),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Start
+            horizontalArrangement = Arrangement.Start,
         ) {
-            Checkbox(
-                checked = isChecked,
-                onCheckedChange = onCheckedChange,
-                modifier = if (compactMode) Modifier.size(IconSize.Large) else Modifier
-            )
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(
+                        when (state) {
+                            ItemFilterState.INCLUDED -> MaterialTheme.colorScheme.primary
+                            ItemFilterState.EXCLUDED -> MaterialTheme.colorScheme.error
+                            ItemFilterState.NEUTRAL -> Color.Transparent
+                        }
+                    )
+                    .border(
+                        width = if (state == ItemFilterState.NEUTRAL) 1.5.dp else 0.dp,
+                        color = if (state == ItemFilterState.NEUTRAL) MaterialTheme.colorScheme.outline else Color.Transparent,
+                        shape = RoundedCornerShape(4.dp),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                when (state) {
+                    ItemFilterState.INCLUDED -> Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Included",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    ItemFilterState.EXCLUDED -> Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Excluded",
+                        tint = MaterialTheme.colorScheme.onError,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    ItemFilterState.NEUTRAL -> Unit
+                }
+            }
 
             Text(
                 text = label,
@@ -490,10 +587,49 @@ private fun SelectionItem(
                     .weight(1f)
                     .padding(start = Spacing.MediumSmall),
                 style = if (compactMode) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isChecked) FontWeight.Medium else FontWeight.Normal,
+                fontWeight = if (state != ItemFilterState.NEUTRAL) FontWeight.SemiBold else FontWeight.Normal,
+                color = when (state) {
+                    ItemFilterState.INCLUDED -> MaterialTheme.colorScheme.onPrimaryContainer
+                    ItemFilterState.EXCLUDED -> MaterialTheme.colorScheme.onErrorContainer
+                    ItemFilterState.NEUTRAL -> MaterialTheme.colorScheme.onSurface
+                },
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
+
+            when (state) {
+                ItemFilterState.INCLUDED -> {
+                    Surface(
+                        shape = MaterialTheme.shapes.extraSmall,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        modifier = Modifier.padding(start = Spacing.ExtraSmall),
+                    ) {
+                        Text(
+                            text = "INCLUDE",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = Spacing.Small, vertical = 2.dp),
+                        )
+                    }
+                }
+                ItemFilterState.EXCLUDED -> {
+                    Surface(
+                        shape = MaterialTheme.shapes.extraSmall,
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
+                        modifier = Modifier.padding(start = Spacing.ExtraSmall),
+                    ) {
+                        Text(
+                            text = "EXCLUDE",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = Spacing.Small, vertical = 2.dp),
+                        )
+                    }
+                }
+                ItemFilterState.NEUTRAL -> Unit
+            }
         }
     }
 }

@@ -19,8 +19,14 @@ class FilterStateHolder {
     private val _selectedSubjectIds = MutableStateFlow<Set<Long>>(emptySet())
     val selectedSubjectIds: StateFlow<Set<Long>> = _selectedSubjectIds.asStateFlow()
 
+    private val _excludedSubjectIds = MutableStateFlow<Set<Long>>(emptySet())
+    val excludedSubjectIds: StateFlow<Set<Long>> = _excludedSubjectIds.asStateFlow()
+
     private val _selectedSystemIds = MutableStateFlow<Set<Long>>(emptySet())
     val selectedSystemIds: StateFlow<Set<Long>> = _selectedSystemIds.asStateFlow()
+
+    private val _excludedSystemIds = MutableStateFlow<Set<Long>>(emptySet())
+    val excludedSystemIds: StateFlow<Set<Long>> = _excludedSystemIds.asStateFlow()
 
     private val _performanceFilter = MutableStateFlow(PerformanceFilter.ALL)
     val performanceFilter: StateFlow<PerformanceFilter> = _performanceFilter.asStateFlow()
@@ -32,8 +38,26 @@ class FilterStateHolder {
         _selectedSubjectIds.value = ids
     }
 
+    fun updateExcludedSubjectIds(ids: Set<Long>) {
+        _excludedSubjectIds.value = ids
+    }
+
+    fun setSubjects(included: Set<Long>, excluded: Set<Long>) {
+        _selectedSubjectIds.value = included
+        _excludedSubjectIds.value = excluded
+    }
+
     fun updateSystemIds(ids: Set<Long>) {
         _selectedSystemIds.value = ids
+    }
+
+    fun updateExcludedSystemIds(ids: Set<Long>) {
+        _excludedSystemIds.value = ids
+    }
+
+    fun setSystems(included: Set<Long>, excluded: Set<Long>) {
+        _selectedSystemIds.value = included
+        _excludedSystemIds.value = excluded
     }
 
     fun updatePerformanceFilter(filter: PerformanceFilter) {
@@ -46,7 +70,9 @@ class FilterStateHolder {
 
     fun reset() {
         _selectedSubjectIds.value = emptySet()
+        _excludedSubjectIds.value = emptySet()
         _selectedSystemIds.value = emptySet()
+        _excludedSystemIds.value = emptySet()
         _performanceFilter.value = PerformanceFilter.ALL
         _selectedDifficultyTiers.value = emptySet()
     }

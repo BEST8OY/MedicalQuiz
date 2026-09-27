@@ -45,13 +45,17 @@ class ApplyFiltersUseCase {
     suspend fun previewQuestionCount(
         db: DatabaseProvider?,
         selectedSubjectIds: Set<Long>,
+        excludedSubjectIds: Set<Long> = emptySet(),
         selectedSystemIds: Set<Long>,
+        excludedSystemIds: Set<Long> = emptySet(),
         performanceFilter: PerformanceFilter,
         difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): Int {
         return db?.countQuestionIds(
-            subjectIds = selectedSubjectIds.toList(),
-            systemIds = selectedSystemIds.toList(),
+            subjectIds = selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList(),
+            excludedSubjectIds = excludedSubjectIds.takeIf { it.isNotEmpty() }?.toList(),
+            systemIds = selectedSystemIds.takeIf { it.isNotEmpty() }?.toList(),
+            excludedSystemIds = excludedSystemIds.takeIf { it.isNotEmpty() }?.toList(),
             performanceFilter = performanceFilter,
             difficultyFilters = difficultyFilters,
         ) ?: 0
@@ -60,12 +64,16 @@ class ApplyFiltersUseCase {
     suspend fun getDifficultyCounts(
         db: DatabaseProvider?,
         selectedSubjectIds: Set<Long>,
+        excludedSubjectIds: Set<Long> = emptySet(),
         selectedSystemIds: Set<Long>,
+        excludedSystemIds: Set<Long> = emptySet(),
         performanceFilter: PerformanceFilter,
     ): Map<DifficultyTier, Int> {
         return db?.getDifficultyCounts(
             subjectIds = selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList(),
+            excludedSubjectIds = excludedSubjectIds.takeIf { it.isNotEmpty() }?.toList(),
             systemIds = selectedSystemIds.takeIf { it.isNotEmpty() }?.toList(),
+            excludedSystemIds = excludedSystemIds.takeIf { it.isNotEmpty() }?.toList(),
             performanceFilter = performanceFilter,
         ) ?: emptyMap()
     }

@@ -91,10 +91,20 @@ class DatabaseManager(
 
     override suspend fun getQuestionIds(
         subjectIds: List<Long>?,
+        excludedSubjectIds: List<Long>?,
         systemIds: List<Long>?,
+        excludedSystemIds: List<Long>?,
         performanceFilter: PerformanceFilter,
         difficultyFilters: Set<DifficultyTier>,
-    ): List<Long> = questionDao.getQuestionIds(dbName, subjectIds, systemIds, performanceFilter, difficultyFilters)
+    ): List<Long> = questionDao.getQuestionIds(
+        dbName = dbName,
+        subjectIds = subjectIds,
+        excludedSubjectIds = excludedSubjectIds,
+        systemIds = systemIds,
+        excludedSystemIds = excludedSystemIds,
+        performanceFilter = performanceFilter,
+        difficultyFilters = difficultyFilters,
+    )
 
     override suspend fun getQuestionById(id: Long): Question? = questionDao.getQuestionById(id)
 
@@ -113,21 +123,35 @@ class DatabaseManager(
 
     override suspend fun countQuestionIds(
         subjectIds: List<Long>?,
+        excludedSubjectIds: List<Long>?,
         systemIds: List<Long>?,
+        excludedSystemIds: List<Long>?,
         performanceFilter: PerformanceFilter,
         difficultyFilters: Set<DifficultyTier>,
-    ): Int = questionDao.countQuestionIds(dbName, subjectIds, systemIds, performanceFilter, difficultyFilters)
+    ): Int = questionDao.countQuestionIds(
+        dbName = dbName,
+        subjectIds = subjectIds,
+        excludedSubjectIds = excludedSubjectIds,
+        systemIds = systemIds,
+        excludedSystemIds = excludedSystemIds,
+        performanceFilter = performanceFilter,
+        difficultyFilters = difficultyFilters,
+    )
 
     override suspend fun isDifficultyAvailable(): Boolean = questionDao.isDifficultyAvailable()
 
     override suspend fun getDifficultyCounts(
         subjectIds: List<Long>?,
+        excludedSubjectIds: List<Long>?,
         systemIds: List<Long>?,
+        excludedSystemIds: List<Long>?,
         performanceFilter: PerformanceFilter,
     ): Map<DifficultyTier, Int> = questionDao.getDifficultyCounts(
         dbName = dbName,
         subjectIds = subjectIds,
+        excludedSubjectIds = excludedSubjectIds,
         systemIds = systemIds,
+        excludedSystemIds = excludedSystemIds,
         performanceFilter = performanceFilter,
     )
 

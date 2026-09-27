@@ -60,9 +60,9 @@ internal fun FilterHubScreen(
         onCopyAllQids = { entries, onCopied -> viewModel.copyQuestionIdsForHistoryEntries(entries, onCopied) },
         onUndoDelete = { viewModel.undoHistoryEntry(it) },
         onFetchSubjects = { viewModel.fetchSubjects() },
-        onApplySelectedSubjects = { viewModel.applySelectedSubjects(it) },
+        onApplySelectedSubjects = { inc, excl -> viewModel.applySelectedSubjects(inc, excl) },
         onFetchSystems = { viewModel.fetchSystems() },
-        onApplySelectedSystems = { viewModel.applySelectedSystems(it) },
+        onApplySelectedSystems = { inc, excl -> viewModel.applySelectedSystems(inc, excl) },
         onSelectPerformanceFilter = { viewModel.setPerformanceFilter(it) },
         onSelectDifficultyFilters = { viewModel.setDifficultyFilters(it) },
         onShowSnackbar = onShowSnackbar,
@@ -85,9 +85,9 @@ internal fun FilterHubContent(
     onCopyAllQids: (List<QuizSessionRepository.QuizSession>, (String) -> Unit) -> Unit,
     onUndoDelete: suspend (QuizSessionRepository.QuizSession) -> Unit,
     onFetchSubjects: () -> Unit,
-    onApplySelectedSubjects: (Set<Long>) -> Unit,
+    onApplySelectedSubjects: (Set<Long>, Set<Long>) -> Unit,
     onFetchSystems: () -> Unit,
-    onApplySelectedSystems: (Set<Long>) -> Unit,
+    onApplySelectedSystems: (Set<Long>, Set<Long>) -> Unit,
     onSelectPerformanceFilter: (PerformanceFilter) -> Unit,
     onSelectDifficultyFilters: (Set<DifficultyTier>) -> Unit = {},
     onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
@@ -127,7 +127,9 @@ internal fun FilterHubContent(
                         FilterScreen(
                             databaseName = state.databaseName,
                             subjectCount = state.selectedSubjectIds.size,
+                            excludedSubjectCount = state.excludedSubjectIds.size,
                             systemCount = state.selectedSystemIds.size,
+                            excludedSystemCount = state.excludedSystemIds.size,
                             performanceFilter = state.performanceFilter,
                             performanceLabel = performanceLabel,
                             selectedDifficultyTiers = state.selectedDifficultyTiers,
@@ -175,9 +177,10 @@ internal fun FilterHubContent(
         SubjectFilterDialog(
             resource = state.subjectsResource,
             selectedIds = state.selectedSubjectIds,
+            excludedIds = state.excludedSubjectIds,
             onRetry = onFetchSubjects,
-            onApply = { selected ->
-                onApplySelectedSubjects(selected)
+            onApply = { included, excluded ->
+                onApplySelectedSubjects(included, excluded)
                 showSubjectDialog = false
             },
             onDismiss = { showSubjectDialog = false }
@@ -188,9 +191,10 @@ internal fun FilterHubContent(
         SystemFilterDialog(
             resource = state.systemsResource,
             selectedIds = state.selectedSystemIds,
+            excludedIds = state.excludedSystemIds,
             onRetry = onFetchSystems,
-            onApply = { selected ->
-                onApplySelectedSystems(selected)
+            onApply = { included, excluded ->
+                onApplySelectedSystems(included, excluded)
                 showSystemDialog = false
             },
             onDismiss = { showSystemDialog = false }

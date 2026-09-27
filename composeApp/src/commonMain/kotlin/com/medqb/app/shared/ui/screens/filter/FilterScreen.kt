@@ -39,7 +39,9 @@ import com.medqb.app.shared.ui.theme.Spacing
 internal fun FilterScreen(
     databaseName: String,
     subjectCount: Int,
+    excludedSubjectCount: Int = 0,
     systemCount: Int,
+    excludedSystemCount: Int = 0,
     performanceFilter: PerformanceFilter,
     performanceLabel: String,
     selectedDifficultyTiers: Set<DifficultyTier> = emptySet(),
@@ -104,9 +106,9 @@ internal fun FilterScreen(
                         ) {
                             FilterSelectionCard(
                                 title = "Subjects",
-                                subtitle = if (subjectCount == 0) "All subjects" else "$subjectCount selected",
+                                subtitle = formatSelectionSubtitle(subjectCount, excludedSubjectCount, "subject", "subjects"),
                                 icon = Icons.Filled.Category,
-                                isActive = subjectCount > 0,
+                                isActive = subjectCount > 0 || excludedSubjectCount > 0,
                                 onClick = onSelectSubjects,
                                 modifier = Modifier
                                     .weight(1f)
@@ -115,9 +117,9 @@ internal fun FilterScreen(
 
                             FilterSelectionCard(
                                 title = "Systems",
-                                subtitle = if (systemCount == 0) "All systems" else "$systemCount selected",
+                                subtitle = formatSelectionSubtitle(systemCount, excludedSystemCount, "system", "systems"),
                                 icon = Icons.Filled.Layers,
-                                isActive = systemCount > 0,
+                                isActive = systemCount > 0 || excludedSystemCount > 0,
                                 onClick = onSelectSystems,
                                 modifier = Modifier
                                     .weight(1f)
@@ -213,5 +215,19 @@ internal fun formatDifficultyLabel(selectedTiers: Set<DifficultyTier>): String {
         selectedTiers.size == 1 -> selectedTiers.first().displayName
         selectedTiers.size == 2 -> selectedTiers.sortedBy { it.ordinal }.joinToString(", ") { it.displayName }
         else -> "${selectedTiers.size} selected"
+    }
+}
+
+internal fun formatSelectionSubtitle(
+    includedCount: Int,
+    excludedCount: Int,
+    singular: String,
+    plural: String,
+): String {
+    return when {
+        includedCount == 0 && excludedCount == 0 -> "All $plural"
+        includedCount > 0 && excludedCount == 0 -> "$includedCount selected"
+        includedCount == 0 && excludedCount > 0 -> "All except $excludedCount"
+        else -> "$includedCount selected • $excludedCount excluded"
     }
 }

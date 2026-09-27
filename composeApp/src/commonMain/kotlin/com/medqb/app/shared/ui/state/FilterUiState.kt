@@ -15,7 +15,9 @@ import com.medqb.app.shared.utils.Resource
 data class FilterUiState(
     val databaseName: String = "",
     val selectedSubjectIds: Set<Long> = emptySet(),
+    val excludedSubjectIds: Set<Long> = emptySet(),
     val selectedSystemIds: Set<Long> = emptySet(),
+    val excludedSystemIds: Set<Long> = emptySet(),
     val performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
     val selectedDifficultyTiers: Set<DifficultyTier> = emptySet(),
     val isDifficultyAvailable: Boolean = false,

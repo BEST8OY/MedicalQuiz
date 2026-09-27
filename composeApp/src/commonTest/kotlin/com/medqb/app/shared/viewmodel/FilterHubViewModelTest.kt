@@ -18,8 +18,10 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import com.medqb.app.shared.data.models.Subject
 import com.medqb.app.shared.data.models.System
 import com.medqb.app.shared.utils.Resource
+import com.medqb.app.shared.ui.dialogs.ItemFilterState
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -275,7 +277,7 @@ class FilterHubViewModelTest {
     fun difficultyCountsUpdateWhenSubjectsOrSystemsChange() = runHubTest {
         val provider = FakeDatabaseProvider()
         provider.difficultyAvailable = true
-        provider.difficultyCountsProvider = { subjects, systems, perf ->
+        provider.difficultyCountsProvider = { subjects, _, systems, _, perf ->
             when {
                 subjects == listOf(10L) -> mapOf(
                     DifficultyTier.VERY_DIFFICULT to 0,
@@ -326,5 +328,115 @@ class FilterHubViewModelTest {
         advanceUntilIdle()
         assertEquals(3, viewModel.state.value.difficultyCounts[DifficultyTier.VERY_DIFFICULT])
         assertEquals(5, viewModel.state.value.difficultyCounts[DifficultyTier.EASY])
+    }
+
+    @Test
+    fun itemFilterStateCyclesCorrectly() {
+        assertEquals(ItemFilterState.INCLUDED, ItemFilterState.NEUTRAL.next())
+        assertEquals(ItemFilterState.EXCLUDED, ItemFilterState.INCLUDED.next())
+        assertEquals(ItemFilterState.NEUTRAL, ItemFilterState.EXCLUDED.next())
+    }
+
+    @Test
+    fun exclusionStateTracksHolderAndPersistsInSavedState() = runHubTest {
+        val provider = FakeDatabaseProvider()
+        provider.seededSubjects = listOf(
+            Subject(id = 14L, name = "Emergency Medicine", count = 554),
+            Subject(id = 21L, name = "Gynecology", count = 320),
+        )
+        provider.seededSystems = listOf(
+            System(id = 100L, name = "Cardiovascular", count = 200),
+            System(id = 200L, name = "Pulmonary", count = 150),
+        )
+        val filterStateHolder = FilterStateHolder()
+        val savedStateHandle = SavedStateHandle()
+        val holder = ActiveDatabaseHolder()
+        val viewModel = createViewModel(provider, holder, filterStateHolder = filterStateHolder, savedStateHandle = savedStateHandle)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        // Apply subjects with both include (Emergency Medicine = 14) and exclude (Gynecology = 21)
+        viewModel.applySelectedSubjects(newSubjectIds = setOf(14L), excludedSubjectIds = setOf(21L))
+        advanceUntilIdle()
+
+        assertEquals(setOf(14L), viewModel.state.value.selectedSubjectIds)
+        assertEquals(setOf(21L), viewModel.state.value.excludedSubjectIds)
+        assertEquals(listOf(14L), savedStateHandle.get<List<Long>>("selected_subject_ids"))
+        assertEquals(listOf(21L), savedStateHandle.get<List<Long>>("excluded_subject_ids"))
+
+        // Apply systems with include (Cardio = 100) and exclude (Pulm = 200)
+        viewModel.applySelectedSystems(newSystemIds = setOf(100L), excludedSystemIds = setOf(200L))
+        advanceUntilIdle()
+
+        assertEquals(setOf(100L), viewModel.state.value.selectedSystemIds)
+        assertEquals(setOf(200L), viewModel.state.value.excludedSystemIds)
+        assertEquals(listOf(100L), savedStateHandle.get<List<Long>>("selected_system_ids"))
+        assertEquals(listOf(200L), savedStateHandle.get<List<Long>>("excluded_system_ids"))
+
+        // Clear all filters resets both included and excluded
+        viewModel.clearAllFilters()
+        advanceUntilIdle()
+
+        assertEquals(emptySet(), viewModel.state.value.selectedSubjectIds)
+        assertEquals(emptySet(), viewModel.state.value.excludedSubjectIds)
+        assertEquals(emptySet(), viewModel.state.value.selectedSystemIds)
+        assertEquals(emptySet(), viewModel.state.value.excludedSystemIds)
+        assertEquals(emptyList(), savedStateHandle.get<List<Long>>("selected_subject_ids"))
+        assertEquals(emptyList(), savedStateHandle.get<List<Long>>("excluded_subject_ids"))
+        assertEquals(emptyList(), savedStateHandle.get<List<Long>>("selected_system_ids"))
+        assertEquals(emptyList(), savedStateHandle.get<List<Long>>("excluded_system_ids"))
+    }
+
+    @Test
+    fun exclusionAffectsPreviewCountAndDifficultyCounts() = runHubTest {
+        val provider = FakeDatabaseProvider()
+        provider.difficultyAvailable = true
+
+        // Simulate 554 total for Emergency Medicine (14), 520 when Gynecology (21) is excluded
+        provider.countQuestionIdsProvider = { subjects, exclSubjects, _, _, _, _ ->
+            when {
+                subjects == listOf(14L) && exclSubjects == listOf(21L) -> 520
+                subjects == listOf(14L) -> 554
+                exclSubjects == listOf(21L) -> 3181
+                else -> 3501
+            }
+        }
+        provider.difficultyCountsProvider = { subjects, exclSubjects, _, _, _ ->
+            when {
+                subjects == listOf(14L) && exclSubjects == listOf(21L) -> mapOf(
+                    DifficultyTier.VERY_DIFFICULT to 25,
+                    DifficultyTier.EASY to 100,
+                )
+                subjects == listOf(14L) -> mapOf(
+                    DifficultyTier.VERY_DIFFICULT to 30,
+                    DifficultyTier.EASY to 110,
+                )
+                else -> mapOf(
+                    DifficultyTier.VERY_DIFFICULT to 150,
+                    DifficultyTier.EASY to 500,
+                )
+            }
+        }
+
+        val filterStateHolder = FilterStateHolder()
+        val holder = ActiveDatabaseHolder()
+        val viewModel = createViewModel(provider, holder, filterStateHolder = filterStateHolder)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals(3501, viewModel.state.value.previewQuestionCount)
+        assertEquals(150, viewModel.state.value.difficultyCounts[DifficultyTier.VERY_DIFFICULT])
+
+        // Include Emergency Medicine only
+        viewModel.applySelectedSubjects(setOf(14L), emptySet())
+        advanceUntilIdle()
+        assertEquals(554, viewModel.state.value.previewQuestionCount)
+        assertEquals(30, viewModel.state.value.difficultyCounts[DifficultyTier.VERY_DIFFICULT])
+
+        // Include Emergency Medicine AND Exclude Gynecology
+        viewModel.applySelectedSubjects(setOf(14L), setOf(21L))
+        advanceUntilIdle()
+        assertEquals(520, viewModel.state.value.previewQuestionCount)
+        assertEquals(25, viewModel.state.value.difficultyCounts[DifficultyTier.VERY_DIFFICULT])
     }
 }

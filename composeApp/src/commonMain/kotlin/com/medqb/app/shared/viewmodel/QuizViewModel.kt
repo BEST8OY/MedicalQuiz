@@ -419,7 +419,9 @@ class QuizViewModel(
                 val currentState = state.value
                 val ids = db?.getQuestionIds(
                     subjectIds = filterStateHolder.selectedSubjectIds.value.toList(),
+                    excludedSubjectIds = filterStateHolder.excludedSubjectIds.value.toList(),
                     systemIds = filterStateHolder.selectedSystemIds.value.toList(),
+                    excludedSystemIds = filterStateHolder.excludedSystemIds.value.toList(),
                     performanceFilter = filterStateHolder.performanceFilter.value,
                     difficultyFilters = filterStateHolder.selectedDifficultyTiers.value,
                 ) ?: emptyList()

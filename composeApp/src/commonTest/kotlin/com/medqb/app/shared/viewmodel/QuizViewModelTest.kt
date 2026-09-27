@@ -550,5 +550,52 @@ class QuizViewModelTest {
 
         assertEquals(setOf(DifficultyTier.INTERMEDIATE), sessionRepo.lastAppendedDifficultyTiers)
     }
+
+    @Test
+    fun quizInitializationHonorsExcludedSubjectsAndSystems() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val filterHolder = FilterStateHolder()
+
+        filterHolder.updateSubjectIds(setOf(14L))
+        filterHolder.updateExcludedSubjectIds(setOf(21L))
+        filterHolder.updateSystemIds(setOf(100L))
+        filterHolder.updateExcludedSystemIds(setOf(200L))
+
+        var receivedSubjectIds: List<Long>? = null
+        var receivedExcludedSubjectIds: List<Long>? = null
+        var receivedSystemIds: List<Long>? = null
+        var receivedExcludedSystemIds: List<Long>? = null
+
+        provider.questionIdsProvider = { subjects, exclSubjects, systems, exclSystems, _, _ ->
+            receivedSubjectIds = subjects
+            receivedExcludedSubjectIds = exclSubjects
+            receivedSystemIds = systems
+            receivedExcludedSystemIds = exclSystems
+            listOf(42L)
+        }
+
+        val viewModel = QuizViewModel(
+            settingsRepository = FakeSettingsRepository(),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            sessionRepository = FakeQuizSessionRepository(),
+            savedStateHandle = SavedStateHandle(),
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = filterHolder,
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        viewModel.loadQuestion(0)
+        advanceUntilIdle()
+
+        assertEquals(listOf(14L), receivedSubjectIds)
+        assertEquals(listOf(21L), receivedExcludedSubjectIds)
+        assertEquals(listOf(100L), receivedSystemIds)
+        assertEquals(listOf(200L), receivedExcludedSystemIds)
+    }
 }
 

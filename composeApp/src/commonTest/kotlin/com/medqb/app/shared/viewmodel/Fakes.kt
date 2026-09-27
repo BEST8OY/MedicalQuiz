@@ -244,12 +244,17 @@ class FakeDatabaseProvider(
 
     override suspend fun closeDatabase() = Unit
 
+    var questionIdsProvider: ((List<Long>?, List<Long>?, List<Long>?, List<Long>?, PerformanceFilter, Set<DifficultyTier>) -> List<Long>)? = null
+
     override suspend fun getQuestionIds(
         subjectIds: List<Long>?,
+        excludedSubjectIds: List<Long>?,
         systemIds: List<Long>?,
+        excludedSystemIds: List<Long>?,
         performanceFilter: PerformanceFilter,
         difficultyFilters: Set<DifficultyTier>,
-    ): List<Long> = listOf(1L, 2L)
+    ): List<Long> = questionIdsProvider?.invoke(subjectIds, excludedSubjectIds, systemIds, excludedSystemIds, performanceFilter, difficultyFilters)
+        ?: listOf(1L, 2L)
 
     override suspend fun getQuestionById(id: Long) = detailsFor(id)?.question
 
@@ -262,24 +267,31 @@ class FakeDatabaseProvider(
     ): QuestionDetails = detailsFor(questionId)
         ?: QuestionDetails(null, emptyList(), null, null)
 
+    var countQuestionIdsProvider: ((List<Long>?, List<Long>?, List<Long>?, List<Long>?, PerformanceFilter, Set<DifficultyTier>) -> Int)? = null
+
     override suspend fun countQuestionIds(
         subjectIds: List<Long>?,
+        excludedSubjectIds: List<Long>?,
         systemIds: List<Long>?,
+        excludedSystemIds: List<Long>?,
         performanceFilter: PerformanceFilter,
         difficultyFilters: Set<DifficultyTier>,
-    ): Int = if (performanceFilter == PerformanceFilter.ALL) 10 else 3
+    ): Int = countQuestionIdsProvider?.invoke(subjectIds, excludedSubjectIds, systemIds, excludedSystemIds, performanceFilter, difficultyFilters)
+        ?: if (performanceFilter == PerformanceFilter.ALL) 10 else 3
 
     var difficultyAvailable: Boolean = false
-    var difficultyCountsProvider: ((List<Long>?, List<Long>?, PerformanceFilter) -> Map<DifficultyTier, Int>)? = null
+    var difficultyCountsProvider: ((List<Long>?, List<Long>?, List<Long>?, List<Long>?, PerformanceFilter) -> Map<DifficultyTier, Int>)? = null
 
     override suspend fun isDifficultyAvailable(): Boolean = difficultyAvailable
 
     override suspend fun getDifficultyCounts(
         subjectIds: List<Long>?,
+        excludedSubjectIds: List<Long>?,
         systemIds: List<Long>?,
+        excludedSystemIds: List<Long>?,
         performanceFilter: PerformanceFilter,
     ): Map<DifficultyTier, Int> =
-        difficultyCountsProvider?.invoke(subjectIds, systemIds, performanceFilter) ?: emptyMap()
+        difficultyCountsProvider?.invoke(subjectIds, excludedSubjectIds, systemIds, excludedSystemIds, performanceFilter) ?: emptyMap()
 
     var seededSubjects: List<Subject> = emptyList()
     var seededSystems: List<System> = emptyList()

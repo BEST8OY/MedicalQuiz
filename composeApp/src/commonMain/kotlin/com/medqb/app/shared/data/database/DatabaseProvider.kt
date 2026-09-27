@@ -16,7 +16,9 @@ interface DatabaseProvider {
 
     suspend fun getQuestionIds(
         subjectIds: List<Long>? = null,
+        excludedSubjectIds: List<Long>? = null,
         systemIds: List<Long>? = null,
+        excludedSystemIds: List<Long>? = null,
         performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
         difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): List<Long>
@@ -29,7 +31,9 @@ interface DatabaseProvider {
     ): QuestionDetails
     suspend fun countQuestionIds(
         subjectIds: List<Long>?,
+        excludedSubjectIds: List<Long>? = null,
         systemIds: List<Long>?,
+        excludedSystemIds: List<Long>? = null,
         performanceFilter: PerformanceFilter,
         difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): Int
@@ -37,7 +41,9 @@ interface DatabaseProvider {
     suspend fun isDifficultyAvailable(): Boolean = false
     suspend fun getDifficultyCounts(
         subjectIds: List<Long>? = null,
+        excludedSubjectIds: List<Long>? = null,
         systemIds: List<Long>? = null,
+        excludedSystemIds: List<Long>? = null,
         performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
     ): Map<DifficultyTier, Int> = emptyMap()
 
