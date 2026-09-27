@@ -156,6 +156,7 @@ internal fun InteractiveText(
     )
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun RichTextHeading(
     block: RichTextBlock.Heading,
@@ -163,16 +164,28 @@ private fun RichTextHeading(
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     val richTextScale = LocalRichTextScale.current
-    val style = when (block.level) {
-        1 -> MaterialTheme.typography.headlineMedium
-        2 -> MaterialTheme.typography.headlineSmall
-        3 -> MaterialTheme.typography.titleLarge
-        4 -> MaterialTheme.typography.titleMedium
+    val headingText = block.text.text.trim()
+    val isCorrectAnswerHeading = block.level == 4 && headingText.startsWith("Correct Answer Is", ignoreCase = true)
+    val isOptionHeading = block.level == 4 && headingText.matches(Regex("""^\[\s*[A-Za-z0-9]\s*\]\s*\[\s*\d+%\s*\]"""))
+
+    val style = when {
+        block.level == 1 -> MaterialTheme.typography.headlineMedium
+        block.level == 2 -> MaterialTheme.typography.headlineSmall
+        block.level == 3 -> MaterialTheme.typography.titleLarge
+        isCorrectAnswerHeading || isOptionHeading -> MaterialTheme.typography.titleMediumEmphasized
+        block.level == 4 -> MaterialTheme.typography.titleMedium
         else -> MaterialTheme.typography.titleSmall
     }.scaledBy(richTextScale.proseScale)
+
+    val color = when {
+        isCorrectAnswerHeading -> MaterialTheme.colorScheme.primary
+        isOptionHeading -> MaterialTheme.colorScheme.onSurfaceVariant
+        else -> Color.Unspecified
+    }
+
     InteractiveText(
         text = block.text,
-        style = style,
+        style = if (color != Color.Unspecified) style.copy(color = color) else style,
         textAlign = block.textAlign,
         onLinkClick = onLinkClick,
         onTooltipClick = onTooltipClick,
