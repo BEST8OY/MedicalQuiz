@@ -425,5 +425,76 @@ class RichTextTableTest {
             .firstOrNull { it.item.contains("serum sodium concentration") }
         assertNotNull(hyponatremiaTooltip)
     }
+
+    @Test
+    fun testAmbossExplanationParsing() {
+        val snippet = """
+<div><h4>Correct Answer Is D [ 61% ]</h4><p>
+<span class="wichtig"><b>Assessing <span data-learningcard-id="860O5S" data-anker="Z0fbd33785ac393f41741addbbf8a9fa3" data-section-id="nuc77V0" data-sememe-id="jqc_yW0">serum osmolality</a></b></span> is the first step in evaluating confirmed <span data-learningcard-id="rg0f92" data-anker="Z482f3cc1cfc32af07678821b7e06fb08" data-sememe-id="n_Y7K7">hyponatremia</a> to differentiate between <span class="wichtig"><b>hypotonic</b></span> (low <span data-learningcard-id="860O5S" data-anker="Z0fbd33785ac393f41741addbbf8a9fa3" data-section-id="nuc77V0" data-sememe-id="jqc_yW0">serum osmolality</a>), <span class="wichtig"><b>hypertonic</b></span> (high <span data-learningcard-id="860O5S" data-anker="Z0fbd33785ac393f41741addbbf8a9fa3" data-section-id="nuc77V0" data-sememe-id="jqc_yW0">serum osmolality</a>), and <span class="wichtig"><b>isotonic</b></span> (normal <span data-learningcard-id="860O5S" data-anker="Z0fbd33785ac393f41741addbbf8a9fa3" data-section-id="nuc77V0" data-sememe-id="jqc_yW0">serum osmolality</a>) <span data-learningcard-id="rg0f92" data-anker="Z482f3cc1cfc32af07678821b7e06fb08" data-sememe-id="n_Y7K7">hyponatremia</a>. <span data-learningcard-id="rg0f92" data-anker="Z76048ccb46e88843939709cf6efd2ab6" data-section-id="8G0Oa3" data-sememe-id="Lrcw3d0">Hypotonic hyponatremia</a> is the most common type of <span data-learningcard-id="rg0f92" data-anker="Z482f3cc1cfc32af07678821b7e06fb08" data-sememe-id="n_Y7K7">hyponatremia</a>. Further diagnostic evaluation of <span data-learningcard-id="rg0f92" data-anker="Z76048ccb46e88843939709cf6efd2ab6" data-section-id="8G0Oa3" data-sememe-id="Lrcw3d0">hypotonic hyponatremia</a> includes assessing <span data-learningcard-id="kg0mv2" data-anker="Ze5c2933e2f4ca7e9f716818005ff069a" data-section-id="jJX_F_" data-sememe-id="Xqc9CW0">urine osmolality</a> (to determine <span data-learningcard-id="AT0Rt2" data-anker="Zbf62754ce74881b6657f0771bc811fd7" data-section-id="XK19U30" data-sememe-id="tKaXRl">antidiuretic hormone</a> activity), determining <span data-learningcard-id="fM0kLg" data-anker="Z67f90fc721c4b76620b3107bc207b164" data-section-id="891O6Q0">volume status</a> (to assess whether <span data-learningcard-id="AT0Rt2" data-anker="Zbf62754ce74881b6657f0771bc811fd7" data-section-id="XK19U30" data-sememe-id="tKaXRl">antidiuretic hormone</a> activity is appropriate), and assessing urinary <span data-sememe-id="arWQf50">sodium</span> and/or <span data-learningcard-id="kg0mv2" data-anker="Zd235f5f8bd029e49126829f0e80c2831" data-section-id="PJXW8_" data-sememe-id="Os0IEh">fractional excretion of sodium</a> (to determine if the cause is renal or extrarenal).
+<br><br>This patient likely has <span data-learningcard-id="rg0f92" data-anker="Z76048ccb46e88843939709cf6efd2ab6" data-section-id="8G0Oa3" data-sememe-id="Lrcw3d0">hypotonic hyponatremia</a> caused by <span data-learningcard-id="zT0rt2" data-anker="Z849dca7797cad193a13bd0c4d86128bc" data-sememe-id="uP0pgT">SIADH</a> following <span data-learningcard-id="_N05dg" data-anker="Zb1bb43280a4d0d86f2d53818b9e8afc8" data-section-id="LBXwY00" data-sememe-id="wQahy4">SSRI</a> initiation.</p><p></p></div><div style="align-items:center; text-align: center;"><img src="big_6826eb649041f5.12084029.jpg" width="200px" style="padding:20px;"></div>
+<div><h4>[ A ] [ 1% ]</h4><p>
+<span data-learningcard-id="gm0FUg" data-anker="Zc79a41be3ea73012acd816d5e2bf130d" data-section-id="WkcP5c0" data-sememe-id="t4aXOk">Furosemide</a> may be considered for the management of <span data-learningcard-id="rg0f92" data-anker="Z854654a69f8b6617bc9d64f46fe44b5a" data-section-id="8G0Oa3" data-sememe-id="4h13Vg0">hypervolemic hyponatremia</a>. This patient does not have symptoms of <span data-sememe-id="Dk11JS0">hypervolemia</span> (e.g., <span data-learningcard-id="KS0U0f" data-anker="Z48e76ffce1b364c1ba4dacdd79a56b7b" data-sememe-id="_405NT">ascites</a>, <span data-learningcard-id="SM0yLg" data-anker="Zc00dca4994157e86d8e6e8ee9510443f" data-section-id="JcXsWC" data-sememe-id="Oo0IXS">edema</a>) or features of conditions that cause <span data-learningcard-id="rg0f92" data-anker="Z854654a69f8b6617bc9d64f46fe44b5a" data-section-id="8G0Oa3" data-sememe-id="4h13Vg0">hypervolemic hyponatremia</a> like <span data-learningcard-id="rS0faf" data-anker="Zfdf718ee7030d25f9dfb6b6603941bd5" data-section-id="Slcywc0" data-sememe-id="pwdLPH0">congestive heart failure</a>, <span data-learningcard-id="PS0W-2" data-anker="Za99be06553ff299396a513bb65ed71be" data-sememe-id="D401lT">cirrhosis</a>, or <span data-learningcard-id="lg0vv2" data-anker="Zbdc3b2167c4bab75e0f1bf58faab9e22" data-section-id="l70vNh" data-sememe-id="qQ1CCg0">renal failure</a> with low urine output. <span data-learningcard-id="rg0f92" data-anker="Z482f3cc1cfc32af07678821b7e06fb08" data-sememe-id="n_Y7K7">Hyponatremia</a> in this patient likely resulted from <span data-learningcard-id="zT0rt2" data-anker="Z849dca7797cad193a13bd0c4d86128bc" data-sememe-id="uP0pgT">SIADH</a> (triggered by <span data-learningcard-id="_N05dg" data-anker="Zb1bb43280a4d0d86f2d53818b9e8afc8" data-section-id="LBXwY00" data-sememe-id="wQahy4">SSRI</a> initiation), which typically manifests with <span data-learningcard-id="rg0f92" data-anker="Z83d9522134c8caaf6b03c6fa1566400a" data-section-id="8G0Oa3" data-sememe-id="Ph1WVg0">euvolemic hyponatremia</a>. Additional diagnostics are required to inform further management.</p><p></p></div>
+<div><h4>[ B ] [ 23% ]</h4><p>
+<span data-sememe-id="wk1hJS0">Hypertonic saline</span> is indicated in <span data-learningcard-id="rg0f92" data-anker="Zcd01c7bb7bc2292e790597f0e9da6d81" data-section-id="vG0Aa3" data-sememe-id="BM1zIh0">severely symptomatic hyponatremia</a> to increase serum <span data-sememe-id="arWQf50">sodium</span> rapidly to prevent <span data-learningcard-id="HL0K_g" data-anker="Zaca1b98782f4f2631c06f0414a59ee7b" data-section-id="-gcDBb0" data-sememe-id="a-0QDi">cerebral edema</a> and <span data-learningcard-id="HL0K_g" data-anker="Z7ca422322bb96d80a2b4054adfb6b1ff" data-section-id="sgct9b0" data-sememe-id="hSbczG">brain herniation</a>. Rapid <span data-sememe-id="arWQf50">sodium</span> correction is unnecessary and potentially harmful in patients with nonsevere symptoms due to the risk of overcorrection and subsequent <span data-learningcard-id="rg0f92" data-anker="Zf9d046b260590d60860353fc1977a8aa" data-section-id="cU1aXT0" data-sememe-id="ksYmEq">osmotic demyelination syndrome</a>. <span data-learningcard-id="rg0f92" data-anker="Z482f3cc1cfc32af07678821b7e06fb08" data-sememe-id="n_Y7K7">Hyponatremia</a> with nonsevere symptoms (usually <span data-learningcard-id="rg0f92" data-anker="Z4cf45c6982fded7aca34453024148d43" data-section-id="tG0Xa3" data-sememe-id="uM1pqh0">chronic hyponatremia</span>) requires a slow <span data-sememe-id="arWQf50">sodium</span> correction rate.</p><p></p></div>
+<div><h4>[ C ] [ 13% ]</h4><p>The <span data-learningcard-id="kg0mv2" data-anker="Zd235f5f8bd029e49126829f0e80c2831" data-section-id="PJXW8_" data-sememe-id="Os0IEh">fractional excretion of sodium</a> should be determined in patients with <span data-learningcard-id="rg0f92" data-anker="Z76048ccb46e88843939709cf6efd2ab6" data-section-id="8G0Oa3" data-sememe-id="Lrcw3d0">hypotonic hyponatremia</a> to assess whether the cause is renal or extrarenal. However, first, it is important to establish whether the patient has hypotonic, isotonic, or <span data-learningcard-id="rg0f92" data-anker="Zcb41877d9f5bbc450e14fef0a51d0027" data-section-id="8G0Oa3" data-sememe-id="KrcURd0">hypertonic hyponatremia</a>.</p><p></p></div>
+<div><h4>[ E ] [ 2% ]</h4><p>Measuring serum <span data-learningcard-id="AT0Rt2" data-anker="Zbc03040ec893396d15c13d0b69e3dba4" data-section-id="XK19U30" data-sememe-id="jKa_Tl">TSH</span> and <span data-learningcard-id="V60GPS" data-anker="Z68437810c311fa1e0e910fecfa30be04" data-section-id="BtczfV0" data-sememe-id="-KaDQl">cortisol</span> levels may be appropriate later in the workup as both <span data-learningcard-id="cg0a82" data-anker="Z3fd41eef8b8ce3cec9c7eda727b6d1ce" data-sememe-id="CP0qST">hypothyroidism</a> and <span data-learningcard-id="Ug0bu2" data-anker="Z351bdb8ac6670de066f05e6a1a8a74a2" data-section-id="HJ0KvS" data-sememe-id="TlX6wy">hypocortisolism</a> can manifest with <span data-learningcard-id="rg0f92" data-anker="Z482f3cc1cfc32af07678821b7e06fb08" data-sememe-id="n_Y7K7">hyponatremia</a>. A different diagnostic study is more appropriate at this stage.</p><p></p></div>
+"""
+        val sanitized = com.medqb.app.shared.utils.HtmlUtils.sanitizeForRichText(snippet)
+        val blocks = RichTextParser.parse(sanitized, dummyPalette, true)
+        assertEquals(11, blocks.size)
+
+        // Block 0: Heading 4 "Correct Answer Is D [ 61% ]"
+        val heading0 = blocks[0] as RichTextBlock.Heading
+        assertEquals(4, heading0.level)
+        assertEquals("Correct Answer Is D [ 61% ]", heading0.text.text)
+
+        // Block 1: Explanation paragraph with learning card URLs and bold styling
+        val para1 = blocks[1] as RichTextBlock.Paragraph
+        val para1Urls = para1.text.getStringAnnotations("URL", 0, para1.text.length).map { it.item }
+        assertEquals(17, para1Urls.size)
+        assertEquals("learningcard://860O5S/Z0fbd33785ac393f41741addbbf8a9fa3", para1Urls[0])
+        assertEquals("learningcard://rg0f92/Z482f3cc1cfc32af07678821b7e06fb08", para1Urls[1])
+        assertTrue(para1.text.text.startsWith("Assessing serum osmolality is the first step"))
+
+        // Block 2: Image Media block with width constraint and centering
+        val media2 = blocks[2] as RichTextBlock.Media
+        assertEquals("big_6826eb649041f5.12084029.jpg", media2.mediaRef)
+        assertEquals(200, media2.width)
+        assertEquals(androidx.compose.ui.text.style.TextAlign.Center, media2.alignment)
+
+        // Option Headings
+        val headingA = blocks[3] as RichTextBlock.Heading
+        assertEquals(4, headingA.level)
+        assertEquals("[ A ] [ 1% ]", headingA.text.text)
+
+        val headingB = blocks[5] as RichTextBlock.Heading
+        assertEquals(4, headingB.level)
+        assertEquals("[ B ] [ 23% ]", headingB.text.text)
+
+        val headingC = blocks[7] as RichTextBlock.Heading
+        assertEquals(4, headingC.level)
+        assertEquals("[ C ] [ 13% ]", headingC.text.text)
+
+        val headingE = blocks[9] as RichTextBlock.Heading
+        assertEquals(4, headingE.level)
+        assertEquals("[ E ] [ 2% ]", headingE.text.text)
+
+        // Option paragraphs with isolated learning cards
+        val paraE = blocks[10] as RichTextBlock.Paragraph
+        val paraEUrls = paraE.text.getStringAnnotations("URL", 0, paraE.text.length).map { it.item }
+        assertEquals(5, paraEUrls.size)
+        assertEquals("learningcard://AT0Rt2/Zbc03040ec893396d15c13d0b69e3dba4", paraEUrls[0])
+        assertEquals("learningcard://V60GPS/Z68437810c311fa1e0e910fecfa30be04", paraEUrls[1])
+        assertEquals("learningcard://cg0a82/Z3fd41eef8b8ce3cec9c7eda727b6d1ce", paraEUrls[2])
+        assertEquals("learningcard://Ug0bu2/Z351bdb8ac6670de066f05e6a1a8a74a2", paraEUrls[3])
+        assertEquals("learningcard://rg0f92/Z482f3cc1cfc32af07678821b7e06fb08", paraEUrls[4])
+
+        // Verify web URL resolution
+        val resolvedWebUrl = com.medqb.app.shared.utils.HtmlUtils.resolveWebUrl("learningcard://860O5S/Z0fbd33785ac393f41741addbbf8a9fa3")
+        assertEquals("https://next.amboss.com/us/article/860O5S#Z0fbd33785ac393f41741addbbf8a9fa3", resolvedWebUrl)
+
+        val regularWebUrl = com.medqb.app.shared.utils.HtmlUtils.resolveWebUrl("https://example.com/test")
+        assertEquals("https://example.com/test", regularWebUrl)
+    }
 }
 
