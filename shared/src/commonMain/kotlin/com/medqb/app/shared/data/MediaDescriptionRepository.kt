@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import medqb.composeapp.generated.resources.Res
+import com.medqb.app.shared.generated.resources.Res
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn

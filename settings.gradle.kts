@@ -17,5 +17,7 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "MedQB"
-include(":app")
-include(":composeApp")
+include(":shared")
+include(":androidApp")
+include(":desktopApp")
+

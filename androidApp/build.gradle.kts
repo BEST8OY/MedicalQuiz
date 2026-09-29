@@ -81,7 +81,7 @@ dependencies {
     implementation(libs.coil.svg)
     implementation(libs.coil.android)
 
-    implementation(project(":composeApp"))
+    implementation(project(":shared"))
 
     // Instrumentation tests
     androidTestImplementation(platform(libs.androidx.compose.bom))

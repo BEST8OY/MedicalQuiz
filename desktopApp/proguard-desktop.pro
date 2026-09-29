@@ -3,6 +3,9 @@
 
 # ==================== MAIN ENTRY POINT ====================
 
+-keep class com.medqb.app.desktop.MainKt {
+    public static void main(java.lang.String[]);
+}
 -keep class com.medqb.app.shared.MainKt {
     public static void main(java.lang.String[]);
 }

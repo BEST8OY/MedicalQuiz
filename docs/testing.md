@@ -6,11 +6,11 @@ This document describes the testing architecture, testing conventions, and verif
 
 ## 1. Overview & Verification Targets
 
-MedQB targets **Android** and **Desktop (JVM)** with shared UI and business logic residing in `:composeApp`.
+MedQB targets **Android** and **Desktop (JVM)** with shared UI and business logic residing in `:shared`.
 
-- **Primary Verification Target**: Desktop JVM target (`jvm("desktop")`).
+- **Primary Verification Target**: Desktop JVM target (`jvm("desktop")` inside `:shared`).
   - Unit tests, database tests, and Compose UI tests execute directly on Desktop JVM.
-  - Fast execution (~7s) without Android SDK or emulator overhead.
+  - Fast execution (~4s–7s) without Android SDK or emulator overhead.
 - **CI Verification Target**: GitHub Actions runs Android unit tests and APK compilation in parallel.
 
 ---
@@ -18,20 +18,23 @@ MedQB targets **Android** and **Desktop (JVM)** with shared UI and business logi
 ## 2. Test Commands
 
 ```bash
-# Run all unit tests, database tests, and Compose UI tests (fast ~7s)
-./gradlew :composeApp:desktopTest --stacktrace
+# Run all unit tests, database tests, and Compose UI tests (fast ~4s–7s)
+./gradlew :shared:desktopTest --stacktrace
 
 # Generate code coverage report (XML + HTML) via Jacoco
-./gradlew :composeApp:jacocoDesktopTestReport --stacktrace
+./gradlew :shared:jacocoDesktopTestReport --stacktrace
 
 # Quick compilation verification without running tests
-./gradlew :composeApp:compileTestKotlinDesktop --stacktrace
+./gradlew :shared:compileTestKotlinDesktop --stacktrace
+
+# Compile desktop application launcher module
+./gradlew :desktopApp:compileKotlin --stacktrace
 ```
 
 ### Coverage Reports
 After running `jacocoDesktopTestReport`, coverage outputs are generated at:
-- **HTML report**: `composeApp/build/reports/jacoco/jacocoDesktopTestReport/html/index.html`
-- **XML report**: `composeApp/build/reports/jacoco/jacocoDesktopTestReport/jacocoDesktopTestReport.xml`
+- **HTML report**: `shared/build/reports/jacoco/jacocoDesktopTestReport/html/index.html`
+- **XML report**: `shared/build/reports/jacoco/jacocoDesktopTestReport/jacocoDesktopTestReport.xml`
 
 ---
 
@@ -40,7 +43,7 @@ After running `jacocoDesktopTestReport`, coverage outputs are generated at:
 ### A. Dependency Injection & Test Doubles
 - Production code uses compile-time **Metro DI** (`dev.zacsweers.metro`).
 - Tests use **pure constructor injection** with zero mocking frameworks (no Mockito or MockK).
-- Test doubles are implemented as high-fidelity, thread-safe in-memory fakes located in [`Fakes.kt`](../composeApp/src/commonTest/kotlin/com/medqb/app/shared/viewmodel/Fakes.kt):
+- Test doubles are implemented as high-fidelity, thread-safe in-memory fakes located in [`Fakes.kt`](../shared/src/commonTest/kotlin/com/medqb/app/shared/viewmodel/Fakes.kt):
   - `FakeDatabaseProvider`: In-memory SQLite quiz bank stub.
   - `FakeUserDataManager`: In-memory `UserDatabase` Room wrapper.
   - `FakeQuizSessionRepository`: In-memory session history repository.
@@ -60,10 +63,10 @@ After running `jacocoDesktopTestReport`, coverage outputs are generated at:
 - This ensures 100% fidelity with SQLite table constraints, foreign keys, cascading deletions, and SQL queries natively across platforms without Robolectric.
 
 ### C. Compose Multiplatform UI Testing (Desktop)
-- Compose UI behavior tests live in `composeApp/src/desktopTest/kotlin/` using `androidx.compose.ui.test.v2.runComposeUiTest`.
+- Compose UI behavior tests live in `shared/src/desktopTest/kotlin/` using `androidx.compose.ui.test.v2.runComposeUiTest`.
 - Tests verify:
-  - Component rendering and state changes ([`EmptyStateMessageUiTest`](../composeApp/src/desktopTest/kotlin/com/medqb/app/shared/ui/components/EmptyStateMessageUiTest.kt)).
-  - User interactions, button clicks, and dialog navigation ([`JumpToDialogUiTest`](../composeApp/src/desktopTest/kotlin/com/medqb/app/shared/ui/dialogs/JumpToDialogUiTest.kt)).
+  - Component rendering and state changes ([`EmptyStateMessageUiTest`](../shared/src/desktopTest/kotlin/com/medqb/app/shared/ui/components/EmptyStateMessageUiTest.kt)).
+  - User interactions, button clicks, and dialog navigation ([`JumpToDialogUiTest`](../shared/src/desktopTest/kotlin/com/medqb/app/shared/ui/dialogs/JumpToDialogUiTest.kt)).
 
 ---
 

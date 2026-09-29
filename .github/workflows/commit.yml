@@ -91,7 +91,7 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          VERSION=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          VERSION=$(grep 'versionName' androidApp/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
           COMMIT_SHA="${{ needs.validate-commit.outputs.short_sha }}"
           echo "version=${VERSION}-${COMMIT_SHA}" >> $GITHUB_OUTPUT
 
@@ -102,7 +102,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: android-release-${{ steps.version.outputs.version }}
-          path: app/build/outputs/apk/release/*.apk
+          path: androidApp/build/outputs/apk/release/*.apk
           retention-days: 30
           compression-level: 0
 
@@ -144,18 +144,18 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          VERSION=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          VERSION=$(grep 'versionName' androidApp/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
           COMMIT_SHA="${{ needs.validate-commit.outputs.short_sha }}"
           echo "version=${VERSION}-${COMMIT_SHA}" >> $GITHUB_OUTPUT
 
       - name: Package Desktop Release
-        run: xvfb-run -a ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
+        run: xvfb-run -a ./gradlew :desktopApp:packageReleaseDistributionForCurrentOS --stacktrace
 
       - name: Upload Desktop Release
         uses: actions/upload-artifact@v7
         with:
           name: desktop-linux-${{ steps.version.outputs.version }}
-          path: composeApp/build/compose/binaries/main-release/deb/
+          path: desktopApp/build/compose/binaries/main-release/deb/
           retention-days: 30
           compression-level: 0
           if-no-files-found: ignore

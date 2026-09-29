@@ -62,7 +62,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: android-release-${{ steps.version.outputs.version }}
-          path: app/build/outputs/apk/release/*.apk
+          path: androidApp/build/outputs/apk/release/*.apk
           retention-days: 90
           compression-level: 0
 
@@ -76,13 +76,13 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux
-            artifact-path: composeApp/build/compose/binaries/main-release/deb/
+            artifact-path: desktopApp/build/compose/binaries/main-release/deb/
           - os: windows-latest
             platform: windows
-            artifact-path: composeApp/build/compose/binaries/main-release/msi/
+            artifact-path: desktopApp/build/compose/binaries/main-release/msi/
           - os: macos-latest
             platform: macos
-            artifact-path: composeApp/build/compose/binaries/main-release/dmg/
+            artifact-path: desktopApp/build/compose/binaries/main-release/dmg/
     
     steps:
       - uses: actions/checkout@v7
@@ -121,11 +121,11 @@ jobs:
 
       - name: Package Release (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run -a ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
+        run: xvfb-run -a ./gradlew :desktopApp:packageReleaseDistributionForCurrentOS --stacktrace
 
       - name: Package Release (non-Linux)
         if: runner.os != 'Linux'
-        run: ./gradlew :composeApp:packageReleaseDistributionForCurrentOS --stacktrace
+        run: ./gradlew :desktopApp:packageReleaseDistributionForCurrentOS --stacktrace
 
       - name: Upload Desktop Release
         uses: actions/upload-artifact@v7
