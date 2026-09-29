@@ -16,6 +16,9 @@ Kotlin Multiplatform (Android + Desktop) medical quiz app using Compose Multipla
 # Desktop tests & compilation check (primary verification command, fast ~4s)
 ./gradlew :composeApp:desktopTest --stacktrace
 
+# Generate code coverage report via Jacoco (XML + HTML)
+./gradlew :composeApp:jacocoDesktopTestReport --stacktrace
+
 # Quick desktop compilation check without running tests
 ./gradlew :composeApp:compileKotlinDesktop --stacktrace
 
@@ -30,6 +33,8 @@ Kotlin Multiplatform (Android + Desktop) medical quiz app using Compose Multipla
 ```
 
 No separate typecheck or formatter commands — compilation is the typecheck. No ktlint/detekt configured.
+
+See [`docs/testing.md`](docs/testing.md) for the complete testing strategy, test inventory, fakes architecture, and coverage report locations.
 
 **Important**: Android builds cannot be run locally — there is no Android SDK on this system. Android APKs are built exclusively via GitHub Actions CI. Only desktop targets can be run locally: use `desktopTest` for rapid (~4s) verification and test passes; `packageReleaseDistributionForCurrentOS` runs whole-program ProGuard optimization (~7m) and should only be used when validating final distribution packaging.
 
@@ -61,7 +66,7 @@ No separate typecheck or formatter commands — compilation is the typecheck. No
 
 ## Gotchas
 
-- **Tests exist in `commonTest`** — run `./gradlew :composeApp:desktopTest --stacktrace` to execute KMP unit tests
+- **Tests exist in `commonTest` and `desktopTest`** — run `./gradlew :composeApp:desktopTest --stacktrace` to execute KMP unit, Room SQLite, and Desktop Compose UI tests
 - **Do not run Android tests** — `testDebugUnitTest` is excluded from agent workflows
 - CI runs Android tests, lint, and desktop tests in parallel — all must pass
 - `org.gradle.configuration-cache=true` is enabled — build scripts must be configuration-cache compatible

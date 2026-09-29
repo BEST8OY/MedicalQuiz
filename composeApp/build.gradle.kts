@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.metro)
     alias(libs.plugins.ksp)
     alias(libs.plugins.room3)
+    id("jacoco")
 }
 
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -111,6 +112,12 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.test)
             }
         }
+
+        getByName("desktopTest") {
+            dependencies {
+                implementation(libs.compose.ui.test.junit4)
+            }
+        }
     }
 }
 
@@ -170,4 +177,20 @@ compose.desktop {
         }
     }
 }
+
+tasks.register<JacocoReport>("jacocoDesktopTestReport") {
+    dependsOn(tasks.named("desktopTest"))
+    executionData(tasks.named<Test>("desktopTest").get())
+    classDirectories.setFrom(
+        fileTree(layout.buildDirectory.dir("classes/kotlin/desktop/main")) {
+            exclude("**/*_Factory.*", "**/*_MembersInjector.*", "**/di/**", "**/schemas/**")
+        }
+    )
+    sourceDirectories.setFrom(files("src/commonMain/kotlin", "src/desktopMain/kotlin"))
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
 

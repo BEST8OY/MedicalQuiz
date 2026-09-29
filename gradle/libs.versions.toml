@@ -78,6 +78,7 @@ androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "a
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidx-test-runner" }
 androidx-test-espresso = { module = "androidx.test.espresso:espresso-core", version.ref = "androidx-test-espresso" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-plugin" }
+compose-ui-test-junit4 = { module = "org.jetbrains.compose.ui:ui-test-junit4", version.ref = "compose-plugin" }
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose-plugin" }
 compose-components-uiToolingPreview = { module = "org.jetbrains.compose.components:components-ui-tooling-preview", version.ref = "compose-plugin" }
 compose-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose-plugin" }
