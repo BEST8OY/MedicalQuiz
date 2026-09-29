@@ -5,7 +5,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -112,7 +115,9 @@ internal fun FilterHubContent(
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val screenHeight = maxHeight
-            val bottomContentPadding = if (screenHeight < ScreenLayout.CompactHeightBreakpoint) ScreenLayout.BottomPaddingCompact else ScreenLayout.BottomPaddingDefault
+            val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            val baseBottomPadding = if (screenHeight < ScreenLayout.CompactHeightBreakpoint) ScreenLayout.BottomPaddingCompact else ScreenLayout.BottomPaddingDefault
+            val bottomContentPadding = baseBottomPadding + navBarBottom
             val motionScheme = MaterialTheme.motionScheme
             AnimatedContent(
                 targetState = state.activePane,

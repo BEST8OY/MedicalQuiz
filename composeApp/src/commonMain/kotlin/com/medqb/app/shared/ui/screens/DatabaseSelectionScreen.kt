@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -59,10 +60,14 @@ fun DatabaseSelectionScreen(
             )
         },
     ) { padding ->
+        val topPadding = padding.calculateTopPadding()
+        val bottomPadding = padding.calculateBottomPadding()
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(top = topPadding)
+                .consumeWindowInsets(PaddingValues(top = topPadding)),
             contentAlignment = Alignment.TopCenter,
         ) {
             PullToRefreshBox(
@@ -73,9 +78,16 @@ fun DatabaseSelectionScreen(
                     .widthIn(max = ScreenLayout.WideWidthBreakpoint),
             ) {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .consumeWindowInsets(PaddingValues(bottom = bottomPadding)),
                     verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall),
-                    contentPadding = PaddingValues(start = Inset.Medium, top = Inset.Medium, end = Inset.Medium, bottom = Spacing.Large),
+                    contentPadding = PaddingValues(
+                        start = Inset.Medium,
+                        top = Inset.Medium,
+                        end = Inset.Medium,
+                        bottom = bottomPadding + Spacing.Large
+                    ),
                 ) {
                     if (databases.isEmpty() && !isLoading) {
                         item {

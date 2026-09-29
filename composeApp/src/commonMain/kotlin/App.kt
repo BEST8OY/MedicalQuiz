@@ -10,6 +10,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
@@ -174,7 +175,7 @@ fun App() {
             onReturnQuizToFilter = returnQuizToFilter,
         )
 
-        Box {
+        Box(modifier = Modifier.fillMaxSize()) {
             @OptIn(ExperimentalSharedTransitionApi::class)
             SharedTransitionLayout {
                 CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {

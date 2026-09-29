@@ -6,10 +6,8 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
@@ -95,7 +93,7 @@ private fun MediaViewerContent(
             modifier = modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
-                .windowInsetsPadding(WindowInsets.systemBars),
+                .safeDrawingPadding(),
             contentAlignment = Alignment.Center,
         ) {
             UnsupportedContent(fileName = "No media")
@@ -136,8 +134,7 @@ private fun MediaViewerContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(backgroundColor)
-            .windowInsetsPadding(WindowInsets.systemBars),
+            .background(backgroundColor),
     ) {
         HorizontalPager(
             state = pagerState,

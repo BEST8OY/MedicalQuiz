@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,6 +22,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -46,11 +48,10 @@ fun HtmlViewerScreen(
     onLinkClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
+    Scaffold(
         modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+        topBar = {
             TopAppBar(
                 title = {
                     Text(
@@ -72,7 +73,14 @@ fun HtmlViewerScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),
             )
-
+        },
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding),
+        ) {
             when {
                 !fileExists -> {
                     EmptyHtmlState(

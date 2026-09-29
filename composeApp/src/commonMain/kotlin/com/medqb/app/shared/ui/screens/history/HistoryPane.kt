@@ -4,7 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -154,10 +157,11 @@ internal fun HistoryPane(
                 .fillMaxSize()
                 .widthIn(max = ScreenLayout.WideWidthBreakpoint)
         ) {
+            val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(Spacing.Medium),
-                contentPadding = PaddingValues(top = Spacing.Large, bottom = ScreenLayout.BottomPaddingWithFab),
+                contentPadding = PaddingValues(top = Spacing.Large, bottom = ScreenLayout.BottomPaddingWithFab + navBarBottom),
             ) {
                 if (visibleEntries.isEmpty()) {
                     item {
