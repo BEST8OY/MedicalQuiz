@@ -27,7 +27,7 @@ import kotlin.concurrent.Volatile
  */
 @Inject
 @SingleIn(AppScope::class)
-class UserDataManager {
+open class UserDataManager {
     private val mutex = Mutex()
 
     @Volatile
@@ -55,30 +55,30 @@ class UserDataManager {
         }
     }
 
-    suspend fun init() = withContext(Dispatchers.IO) {
+    open suspend fun init(): Unit = withContext(Dispatchers.IO) {
         getDatabase()
+        Unit
     }
 
-    suspend fun logDao(): RoomLogDao = getDatabase().logDao()
+    open suspend fun logDao(): RoomLogDao = getDatabase().logDao()
 
-    suspend fun sessionHistoryDao(): RoomSessionHistoryDao = getDatabase().sessionHistoryDao()
+    open suspend fun sessionHistoryDao(): RoomSessionHistoryDao = getDatabase().sessionHistoryDao()
 
-    suspend fun textHighlightDao(): RoomTextHighlightDao = getDatabase().textHighlightDao()
+    open suspend fun textHighlightDao(): RoomTextHighlightDao = getDatabase().textHighlightDao()
 
     /**
      * Runs [block] inside a single write transaction on the user database.
      */
-    suspend fun <R> withTransaction(block: suspend () -> R): R =
+    open suspend fun <R> withTransaction(block: suspend () -> R): R =
         withContext(Dispatchers.IO) {
             getDatabase().withWriteTransaction { block() }
         }
 
-    suspend fun close() = withContext(Dispatchers.IO) {
+    open suspend fun close() = withContext(Dispatchers.IO) {
         mutex.withLock {
             database?.close()
             database = null
         }
     }
-
-
 }
+

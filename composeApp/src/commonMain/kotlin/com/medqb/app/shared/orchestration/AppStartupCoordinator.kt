@@ -11,24 +11,24 @@ import dev.zacsweers.metro.Inject
  * Coordinates app startup routines: listings available DBs, handling DB selections.
  */
 @Inject
-class AppStartupCoordinator(
+open class AppStartupCoordinator(
     private val localContentRepository: LocalContentRepository,
     private val activeDatabaseHolder: ActiveDatabaseHolder,
     private val userDataManager: UserDataManager,
 ) {
-    suspend fun initializeApp(): List<String> {
+    open suspend fun initializeApp(): List<String> {
         userDataManager.init()
         return localContentRepository.listDatabases()
     }
 
-    suspend fun initializeApp(userDataManager: UserDataManager): List<String> = initializeApp()
+    open suspend fun initializeApp(userDataManager: UserDataManager): List<String> = initializeApp()
 
-    suspend fun refreshDatabases(): List<String> {
+    open suspend fun refreshDatabases(): List<String> {
         userDataManager.init()
         return localContentRepository.listDatabases()
     }
 
-    suspend fun handleDatabaseSelection(
+    open suspend fun handleDatabaseSelection(
         selectedDatabase: String?,
         userDataManager: UserDataManager,
     ): DatabaseSelectionDecision? {

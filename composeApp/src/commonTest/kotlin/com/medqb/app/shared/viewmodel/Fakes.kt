@@ -1,12 +1,17 @@
 package com.medqb.app.shared.viewmodel
 
 import com.medqb.app.shared.data.ActiveDatabaseHolder
+import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
+import com.medqb.app.shared.data.UserDataManager
+import com.medqb.app.shared.data.local.UserDatabase
 import com.medqb.app.shared.data.database.DatabaseProvider
 import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.orchestration.AppStartupCoordinator
+import com.medqb.app.shared.orchestration.DatabaseSelectionDecision
 import com.medqb.app.shared.data.database.QuestionDetails
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.models.Answer
@@ -343,3 +348,48 @@ class FakeDatabaseProvider(
         holder.setDatabase(dbName, this)
     }
 }
+
+open class FakeUserDataManager(
+    private val db: UserDatabase? = null,
+) : UserDataManager() {
+    override suspend fun init() = Unit
+    override suspend fun logDao() = db?.logDao() ?: throw IllegalStateException("No test DB")
+    override suspend fun sessionHistoryDao() = db?.sessionHistoryDao() ?: throw IllegalStateException("No test DB")
+    override suspend fun textHighlightDao() = db?.textHighlightDao() ?: throw IllegalStateException("No test DB")
+    override suspend fun <R> withTransaction(block: suspend () -> R): R = block()
+    override suspend fun close() { db?.close() }
+}
+
+class FakeAppStartupCoordinator(
+    var availableDatabasesResult: List<String> = listOf("Cardio.db", "Renal.db"),
+    var shouldFail: Boolean = false,
+) : AppStartupCoordinator(
+    LocalContentRepository(),
+    ActiveDatabaseHolder(),
+    FakeUserDataManager(),
+) {
+    var initializedCount = 0
+    var refreshCount = 0
+    var lastSelectedDb: String? = null
+
+    override suspend fun initializeApp(): List<String> {
+        initializedCount++
+        if (shouldFail) throw RuntimeException("Failed to scan databases")
+        return availableDatabasesResult
+    }
+
+    override suspend fun refreshDatabases(): List<String> {
+        refreshCount++
+        if (shouldFail) throw RuntimeException("Failed to refresh")
+        return availableDatabasesResult
+    }
+
+    override suspend fun handleDatabaseSelection(
+        selectedDatabase: String?,
+        userDataManager: UserDataManager,
+    ): DatabaseSelectionDecision? {
+        lastSelectedDb = selectedDatabase
+        return selectedDatabase?.let { DatabaseSelectionDecision(it) }
+    }
+}
+
