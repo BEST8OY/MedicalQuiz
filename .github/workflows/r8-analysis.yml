@@ -1,0 +1,87 @@
+name: R8 Configuration Analysis
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'androidApp/proguard-rules.pro'
+      - 'androidApp/build.gradle.kts'
+      - 'gradle/libs.versions.toml'
+      - '.github/workflows/r8-analysis.yml'
+      - '.agents/skills/r8-analyzer/**'
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: 'temurin'
+  GRADLE_OPTS: '-Xmx6g'
+
+jobs:
+  analyze-r8:
+    name: Analyze R8 Configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v6
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+          add-job-summary: on-failure
+          cache-cleanup: on-success
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install protobuf
+
+      - name: Run R8 Configuration Analyzer Task
+        run: |
+          mkdir -p tmp/keepradius tmp/r8analysis
+          
+          echo "Running standalone R8 configuration analysis task..."
+          if ! ./gradlew :androidApp:analyzeReleaseR8Config --stacktrace; then
+            echo "Standalone task failed or not available, falling back to assembleRelease with dump property..."
+            ./gradlew :androidApp:assembleRelease \
+              -Dcom.android.tools.r8.dumpkeepradiustodirectory="$PWD/tmp/r8analysis" \
+              --stacktrace
+          fi
+
+      - name: Convert R8 Protobuf to JSON
+        run: |
+          python3 .github/scripts/r8/convert_pb_to_json.py
+
+      - name: Analyze R8 Keep Rules and Generate Report
+        run: |
+          python3 .github/scripts/r8/analyze.py tmp/keepradius/keepruleradius.json tmp/keepradius/analysis_result.txt
+
+      - name: Upload R8 Analysis Artifacts
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: r8-config-analysis-${{ github.sha }}
+          path: |
+            tmp/keepradius/analysis_result.txt
+            tmp/keepradius/keepruleradius.json
+            androidApp/build/reports/r8/*.pb
+            tmp/r8analysis/*.pb
+          retention-days: 14

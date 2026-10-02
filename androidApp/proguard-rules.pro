@@ -12,7 +12,7 @@
 
 # ==================== KOTLIN ====================
 
--keep class kotlin.Metadata { *; }
+# Note: R8 automatically handles kotlin.Metadata; manual keep is omitted.
 -dontwarn kotlin.**
 
 # ==================== KOTLINX COROUTINES ====================
@@ -28,47 +28,10 @@
 -dontwarn kotlinx.coroutines.**
 
 # ==================== KOTLINX SERIALIZATION ====================
-# Official rules from: https://github.com/Kotlin/kotlinx.serialization
-
-# Keep Companion object fields of serializable classes
--if @kotlinx.serialization.Serializable class **
--keepclassmembers class <1> {
-    static <1>$* Companion;
-}
-
-# Keep named companion objects
--keepnames @kotlinx.serialization.internal.NamedCompanion class *
--if @kotlinx.serialization.internal.NamedCompanion class *
--keepclassmembernames class * {
-    static <1> *;
-}
-
-# Keep serializer() on companion objects
--if @kotlinx.serialization.Serializable class ** {
-    static **$* *;
-}
--keepclassmembers class <2>$<3> {
-    kotlinx.serialization.KSerializer serializer(...);
-}
-
-# Keep INSTANCE.serializer() of serializable objects
--if @kotlinx.serialization.Serializable class ** {
-    public static ** INSTANCE;
-}
--keepclassmembers class <1> {
-    public static <1> INSTANCE;
-    kotlinx.serialization.KSerializer serializer(...);
-}
-
-# Don't print notes for kotlinx-serialization
+# kotlinx-serialization-core v1.3.0+ bundles its own consumer rules.
+# Suppress benign notes/warnings for internal classes:
 -dontnote kotlinx.serialization.**
 -dontwarn kotlinx.serialization.internal.ClassValueReferences
-
-# Prevent optimization issues with descriptor field
--keepclassmembers public class **$$serializer {
-    private ** descriptor;
-    *** INSTANCE;
-}
 
 # Kotlinx DateTime
 -dontwarn kotlinx.datetime.**
@@ -89,15 +52,14 @@
 
 # ==================== APP SPECIFIC ====================
 
-# Keep serializable data models (needed for kotlinx.serialization)
+# Keep serializable data models (needed for kotlinx.serialization reflection/descriptor access)
 -keepclassmembers @kotlinx.serialization.Serializable class com.medqb.app.shared.data.models.** {
     <fields>;
     <init>(...);
 }
 
-# Keep main app entry points (Android manifest references)
--keep class com.medqb.app.MainActivity { *; }
--keep class com.medqb.app.MedQBApp { *; }
+# Entry points: MainActivity and MedQBApp are declared in AndroidManifest.xml;
+# AAPT2 generates the necessary keep rules automatically.
 
 # ==================== OPTIMIZATION ====================
 
