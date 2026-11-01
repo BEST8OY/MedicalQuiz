@@ -3,14 +3,10 @@ package com.medqb.app.shared.ui.screens.quiz
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +19,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.toPath
 import androidx.compose.runtime.Composable
@@ -35,14 +30,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import com.medqb.app.shared.data.models.Answer
@@ -54,8 +47,6 @@ import com.medqb.app.shared.ui.theme.Spacing
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AnswerListItem(
-    index: Int,
-    count: Int,
     label: String,
     html: String,
     isSelected: Boolean,
@@ -69,7 +60,6 @@ private fun AnswerListItem(
 ) {
     val motionScheme = MaterialTheme.motionScheme
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
 
     // Note: in "Instant Feedback" mode, the isSelected (primaryContainer) color is 
     // effectively skipped as showResult triggers simultaneously. It is preserved 
@@ -95,22 +85,6 @@ private fun AnswerListItem(
         },
         animationSpec = motionScheme.defaultEffectsSpec(),
         label = "contentColor"
-    )
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = motionScheme.defaultEffectsSpec(),
-        label = "scale"
-    )
-
-    val elevation by animateDpAsState(
-        targetValue = when {
-            isPressed -> 4.dp
-            isSelected -> 2.dp
-            else -> 0.dp
-        },
-        animationSpec = motionScheme.defaultSpatialSpec(),
-        label = "elevation"
     )
 
     val leadingContent: @Composable () -> Unit = {
@@ -195,22 +169,25 @@ private fun AnswerListItem(
     }
 
     SegmentedListItem(
+        selected = isSelected,
         onClick = onClick,
-        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
         colors = ListItemDefaults.segmentedColors(
             containerColor = containerColor,
+            selectedContainerColor = containerColor,
             contentColor = contentColor,
+            selectedContentColor = contentColor,
             leadingContentColor = contentColor,
-            trailingContentColor = contentColor
+            selectedLeadingContentColor = contentColor,
+            trailingContentColor = contentColor,
+            selectedTrailingContentColor = contentColor
         ),
-        elevation = ListItemDefaults.elevation(elevation),
+        elevation = ListItemDefaults.elevation(),
         enabled = enabled,
         interactionSource = interactionSource,
         leadingContent = leadingContent,
         trailingContent = trailingContent,
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale),
+        modifier = Modifier.fillMaxWidth(),
         content = {
             RichText(
                 html = html,
@@ -301,7 +278,7 @@ fun AnswerOptions(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)
+        verticalArrangement = Arrangement.spacedBy(Spacing.Small)
     ) {
         answers.forEachIndexed { index, answer ->
             val label = ('A'.code + index).toChar().toString()
@@ -311,8 +288,6 @@ fun AnswerOptions(
             val percentage = answerPercentages[answer.answerId]
 
             AnswerListItem(
-                index = index,
-                count = answers.size,
                 label = label,
                 html = html,
                 isSelected = isSelected,

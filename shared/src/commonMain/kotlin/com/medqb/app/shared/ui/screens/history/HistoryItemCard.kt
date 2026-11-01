@@ -3,7 +3,6 @@ package com.medqb.app.shared.ui.screens.history
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -86,6 +86,7 @@ internal fun HistoryItemCard(
         state = dismissState,
         modifier = modifier
             .fillMaxWidth()
+            .clip(shapes.shape)
             .semantics {
                 contentDescription = "Swipe left to delete, right to rename"
             },
@@ -158,73 +159,99 @@ internal fun HistoryItemCard(
     ) {
         val entryDisplayName = entry.displayName()
 
-        SegmentedListItem(
-            onClick = onClick,
-            onLongClick = onLongPress,
-            shapes = shapes,
-            modifier = Modifier
-                .semantics { role = Role.Button },
-            colors = ListItemDefaults.segmentedColors(
-                containerColor = if (isSelected) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surface
-                },
-                contentColor = titleColor,
-                supportingContentColor = subtitleColor,
-                leadingContentColor = iconTint
-            ),
-            content = {
-                Text(
-                    text = entryDisplayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = titleColor,
-                )
-            },
-            supportingContent = {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)) {
-                    if (entryDisplayName != entry.databaseName) {
-                        Text(
-                            text = entry.databaseName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = subtitleColor,
-                        )
-                    }
-                    val difficultyLabel = if (entry.selectedDifficultyTiers.isNotEmpty() && entry.selectedDifficultyTiers.size < DifficultyTier.entries.size) {
-                        " \u00B7 " + formatDifficultyLabel(entry.selectedDifficultyTiers)
-                    } else ""
+        val itemContent: @Composable () -> Unit = {
+            Text(
+                text = entryDisplayName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = titleColor,
+            )
+        }
+
+        val itemSupportingContent: @Composable () -> Unit = {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)) {
+                if (entryDisplayName != entry.databaseName) {
                     Text(
-                        text = "Q${entry.currentQuestionIndex + 1}$difficultyLabel \u00B7 ${relativeTimestamp(entry.updatedAtEpochMillis)}",
+                        text = entry.databaseName,
                         style = MaterialTheme.typography.bodySmall,
                         color = subtitleColor,
                     )
                 }
-            },
-            leadingContent = {
-                val checkboxWidth by animateDpAsState(
-                    targetValue = if (selectionModeEnabled) IconSize.Large else 0.dp,
-                    label = "checkboxWidth",
+                val difficultyLabel = if (entry.selectedDifficultyTiers.isNotEmpty() && entry.selectedDifficultyTiers.size < DifficultyTier.entries.size) {
+                    " \u00B7 " + formatDifficultyLabel(entry.selectedDifficultyTiers)
+                } else ""
+                Text(
+                    text = "Q${entry.currentQuestionIndex + 1}$difficultyLabel \u00B7 ${relativeTimestamp(entry.updatedAtEpochMillis)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = subtitleColor,
                 )
+            }
+        }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(checkboxWidth)) {
-                        if (selectionModeEnabled) {
-                            Checkbox(
-                                checked = isSelected,
-                                onCheckedChange = { onSelectChanged() },
-                            )
-                        }
+        val itemLeadingContent: @Composable () -> Unit = {
+            val checkboxWidth by animateDpAsState(
+                targetValue = if (selectionModeEnabled) IconSize.Large else 0.dp,
+                label = "checkboxWidth",
+            )
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(checkboxWidth)) {
+                    if (selectionModeEnabled) {
+                        Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = null,
+                        )
                     }
-                    Icon(
-                        imageVector = Icons.Filled.History,
-                        contentDescription = "Quiz history entry",
-                        tint = iconTint,
-                        modifier = Modifier.size(IconSize.Large),
-                    )
                 }
-            },
-        )
+                Icon(
+                    imageVector = Icons.Filled.History,
+                    contentDescription = "Quiz history entry",
+                    tint = iconTint,
+                    modifier = Modifier.size(IconSize.Large),
+                )
+            }
+        }
+
+        if (selectionModeEnabled) {
+            SegmentedListItem(
+                selected = isSelected,
+                onClick = onClick,
+                onLongClick = onLongPress,
+                shapes = shapes,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { role = Role.Checkbox },
+                colors = ListItemDefaults.segmentedColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    selectedSupportingContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    leadingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    selectedLeadingContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                content = itemContent,
+                supportingContent = itemSupportingContent,
+                leadingContent = itemLeadingContent,
+            )
+        } else {
+            SegmentedListItem(
+                onClick = onClick,
+                onLongClick = onLongPress,
+                shapes = shapes,
+                colors = ListItemDefaults.segmentedColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    leadingContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                modifier = Modifier.fillMaxWidth(),
+                content = itemContent,
+                supportingContent = itemSupportingContent,
+                leadingContent = itemLeadingContent,
+            )
+        }
     }
 }
 

@@ -161,7 +161,7 @@ internal fun HistoryPane(
             val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                verticalArrangement = Arrangement.spacedBy(Spacing.Small),
                 contentPadding = PaddingValues(top = Spacing.Large, bottom = ScreenLayout.BottomPaddingWithFab + navBarBottom),
             ) {
                 if (visibleEntries.isEmpty()) {
@@ -175,12 +175,12 @@ internal fun HistoryPane(
                     itemsIndexed(
                         items = visibleEntries,
                         key = { _, entry -> "${entry.id}:${restoredEntryVersions[entry.id] ?: 0}" },
-                    ) { index, entry ->
+                    ) { _, entry ->
                         HistoryItemCard(
                             entry = entry,
                             isSelected = entry.id in selectedHistoryEntryIds,
                             selectionModeEnabled = selectedHistoryEntryIds.isNotEmpty(),
-                            shapes = ListItemDefaults.segmentedShapes(index = index, count = visibleEntries.size),
+                            shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
                             onClick = {
                                 if (selectedHistoryEntryIds.isNotEmpty()) {
                                     selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)

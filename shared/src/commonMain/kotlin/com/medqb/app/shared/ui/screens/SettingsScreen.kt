@@ -46,6 +46,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -123,42 +126,41 @@ fun SettingsScreen(
                     modifier = Modifier.padding(start = Spacing.ExtraSmall)
                 )
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    )
-                ) {
-                    SegmentedListItem(
-                        shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
-                        content = {
-                            Text(
-                                text = "Show metadata",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                text = "Display subjects and systems after answering",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = showMetadata,
-                                onCheckedChange = onShowMetadataToggle
-                            )
-                        },
-                        colors = ListItemDefaults.segmentedColors(
-                            containerColor = Color.Transparent,
-                            contentColor = MaterialTheme.colorScheme.onSurface,
-                            supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        modifier = Modifier.padding(vertical = Spacing.ExtraSmall)
-                    )
-                }
+                SegmentedListItem(
+                    checked = showMetadata,
+                    onCheckedChange = onShowMetadataToggle,
+                    shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
+                    content = {
+                        Text(
+                            text = "Show metadata",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            text = "Display subjects and systems after answering",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = showMetadata,
+                            onCheckedChange = null
+                        )
+                    },
+                    colors = ListItemDefaults.segmentedColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        selectedContentColor = MaterialTheme.colorScheme.onSurface,
+                        supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        selectedSupportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { role = Role.Switch }
+                )
 
                 // Section 2: Text & Accessibility
                 Text(
@@ -168,62 +170,70 @@ fun SettingsScreen(
                     modifier = Modifier.padding(start = Spacing.ExtraSmall)
                 )
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(animationSpec = motionScheme.defaultSpatialSpec()),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.Small)
                 ) {
-                    Column(
+                    SegmentedListItem(
+                        checked = useSystemSize,
+                        onCheckedChange = { checked ->
+                            if (checked) {
+                                onFontScaleChange(null)
+                            } else {
+                                onFontScaleChange(FontScalePresets.DEFAULT)
+                            }
+                        },
+                        shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
+                        content = {
+                            Text(
+                                text = "Use system font size",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                text = "Match the font size to your device system settings",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = useSystemSize,
+                                onCheckedChange = null
+                            )
+                        },
+                        colors = ListItemDefaults.segmentedColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                            selectedContentColor = MaterialTheme.colorScheme.onSurface,
+                            supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedSupportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
                         modifier = Modifier
-                            .padding(bottom = Spacing.Medium)
-                            .animateContentSize(animationSpec = motionScheme.defaultSpatialSpec())
-                    ) {
-                        SegmentedListItem(
-                            shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
-                            content = {
-                                Text(
-                                    text = "Use system font size",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            },
-                            supportingContent = {
-                                Text(
-                                    text = "Match the font size to your device system settings",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            },
-                            trailingContent = {
-                                Switch(
-                                    checked = useSystemSize,
-                                    onCheckedChange = { checked ->
-                                        if (checked) {
-                                            onFontScaleChange(null)
-                                        } else {
-                                            onFontScaleChange(FontScalePresets.DEFAULT)
-                                        }
-                                    }
-                                )
-                            },
-                            colors = ListItemDefaults.segmentedColors(
-                                containerColor = Color.Transparent,
-                                contentColor = MaterialTheme.colorScheme.onSurface,
-                                supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            ),
-                            modifier = Modifier.padding(vertical = Spacing.ExtraSmall)
-                        )
+                            .fillMaxWidth()
+                            .semantics { role = Role.Switch }
+                    )
 
-                        AnimatedVisibility(
-                            visible = !useSystemSize,
-                            enter = fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
-                            exit = fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                    AnimatedVisibility(
+                        visible = !useSystemSize,
+                        enter = fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
+                        exit = fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                    ) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            )
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = Spacing.Medium),
+                                    .padding(Spacing.Medium),
                                 verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)
                             ) {
                                 Text(
