@@ -30,14 +30,15 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSliderState
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -129,8 +130,9 @@ fun SettingsScreen(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     )
                 ) {
-                    ListItem(
-                        headlineContent = {
+                    SegmentedListItem(
+                        shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
+                        content = {
                             Text(
                                 text = "Show metadata",
                                 style = MaterialTheme.typography.titleMedium,
@@ -149,10 +151,10 @@ fun SettingsScreen(
                                 onCheckedChange = onShowMetadataToggle
                             )
                         },
-                        colors = ListItemDefaults.colors(
+                        colors = ListItemDefaults.segmentedColors(
                             containerColor = Color.Transparent,
-                            headlineColor = MaterialTheme.colorScheme.onSurface,
-                            supportingColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                            supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
                         modifier = Modifier.padding(vertical = Spacing.ExtraSmall)
                     )
@@ -178,8 +180,9 @@ fun SettingsScreen(
                             .padding(bottom = Spacing.Medium)
                             .animateContentSize(animationSpec = motionScheme.defaultSpatialSpec())
                     ) {
-                        ListItem(
-                            headlineContent = {
+                        SegmentedListItem(
+                            shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
+                            content = {
                                 Text(
                                     text = "Use system font size",
                                     style = MaterialTheme.typography.titleMedium,
@@ -204,10 +207,10 @@ fun SettingsScreen(
                                     }
                                 )
                             },
-                            colors = ListItemDefaults.colors(
+                            colors = ListItemDefaults.segmentedColors(
                                 containerColor = Color.Transparent,
-                                headlineColor = MaterialTheme.colorScheme.onSurface,
-                                supportingColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                contentColor = MaterialTheme.colorScheme.onSurface,
+                                supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                             ),
                             modifier = Modifier.padding(vertical = Spacing.ExtraSmall)
                         )
@@ -244,13 +247,15 @@ fun SettingsScreen(
 
                                     val sliderIndex = scaleToIndex(currentScale)
                                     Slider(
-                                        value = sliderIndex,
+                                        state = rememberSliderState(
+                                            value = sliderIndex,
+                                            steps = 2,
+                                            trackRange = 0f..3f
+                                        ),
                                         onValueChange = { indexFloat ->
                                             val newScale = indexToScale(indexFloat.toInt())
                                             onFontScaleChange(newScale)
                                         },
-                                        valueRange = 0f..3f,
-                                        steps = 2,
                                         modifier = Modifier.weight(1f)
                                     )
 

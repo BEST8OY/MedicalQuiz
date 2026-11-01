@@ -21,7 +21,6 @@ tasks.matching { it.name == "run" }.configureEach {
 
 dependencies {
     implementation(project(":shared"))
-    implementation(compose.desktop.currentOs)
     implementation(libs.compose.ui)
     implementation(libs.compose.runtime)
     implementation(libs.compose.components.resources)

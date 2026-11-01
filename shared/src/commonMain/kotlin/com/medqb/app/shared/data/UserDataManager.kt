@@ -55,9 +55,10 @@ open class UserDataManager {
         }
     }
 
-    open suspend fun init(): Unit = withContext(Dispatchers.IO) {
-        getDatabase()
-        Unit
+    open suspend fun init(): Unit {
+        withContext(Dispatchers.IO) {
+            getDatabase()
+        }
     }
 
     open suspend fun logDao(): RoomLogDao = getDatabase().logDao()

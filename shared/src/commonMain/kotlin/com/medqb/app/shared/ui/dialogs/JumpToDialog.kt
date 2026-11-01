@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -163,14 +164,16 @@ fun JumpToDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
                     val sliderSteps = if (totalQuestions > 50) 0 else (totalQuestions - 2).coerceAtLeast(0)
                     Slider(
-                        value = sliderValue,
+                        state = rememberSliderState(
+                            value = sliderValue,
+                            steps = sliderSteps,
+                            trackRange = 1f..totalQuestions.toFloat()
+                        ),
                         onValueChange = { newValue ->
                             sliderValue = newValue
                             val snapped = newValue.roundToInt().coerceIn(1, totalQuestions)
                             inputValue = snapped.toString()
                         },
-                        valueRange = 1f..totalQuestions.toFloat(),
-                        steps = sliderSteps,
                         colors = SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.primary,
                             activeTrackColor = MaterialTheme.colorScheme.primary

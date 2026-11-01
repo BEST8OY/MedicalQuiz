@@ -20,10 +20,12 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.SwipeToDismissBoxValue.EndToStart
@@ -53,7 +55,7 @@ import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun HistoryItemCard(
     entry: QuizSessionRepository.QuizSession,
@@ -65,6 +67,7 @@ internal fun HistoryItemCard(
     onSwipeRename: () -> Unit,
     onSelectChanged: () -> Unit,
     modifier: Modifier = Modifier,
+    shapes: ListItemShapes = ListItemDefaults.shapes(),
 ) {
     val dismissState = rememberSwipeToDismissBoxState()
     val scope = rememberCoroutineScope()
@@ -155,21 +158,23 @@ internal fun HistoryItemCard(
     ) {
         val entryDisplayName = entry.displayName()
 
-        ListItem(
+        SegmentedListItem(
+            onClick = onClick,
+            onLongClick = onLongPress,
+            shapes = shapes,
             modifier = Modifier
-                .semantics { role = Role.Button }
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onLongPress,
-                ),
-            colors = ListItemDefaults.colors(
+                .semantics { role = Role.Button },
+            colors = ListItemDefaults.segmentedColors(
                 containerColor = if (isSelected) {
                     MaterialTheme.colorScheme.primaryContainer
                 } else {
                     MaterialTheme.colorScheme.surface
                 },
+                contentColor = titleColor,
+                supportingContentColor = subtitleColor,
+                leadingContentColor = iconTint
             ),
-            headlineContent = {
+            content = {
                 Text(
                     text = entryDisplayName,
                     style = MaterialTheme.typography.titleMedium,

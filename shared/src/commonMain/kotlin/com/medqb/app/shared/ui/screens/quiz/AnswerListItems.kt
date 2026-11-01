@@ -19,10 +19,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.toPath
@@ -54,6 +54,8 @@ import com.medqb.app.shared.ui.theme.Spacing
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AnswerListItem(
+    index: Int,
+    count: Int,
     label: String,
     html: String,
     isSelected: Boolean,
@@ -192,39 +194,32 @@ private fun AnswerListItem(
         }
     }
 
-    Surface(
-        shape = MaterialTheme.shapes.medium,
-        color = containerColor,
-        tonalElevation = elevation,
+    SegmentedListItem(
+        onClick = onClick,
+        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        colors = ListItemDefaults.segmentedColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+            leadingContentColor = contentColor,
+            trailingContentColor = contentColor
+        ),
+        elevation = ListItemDefaults.elevation(elevation),
+        enabled = enabled,
+        interactionSource = interactionSource,
+        leadingContent = leadingContent,
+        trailingContent = trailingContent,
         modifier = Modifier
             .fillMaxWidth()
-            .scale(scale)
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                onClick = onClick
+            .scale(scale),
+        content = {
+            RichText(
+                html = html,
+                onLinkClick = onLinkClick,
+                onMediaClick = onMediaClick,
+                showSelectedHighlight = showResult
             )
-    ) {
-        ListItem(
-            headlineContent = {
-                RichText(
-                    html = html,
-                    onLinkClick = onLinkClick,
-                    onMediaClick = onMediaClick,
-                    showSelectedHighlight = showResult
-                )
-            },
-            leadingContent = leadingContent,
-            trailingContent = trailingContent,
-            colors = ListItemDefaults.colors(
-                containerColor = containerColor,
-                headlineColor = contentColor,
-                leadingIconColor = contentColor,
-                trailingIconColor = contentColor
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -306,7 +301,7 @@ fun AnswerOptions(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(Spacing.Small)
+        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)
     ) {
         answers.forEachIndexed { index, answer ->
             val label = ('A'.code + index).toChar().toString()
@@ -316,6 +311,8 @@ fun AnswerOptions(
             val percentage = answerPercentages[answer.answerId]
 
             AnswerListItem(
+                index = index,
+                count = answers.size,
                 label = label,
                 html = html,
                 isSelected = isSelected,

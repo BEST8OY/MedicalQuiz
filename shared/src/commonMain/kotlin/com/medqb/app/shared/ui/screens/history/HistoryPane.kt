@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -23,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.runtime.Composable
@@ -160,7 +161,7 @@ internal fun HistoryPane(
             val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(Spacing.Medium),
+                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
                 contentPadding = PaddingValues(top = Spacing.Large, bottom = ScreenLayout.BottomPaddingWithFab + navBarBottom),
             ) {
                 if (visibleEntries.isEmpty()) {
@@ -171,14 +172,15 @@ internal fun HistoryPane(
                         )
                     }
                 } else {
-                    items(
+                    itemsIndexed(
                         items = visibleEntries,
-                        key = { entry -> "${entry.id}:${restoredEntryVersions[entry.id] ?: 0}" },
-                    ) { entry ->
+                        key = { _, entry -> "${entry.id}:${restoredEntryVersions[entry.id] ?: 0}" },
+                    ) { index, entry ->
                         HistoryItemCard(
                             entry = entry,
                             isSelected = entry.id in selectedHistoryEntryIds,
                             selectionModeEnabled = selectedHistoryEntryIds.isNotEmpty(),
+                            shapes = ListItemDefaults.segmentedShapes(index = index, count = visibleEntries.size),
                             onClick = {
                                 if (selectedHistoryEntryIds.isNotEmpty()) {
                                     selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)

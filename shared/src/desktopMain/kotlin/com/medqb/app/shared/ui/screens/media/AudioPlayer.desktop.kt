@@ -212,12 +212,14 @@ actual fun AudioPlayer(
                             )
                             Spacer(Modifier.width(Spacing.Small))
                             Slider(
-                                value = volume.toFloat(),
+                                state = rememberSliderState(
+                                    value = volume.toFloat(),
+                                    trackRange = 0f..100f
+                                ),
                                 onValueChange = { newVolume ->
                                     volume = newVolume.toInt()
                                     audioPlayer?.mediaPlayer()?.audio()?.setVolume(volume)
                                 },
-                                valueRange = 0f..100f,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }

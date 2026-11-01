@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -108,7 +109,9 @@ actual fun AudioPlayer(
         verticalArrangement = Arrangement.Center,
     ) {
         Slider(
-            value = sliderProgress,
+            state = rememberSliderState(
+                value = sliderProgress,
+            ),
             onValueChange = { value ->
                 if (duration <= 0L) return@Slider
                 isSeeking = true

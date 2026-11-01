@@ -97,7 +97,6 @@ kotlin {
         
         getByName("desktopMain") {
             dependencies {
-                implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutines.swing)
                 implementation(libs.ktor.client.cio)
                 
@@ -133,6 +132,10 @@ room3 {
 compose.resources {
     packageOfResClass = "com.medqb.app.shared.generated.resources"
     publicResClass = true
+}
+
+compose.dependencyCompatibility {
+    exclude("io.coil-kt.coil3")
 }
 
 
