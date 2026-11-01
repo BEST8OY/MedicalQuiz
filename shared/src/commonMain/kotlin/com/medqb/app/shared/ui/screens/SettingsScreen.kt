@@ -42,6 +42,7 @@ import androidx.compose.material3.rememberSliderState
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -256,12 +257,16 @@ fun SettingsScreen(
                                     )
 
                                     val sliderIndex = scaleToIndex(currentScale)
+                                    val sliderState = rememberSliderState(
+                                        value = sliderIndex,
+                                        steps = 2,
+                                        trackRange = 0f..3f
+                                    )
+                                    LaunchedEffect(sliderIndex) {
+                                        sliderState.value = sliderIndex
+                                    }
                                     Slider(
-                                        state = rememberSliderState(
-                                            value = sliderIndex,
-                                            steps = 2,
-                                            trackRange = 0f..3f
-                                        ),
+                                        state = sliderState,
                                         onValueChange = { indexFloat ->
                                             val newScale = indexToScale(indexFloat.toInt())
                                             onFontScaleChange(newScale)

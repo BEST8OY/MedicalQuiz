@@ -175,12 +175,16 @@ private fun AnswerListItem(
         colors = ListItemDefaults.segmentedColors(
             containerColor = containerColor,
             selectedContainerColor = containerColor,
+            disabledContainerColor = containerColor,
             contentColor = contentColor,
             selectedContentColor = contentColor,
+            disabledContentColor = contentColor,
             leadingContentColor = contentColor,
             selectedLeadingContentColor = contentColor,
+            disabledLeadingContentColor = contentColor,
             trailingContentColor = contentColor,
-            selectedTrailingContentColor = contentColor
+            selectedTrailingContentColor = contentColor,
+            disabledTrailingContentColor = contentColor
         ),
         elevation = ListItemDefaults.elevation(),
         enabled = enabled,

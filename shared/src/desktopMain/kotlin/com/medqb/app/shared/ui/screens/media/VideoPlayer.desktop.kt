@@ -202,11 +202,15 @@ actual fun VideoPlayer(
                             modifier = Modifier.size(IconSize.Medium)
                         )
                         Spacer(Modifier.width(Spacing.Small))
+                        val sliderState = rememberSliderState(
+                            value = volume.toFloat(),
+                            trackRange = 0f..100f
+                        )
+                        LaunchedEffect(volume) {
+                            sliderState.value = volume.toFloat()
+                        }
                         Slider(
-                            state = rememberSliderState(
-                                value = volume.toFloat(),
-                                trackRange = 0f..100f
-                            ),
+                            state = sliderState,
                             onValueChange = { newVolume ->
                                 volume = newVolume.toInt()
                                 mediaPlayerComponent?.mediaPlayer()?.audio()?.setVolume(volume)

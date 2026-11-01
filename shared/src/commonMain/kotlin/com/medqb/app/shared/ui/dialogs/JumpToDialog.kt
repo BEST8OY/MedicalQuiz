@@ -163,12 +163,16 @@ fun JumpToDialog(
             if (totalQuestions > 1) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
                     val sliderSteps = if (totalQuestions > 50) 0 else (totalQuestions - 2).coerceAtLeast(0)
+                    val sliderState = rememberSliderState(
+                        value = sliderValue,
+                        steps = sliderSteps,
+                        trackRange = 1f..totalQuestions.toFloat()
+                    )
+                    LaunchedEffect(sliderValue) {
+                        sliderState.value = sliderValue
+                    }
                     Slider(
-                        state = rememberSliderState(
-                            value = sliderValue,
-                            steps = sliderSteps,
-                            trackRange = 1f..totalQuestions.toFloat()
-                        ),
+                        state = sliderState,
                         onValueChange = { newValue ->
                             sliderValue = newValue
                             val snapped = newValue.roundToInt().coerceIn(1, totalQuestions)

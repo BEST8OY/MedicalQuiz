@@ -108,10 +108,15 @@ actual fun AudioPlayer(
             .padding(horizontal = Spacing.Medium, vertical = Spacing.Large),
         verticalArrangement = Arrangement.Center,
     ) {
+        val sliderState = rememberSliderState(
+            value = sliderProgress,
+        )
+        if (!isSeeking) {
+            sliderState.value = sliderProgress
+        }
+
         Slider(
-            state = rememberSliderState(
-                value = sliderProgress,
-            ),
+            state = sliderState,
             onValueChange = { value ->
                 if (duration <= 0L) return@Slider
                 isSeeking = true
