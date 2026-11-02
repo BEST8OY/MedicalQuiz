@@ -2,7 +2,10 @@ package com.medqb.app.shared.ui.entry
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -30,16 +33,20 @@ fun DatabaseSelectionEntry(
     val isLoading by dbVM.isLoading.collectAsStateWithLifecycle()
     val errorMessage by dbVM.errorMessage.collectAsStateWithLifecycle()
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+
     DatabaseSelectionScreen(
         databases = databases,
         isLoading = isLoading,
         errorMessage = errorMessage,
         onRefreshDatabases = { dbVM.refreshDatabases() },
         onDatabaseSelected = { dbName ->
-            workflow.onDatabaseSelected(dbName)
-            navigator.navigateTo(MedQBRoutes.Filter())
+            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                workflow.onDatabaseSelected(dbName)
+                navigator.navigateTo(MedQBRoutes.Filter())
+            }
         },
-        onOpenSettings = {
+        onOpenSettings = dropUnlessResumed {
             navigator.navigateTo(MedQBRoutes.Settings)
         },
     )

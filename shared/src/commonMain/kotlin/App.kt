@@ -6,6 +6,8 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -101,8 +103,8 @@ fun App() {
 
         val snackbarHostState = remember { SnackbarHostState() }
 
-        val navigateToMediaViewer = remember(scope, graph.mediaNavigationCoordinator, navigator) {
-            { files: List<String>, index: Int ->
+        val navigateToMediaViewer: (List<String>, Int) -> Unit = remember(scope, graph.mediaNavigationCoordinator, navigator) {
+            { files, index ->
                 scope.launch {
                     val route = graph.mediaNavigationCoordinator.resolveMediaViewerRoute(files, index)
                     if (route != null) {
@@ -114,7 +116,7 @@ fun App() {
 
         val mediaHandler = remember(navigateToMediaViewer, navigator) {
             MediaHandler(
-                onOpenMedia = { files, index -> navigateToMediaViewer(files, index) },
+                onOpenMedia = navigateToMediaViewer,
                 onOpenHtml = { fileName ->
                     navigator.navigateTo(MedQBRoutes.HtmlViewer(fileName = fileName))
                 }
@@ -160,19 +162,12 @@ fun App() {
             }
         }
 
-        val returnQuizToFilter: () -> Unit = remember(navigator) {
-            {
-                navigator.returnQuizToFilter()
-            }
-        }
-
         val entryProvider = rememberMedQBNavEntries(
             graph = graph,
             workflow = workflow,
             navigator = navigator,
             mediaHandler = mediaHandler,
             snackbarHostState = snackbarHostState,
-            onReturnQuizToFilter = returnQuizToFilter,
         )
 
         Box(modifier = Modifier.fillMaxSize()) {
@@ -180,25 +175,29 @@ fun App() {
             SharedTransitionLayout {
                 CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
                     val popTransition: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform = {
-                        (slideInHorizontally(
+                        ((slideInHorizontally(
                             animationSpec = motionScheme.defaultSpatialSpec(),
-                            initialOffsetX = { -(it * 0.3f).toInt() }
-                        ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
+                            initialOffsetX = { -it / 4 }
+                        ) + scaleIn(
+                            animationSpec = motionScheme.defaultSpatialSpec(),
+                            initialScale = 0.96f
+                        ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec(), initialAlpha = 0f)) togetherWith
                             (slideOutHorizontally(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
+                                animationSpec = motionScheme.fastSpatialSpec(),
                                 targetOffsetX = { it }
-                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
+                            ) + scaleOut(
+                                animationSpec = motionScheme.fastSpatialSpec(),
+                                targetScale = 0.96f
+                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec(), targetAlpha = 0f))).apply {
+                            targetContentZIndex = 0f
+                        }
                     }
 
                     NavDisplay(
                         backStack = backStack,
                         onBack = {
                             snackbarHostState.currentSnackbarData?.dismiss()
-                            if (navigator.currentRoute is MedQBRoutes.Quiz) {
-                                returnQuizToFilter()
-                            } else {
-                                navigator.navigateBack()
-                            }
+                            navigator.navigateBack()
                         },
                         entryProvider = entryProvider,
                         entryDecorators = listOf(
@@ -207,14 +206,19 @@ fun App() {
                         ),
                         sharedTransitionScope = this@SharedTransitionLayout,
                         transitionSpec = {
-                            (slideInHorizontally(
+                            ((slideInHorizontally(
                                 animationSpec = motionScheme.defaultSpatialSpec(),
-                                initialOffsetX = { (it * 0.3f).toInt() }
-                            ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
-                            (slideOutHorizontally(
-                                animationSpec = motionScheme.defaultSpatialSpec(),
-                                targetOffsetX = { -(it * 0.3f).toInt() }
-                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
+                                initialOffsetX = { it }
+                            ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec(), initialAlpha = 0f)) togetherWith
+                                (slideOutHorizontally(
+                                    animationSpec = motionScheme.defaultSpatialSpec(),
+                                    targetOffsetX = { -it / 4 }
+                                ) + scaleOut(
+                                    animationSpec = motionScheme.defaultSpatialSpec(),
+                                    targetScale = 0.96f
+                                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec(), targetAlpha = 0f))).apply {
+                                targetContentZIndex = 1f
+                            }
                         },
                         popTransitionSpec = popTransition,
                         predictivePopTransitionSpec = { popTransition() }

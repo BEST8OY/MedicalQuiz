@@ -1,7 +1,11 @@
 package com.medqb.app.shared.ui.screens.history
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -189,14 +193,20 @@ internal fun HistoryItemCard(
         }
 
         val itemLeadingContent: @Composable () -> Unit = {
-            val checkboxWidth by animateDpAsState(
-                targetValue = if (selectionModeEnabled) IconSize.Large else 0.dp,
-                label = "checkboxWidth",
-            )
-
+            val motionScheme = MaterialTheme.motionScheme
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(checkboxWidth)) {
-                    if (selectionModeEnabled) {
+                AnimatedVisibility(
+                    visible = selectionModeEnabled,
+                    enter = expandHorizontally(
+                        animationSpec = motionScheme.defaultSpatialSpec(),
+                        expandFrom = Alignment.Start
+                    ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
+                    exit = shrinkHorizontally(
+                        animationSpec = motionScheme.fastSpatialSpec(),
+                        shrinkTowards = Alignment.Start
+                    ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()),
+                ) {
+                    Box(modifier = Modifier.size(IconSize.Large)) {
                         Checkbox(
                             checked = isSelected,
                             onCheckedChange = null,

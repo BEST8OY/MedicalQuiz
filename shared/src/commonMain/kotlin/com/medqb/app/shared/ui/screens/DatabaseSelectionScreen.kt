@@ -90,11 +90,12 @@ fun DatabaseSelectionScreen(
                     ),
                 ) {
                     if (databases.isEmpty() && !isLoading) {
-                        item {
+                        item(key = "empty_state") {
                             EmptyStateMessage(
                                 title = if (errorMessage != null) "Couldn't load QBanks" else "No QBanks found",
                                 subtitle = errorMessage
                                     ?: "Add .db files to /MedQB/QBanks and pull to refresh.",
+                                modifier = Modifier.animateItem(),
                             )
                         }
                     } else {
@@ -105,6 +106,7 @@ fun DatabaseSelectionScreen(
                             DatabaseItemCard(
                                 name = dbName,
                                 onClick = { onDatabaseSelected(dbName) },
+                                modifier = Modifier.animateItem(),
                             )
                         }
                     }

@@ -1,5 +1,9 @@
 package com.medqb.app.shared.ui.screens.media
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +40,13 @@ import com.medqb.app.shared.ui.richtext.RichText
 import com.medqb.app.shared.ui.theme.IconSize
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
+
+private enum class HtmlScreenState {
+    FileNotFound,
+    Loading,
+    Empty,
+    Content
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -75,84 +86,102 @@ fun HtmlViewerScreen(
             )
         },
     ) { innerPadding ->
+        val motionScheme = MaterialTheme.motionScheme
+        val screenState = when {
+            !fileExists -> HtmlScreenState.FileNotFound
+            isLoading -> HtmlScreenState.Loading
+            htmlContent.isNullOrBlank() -> HtmlScreenState.Empty
+            else -> HtmlScreenState.Content
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
         ) {
-            when {
-                !fileExists -> {
-                    EmptyHtmlState(
-                        title = "File not found",
-                        supportingText = fileName,
-                    )
-                }
+            AnimatedContent(
+                targetState = screenState,
+                transitionSpec = {
+                    fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                        fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                },
+                label = "html_screen_state",
+                modifier = Modifier.fillMaxSize(),
+            ) { state ->
+                when (state) {
+                    HtmlScreenState.FileNotFound -> {
+                        EmptyHtmlState(
+                            title = "File not found",
+                            supportingText = fileName,
+                        )
+                    }
 
-                isLoading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = Inset.Large),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            ),
+                    HtmlScreenState.Loading -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = Inset.Large),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = Inset.Large, vertical = Spacing.MediumLarge),
-                                verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall),
-                                horizontalAlignment = Alignment.CenterHorizontally,
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                ),
                             ) {
-                                LoadingIndicator(modifier = Modifier.size(IconSize.ExtraLarge))
-                                Text(
-                                    text = "Loading HTML content…",
-                                    style = MaterialTheme.typography.bodyLargeEmphasized,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
+                                Column(
+                                    modifier = Modifier.padding(horizontal = Inset.Large, vertical = Spacing.MediumLarge),
+                                    verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    LoadingIndicator(modifier = Modifier.size(IconSize.ExtraLarge))
+                                    Text(
+                                        text = "Loading HTML content…",
+                                        style = MaterialTheme.typography.bodyLargeEmphasized,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
                             }
                         }
                     }
-                }
 
-                htmlContent.isNullOrBlank() -> {
-                    EmptyHtmlState(
-                        title = "Empty file",
-                        supportingText = "This HTML document has no content.",
-                    )
-                }
+                    HtmlScreenState.Empty -> {
+                        EmptyHtmlState(
+                            title = "Empty file",
+                            supportingText = "This HTML document has no content.",
+                        )
+                    }
 
-                else -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = Spacing.Medium, vertical = Spacing.MediumSmall),
-                    ) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.extraLarge,
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            tonalElevation = 1.dp, // M3 Level 1 tonal elevation
+                    HtmlScreenState.Content -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = Spacing.Medium, vertical = Spacing.MediumSmall),
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .verticalScroll(rememberScrollState())
-                                    .padding(horizontal = Spacing.Medium, vertical = Spacing.MediumLarge),
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.extraLarge,
+                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                tonalElevation = 1.dp, // M3 Level 1 tonal elevation
                             ) {
-                                Text(
-                                    text = "Interactive HTML document",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Spacer(modifier = Modifier.height(Spacing.MediumSmall))
-                                RichText(
-                                    html = htmlContent.orEmpty(),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    onLinkClick = onLinkClick,
-                                )
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(horizontal = Spacing.Medium, vertical = Spacing.MediumLarge),
+                                ) {
+                                    Text(
+                                        text = "Interactive HTML document",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Spacer(modifier = Modifier.height(Spacing.MediumSmall))
+                                    RichText(
+                                        html = htmlContent.orEmpty(),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        onLinkClick = onLinkClick,
+                                    )
+                                }
                             }
                         }
                     }

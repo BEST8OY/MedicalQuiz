@@ -3,7 +3,10 @@ package com.medqb.app.shared.ui.screens.filter
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -122,8 +125,13 @@ internal fun FilterHubContent(
             AnimatedContent(
                 targetState = state.activePane,
                 transitionSpec = {
-                    fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                        fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                    val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                    ((slideInHorizontally(animationSpec = motionScheme.defaultSpatialSpec()) { (it * 0.20f * direction).roundToInt() } +
+                        fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
+                        (slideOutHorizontally(animationSpec = motionScheme.defaultSpatialSpec()) { (-it * 0.20f * direction).roundToInt() } +
+                            fadeOut(animationSpec = motionScheme.fastEffectsSpec()))).apply {
+                        targetContentZIndex = 0f
+                    }
                 },
                 label = "filter_pane_content",
             ) { activePane ->

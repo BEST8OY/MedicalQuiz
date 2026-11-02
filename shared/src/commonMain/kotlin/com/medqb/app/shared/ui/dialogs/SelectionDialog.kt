@@ -1,5 +1,6 @@
 package com.medqb.app.shared.ui.dialogs
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -151,30 +152,36 @@ private fun <T> SelectionDialog(
     DialogShell(onDismiss = onDismiss) {
         DialogHeader(title = title, onClose = onDismiss)
 
-        when (resource) {
-            Resource.Loading -> SelectionLoadingBody()
-            is Resource.Error -> SelectionErrorBody(
-                message = resource.message,
-                onRetry = onRetry,
-                onDismiss = onDismiss
-            )
-            is Resource.Success -> {
-                val data = resource.data
-                if (data.isEmpty()) {
-                    SelectionEmptyBody(
-                        message = emptyMessage,
-                        onDismiss = onDismiss
-                    )
-                } else {
-                    SelectionListContent(
-                        items = data,
-                        selectedIds = selectedIds,
-                        excludedIds = excludedIds,
-                        labelProvider = labelProvider,
-                        idProvider = idProvider,
-                        onApply = onApply,
-                        onDismiss = onDismiss
-                    )
+        Crossfade(
+            targetState = resource,
+            animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+            label = "selection_dialog_state"
+        ) { res ->
+            when (res) {
+                Resource.Loading -> SelectionLoadingBody()
+                is Resource.Error -> SelectionErrorBody(
+                    message = res.message,
+                    onRetry = onRetry,
+                    onDismiss = onDismiss
+                )
+                is Resource.Success -> {
+                    val data = res.data
+                    if (data.isEmpty()) {
+                        SelectionEmptyBody(
+                            message = emptyMessage,
+                            onDismiss = onDismiss
+                        )
+                    } else {
+                        SelectionListContent(
+                            items = data,
+                            selectedIds = selectedIds,
+                            excludedIds = excludedIds,
+                            labelProvider = labelProvider,
+                            idProvider = idProvider,
+                            onApply = onApply,
+                            onDismiss = onDismiss
+                        )
+                    }
                 }
             }
         }
@@ -496,7 +503,8 @@ private fun <T> ColumnScope.SelectionListContent(
                     }
                     currentIncluded = newIncluded
                     currentExcluded = newExcluded
-                }
+                },
+                modifier = Modifier.animateItem(),
             )
         }
 
@@ -532,6 +540,7 @@ private fun SelectionItem(
     state: ItemFilterState,
     compactMode: Boolean = false,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val backgroundColor = when (state) {
         ItemFilterState.INCLUDED -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
@@ -540,7 +549,7 @@ private fun SelectionItem(
     }
 
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
             .clickable(onClick = onClick)

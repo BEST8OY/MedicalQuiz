@@ -1,6 +1,7 @@
 package com.medqb.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -311,6 +312,7 @@ private fun QuizQuestionCard(
             ) + expandVertically(
                 animationSpec = defaultSpatialSpec,
             ),
+            exit = ExitTransition.None,
         ) {
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -354,6 +356,7 @@ private fun QuizQuestionCard(
             ) + expandVertically(
                 animationSpec = defaultSpatialSpec,
             ),
+            exit = ExitTransition.None,
         ) {
             Column {
                 Spacer(modifier = Modifier.height(Spacing.MediumSmall))
@@ -368,6 +371,7 @@ private fun QuizQuestionCard(
             ) + expandVertically(
                 animationSpec = defaultSpatialSpec,
             ),
+            exit = ExitTransition.None,
         ) {
             Column {
                 Spacer(modifier = Modifier.height(Spacing.MediumSmall))

@@ -19,7 +19,6 @@ fun QuizEntry(
     graph: AppGraph,
     navigator: AppNavigator,
     mediaHandler: MediaHandler,
-    onReturnToFilter: () -> Unit,
 ) {
     val quizVM = viewModel<QuizViewModel>(
         key = route.sessionId.ifEmpty { "default_quiz" },
@@ -40,7 +39,7 @@ fun QuizEntry(
         viewModel = quizVM,
         mediaHandler = mediaHandler,
         onNavigateBack = dropUnlessResumed {
-            onReturnToFilter()
+            navigator.navigateBack()
         },
         onOpenSettingsScreen = dropUnlessResumed {
             navigator.navigateTo(MedQBRoutes.Settings)

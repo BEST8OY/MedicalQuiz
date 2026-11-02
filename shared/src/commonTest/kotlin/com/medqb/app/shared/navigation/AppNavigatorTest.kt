@@ -37,6 +37,24 @@ class AppNavigatorTest {
     }
 
     @Test
+    fun testNavigateBackFromQuizDelegatesToReturnQuizToFilter() {
+        val initialFilter = MedQBRoutes.Filter()
+        val stack = mutableListOf<NavKey>(
+            MedQBRoutes.DatabaseSelection,
+            initialFilter,
+            MedQBRoutes.Quiz(sessionId = "s1"),
+        )
+        val navigator = AppNavigator(stack)
+        assertEquals(3, stack.size)
+
+        val popped = navigator.navigateBack()
+        assertTrue(popped)
+        assertEquals(2, stack.size)
+        assertEquals(initialFilter, navigator.currentRoute)
+        assertTrue(stack[1] === initialFilter)
+    }
+
+    @Test
     fun testNavigateToDuplicateRouteIgnored() {
         val stack = mutableListOf<NavKey>(MedQBRoutes.DatabaseSelection)
         val navigator = AppNavigator(stack)
@@ -61,6 +79,32 @@ class AppNavigatorTest {
         )
         val navigator = AppNavigator(stack)
         assertEquals(4, stack.size)
+
+        navigator.popToDatabaseSelection()
+
+        assertEquals(1, stack.size)
+        assertEquals(MedQBRoutes.DatabaseSelection, navigator.currentRoute)
+    }
+
+    @Test
+    fun testPopToDatabaseSelectionWhenDatabaseSelectionMissingReinitializesRoot() {
+        val stack = mutableListOf<NavKey>(
+            MedQBRoutes.Filter(),
+            MedQBRoutes.Quiz(sessionId = "session_orphaned"),
+        )
+        val navigator = AppNavigator(stack)
+        assertEquals(2, stack.size)
+
+        navigator.popToDatabaseSelection()
+
+        assertEquals(1, stack.size)
+        assertEquals(MedQBRoutes.DatabaseSelection, navigator.currentRoute)
+    }
+
+    @Test
+    fun testPopToDatabaseSelectionWhenAlreadyAtRoot() {
+        val stack = mutableListOf<NavKey>(MedQBRoutes.DatabaseSelection)
+        val navigator = AppNavigator(stack)
 
         navigator.popToDatabaseSelection()
 

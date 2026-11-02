@@ -1,5 +1,10 @@
 package com.medqb.app.shared.ui.screens.history
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -24,6 +29,7 @@ import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.runtime.Composable
@@ -207,8 +213,19 @@ internal fun HistoryPane(
                 }
             }
 
-            if (selectedHistoryEntryIds.isNotEmpty()) {
-                val horizontalMargin = if (this@BoxWithConstraints.maxWidth >= ScreenLayout.WideWidthBreakpoint) Spacing.ExtraLarge else Spacing.Large
+            val motionScheme = MaterialTheme.motionScheme
+            val horizontalMargin = if (this@BoxWithConstraints.maxWidth >= ScreenLayout.WideWidthBreakpoint) Spacing.ExtraLarge else Spacing.Large
+            AnimatedVisibility(
+                visible = selectedHistoryEntryIds.isNotEmpty(),
+                enter = scaleIn(animationSpec = motionScheme.defaultSpatialSpec(), initialScale = 0.8f) +
+                    fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
+                exit = scaleOut(animationSpec = motionScheme.fastSpatialSpec(), targetScale = 0.8f) +
+                    fadeOut(animationSpec = motionScheme.fastEffectsSpec()),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = horizontalMargin, bottom = ScreenLayout.FabBottomPadding)
+                    .navigationBarsPadding(),
+            ) {
                 FloatingActionButtonMenu(
                     expanded = isFabMenuExpanded,
                     button = {
@@ -222,10 +239,6 @@ internal fun HistoryPane(
                             )
                         }
                     },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = horizontalMargin, bottom = ScreenLayout.FabBottomPadding)
-                        .navigationBarsPadding(),
                 ) {
                     FloatingActionButtonMenuItem(
                         onClick = {

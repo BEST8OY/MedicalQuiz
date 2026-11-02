@@ -3,6 +3,7 @@ package com.medqb.app.shared.ui.entry
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.di.AppGraph
 import com.medqb.app.shared.navigation.AppNavigator
@@ -29,7 +30,7 @@ fun HtmlViewerEntry(
         htmlContent = htmlDocument?.sanitizedHtml,
         fileExists = htmlDocument?.fileExists ?: true,
         isLoading = htmlDocument == null,
-        onBack = {
+        onBack = dropUnlessResumed {
             navigator.navigateBack()
         },
         onLinkClick = { url ->

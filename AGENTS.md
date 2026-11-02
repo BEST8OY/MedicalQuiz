@@ -73,6 +73,15 @@ See [`docs/testing.md`](docs/testing.md) for the complete testing strategy, test
 - Desktop release uses ProGuard (`desktopApp/proguard-desktop.pro`) with `com.guardsquare:proguard-gradle:7.10.0` in root `buildscript` and `version.set("7.10.0")` in `desktopApp/build.gradle.kts`; release builds enable obfuscation=false. (Version 7.10.0 is required to support Kotlin 2.4+ metadata).
 - ABI splits enabled for Android release — only `arm64-v8a` by default
 - KMP Android target uses `com.android.kotlin.multiplatform.library` with `withHostTest {}` enabled
+- **Navigation 3 Transitions**:
+  - Forward transitions must set `targetContentZIndex = 1f` so incoming children render on top of retreating parents.
+  - Pop transitions must set `targetContentZIndex = 0f` so exiting children remain on top while sliding/scaling out over revealing parents.
+- **`AnimatedVisibility` Enter/Exit Pairing**:
+  - **In-place state toggles** (checkboxes, accordions, settings cards): Always match dimensions—if using `expandVertically()`, pair with `shrinkVertically()` using `MaterialTheme.motionScheme` to avoid unstyled 2D `shrinkOut()` fallbacks.
+  - **Context-swapping / Entity navigation** (switching questions in Quiz): Use `exit = ExitTransition.None` on revealed answer/explanation cards to prevent previous question data from lingering, causing layout height jitter or scroll jumping.
+  - **Conditional unmounts** (Popups/Dialogs): Do not define exit transitions on inner visibility if the parent conditional unmounts instantly.
+- **Hero & Shared Elements**:
+  - Hero container transforms are bidirectional. On return/pop, ensure the bounds spec is critically damped (`defaultSpatialSpec`) with zero bounce or oscillation.
 
 ## Gotchas
 
