@@ -1,6 +1,8 @@
 package com.medqb.app.shared.ui.screens.filter
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -128,7 +130,12 @@ internal fun FilterHubContent(
                     val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
                     ((slideInHorizontally(animationSpec = motionScheme.defaultSpatialSpec()) { (it * 0.20f * direction).roundToInt() } +
                         fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
-                        (slideOutHorizontally(animationSpec = motionScheme.defaultSpatialSpec()) { (-it * 0.20f * direction).roundToInt() } +
+                        (slideOutHorizontally(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
+                        ) { (-it * 0.20f * direction).roundToInt() } +
                             fadeOut(animationSpec = motionScheme.fastEffectsSpec()))).apply {
                         targetContentZIndex = 0f
                     }

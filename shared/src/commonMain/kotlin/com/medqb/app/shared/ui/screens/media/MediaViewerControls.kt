@@ -2,7 +2,9 @@ package com.medqb.app.shared.ui.screens.media
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -91,7 +93,10 @@ internal fun MediaViewerTopBar(
         exit = fadeOut(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec()) +
             slideOutVertically(
                 targetOffsetY = { -it },
-                animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                ),
             ),
         modifier = modifier.graphicsLayer { alpha = transitionAlpha },
     ) {
@@ -177,7 +182,10 @@ internal fun MediaViewerBottomBar(
         exit = fadeOut(animationSpec = controlsExitEffects) +
             slideOutVertically(
                 targetOffsetY = { fullHeight -> fullHeight / 3 },
-                animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                ),
             ),
         modifier = modifier
             .windowInsetsPadding(WindowInsets.navigationBars)

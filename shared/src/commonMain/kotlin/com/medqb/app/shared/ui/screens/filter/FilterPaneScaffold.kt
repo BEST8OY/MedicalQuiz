@@ -1,6 +1,8 @@
 package com.medqb.app.shared.ui.screens.filter
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -142,8 +144,14 @@ private fun FilterPaneItem(
             visible = selected,
             enter = fadeIn(motionScheme.defaultEffectsSpec()) +
                 expandHorizontally(motionScheme.defaultSpatialSpec(), expandFrom = Alignment.Start),
-            exit = fadeOut(motionScheme.defaultEffectsSpec()) +
-                shrinkHorizontally(motionScheme.defaultSpatialSpec(), shrinkTowards = Alignment.Start),
+            exit = fadeOut(motionScheme.fastEffectsSpec()) +
+                shrinkHorizontally(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    shrinkTowards = Alignment.Start
+                ),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(

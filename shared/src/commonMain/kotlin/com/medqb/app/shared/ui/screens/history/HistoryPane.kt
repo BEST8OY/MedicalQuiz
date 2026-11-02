@@ -1,6 +1,8 @@
 package com.medqb.app.shared.ui.screens.history
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -219,8 +221,13 @@ internal fun HistoryPane(
                 visible = selectedHistoryEntryIds.isNotEmpty(),
                 enter = scaleIn(animationSpec = motionScheme.defaultSpatialSpec(), initialScale = 0.8f) +
                     fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
-                exit = scaleOut(animationSpec = motionScheme.fastSpatialSpec(), targetScale = 0.8f) +
-                    fadeOut(animationSpec = motionScheme.fastEffectsSpec()),
+                exit = scaleOut(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    targetScale = 0.8f
+                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = horizontalMargin, bottom = ScreenLayout.FabBottomPadding)

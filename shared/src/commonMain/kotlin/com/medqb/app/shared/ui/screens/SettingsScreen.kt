@@ -2,6 +2,8 @@ package com.medqb.app.shared.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -226,7 +228,12 @@ fun SettingsScreen(
                         enter = fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) +
                             expandVertically(animationSpec = motionScheme.defaultSpatialSpec()),
                         exit = fadeOut(animationSpec = motionScheme.fastEffectsSpec()) +
-                            shrinkVertically(animationSpec = motionScheme.fastSpatialSpec())
+                            shrinkVertically(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            )
                     ) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),

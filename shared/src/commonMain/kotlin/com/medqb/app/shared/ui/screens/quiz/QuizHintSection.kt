@@ -1,6 +1,8 @@
 package com.medqb.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -94,7 +96,10 @@ internal fun HintSection(
                 exit = fadeOut(
                     animationSpec = defaultEffectsSpec,
                 ) + shrinkVertically(
-                    animationSpec = defaultSpatialSpec,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
                 )
             ) {
                 val colors = MaterialTheme.colorScheme

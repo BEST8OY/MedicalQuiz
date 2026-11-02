@@ -1,6 +1,8 @@
 package com.medqb.app.shared.navigation
 
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -60,7 +62,10 @@ fun rememberMedQBNavEntries(
                 initialScale = 0.94f
             ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
                 (scaleOut(
-                    animationSpec = motionScheme.defaultSpatialSpec(),
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
                     targetScale = 0.96f
                 ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
         }
@@ -71,10 +76,16 @@ fun rememberMedQBNavEntries(
                 initialScale = 0.96f
             ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
                 (slideOutVertically(
-                    animationSpec = motionScheme.fastSpatialSpec(),
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
                     targetOffsetY = { (it * 0.12f).toInt() }
                 ) + scaleOut(
-                    animationSpec = motionScheme.fastSpatialSpec(),
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
                     targetScale = 0.94f
                 ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
         }

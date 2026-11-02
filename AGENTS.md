@@ -76,7 +76,8 @@ See [`docs/testing.md`](docs/testing.md) for the complete testing strategy, test
 - **Navigation 3 Transitions**:
   - `NavDisplay` automates scene z-ordering internally (+1f on forward push, -1f on pop); manual `targetContentZIndex` overrides on `ContentTransform` are redundant and should not be set.
 - **`AnimatedVisibility` Enter/Exit Pairing**:
-  - **In-place state toggles** (checkboxes, accordions, settings cards): Always match dimensions—if using `expandVertically()`, pair with `shrinkVertically()` using `MaterialTheme.motionScheme` to avoid unstyled 2D `shrinkOut()` fallbacks.
+  - **In-place state toggles** (checkboxes, accordions, settings cards): Always match dimensions—if using `expandVertically()`, pair with `shrinkVertically()`.
+  - **Spatial Exit Damping**: While entering spatial animations (`slideIn`, `scaleIn`, `expandVertically`, `expandHorizontally`) use `MaterialTheme.motionScheme` underdamped springs (`0.6f` / `0.8f`) for tactile overshoot, all spatial dismissals (`slideOut`, `scaleOut`, `shrinkVertically`, `shrinkHorizontally`) MUST use critically damped springs (`spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)`) to prevent disappearing elements from rebounding back into view before unmounting. Alpha/effects fades (`fadeIn`, `fadeOut`) remain on `motionScheme` (`fastEffectsSpec`/`defaultEffectsSpec`) as they are already critically damped (`1.0f`).
   - **Context-swapping / Entity navigation** (switching questions in Quiz): Use `exit = ExitTransition.None` on revealed answer/explanation cards to prevent previous question data from lingering, causing layout height jitter or scroll jumping.
   - **Conditional unmounts** (Popups/Dialogs): Do not define exit transitions on inner visibility if the parent conditional unmounts instantly.
 - **Hero & Shared Elements**:

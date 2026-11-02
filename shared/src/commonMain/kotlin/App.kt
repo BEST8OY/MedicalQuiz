@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -183,10 +185,16 @@ fun App() {
                             initialScale = 0.96f
                         ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec(), initialAlpha = 0f)) togetherWith
                             (slideOutHorizontally(
-                                animationSpec = motionScheme.fastSpatialSpec(),
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                ),
                                 targetOffsetX = { it }
                             ) + scaleOut(
-                                animationSpec = motionScheme.fastSpatialSpec(),
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                ),
                                 targetScale = 0.96f
                             ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec(), targetAlpha = 0f))
                     }
@@ -209,10 +217,16 @@ fun App() {
                                 initialOffsetX = { it }
                             ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec(), initialAlpha = 0f)) togetherWith
                                 (slideOutHorizontally(
-                                    animationSpec = motionScheme.defaultSpatialSpec(),
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    ),
                                     targetOffsetX = { -it / 4 }
-                               ) + scaleOut(
-                                    animationSpec = motionScheme.defaultSpatialSpec(),
+                                ) + scaleOut(
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    ),
                                     targetScale = 0.96f
                                 ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec(), targetAlpha = 0f))
                         },

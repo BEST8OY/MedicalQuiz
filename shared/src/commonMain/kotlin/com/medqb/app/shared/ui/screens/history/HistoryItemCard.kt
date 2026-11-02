@@ -2,6 +2,8 @@ package com.medqb.app.shared.ui.screens.history
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -202,7 +204,10 @@ internal fun HistoryItemCard(
                         expandFrom = Alignment.Start
                     ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
                     exit = shrinkHorizontally(
-                        animationSpec = motionScheme.fastSpatialSpec(),
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
                         shrinkTowards = Alignment.Start
                     ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()),
                 ) {

@@ -1,6 +1,8 @@
 package com.medqb.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -126,8 +128,12 @@ fun QuizFloatingToolbar(
                     visible = uiState.showSubmitButton,
                     enter = expandHorizontally(animationSpec = motionScheme.defaultSpatialSpec()) +
                             fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
-                    exit = shrinkHorizontally(animationSpec = motionScheme.fastSpatialSpec()) +
-                           fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                    exit = shrinkHorizontally(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         FilledTonalButton(
