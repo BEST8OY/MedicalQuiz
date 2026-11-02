@@ -52,7 +52,7 @@ fun rememberMedQBNavEntries(
         motionScheme,
     ) {
         val modalEnterTransition: () -> ContentTransform = {
-            ((slideInVertically(
+            (slideInVertically(
                 animationSpec = motionScheme.defaultSpatialSpec(),
                 initialOffsetY = { (it * 0.12f).toInt() }
             ) + scaleIn(
@@ -62,13 +62,11 @@ fun rememberMedQBNavEntries(
                 (scaleOut(
                     animationSpec = motionScheme.defaultSpatialSpec(),
                     targetScale = 0.96f
-                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))).apply {
-                targetContentZIndex = 1f
-            }
+                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
         }
 
         val modalPopTransition: () -> ContentTransform = {
-            ((scaleIn(
+            (scaleIn(
                 animationSpec = motionScheme.defaultSpatialSpec(),
                 initialScale = 0.96f
             ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
@@ -78,16 +76,12 @@ fun rememberMedQBNavEntries(
                 ) + scaleOut(
                     animationSpec = motionScheme.fastSpatialSpec(),
                     targetScale = 0.94f
-                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))).apply {
-                targetContentZIndex = 0f
-            }
+                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
         }
 
         val mediaViewerFadeTransition: () -> ContentTransform = {
-            (fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                fadeOut(animationSpec = motionScheme.fastEffectsSpec())).apply {
-                targetContentZIndex = 0f
-            }
+            fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
+                fadeOut(animationSpec = motionScheme.fastEffectsSpec())
         }
 
         entryProvider<NavKey> {
@@ -133,12 +127,7 @@ fun rememberMedQBNavEntries(
 
             entry<MedQBRoutes.MediaViewer>(
                 metadata = metadata {
-                    put(NavDisplay.TransitionKey) {
-                        (fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
-                            fadeOut(animationSpec = motionScheme.fastEffectsSpec())).apply {
-                            targetContentZIndex = 1f
-                        }
-                    }
+                    put(NavDisplay.TransitionKey) { mediaViewerFadeTransition() }
                     put(NavDisplay.PopTransitionKey) { mediaViewerFadeTransition() }
                     put(NavDisplay.PredictivePopTransitionKey) { mediaViewerFadeTransition() }
                 }

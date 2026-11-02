@@ -74,8 +74,7 @@ See [`docs/testing.md`](docs/testing.md) for the complete testing strategy, test
 - ABI splits enabled for Android release — only `arm64-v8a` by default
 - KMP Android target uses `com.android.kotlin.multiplatform.library` with `withHostTest {}` enabled
 - **Navigation 3 Transitions**:
-  - Forward transitions must set `targetContentZIndex = 1f` so incoming children render on top of retreating parents.
-  - Pop transitions must set `targetContentZIndex = 0f` so exiting children remain on top while sliding/scaling out over revealing parents.
+  - `NavDisplay` automates scene z-ordering internally (+1f on forward push, -1f on pop); manual `targetContentZIndex` overrides on `ContentTransform` are redundant and should not be set.
 - **`AnimatedVisibility` Enter/Exit Pairing**:
   - **In-place state toggles** (checkboxes, accordions, settings cards): Always match dimensions—if using `expandVertically()`, pair with `shrinkVertically()` using `MaterialTheme.motionScheme` to avoid unstyled 2D `shrinkOut()` fallbacks.
   - **Context-swapping / Entity navigation** (switching questions in Quiz): Use `exit = ExitTransition.None` on revealed answer/explanation cards to prevent previous question data from lingering, causing layout height jitter or scroll jumping.

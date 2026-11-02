@@ -175,7 +175,7 @@ fun App() {
             SharedTransitionLayout {
                 CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
                     val popTransition: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform = {
-                        ((slideInHorizontally(
+                        (slideInHorizontally(
                             animationSpec = motionScheme.defaultSpatialSpec(),
                             initialOffsetX = { -it / 4 }
                         ) + scaleIn(
@@ -188,9 +188,7 @@ fun App() {
                             ) + scaleOut(
                                 animationSpec = motionScheme.fastSpatialSpec(),
                                 targetScale = 0.96f
-                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec(), targetAlpha = 0f))).apply {
-                            targetContentZIndex = 0f
-                        }
+                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec(), targetAlpha = 0f))
                     }
 
                     NavDisplay(
@@ -206,19 +204,17 @@ fun App() {
                         ),
                         sharedTransitionScope = this@SharedTransitionLayout,
                         transitionSpec = {
-                            ((slideInHorizontally(
+                            (slideInHorizontally(
                                 animationSpec = motionScheme.defaultSpatialSpec(),
                                 initialOffsetX = { it }
                             ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec(), initialAlpha = 0f)) togetherWith
                                 (slideOutHorizontally(
                                     animationSpec = motionScheme.defaultSpatialSpec(),
                                     targetOffsetX = { -it / 4 }
-                                ) + scaleOut(
+                               ) + scaleOut(
                                     animationSpec = motionScheme.defaultSpatialSpec(),
                                     targetScale = 0.96f
-                                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec(), targetAlpha = 0f))).apply {
-                                targetContentZIndex = 1f
-                            }
+                                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec(), targetAlpha = 0f))
                         },
                         popTransitionSpec = popTransition,
                         predictivePopTransitionSpec = { popTransition() }
