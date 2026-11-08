@@ -19,7 +19,7 @@ interface DatabaseProvider {
         excludedSubjectIds: List<Long>? = null,
         systemIds: List<Long>? = null,
         excludedSystemIds: List<Long>? = null,
-        performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
+        statusFilter: StatusFilter = StatusFilter.ALL,
         difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): List<Long>
 
@@ -34,7 +34,7 @@ interface DatabaseProvider {
         excludedSubjectIds: List<Long>? = null,
         systemIds: List<Long>?,
         excludedSystemIds: List<Long>? = null,
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
         difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): Int
 
@@ -44,7 +44,7 @@ interface DatabaseProvider {
         excludedSubjectIds: List<Long>? = null,
         systemIds: List<Long>? = null,
         excludedSystemIds: List<Long>? = null,
-        performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
+        statusFilter: StatusFilter = StatusFilter.ALL,
     ): Map<DifficultyTier, Int> = emptyMap()
 
     suspend fun getSubjects(): List<Subject>

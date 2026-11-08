@@ -2,9 +2,11 @@ package com.medqb.app.shared.ui.richtext
 
 import androidx.compose.ui.graphics.Color
 import com.medqb.app.shared.ui.richtext.parser.RichTextParser
+import com.medqb.app.shared.utils.HtmlUtils
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RichTextTableTest {
@@ -409,8 +411,7 @@ class RichTextTableTest {
 
         val hyperglycemiaUrl = hintPara.text.getStringAnnotations("URL", 0, hintPara.text.length)
             .firstOrNull { it.item.contains("3g0SE2") }
-        assertNotNull(hyperglycemiaUrl)
-        assertEquals("learningcard://3g0SE2/Z41765cf0097c7ea6f788430b14b10a35", hyperglycemiaUrl.item)
+        assertNull(hyperglycemiaUrl)
 
         val hyperglycemiaTooltip = hintPara.text.getStringAnnotations("TOOLTIP", 0, hintPara.text.length)
             .firstOrNull { it.item.contains("elevated blood glucose") }
@@ -418,8 +419,7 @@ class RichTextTableTest {
 
         val hyponatremiaUrl = hintPara.text.getStringAnnotations("URL", 0, hintPara.text.length)
             .firstOrNull { it.item.contains("rg0f92") }
-        assertNotNull(hyponatremiaUrl)
-        assertEquals("learningcard://rg0f92/Z482f3cc1cfc32af07678821b7e06fb08", hyponatremiaUrl.item)
+        assertNull(hyponatremiaUrl)
 
         val hyponatremiaTooltip = hintPara.text.getStringAnnotations("TOOLTIP", 0, hintPara.text.length)
             .firstOrNull { it.item.contains("serum sodium concentration") }
@@ -448,12 +448,10 @@ class RichTextTableTest {
         assertEquals(4, heading0.level)
         assertEquals("Correct Answer Is D [ 61% ]", heading0.text.text)
 
-        // Block 1: Explanation paragraph with learning card URLs and bold styling
+        // Block 1: Explanation paragraph with bold styling and NO Amboss links
         val para1 = blocks[1] as RichTextBlock.Paragraph
         val para1Urls = para1.text.getStringAnnotations("URL", 0, para1.text.length).map { it.item }
-        assertEquals(17, para1Urls.size)
-        assertEquals("learningcard://860O5S/Z0fbd33785ac393f41741addbbf8a9fa3", para1Urls[0])
-        assertEquals("learningcard://rg0f92/Z482f3cc1cfc32af07678821b7e06fb08", para1Urls[1])
+        assertEquals(0, para1Urls.size)
         assertTrue(para1.text.text.startsWith("Assessing serum osmolality is the first step"))
 
         // Block 2: Image Media block with width constraint and centering
@@ -479,22 +477,28 @@ class RichTextTableTest {
         assertEquals(4, headingE.level)
         assertEquals("[ E ] [ 2% ]", headingE.text.text)
 
-        // Option paragraphs with isolated learning cards
+        // Option paragraphs with isolated learning cards (no links generated)
         val paraE = blocks[10] as RichTextBlock.Paragraph
         val paraEUrls = paraE.text.getStringAnnotations("URL", 0, paraE.text.length).map { it.item }
-        assertEquals(5, paraEUrls.size)
-        assertEquals("learningcard://AT0Rt2/Zbc03040ec893396d15c13d0b69e3dba4", paraEUrls[0])
-        assertEquals("learningcard://V60GPS/Z68437810c311fa1e0e910fecfa30be04", paraEUrls[1])
-        assertEquals("learningcard://cg0a82/Z3fd41eef8b8ce3cec9c7eda727b6d1ce", paraEUrls[2])
-        assertEquals("learningcard://Ug0bu2/Z351bdb8ac6670de066f05e6a1a8a74a2", paraEUrls[3])
-        assertEquals("learningcard://rg0f92/Z482f3cc1cfc32af07678821b7e06fb08", paraEUrls[4])
+        assertEquals(0, paraEUrls.size)
+    }
 
-        // Verify web URL resolution
-        val resolvedWebUrl = com.medqb.app.shared.utils.HtmlUtils.resolveWebUrl("learningcard://860O5S/Z0fbd33785ac393f41741addbbf8a9fa3")
-        assertEquals("https://next.amboss.com/us/article/860O5S#Z0fbd33785ac393f41741addbbf8a9fa3", resolvedWebUrl)
+    @Test
+    fun testAmbossLearningCardsNotParsedAsLinks() {
+        val snippet = """
+            <p>Data attribute only: <span data-learningcard-id="123" data-anker="abc">Medical Term</span></p>
+            <p>Angular learningcard: <a ng-click="toLearningcard('123','abc');" ng-href="{{ linkLearningcard('123','abc'); }}">Angular Term</a></p>
+            <p>Valid external link: <a href="https://example.com/valid">External Site</a></p>
+        """.trimIndent()
 
-        val regularWebUrl = com.medqb.app.shared.utils.HtmlUtils.resolveWebUrl("https://example.com/test")
-        assertEquals("https://example.com/test", regularWebUrl)
+        val sanitized = HtmlUtils.sanitizeForRichText(snippet)
+        val blocks = RichTextParser.parse(sanitized, dummyPalette, true)
+
+        val allUrls = blocks.filterIsInstance<RichTextBlock.Paragraph>().flatMap { para ->
+            para.text.getStringAnnotations("URL", 0, para.text.length).map { it.item }
+        }
+
+        assertEquals(listOf("https://example.com/valid"), allUrls)
     }
 }
 

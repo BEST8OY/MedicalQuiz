@@ -7,9 +7,9 @@ import com.medqb.app.shared.data.dao.QuestionDao
 import com.medqb.app.shared.data.dao.SubjectDao
 import com.medqb.app.shared.data.database.DatabaseProvider
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.database.QuestionDetails
 import com.medqb.app.shared.data.database.QuestionPerformance
+import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.models.Answer
 import com.medqb.app.shared.data.models.Question
 import com.medqb.app.shared.data.models.Subject
@@ -94,7 +94,7 @@ class DatabaseManager(
         excludedSubjectIds: List<Long>?,
         systemIds: List<Long>?,
         excludedSystemIds: List<Long>?,
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
         difficultyFilters: Set<DifficultyTier>,
     ): List<Long> = questionDao.getQuestionIds(
         dbName = dbName,
@@ -102,7 +102,7 @@ class DatabaseManager(
         excludedSubjectIds = excludedSubjectIds,
         systemIds = systemIds,
         excludedSystemIds = excludedSystemIds,
-        performanceFilter = performanceFilter,
+        statusFilter = statusFilter,
         difficultyFilters = difficultyFilters,
     )
 
@@ -126,7 +126,7 @@ class DatabaseManager(
         excludedSubjectIds: List<Long>?,
         systemIds: List<Long>?,
         excludedSystemIds: List<Long>?,
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
         difficultyFilters: Set<DifficultyTier>,
     ): Int = questionDao.countQuestionIds(
         dbName = dbName,
@@ -134,7 +134,7 @@ class DatabaseManager(
         excludedSubjectIds = excludedSubjectIds,
         systemIds = systemIds,
         excludedSystemIds = excludedSystemIds,
-        performanceFilter = performanceFilter,
+        statusFilter = statusFilter,
         difficultyFilters = difficultyFilters,
     )
 
@@ -145,14 +145,14 @@ class DatabaseManager(
         excludedSubjectIds: List<Long>?,
         systemIds: List<Long>?,
         excludedSystemIds: List<Long>?,
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
     ): Map<DifficultyTier, Int> = questionDao.getDifficultyCounts(
         dbName = dbName,
         subjectIds = subjectIds,
         excludedSubjectIds = excludedSubjectIds,
         systemIds = systemIds,
         excludedSystemIds = excludedSystemIds,
-        performanceFilter = performanceFilter,
+        statusFilter = statusFilter,
     )
 
     override suspend fun getSubjects(): List<Subject> = subjectDao.getSubjects()

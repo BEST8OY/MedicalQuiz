@@ -1,7 +1,7 @@
 package com.medqb.app.shared.data
 
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.di.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Shared filter state holder scoped to the app graph.
- * Holds active query filter selections (subjects, systems, performance filter, difficulty tiers).
+ * Holds active query filter selections (subjects, systems, status filter, difficulty tiers).
  */
 @Inject
 @SingleIn(AppScope::class)
@@ -28,8 +28,8 @@ class FilterStateHolder {
     private val _excludedSystemIds = MutableStateFlow<Set<Long>>(emptySet())
     val excludedSystemIds: StateFlow<Set<Long>> = _excludedSystemIds.asStateFlow()
 
-    private val _performanceFilter = MutableStateFlow(PerformanceFilter.ALL)
-    val performanceFilter: StateFlow<PerformanceFilter> = _performanceFilter.asStateFlow()
+    private val _statusFilter = MutableStateFlow(StatusFilter.ALL)
+    val statusFilter: StateFlow<StatusFilter> = _statusFilter.asStateFlow()
 
     private val _selectedDifficultyTiers = MutableStateFlow<Set<DifficultyTier>>(emptySet())
     val selectedDifficultyTiers: StateFlow<Set<DifficultyTier>> = _selectedDifficultyTiers.asStateFlow()
@@ -60,8 +60,8 @@ class FilterStateHolder {
         _excludedSystemIds.value = excluded
     }
 
-    fun updatePerformanceFilter(filter: PerformanceFilter) {
-        _performanceFilter.value = filter
+    fun updateStatusFilter(filter: StatusFilter) {
+        _statusFilter.value = filter
     }
 
     fun updateDifficultyTiers(tiers: Set<DifficultyTier>) {
@@ -73,7 +73,7 @@ class FilterStateHolder {
         _excludedSubjectIds.value = emptySet()
         _selectedSystemIds.value = emptySet()
         _excludedSystemIds.value = emptySet()
-        _performanceFilter.value = PerformanceFilter.ALL
+        _statusFilter.value = StatusFilter.ALL
         _selectedDifficultyTiers.value = emptySet()
     }
 }

@@ -52,7 +52,7 @@ class AppHistoryCoordinator(
                     excludedSubjectIds = entry.excludedSubjectIds,
                     systemIds = entry.selectedSystemIds,
                     excludedSystemIds = entry.excludedSystemIds,
-                    performanceFilter = entry.performanceFilter,
+                    statusFilter = entry.statusFilter,
                     difficultyFilters = entry.selectedDifficultyTiers,
                 ) ?: emptyList()
                 questionIds.forEach { qid ->

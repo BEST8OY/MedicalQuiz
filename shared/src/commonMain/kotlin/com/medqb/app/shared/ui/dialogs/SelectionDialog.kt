@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -155,6 +155,9 @@ private fun <T> SelectionDialog(
         Crossfade(
             targetState = resource,
             animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false),
             label = "selection_dialog_state"
         ) { res ->
             when (res) {
@@ -179,7 +182,8 @@ private fun <T> SelectionDialog(
                             labelProvider = labelProvider,
                             idProvider = idProvider,
                             onApply = onApply,
-                            onDismiss = onDismiss
+                            onDismiss = onDismiss,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
@@ -190,7 +194,7 @@ private fun <T> SelectionDialog(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ColumnScope.SelectionLoadingBody() {
+private fun SelectionLoadingBody() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -198,7 +202,7 @@ private fun ColumnScope.SelectionLoadingBody() {
             .padding(vertical = Spacing.ExtraLarge),
         contentAlignment = Alignment.Center
     ) {
-        androidx.compose.foundation.layout.Column(
+        Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Spacing.Large)
         ) {
@@ -216,12 +220,12 @@ private fun ColumnScope.SelectionLoadingBody() {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ColumnScope.SelectionErrorBody(
+private fun SelectionErrorBody(
     message: String,
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.foundation.layout.Column(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = Layout.LoadingAreaHeight)
@@ -266,11 +270,11 @@ private fun ColumnScope.SelectionErrorBody(
 }
 
 @Composable
-private fun ColumnScope.SelectionEmptyBody(
+private fun SelectionEmptyBody(
     message: String,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.foundation.layout.Column(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = Layout.LoadingAreaHeight)
@@ -293,14 +297,15 @@ private fun ColumnScope.SelectionEmptyBody(
 }
 
 @Composable
-private fun <T> ColumnScope.SelectionListContent(
+private fun <T> SelectionListContent(
     items: List<T>,
     selectedIds: Set<Long>,
     excludedIds: Set<Long>,
     labelProvider: (T) -> String,
     idProvider: (T) -> Long,
     onApply: (included: Set<Long>, excluded: Set<Long>) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth()
 ) {
     var currentIncluded by remember(selectedIds) {
         mutableStateOf(selectedIds.toMutableSet())
@@ -344,52 +349,55 @@ private fun <T> ColumnScope.SelectionListContent(
         "Select all"
     }
 
-    // Search Bar
-    OutlinedTextField(
-        value = searchQuery,
-        onValueChange = { searchQuery = it },
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                horizontal = Inset.Large,
-                vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.ExtraSmall
-            ),
-        placeholder = {
-            Text(
-                "Search...",
-                style = if (isCompactHeight) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium
-            )
-        },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Rounded.Search,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = if (isCompactHeight) Modifier.size(IconSize.Small) else Modifier.size(IconSize.Medium)
-            )
-        },
-        trailingIcon = {
-            if (searchQuery.isNotEmpty()) {
-                IconButton(
-                    onClick = { searchQuery = "" },
-                    modifier = if (isCompactHeight) Modifier.size(IconSize.Large) else Modifier
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "Clear search",
-                        modifier = Modifier.size(IconSize.Small)
-                    )
+    Column(
+        modifier = modifier
+    ) {
+        // Search Bar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = Inset.Large,
+                    vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else Spacing.ExtraSmall
+                ),
+            placeholder = {
+                Text(
+                    "Search...",
+                    style = if (isCompactHeight) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Rounded.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = if (isCompactHeight) Modifier.size(IconSize.Small) else Modifier.size(IconSize.Medium)
+                )
+            },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(
+                        onClick = { searchQuery = "" },
+                        modifier = if (isCompactHeight) Modifier.size(IconSize.Large) else Modifier
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Clear search",
+                            modifier = Modifier.size(IconSize.Small)
+                        )
+                    }
                 }
-            }
-        },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-        shape = MaterialTheme.shapes.medium,
-        colors = OutlinedTextFieldDefaults.colors(
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+            shape = MaterialTheme.shapes.medium,
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            )
         )
-    )
 
     // Help banner explaining 3-state tap
     Row(
@@ -401,7 +409,7 @@ private fun <T> ColumnScope.SelectionListContent(
         Text(
             text = "💡 Tap row to cycle:  [✓] Include  →  [✕] Exclude  →  Clear",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 
@@ -526,12 +534,13 @@ private fun <T> ColumnScope.SelectionListContent(
         }
     }
 
-    DialogActions(
-        primaryText = "Apply",
-        onPrimary = { onApply(currentIncluded.toSet(), currentExcluded.toSet()) },
-        secondaryText = "Cancel",
-        onSecondary = onDismiss
-    )
+        DialogActions(
+            primaryText = "Apply",
+            onPrimary = { onApply(currentIncluded.toSet(), currentExcluded.toSet()) },
+            secondaryText = "Cancel",
+            onSecondary = onDismiss
+        )
+    }
 }
 
 @Composable
@@ -549,10 +558,9 @@ private fun SelectionItem(
     }
 
     Surface(
+        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.small)
-            .clickable(onClick = onClick)
             .semantics {
                 role = Role.Checkbox
                 stateDescription = when (state) {
@@ -577,7 +585,7 @@ private fun SelectionItem(
             Box(
                 modifier = Modifier
                     .size(20.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .clip(MaterialTheme.shapes.extraSmall)
                     .background(
                         when (state) {
                             ItemFilterState.INCLUDED -> MaterialTheme.colorScheme.primary
@@ -588,7 +596,7 @@ private fun SelectionItem(
                     .border(
                         width = if (state == ItemFilterState.NEUTRAL) 1.5.dp else 0.dp,
                         color = if (state == ItemFilterState.NEUTRAL) MaterialTheme.colorScheme.outline else Color.Transparent,
-                        shape = RoundedCornerShape(4.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                     ),
                 contentAlignment = Alignment.Center,
             ) {

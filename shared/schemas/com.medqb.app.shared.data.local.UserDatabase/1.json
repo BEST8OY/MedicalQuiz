@@ -236,7 +236,7 @@
       },
       {
         "tableName": "quiz_history",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`session_id` TEXT NOT NULL, `database_name` TEXT NOT NULL, `entry_name` TEXT NOT NULL, `selected_subject_ids` TEXT NOT NULL, `excluded_subject_ids` TEXT NOT NULL DEFAULT '', `selected_system_ids` TEXT NOT NULL, `excluded_system_ids` TEXT NOT NULL DEFAULT '', `performance_filter` TEXT NOT NULL, `current_question_index` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `is_logging_enabled` INTEGER NOT NULL, `submission_mode` TEXT NOT NULL, `selected_difficulty_tiers` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`session_id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`session_id` TEXT NOT NULL, `database_name` TEXT NOT NULL, `entry_name` TEXT NOT NULL, `selected_subject_ids` TEXT NOT NULL, `excluded_subject_ids` TEXT NOT NULL DEFAULT '', `selected_system_ids` TEXT NOT NULL, `excluded_system_ids` TEXT NOT NULL DEFAULT '', `status_filter` TEXT NOT NULL, `current_question_index` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `is_logging_enabled` INTEGER NOT NULL, `submission_mode` TEXT NOT NULL, `selected_difficulty_tiers` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`session_id`))",
         "fields": [
           {
             "fieldPath": "sessionId",
@@ -283,8 +283,8 @@
             "defaultValue": "''"
           },
           {
-            "fieldPath": "performanceFilter",
-            "columnName": "performance_filter",
+            "fieldPath": "statusFilter",
+            "columnName": "status_filter",
             "affinity": "TEXT",
             "notNull": true
           },

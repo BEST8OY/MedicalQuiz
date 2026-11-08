@@ -3,7 +3,7 @@ package com.medqb.app.shared.data
 import androidx.room3.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.local.UserDatabase
 import com.medqb.app.shared.data.local.UserDatabaseConstructor
 import com.medqb.app.shared.data.models.SubmissionMode
@@ -34,7 +34,7 @@ class DefaultQuizSessionRepositoryTest {
                 excludedSubjectIds = setOf(5L),
                 selectedSystemIds = setOf(10L),
                 excludedSystemIds = setOf(20L),
-                performanceFilter = PerformanceFilter.ALL,
+                statusFilter = StatusFilter.ALL,
                 currentQuestionIndex = 3,
                 isLoggingEnabled = true,
                 submissionMode = SubmissionMode.INSTANT,
@@ -56,7 +56,7 @@ class DefaultQuizSessionRepositoryTest {
             assertEquals(listOf(10L), session.selectedSystemIds)
             assertEquals(listOf(20L), session.excludedSystemIds)
             assertEquals(3, session.currentQuestionIndex)
-            assertEquals(PerformanceFilter.ALL, session.performanceFilter)
+            assertEquals(StatusFilter.ALL, session.statusFilter)
             assertEquals(SubmissionMode.INSTANT, session.submissionMode)
             assertEquals(setOf(DifficultyTier.DIFFICULT, DifficultyTier.EASY), session.selectedDifficultyTiers)
         } finally {
@@ -76,7 +76,7 @@ class DefaultQuizSessionRepositoryTest {
                 excludedSubjectIds = emptySet(),
                 selectedSystemIds = emptySet(),
                 excludedSystemIds = emptySet(),
-                performanceFilter = PerformanceFilter.ALL,
+                statusFilter = StatusFilter.ALL,
                 currentQuestionIndex = 0,
                 isLoggingEnabled = true,
                 submissionMode = SubmissionMode.INSTANT,
@@ -104,7 +104,7 @@ class DefaultQuizSessionRepositoryTest {
                 excludedSubjectIds = emptySet(),
                 selectedSystemIds = emptySet(),
                 excludedSystemIds = emptySet(),
-                performanceFilter = PerformanceFilter.ALL,
+                statusFilter = StatusFilter.ALL,
                 currentQuestionIndex = 0,
                 isLoggingEnabled = true,
                 submissionMode = SubmissionMode.INSTANT,
@@ -135,7 +135,7 @@ class DefaultQuizSessionRepositoryTest {
                 excludedSubjectIds = emptySet(),
                 selectedSystemIds = emptySet(),
                 excludedSystemIds = emptySet(),
-                performanceFilter = PerformanceFilter.ALL,
+                statusFilter = StatusFilter.ALL,
                 currentQuestionIndex = 0,
                 isLoggingEnabled = true,
                 submissionMode = SubmissionMode.INSTANT,
@@ -149,7 +149,7 @@ class DefaultQuizSessionRepositoryTest {
                 excludedSubjectIds = emptySet(),
                 selectedSystemIds = emptySet(),
                 excludedSystemIds = emptySet(),
-                performanceFilter = PerformanceFilter.ALL,
+                statusFilter = StatusFilter.ALL,
                 currentQuestionIndex = 0,
                 isLoggingEnabled = true,
                 submissionMode = SubmissionMode.INSTANT,

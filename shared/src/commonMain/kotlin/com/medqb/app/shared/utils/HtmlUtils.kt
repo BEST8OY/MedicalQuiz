@@ -20,11 +20,17 @@ object HtmlUtils {
     private val MEDIA_LINK_REGEX = Regex("""(?i).*\.(jpg|jpeg|png|gif|bmp|webp|mp4|avi|mkv|mov|webm|3gp|mp3|wav|ogg|m4a|aac|flac)(?:$|[?#]).*""")
     private val GENERIC_SRC_REGEX = Regex("""src=\s*['\"]([^'\"]+)['\"]""", setOf(RegexOption.IGNORE_CASE))
     private val CLASS_ATTR_CAPTURE_REGEX = Regex("""class=(['"])(.*?)\1""", RegexOption.IGNORE_CASE)
+    private val KEY_INFO_CLASS_REGEX = Regex("""class\s*=\s*['"][^'"]*\bselected\b[^'"]*['"]""", RegexOption.IGNORE_CASE)
 
     data class QuestionParts(
         val contentHtml: String,
         val hintHtml: String?
     )
+
+    fun hasKeyInfo(html: String?): Boolean {
+        if (html.isNullOrBlank()) return false
+        return html.contains("selected", ignoreCase = true) && KEY_INFO_CLASS_REGEX.containsMatchIn(html)
+    }
 
     fun extractQuestionHtmlParts(rawHtml: String?): QuestionParts {
         if (rawHtml.isNullOrBlank()) return QuestionParts("", null)
@@ -51,8 +57,6 @@ object HtmlUtils {
         private val VOID_TAGS = setOf(
             "br", "hr", "img", "input", "meta", "link", "area", "base", "col", "embed", "param", "source", "track", "wbr"
         )
-        private val LEARNING_CARD_CLICK_REGEX = Regex("""toLearningcard\(\s*['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?""")
-        private val LEARNING_CARD_HREF_REGEX = Regex("""linkLearningcard\(\s*['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?""")
 
         private fun appendAttributes(attributes: Map<String, String>, builder: StringBuilder) {
             attributes.forEach { (k, v) ->
@@ -80,50 +84,18 @@ object HtmlUtils {
             }
 
             // Remove onclick handlers that toggle hint
-            val filteredAttrs = attributes.filterNot { (k, v) -> k.equals("onclick", ignoreCase = true) && v.contains("hintdiv") }
-            val finalAttrs = filteredAttrs.toMutableMap()
-
-            // Fix learning card links (supporting both question content and hint content)
-            if (name.equals("a", ignoreCase = true)) {
-                val href = finalAttrs["href"]
-                var learningCardId = finalAttrs["data-learningcard-id"]
-                var anchor = finalAttrs["data-anker"]
-
-                if (learningCardId.isNullOrBlank()) {
-                    val ngClick = finalAttrs["ng-click"]
-                    if (ngClick != null) {
-                        val match = LEARNING_CARD_CLICK_REGEX.find(ngClick)
-                        if (match != null) {
-                            learningCardId = match.groupValues[1]
-                            anchor = match.groupValues.getOrNull(2)?.takeIf { it.isNotBlank() }
-                        }
-                    }
-                }
-                if (learningCardId.isNullOrBlank()) {
-                    val ngHref = finalAttrs["ng-href"]
-                    if (ngHref != null) {
-                        val match = LEARNING_CARD_HREF_REGEX.find(ngHref)
-                        if (match != null) {
-                            learningCardId = match.groupValues[1]
-                            anchor = match.groupValues.getOrNull(2)?.takeIf { it.isNotBlank() }
-                        }
-                    }
-                }
-
-                if ((href.isNullOrBlank() || href.contains("{{")) && !learningCardId.isNullOrBlank()) {
-                    val newHref = if (anchor != null) "learningcard://$learningCardId/$anchor" else "learningcard://$learningCardId"
-                    finalAttrs["href"] = newHref
-                }
+            val filteredAttrs = attributes.filterNot { (k, v) ->
+                k.equals("onclick", ignoreCase = true) && v.contains("hintdiv")
             }
 
             if (inHintDiv) {
                 if (name.equals("div", ignoreCase = true)) hintDivDepth++
                 hintBuilder.append("<$name")
-                appendAttributes(finalAttrs, hintBuilder)
+                appendAttributes(filteredAttrs, hintBuilder)
                 hintBuilder.append(">")
             } else {
                 contentBuilder.append("<$name")
-                appendAttributes(finalAttrs, contentBuilder)
+                appendAttributes(filteredAttrs, contentBuilder)
                 contentBuilder.append(">")
             }
         }
@@ -245,39 +217,15 @@ object HtmlUtils {
         .substringBefore('#')
         .trim()
 
-    fun resolveWebUrl(url: String): String {
-        val trimmed = url.trim()
-        if (trimmed.startsWith("learningcard://")) {
-            val path = trimmed.removePrefix("learningcard://")
-            val cardId = path.substringBefore('/')
-            val anchor = path.substringAfter('/', "").takeIf { it.isNotBlank() }
-            return if (anchor != null) {
-                "https://next.amboss.com/us/article/$cardId#$anchor"
-            } else {
-                "https://next.amboss.com/us/article/$cardId"
-            }
-        }
-        return trimmed
-    }
-
-    private val SPAN_LEARNING_CARD_REGEX = Regex(
-        """<span(\s+[^>]*data-learningcard-id[^>]*)>(.*?)(?:</a>|</span>)""",
-        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
-    )
-
     fun sanitizeForRichText(html: String): String {
         if (html.isBlank()) return ""
         val withoutScripts = removeScriptArtifacts(html)
         val withoutStyles = removeStyleArtifacts(withoutScripts)
         val cleanedNbme = cleanNbmeArtifacts(withoutStyles)
-        val normalizedSpans = normalizeLearningCardSpans(cleanedNbme)
-        val withNormalizedImages = rewriteImageSources(normalizedSpans)
+        val withNormalizedImages = rewriteImageSources(cleanedNbme)
         val rewritten = rewriteAnchorTags(withNormalizedImages)
         return ensureHtmlStructure(rewritten.trim())
     }
-
-    private fun normalizeLearningCardSpans(html: String): String = html
-        .replace(SPAN_LEARNING_CARD_REGEX, "<a$1>$2</a>")
 
     private fun removeScriptArtifacts(html: String): String = html
         .replace(SCRIPT_REGEX, "")

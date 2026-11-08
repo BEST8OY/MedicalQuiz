@@ -39,13 +39,12 @@ internal fun rememberResolvedLinkHandler(
     val uriHandler = LocalUriHandler.current
     return remember(onLinkClick, uriHandler, sourceTag) {
         onLinkClick ?: { url ->
-            val targetUrl = com.medqb.app.shared.utils.HtmlUtils.resolveWebUrl(url)
             try {
-                uriHandler.openUri(targetUrl)
+                uriHandler.openUri(url)
             } catch (e: Exception) {
-                println("$sourceTag: Failed to open URL '$targetUrl': ${e.message}")
+                println("$sourceTag: Failed to open URL '$url': ${e.message}")
             } catch (e: Error) {
-                println("$sourceTag: Critical error opening URL '$targetUrl': ${e.message}")
+                println("$sourceTag: Critical error opening URL '$url': ${e.message}")
             }
         }
     }

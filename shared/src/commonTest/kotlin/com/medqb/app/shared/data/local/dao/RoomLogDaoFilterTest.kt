@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 
 /**
  * Verifies the per-filter SQL in [RoomLogDao] against a real in-memory database —
- * these queries back PerformanceFilter selection (see QuestionDao).
+ * these queries back StatusFilter selection (see QuestionDao).
  */
 class RoomLogDaoFilterTest {
 

@@ -24,11 +24,13 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.QuestionStatus
+import com.medqb.app.shared.data.database.StatusFilter
+import com.medqb.app.shared.data.database.StatusScope
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.ui.dialogs.DifficultyFilterDialog
-import com.medqb.app.shared.ui.dialogs.PerformanceFilterDialog
+import com.medqb.app.shared.ui.dialogs.StatusFilterDialog
 import com.medqb.app.shared.ui.dialogs.SubjectFilterDialog
 import com.medqb.app.shared.ui.dialogs.SystemFilterDialog
 import com.medqb.app.shared.ui.screens.history.HistoryPane
@@ -71,7 +73,7 @@ internal fun FilterHubScreen(
         onApplySelectedSubjects = { inc, excl -> viewModel.applySelectedSubjects(inc, excl) },
         onFetchSystems = { viewModel.fetchSystems() },
         onApplySelectedSystems = { inc, excl -> viewModel.applySelectedSystems(inc, excl) },
-        onSelectPerformanceFilter = { viewModel.setPerformanceFilter(it) },
+        onSelectStatusFilter = { viewModel.setStatusFilter(it) },
         onSelectDifficultyFilters = { viewModel.setDifficultyFilters(it) },
         onShowSnackbar = onShowSnackbar,
         onDismissSnackbar = onDismissSnackbar,
@@ -96,18 +98,18 @@ internal fun FilterHubContent(
     onApplySelectedSubjects: (Set<Long>, Set<Long>) -> Unit,
     onFetchSystems: () -> Unit,
     onApplySelectedSystems: (Set<Long>, Set<Long>) -> Unit,
-    onSelectPerformanceFilter: (PerformanceFilter) -> Unit,
+    onSelectStatusFilter: (StatusFilter) -> Unit,
     onSelectDifficultyFilters: (Set<DifficultyTier>) -> Unit = {},
     onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
     onDismissSnackbar: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val performanceLabel = formatPerformanceLabel(state.performanceFilter)
+    val statusLabel = formatStatusFilterLabel(state.statusFilter)
     val difficultyLabel = formatDifficultyLabel(state.selectedDifficultyTiers)
 
     var showSubjectDialog by rememberSaveable { mutableStateOf(false) }
     var showSystemDialog by rememberSaveable { mutableStateOf(false) }
-    var showPerformanceDialog by rememberSaveable { mutableStateOf(false) }
+    var showStatusDialog by rememberSaveable { mutableStateOf(false) }
     var showDifficultyDialog by rememberSaveable { mutableStateOf(false) }
 
     var historySelectionMode by rememberSaveable { mutableStateOf(false) }
@@ -150,8 +152,8 @@ internal fun FilterHubContent(
                             excludedSubjectCount = state.excludedSubjectIds.size,
                             systemCount = state.selectedSystemIds.size,
                             excludedSystemCount = state.excludedSystemIds.size,
-                            performanceFilter = state.performanceFilter,
-                            performanceLabel = performanceLabel,
+                            statusFilter = state.statusFilter,
+                            statusLabel = statusLabel,
                             selectedDifficultyTiers = state.selectedDifficultyTiers,
                             difficultyLabel = difficultyLabel,
                             isDifficultyAvailable = state.isDifficultyAvailable,
@@ -163,7 +165,7 @@ internal fun FilterHubContent(
                             bottomContentPadding = bottomContentPadding,
                             onSelectSubjects = { showSubjectDialog = true },
                             onSelectSystems = { showSystemDialog = true },
-                            onSelectPerformance = { showPerformanceDialog = true },
+                            onSelectStatus = { showStatusDialog = true },
                             onSelectDifficulty = { showDifficultyDialog = true },
                             onStart = {
                                 onDismissSnackbar()
@@ -221,14 +223,14 @@ internal fun FilterHubContent(
         )
     }
 
-    if (showPerformanceDialog) {
-        PerformanceFilterDialog(
-            current = state.performanceFilter,
+    if (showStatusDialog) {
+        StatusFilterDialog(
+            current = state.statusFilter,
             onSelect = { filter ->
-                onSelectPerformanceFilter(filter)
-                showPerformanceDialog = false
+                onSelectStatusFilter(filter)
+                showStatusDialog = false
             },
-            onDismiss = { showPerformanceDialog = false }
+            onDismiss = { showStatusDialog = false }
         )
     }
 
@@ -245,14 +247,29 @@ internal fun FilterHubContent(
     }
 }
 
-private fun formatPerformanceLabel(filter: PerformanceFilter): String {
-    return when (filter) {
-        PerformanceFilter.ALL -> "All Questions"
-        PerformanceFilter.UNANSWERED -> "Not Attempted"
-        PerformanceFilter.LAST_CORRECT -> "Last Correct"
-        PerformanceFilter.LAST_INCORRECT -> "Last Incorrect"
-        PerformanceFilter.EVER_CORRECT -> "Ever Correct"
-        PerformanceFilter.EVER_INCORRECT -> "Ever Incorrect"
+private fun formatStatusFilterLabel(filter: StatusFilter): String {
+    if (filter.isAll) return "All Questions"
+
+    if (filter.statuses.size == 1) {
+        val single = filter.statuses.first()
+        return when (single) {
+            QuestionStatus.NOT_YET_ANSWERED -> "Not yet answered"
+            QuestionStatus.ANSWERED_INCORRECTLY -> if (filter.scope == StatusScope.LATEST_ATTEMPT) "Last incorrect" else "Ever incorrect"
+            QuestionStatus.ANSWERED_CORRECTLY -> if (filter.scope == StatusScope.LATEST_ATTEMPT) "Last correct" else "Ever correct"
+        }
     }
+
+    if (filter.statuses.size == 2 &&
+        QuestionStatus.NOT_YET_ANSWERED in filter.statuses &&
+        QuestionStatus.ANSWERED_INCORRECTLY in filter.statuses
+    ) {
+        return if (filter.scope == StatusScope.LATEST_ATTEMPT) {
+            "Unanswered & Incorrect"
+        } else {
+            "Unanswered & Ever incorrect"
+        }
+    }
+
+    return "${filter.statuses.size} statuses (${filter.scope.shortLabel})"
 }
 

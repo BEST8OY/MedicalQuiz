@@ -47,6 +47,7 @@ import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.richtext.HighlightableRichText
 import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
+import com.medqb.app.shared.ui.screens.quiz.labs.LabsBottomSheet
 import com.medqb.app.shared.ui.state.QuizUiState
 import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
@@ -161,7 +162,7 @@ private fun QuizQuestionCard(
             if (normalizedUrl.isNotEmpty()) {
                 if (!mediaHandler.handleMediaLink(normalizedUrl)) {
                     try {
-                        uriHandler.openUri(HtmlUtils.resolveWebUrl(normalizedUrl))
+                        uriHandler.openUri(normalizedUrl)
                     } catch (e: Exception) {
                         // Ignore
                     }
@@ -243,8 +244,13 @@ private fun QuizQuestionCard(
             }.toMap()
         }
     }
-    var hintExpanded by rememberSaveable(question.id) { mutableStateOf(false) }
-    val showHint = hintHtml != null && (state.answerSubmitted || hintExpanded)
+    val hasKeyInfo = remember(question.id, questionHtml) {
+        HtmlUtils.hasKeyInfo(questionHtml)
+    }
+    var keyInfoToggled by rememberSaveable(question.id) { mutableStateOf<Boolean?>(null) }
+    val isKeyInfoActive = keyInfoToggled ?: state.answerSubmitted
+    var attendingTipVisible by rememberSaveable(question.id) { mutableStateOf(false) }
+    var showLabsSheet by rememberSaveable { mutableStateOf(false) }
 
     val scrollState = key(state.currentQuestionIndex) { rememberScrollState() }
 
@@ -256,6 +262,16 @@ private fun QuizQuestionCard(
             .padding(top = Spacing.MediumSmall, bottom = bottomClearance + Spacing.Medium),
         verticalArrangement = Arrangement.spacedBy(Spacing.Medium)
     ) {
+        QuizStudyActionBar(
+            hasKeyInfo = hasKeyInfo,
+            isKeyInfoActive = isKeyInfoActive,
+            onToggleKeyInfo = { keyInfoToggled = !isKeyInfoActive },
+            hasAttendingTip = hintHtml != null,
+            isAttendingTipActive = attendingTipVisible,
+            onToggleAttendingTip = { attendingTipVisible = !attendingTipVisible },
+            onOpenLabs = { showLabsSheet = true }
+        )
+
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.large,
@@ -270,7 +286,7 @@ private fun QuizQuestionCard(
                 html = questionHtml,
                 section = HighlightSection.QUESTION,
                 highlights = state.questionHighlights,
-                showSelectedHighlight = state.answerSubmitted,
+                showSelectedHighlight = isKeyInfoActive,
                 onHighlightAdd = onHighlightAdd,
                 onHighlightRemove = onHighlightRemove,
                 onHighlightColorChange = onHighlightColorChange,
@@ -282,14 +298,13 @@ private fun QuizQuestionCard(
         }
 
         if (hintHtml != null) {
-            HintSection(
-                isVisible = showHint,
-                canToggle = !state.answerSubmitted,
-                onToggle = { hintExpanded = !hintExpanded },
+            AttendingTipSection(
+                isVisible = attendingTipVisible,
+                onDismiss = { attendingTipVisible = false },
                 hintHtml = hintHtml,
                 linkHandler = linkHandler,
                 mediaClick = mediaClick,
-                showSelectedHighlight = state.answerSubmitted
+                showSelectedHighlight = isKeyInfoActive
             )
         }
 
@@ -378,5 +393,9 @@ private fun QuizQuestionCard(
                 PerformanceCard(performance = state.currentPerformance)
             }
         }
+    }
+
+    if (showLabsSheet) {
+        LabsBottomSheet(onDismiss = { showLabsSheet = false })
     }
 }

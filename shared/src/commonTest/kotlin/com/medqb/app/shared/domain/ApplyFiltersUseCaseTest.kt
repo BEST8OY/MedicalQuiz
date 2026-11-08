@@ -1,7 +1,9 @@
 package com.medqb.app.shared.domain
 
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.QuestionStatus
+import com.medqb.app.shared.data.database.StatusFilter
+import com.medqb.app.shared.data.database.StatusScope
 import com.medqb.app.shared.data.models.System
 import com.medqb.app.shared.viewmodel.FakeDatabaseProvider
 import kotlinx.coroutines.test.runTest
@@ -78,24 +80,25 @@ class ApplyFiltersUseCaseTest {
 
     @Test
     fun previewQuestionCountDelegatesToDatabaseProvider() = runTest {
-        var receivedPerfFilter: PerformanceFilter? = null
+        var receivedStatusFilter: StatusFilter? = null
         val db = FakeDatabaseProvider().apply {
-            countQuestionIdsProvider = { subjects, _, systems, _, perf, tiers ->
-                receivedPerfFilter = perf
+            countQuestionIdsProvider = { subjects, _, systems, _, status, tiers ->
+                receivedStatusFilter = status
                 if (subjects?.contains(1L) == true) 42 else 0
             }
         }
 
+        val expectedFilter = StatusFilter(setOf(QuestionStatus.ANSWERED_INCORRECTLY), StatusScope.LATEST_ATTEMPT)
         val count = useCase.previewQuestionCount(
             db = db,
             selectedSubjectIds = setOf(1L),
             selectedSystemIds = setOf(10L),
-            performanceFilter = PerformanceFilter.LAST_INCORRECT,
+            statusFilter = expectedFilter,
             difficultyFilters = setOf(DifficultyTier.DIFFICULT),
         )
 
         assertEquals(42, count)
-        assertEquals(PerformanceFilter.LAST_INCORRECT, receivedPerfFilter)
+        assertEquals(expectedFilter, receivedStatusFilter)
     }
 
     @Test
@@ -104,7 +107,7 @@ class ApplyFiltersUseCaseTest {
             db = null,
             selectedSubjectIds = setOf(1L),
             selectedSystemIds = emptySet(),
-            performanceFilter = PerformanceFilter.ALL,
+            statusFilter = StatusFilter.ALL,
         )
         assertEquals(0, count)
     }
@@ -120,7 +123,7 @@ class ApplyFiltersUseCaseTest {
             db = db,
             selectedSubjectIds = setOf(1L),
             selectedSystemIds = emptySet(),
-            performanceFilter = PerformanceFilter.ALL,
+            statusFilter = StatusFilter.ALL,
         )
 
         assertEquals(expected, result)
@@ -132,7 +135,7 @@ class ApplyFiltersUseCaseTest {
             db = null,
             selectedSubjectIds = setOf(1L),
             selectedSystemIds = emptySet(),
-            performanceFilter = PerformanceFilter.ALL,
+            statusFilter = StatusFilter.ALL,
         )
         assertTrue(result.isEmpty())
     }

@@ -22,11 +22,11 @@ interface RoomSessionHistoryDao {
         """
         INSERT INTO quiz_history
         (session_id, database_name, entry_name, selected_subject_ids, excluded_subject_ids,
-         selected_system_ids, excluded_system_ids, performance_filter, current_question_index,
+         selected_system_ids, excluded_system_ids, status_filter, current_question_index,
          updated_at, is_logging_enabled, submission_mode, selected_difficulty_tiers)
         VALUES
         (:sessionId, :databaseName, :entryName, :selectedSubjectIds, :excludedSubjectIds,
-         :selectedSystemIds, :excludedSystemIds, :performanceFilter, :currentQuestionIndex,
+         :selectedSystemIds, :excludedSystemIds, :statusFilter, :currentQuestionIndex,
          :updatedAt, :isLoggingEnabled, :submissionMode, :selectedDifficultyTiers)
         ON CONFLICT(session_id) DO UPDATE SET
             database_name = excluded.database_name,
@@ -35,7 +35,7 @@ interface RoomSessionHistoryDao {
             excluded_subject_ids = excluded.excluded_subject_ids,
             selected_system_ids = excluded.selected_system_ids,
             excluded_system_ids = excluded.excluded_system_ids,
-            performance_filter = excluded.performance_filter,
+            status_filter = excluded.status_filter,
             current_question_index = excluded.current_question_index,
             updated_at = excluded.updated_at,
             is_logging_enabled = excluded.is_logging_enabled,
@@ -49,7 +49,7 @@ interface RoomSessionHistoryDao {
         entryName: String,
         selectedSubjectIds: String,
         selectedSystemIds: String,
-        performanceFilter: String,
+        statusFilter: String,
         currentQuestionIndex: Int,
         updatedAt: Long,
         isLoggingEnabled: Boolean,
@@ -91,7 +91,7 @@ interface RoomSessionHistoryDao {
         excludedSubjectIds = entity.excludedSubjectIds,
         selectedSystemIds = entity.selectedSystemIds,
         excludedSystemIds = entity.excludedSystemIds,
-        performanceFilter = entity.performanceFilter,
+        statusFilter = entity.statusFilter,
         currentQuestionIndex = entity.currentQuestionIndex,
         updatedAt = entity.updatedAt,
         isLoggingEnabled = entity.isLoggingEnabled,

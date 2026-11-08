@@ -1,10 +1,9 @@
 package com.medqb.app.shared.domain
 
 import com.medqb.app.shared.data.database.DatabaseProvider
-import com.medqb.app.shared.data.database.PerformanceFilter
-import dev.zacsweers.metro.Inject
-
 import com.medqb.app.shared.data.database.DifficultyTier
+import com.medqb.app.shared.data.database.StatusFilter
+import dev.zacsweers.metro.Inject
 
 @Inject
 class ApplyFiltersUseCase {
@@ -46,7 +45,7 @@ class ApplyFiltersUseCase {
         excludedSubjectIds: Set<Long> = emptySet(),
         selectedSystemIds: Set<Long>,
         excludedSystemIds: Set<Long> = emptySet(),
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
         difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): Int {
         return db?.countQuestionIds(
@@ -54,7 +53,7 @@ class ApplyFiltersUseCase {
             excludedSubjectIds = excludedSubjectIds.takeIf { it.isNotEmpty() }?.toList(),
             systemIds = selectedSystemIds.takeIf { it.isNotEmpty() }?.toList(),
             excludedSystemIds = excludedSystemIds.takeIf { it.isNotEmpty() }?.toList(),
-            performanceFilter = performanceFilter,
+            statusFilter = statusFilter,
             difficultyFilters = difficultyFilters,
         ) ?: 0
     }
@@ -65,14 +64,14 @@ class ApplyFiltersUseCase {
         excludedSubjectIds: Set<Long> = emptySet(),
         selectedSystemIds: Set<Long>,
         excludedSystemIds: Set<Long> = emptySet(),
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
     ): Map<DifficultyTier, Int> {
         return db?.getDifficultyCounts(
             subjectIds = selectedSubjectIds.takeIf { it.isNotEmpty() }?.toList(),
             excludedSubjectIds = excludedSubjectIds.takeIf { it.isNotEmpty() }?.toList(),
             systemIds = selectedSystemIds.takeIf { it.isNotEmpty() }?.toList(),
             excludedSystemIds = excludedSystemIds.takeIf { it.isNotEmpty() }?.toList(),
-            performanceFilter = performanceFilter,
+            statusFilter = statusFilter,
         ) ?: emptyMap()
     }
 

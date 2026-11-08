@@ -29,7 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.ScreenLayout
@@ -42,8 +42,8 @@ internal fun FilterScreen(
     excludedSubjectCount: Int = 0,
     systemCount: Int,
     excludedSystemCount: Int = 0,
-    performanceFilter: PerformanceFilter,
-    performanceLabel: String,
+    statusFilter: StatusFilter,
+    statusLabel: String,
     selectedDifficultyTiers: Set<DifficultyTier> = emptySet(),
     difficultyLabel: String = "All Difficulties",
     isDifficultyAvailable: Boolean = false,
@@ -55,7 +55,7 @@ internal fun FilterScreen(
     bottomContentPadding: Dp = 0.dp,
     onSelectSubjects: () -> Unit,
     onSelectSystems: () -> Unit,
-    onSelectPerformance: () -> Unit,
+    onSelectStatus: () -> Unit,
     onSelectDifficulty: () -> Unit = {},
     onStart: () -> Unit,
     onClearFilters: () -> Unit,
@@ -67,7 +67,7 @@ internal fun FilterScreen(
         selectedDifficultyTiers.size < DifficultyTier.entries.size
     val hasFilters = subjectCount > 0 ||
         systemCount > 0 ||
-        performanceFilter != PerformanceFilter.ALL ||
+        !statusFilter.isAll ||
         isDifficultyActive
 
     Surface(modifier = modifier.fillMaxSize()) {
@@ -135,11 +135,11 @@ internal fun FilterScreen(
                                 horizontalArrangement = Arrangement.spacedBy(Spacing.Medium)
                             ) {
                                 FilterSelectionCard(
-                                    title = "Performance",
-                                    subtitle = performanceLabel,
+                                    title = "Status",
+                                    subtitle = statusLabel,
                                     icon = Icons.AutoMirrored.Filled.TrendingUp,
-                                    isActive = performanceFilter != PerformanceFilter.ALL,
-                                    onClick = onSelectPerformance,
+                                    isActive = !statusFilter.isAll,
+                                    onClick = onSelectStatus,
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxHeight(),
@@ -159,11 +159,11 @@ internal fun FilterScreen(
                             }
                         } else {
                             FilterSelectionCard(
-                                title = "Performance",
-                                subtitle = performanceLabel,
+                                title = "Status",
+                                subtitle = statusLabel,
                                 icon = Icons.AutoMirrored.Filled.TrendingUp,
-                                isActive = performanceFilter != PerformanceFilter.ALL,
-                                onClick = onSelectPerformance,
+                                isActive = !statusFilter.isAll,
+                                onClick = onSelectStatus,
                             )
 
                             FilterSelectionCard(

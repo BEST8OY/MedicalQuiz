@@ -8,7 +8,7 @@ import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.domain.SnackbarMessage
@@ -59,7 +59,7 @@ class FilterHubViewModel(
         const val KEY_EXCLUDED_SUBJECT_IDS = "excluded_subject_ids"
         const val KEY_SELECTED_SYSTEM_IDS = "selected_system_ids"
         const val KEY_EXCLUDED_SYSTEM_IDS = "excluded_system_ids"
-        const val KEY_PERFORMANCE_FILTER = "performance_filter"
+        const val KEY_STATUS_FILTER = "status_filter"
         const val KEY_SELECTED_DIFFICULTY_TIERS = "selected_difficulty_tiers"
         const val KEY_ACTIVE_PANE = "activePane"
 
@@ -68,7 +68,7 @@ class FilterHubViewModel(
             val excludedSubjects: Set<Long>,
             val systems: Set<Long>,
             val excludedSystems: Set<Long>,
-            val performance: PerformanceFilter,
+            val status: StatusFilter,
             val difficulties: Set<DifficultyTier>,
             val db: com.medqb.app.shared.data.database.DatabaseProvider?,
         )
@@ -79,7 +79,7 @@ class FilterHubViewModel(
             val excludedSubjects: Set<Long>,
             val systems: Set<Long>,
             val excludedSystems: Set<Long>,
-            val performance: PerformanceFilter,
+            val status: StatusFilter,
         )
 
         private data class FilterSelection(
@@ -87,7 +87,7 @@ class FilterHubViewModel(
             val excludedSubjectIds: Set<Long>,
             val systemIds: Set<Long>,
             val excludedSystemIds: Set<Long>,
-            val performanceFilter: PerformanceFilter,
+            val statusFilter: StatusFilter,
             val difficultyTiers: Set<DifficultyTier>,
         )
     }
@@ -104,10 +104,10 @@ class FilterHubViewModel(
     private val filterSelectionFlow = combine(
         combine(filterStateHolder.selectedSubjectIds, filterStateHolder.excludedSubjectIds) { sel, excl -> sel to excl },
         combine(filterStateHolder.selectedSystemIds, filterStateHolder.excludedSystemIds) { sel, excl -> sel to excl },
-        filterStateHolder.performanceFilter,
+        filterStateHolder.statusFilter,
         filterStateHolder.selectedDifficultyTiers,
-    ) { (subjectIds, exclSubjectIds), (systemIds, exclSystemIds), performanceFilter, difficultyTiers ->
-        FilterSelection(subjectIds, exclSubjectIds, systemIds, exclSystemIds, performanceFilter, difficultyTiers)
+    ) { (subjectIds, exclSubjectIds), (systemIds, exclSystemIds), statusFilter, difficultyTiers ->
+        FilterSelection(subjectIds, exclSubjectIds, systemIds, exclSystemIds, statusFilter, difficultyTiers)
     }.distinctUntilChanged()
 
     init {
@@ -172,7 +172,7 @@ class FilterHubViewModel(
                 selection.excludedSubjectIds,
                 selection.systemIds,
                 selection.excludedSystemIds,
-                selection.performanceFilter,
+                selection.statusFilter,
             )
         }
             .flatMapLatest { params ->
@@ -191,7 +191,7 @@ class FilterHubViewModel(
                                         excludedSubjectIds = params.excludedSubjects,
                                         selectedSystemIds = params.systems,
                                         excludedSystemIds = params.excludedSystems,
-                                        performanceFilter = params.performance,
+                                        statusFilter = params.status,
                                     )
                                 } catch (e: CancellationException) {
                                     throw e
@@ -284,7 +284,7 @@ class FilterHubViewModel(
                 selection.excludedSubjectIds,
                 selection.systemIds,
                 selection.excludedSystemIds,
-                selection.performanceFilter,
+                selection.statusFilter,
                 selection.difficultyTiers,
                 active?.provider,
             )
@@ -299,7 +299,7 @@ class FilterHubViewModel(
                                 excludedSubjectIds = params.excludedSubjects,
                                 selectedSystemIds = params.systems,
                                 excludedSystemIds = params.excludedSystems,
-                                performanceFilter = params.performance,
+                                statusFilter = params.status,
                                 difficultyFilters = params.difficulties,
                             )
                         } catch (e: CancellationException) {
@@ -329,7 +329,7 @@ class FilterHubViewModel(
                         excludedSubjectIds = selection.excludedSubjectIds,
                         selectedSystemIds = selection.systemIds,
                         excludedSystemIds = selection.excludedSystemIds,
-                        performanceFilter = selection.performanceFilter,
+                        statusFilter = selection.statusFilter,
                         selectedDifficultyTiers = selection.difficultyTiers,
                     )
                 }
@@ -383,10 +383,8 @@ class FilterHubViewModel(
         savedStateHandle.get<List<Long>>(KEY_EXCLUDED_SYSTEM_IDS)?.toSet()?.let {
             filterStateHolder.updateExcludedSystemIds(it)
         }
-        savedStateHandle.get<String>(KEY_PERFORMANCE_FILTER)?.let { name ->
-            runCatching { PerformanceFilter.valueOf(name) }.getOrNull()?.let {
-                filterStateHolder.updatePerformanceFilter(it)
-            }
+        savedStateHandle.get<String>(KEY_STATUS_FILTER)?.let { raw ->
+            filterStateHolder.updateStatusFilter(StatusFilter.deserialize(raw))
         }
         savedStateHandle.get<List<String>>(KEY_SELECTED_DIFFICULTY_TIERS)?.mapNotNull { name ->
             runCatching { DifficultyTier.valueOf(name) }.getOrNull()
@@ -407,7 +405,7 @@ class FilterHubViewModel(
                 savedStateHandle[KEY_EXCLUDED_SUBJECT_IDS] = selection.excludedSubjectIds.toList()
                 savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = selection.systemIds.toList()
                 savedStateHandle[KEY_EXCLUDED_SYSTEM_IDS] = selection.excludedSystemIds.toList()
-                savedStateHandle[KEY_PERFORMANCE_FILTER] = selection.performanceFilter.name
+                savedStateHandle[KEY_STATUS_FILTER] = selection.statusFilter.serialize()
                 savedStateHandle[KEY_SELECTED_DIFFICULTY_TIERS] = selection.difficultyTiers.map { it.name }
             }
             .launchIn(viewModelScope)
@@ -462,8 +460,8 @@ class FilterHubViewModel(
         }
     }
 
-    fun setPerformanceFilter(filter: PerformanceFilter) {
-        filterStateHolder.updatePerformanceFilter(filter)
+    fun setStatusFilter(filter: StatusFilter) {
+        filterStateHolder.updateStatusFilter(filter)
     }
 
     fun setDifficultyFilters(tiers: Set<DifficultyTier>) {

@@ -1,7 +1,7 @@
 package com.medqb.app.shared.data
 
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.local.entity.QuizHistoryEntity
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.di.AppScope
@@ -52,7 +52,7 @@ class DefaultQuizSessionRepository(
         excludedSubjectIds: Set<Long>,
         selectedSystemIds: Set<Long>,
         excludedSystemIds: Set<Long>,
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
         currentQuestionIndex: Int,
         isLoggingEnabled: Boolean,
         submissionMode: SubmissionMode,
@@ -80,7 +80,7 @@ class DefaultQuizSessionRepository(
             excludedSubjectIds = excludedSubjectIds.toSortedSet().joinToString(","),
             selectedSystemIds = selectedSystemIds.toSortedSet().joinToString(","),
             excludedSystemIds = excludedSystemIds.toSortedSet().joinToString(","),
-            performanceFilter = performanceFilter.name,
+            statusFilter = statusFilter.serialize(),
             currentQuestionIndex = currentQuestionIndex,
             updatedAt = now,
             isLoggingEnabled = isLoggingEnabled,
@@ -131,7 +131,7 @@ private fun QuizSessionRepository.QuizSession.toEntity() = QuizHistoryEntity(
     excludedSubjectIds = excludedSubjectIds.joinToString(","),
     selectedSystemIds = selectedSystemIds.joinToString(","),
     excludedSystemIds = excludedSystemIds.joinToString(","),
-    performanceFilter = performanceFilter.name,
+    statusFilter = statusFilter.serialize(),
     currentQuestionIndex = currentQuestionIndex,
     updatedAt = updatedAtEpochMillis,
     isLoggingEnabled = isLoggingEnabled,
@@ -147,7 +147,7 @@ private fun QuizHistoryEntity.toQuizSession() = QuizSessionRepository.QuizSessio
     excludedSubjectIds = excludedSubjectIds.split(",").mapNotNull { it.trim().trim('[', ']', ' ').toLongOrNull() },
     selectedSystemIds = selectedSystemIds.split(",").mapNotNull { it.trim().trim('[', ']', ' ').toLongOrNull() },
     excludedSystemIds = excludedSystemIds.split(",").mapNotNull { it.trim().trim('[', ']', ' ').toLongOrNull() },
-    performanceFilter = runCatching { PerformanceFilter.valueOf(performanceFilter) }.getOrDefault(PerformanceFilter.ALL),
+    statusFilter = StatusFilter.deserialize(statusFilter),
     currentQuestionIndex = currentQuestionIndex,
     updatedAtEpochMillis = updatedAt,
     isLoggingEnabled = isLoggingEnabled,

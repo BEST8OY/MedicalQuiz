@@ -1,6 +1,5 @@
 package com.medqb.app.shared.ui.state
 
-import com.medqb.app.shared.data.database.PerformanceFilter
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.models.Answer
 import com.medqb.app.shared.data.models.Question

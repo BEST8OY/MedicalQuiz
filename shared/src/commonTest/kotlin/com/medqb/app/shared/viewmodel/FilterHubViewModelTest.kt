@@ -5,7 +5,9 @@ import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.QuestionStatus
+import com.medqb.app.shared.data.database.StatusFilter
+import com.medqb.app.shared.data.database.StatusScope
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
 import com.medqb.app.shared.ui.screens.filter.formatDifficultyLabel
@@ -72,7 +74,7 @@ class FilterHubViewModelTest {
     }
 
     @Test
-    fun previewCountTracksPerformanceFilterAndSelectionMirrorsHolder() = runHubTest {
+    fun previewCountTracksStatusFilterAndSelectionMirrorsHolder() = runHubTest {
         val provider = FakeDatabaseProvider() // count: 10 for ALL, 3 otherwise
         val filterStateHolder = FilterStateHolder()
         val holder = ActiveDatabaseHolder()
@@ -86,10 +88,11 @@ class FilterHubViewModelTest {
         advanceUntilIdle()
         assertEquals(setOf(5L), viewModel.state.value.selectedSubjectIds)
 
-        filterStateHolder.updatePerformanceFilter(PerformanceFilter.LAST_CORRECT)
+        val lastCorrect = StatusFilter(setOf(QuestionStatus.ANSWERED_CORRECTLY), StatusScope.LATEST_ATTEMPT)
+        filterStateHolder.updateStatusFilter(lastCorrect)
         advanceUntilIdle()
         assertEquals(3, viewModel.state.value.previewQuestionCount)
-        assertEquals(PerformanceFilter.LAST_CORRECT, viewModel.state.value.performanceFilter)
+        assertEquals(lastCorrect, viewModel.state.value.statusFilter)
     }
 
     @Test
@@ -102,24 +105,25 @@ class FilterHubViewModelTest {
         provider.installInto(holder)
         advanceUntilIdle()
 
-        viewModel.setPerformanceFilter(PerformanceFilter.EVER_CORRECT)
+        val everCorrect = StatusFilter(setOf(QuestionStatus.ANSWERED_CORRECTLY), StatusScope.ALL_ATTEMPTS)
+        viewModel.setStatusFilter(everCorrect)
         filterStateHolder.updateSubjectIds(setOf(1L, 2L))
         advanceUntilIdle()
-        assertEquals(PerformanceFilter.EVER_CORRECT, viewModel.state.value.performanceFilter)
+        assertEquals(everCorrect, viewModel.state.value.statusFilter)
         // SavedStateHandle mirrors the holder reactively.
         assertEquals(listOf(1L, 2L), savedStateHandle.get<List<Long>>("selected_subject_ids"))
-        assertEquals("EVER_CORRECT", savedStateHandle.get<String>("performance_filter"))
+        assertEquals(everCorrect.serialize(), savedStateHandle.get<String>("status_filter"))
 
         viewModel.clearAllFilters()
         advanceUntilIdle()
 
         assertEquals(emptySet(), filterStateHolder.selectedSubjectIds.value)
         assertEquals(emptySet(), filterStateHolder.selectedSystemIds.value)
-        assertEquals(PerformanceFilter.ALL, filterStateHolder.performanceFilter.value)
+        assertEquals(StatusFilter.ALL, filterStateHolder.statusFilter.value)
         assertEquals(emptySet(), viewModel.state.value.selectedSubjectIds)
-        assertEquals(PerformanceFilter.ALL, viewModel.state.value.performanceFilter)
+        assertEquals(StatusFilter.ALL, viewModel.state.value.statusFilter)
         assertEquals(emptyList(), savedStateHandle.get<List<Long>>("selected_subject_ids"))
-        assertEquals("ALL", savedStateHandle.get<String>("performance_filter"))
+        assertEquals(StatusFilter.ALL.serialize(), savedStateHandle.get<String>("status_filter"))
     }
 
     @Test
@@ -132,10 +136,11 @@ class FilterHubViewModelTest {
         provider.installInto(holder)
         advanceUntilIdle()
 
-        viewModel.setPerformanceFilter(PerformanceFilter.EVER_INCORRECT)
+        val everIncorrect = StatusFilter(setOf(QuestionStatus.ANSWERED_INCORRECTLY), StatusScope.ALL_ATTEMPTS)
+        viewModel.setStatusFilter(everIncorrect)
         filterStateHolder.updateSubjectIds(setOf(9L))
         advanceUntilIdle()
-        assertEquals("EVER_INCORRECT", savedStateHandle.get<String>("performance_filter"))
+        assertEquals(everIncorrect.serialize(), savedStateHandle.get<String>("status_filter"))
 
         // Simulates an out-of-ViewModel reset (e.g. AppWorkflowCoordinator on db select):
         // with reactive persistence it must still reach SavedStateHandle.
@@ -143,7 +148,7 @@ class FilterHubViewModelTest {
         advanceUntilIdle()
 
         assertEquals(emptyList(), savedStateHandle.get<List<Long>>("selected_subject_ids"))
-        assertEquals("ALL", savedStateHandle.get<String>("performance_filter"))
+        assertEquals(StatusFilter.ALL.serialize(), savedStateHandle.get<String>("status_filter"))
     }
 
     @Test
@@ -275,6 +280,7 @@ class FilterHubViewModelTest {
 
     @Test
     fun difficultyCountsUpdateWhenSubjectsOrSystemsChange() = runHubTest {
+        val activeStatusFilter = StatusFilter(setOf(QuestionStatus.ANSWERED_CORRECTLY), StatusScope.LATEST_ATTEMPT)
         val provider = FakeDatabaseProvider()
         provider.difficultyAvailable = true
         provider.difficultyCountsProvider = { subjects, _, systems, _, perf ->
@@ -287,7 +293,7 @@ class FilterHubViewModelTest {
                     DifficultyTier.VERY_DIFFICULT to 1,
                     DifficultyTier.EASY to 2,
                 )
-                perf == PerformanceFilter.UNANSWERED -> mapOf(
+                perf == activeStatusFilter -> mapOf(
                     DifficultyTier.VERY_DIFFICULT to 3,
                     DifficultyTier.EASY to 5,
                 )
@@ -322,9 +328,9 @@ class FilterHubViewModelTest {
         assertEquals(1, viewModel.state.value.difficultyCounts[DifficultyTier.VERY_DIFFICULT])
         assertEquals(2, viewModel.state.value.difficultyCounts[DifficultyTier.EASY])
 
-        // Scoped by performance filter
+        // Scoped by status filter
         filterStateHolder.updateSystemIds(emptySet())
-        filterStateHolder.updatePerformanceFilter(PerformanceFilter.UNANSWERED)
+        filterStateHolder.updateStatusFilter(activeStatusFilter)
         advanceUntilIdle()
         assertEquals(3, viewModel.state.value.difficultyCounts[DifficultyTier.VERY_DIFFICULT])
         assertEquals(5, viewModel.state.value.difficultyCounts[DifficultyTier.EASY])

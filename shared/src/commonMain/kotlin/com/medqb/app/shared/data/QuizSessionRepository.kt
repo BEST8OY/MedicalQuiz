@@ -1,7 +1,7 @@
 package com.medqb.app.shared.data
 
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.models.SubmissionMode
 import kotlinx.coroutines.flow.StateFlow
 
@@ -20,7 +20,7 @@ interface QuizSessionRepository {
         excludedSubjectIds: Set<Long> = emptySet(),
         selectedSystemIds: Set<Long>,
         excludedSystemIds: Set<Long> = emptySet(),
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
         currentQuestionIndex: Int,
         isLoggingEnabled: Boolean = false,
         submissionMode: SubmissionMode = SubmissionMode.INSTANT,
@@ -45,7 +45,7 @@ interface QuizSessionRepository {
         val excludedSubjectIds: List<Long> = emptyList(),
         val selectedSystemIds: List<Long>,
         val excludedSystemIds: List<Long> = emptyList(),
-        val performanceFilter: PerformanceFilter,
+        val statusFilter: StatusFilter,
         val currentQuestionIndex: Int,
         val updatedAtEpochMillis: Long = 0,
         val isLoggingEnabled: Boolean = false,

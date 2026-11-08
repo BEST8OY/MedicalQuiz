@@ -402,38 +402,6 @@ private class RichTextDomParser(
                     else -> style
                 }
 
-                // Resolve learning card link markers from data attributes or angular expressions
-                var learningCardId = node.attr("data-learningcard-id").trim().takeIf { it.isNotEmpty() }
-                var learningCardAnchor = node.attr("data-anker").trim().takeIf { it.isNotEmpty() }
-                if (learningCardId == null) {
-                    val ngClick = node.attr("ng-click").takeIf { it.isNotBlank() }
-                    if (ngClick != null) {
-                        val match = LEARNING_CARD_CLICK_REGEX.find(ngClick)
-                        if (match != null) {
-                            learningCardId = match.groupValues[1]
-                            learningCardAnchor = match.groupValues.getOrNull(2)?.trim()?.takeIf { it.isNotEmpty() }
-                        }
-                    }
-                }
-                if (learningCardId == null) {
-                    val ngHref = node.attr("ng-href").takeIf { it.isNotBlank() }
-                    if (ngHref != null) {
-                        val match = LEARNING_CARD_HREF_REGEX.find(ngHref)
-                        if (match != null) {
-                            learningCardId = match.groupValues[1]
-                            learningCardAnchor = match.groupValues.getOrNull(2)?.trim()?.takeIf { it.isNotEmpty() }
-                        }
-                    }
-                }
-                if (learningCardId != null && nextStyle.link == null) {
-                    val cardUrl = if (learningCardAnchor != null) {
-                        "learningcard://$learningCardId/$learningCardAnchor"
-                    } else {
-                        "learningcard://$learningCardId"
-                    }
-                    nextStyle = nextStyle.copy(link = cardUrl)
-                }
-
                 nextStyle = nextStyle.applyClassStyles(node.classNames(), palette, showSelectedHighlight)
                 val styleAttr = node.attr("style")
                 if (styleAttr.isNotBlank()) {
@@ -864,9 +832,6 @@ private class RichTextDomParser(
         )
     }
 }
-
-private val LEARNING_CARD_CLICK_REGEX = Regex("""toLearningcard\(\s*['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?""")
-private val LEARNING_CARD_HREF_REGEX = Regex("""linkLearningcard\(\s*['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?""")
 
 /**
  * Simple logger for RichTextParser debugging.

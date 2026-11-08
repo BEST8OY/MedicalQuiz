@@ -2,7 +2,7 @@ package com.medqb.app.shared.ui.state
 
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.models.Subject
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.data.models.System
@@ -18,7 +18,7 @@ data class FilterUiState(
     val excludedSubjectIds: Set<Long> = emptySet(),
     val selectedSystemIds: Set<Long> = emptySet(),
     val excludedSystemIds: Set<Long> = emptySet(),
-    val performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
+    val statusFilter: StatusFilter = StatusFilter.ALL,
     val selectedDifficultyTiers: Set<DifficultyTier> = emptySet(),
     val isDifficultyAvailable: Boolean = false,
     val difficultyCounts: Map<DifficultyTier, Int> = emptyMap(),

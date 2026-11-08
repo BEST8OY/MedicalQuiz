@@ -2,7 +2,9 @@ package com.medqb.app.shared.data.dao
 
 import androidx.sqlite.SQLiteConnection
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.QuestionStatus
+import com.medqb.app.shared.data.database.StatusFilter
+import com.medqb.app.shared.data.database.StatusScope
 import com.medqb.app.shared.data.local.dao.RoomLogDao
 import com.medqb.app.shared.data.models.Answer
 import com.medqb.app.shared.data.models.Question
@@ -35,7 +37,7 @@ class QuestionDao(
         excludedSubjectIds: List<Long>? = null,
         systemIds: List<Long>? = null,
         excludedSystemIds: List<Long>? = null,
-        performanceFilter: PerformanceFilter = PerformanceFilter.ALL,
+        statusFilter: StatusFilter = StatusFilter.ALL,
     ): Map<DifficultyTier, Int> {
         if (!difficultyIndex.isAvailable) return emptyMap()
 
@@ -43,9 +45,9 @@ class QuestionDao(
         val hasExcludedSubjectFilter = !excludedSubjectIds.isNullOrEmpty()
         val hasSystemFilter = !systemIds.isNullOrEmpty()
         val hasExcludedSystemFilter = !excludedSystemIds.isNullOrEmpty()
-        val hasPerfFilter = performanceFilter != PerformanceFilter.ALL
+        val hasStatusFilter = !statusFilter.isAll
 
-        if (!hasSubjectFilter && !hasExcludedSubjectFilter && !hasSystemFilter && !hasExcludedSystemFilter && !hasPerfFilter) {
+        if (!hasSubjectFilter && !hasExcludedSubjectFilter && !hasSystemFilter && !hasExcludedSystemFilter && !hasStatusFilter) {
             return difficultyIndex.tierCounts
         }
 
@@ -55,7 +57,7 @@ class QuestionDao(
             excludedSubjectIds = excludedSubjectIds,
             systemIds = systemIds,
             excludedSystemIds = excludedSystemIds,
-            performanceFilter = performanceFilter,
+            statusFilter = statusFilter,
             difficultyFilters = emptySet(),
         )
 
@@ -100,11 +102,11 @@ class QuestionDao(
         excludedSubjectIds: List<Long>? = null,
         systemIds: List<Long>?,
         excludedSystemIds: List<Long>? = null,
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
         difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): List<Long> = withContext(Dispatchers.IO) {
         mutex.withLock {
-            val perfMatcher = resolvePerformanceMatcher(dbName, performanceFilter)
+            val statusMatcher = resolveStatusMatcher(dbName, statusFilter)
 
             val args = mutableListOf<Any>()
             val whereClauses = mutableListOf<String>()
@@ -140,7 +142,7 @@ class QuestionDao(
                 bindArgs(stmt, args)
                 while (stmt.step()) {
                     val qid = stmt.getLong(0)
-                    if ((perfMatcher == null || perfMatcher(qid)) &&
+                    if ((statusMatcher == null || statusMatcher(qid)) &&
                         difficultyIndex.matches(qid, difficultyFilters)
                     ) {
                         result.add(qid)
@@ -239,7 +241,7 @@ class QuestionDao(
         excludedSubjectIds: List<Long>? = null,
         systemIds: List<Long>?,
         excludedSystemIds: List<Long>? = null,
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
         difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): Int = getQuestionIds(
         dbName = dbName,
@@ -247,38 +249,42 @@ class QuestionDao(
         excludedSubjectIds = excludedSubjectIds,
         systemIds = systemIds,
         excludedSystemIds = excludedSystemIds,
-        performanceFilter = performanceFilter,
+        statusFilter = statusFilter,
         difficultyFilters = difficultyFilters,
     ).size
 
     /**
-     * Returns a predicate selecting question ids that satisfy [performanceFilter] according
-     * to the user's logs, or `null` when every question matches ([PerformanceFilter.ALL]).
-     * The filter is resolved entirely in SQL — each query returns exactly the matching qids.
+     * Returns a predicate selecting question ids that satisfy [statusFilter] according
+     * to the user's logs, or `null` when every question matches.
      */
-    private suspend fun resolvePerformanceMatcher(
+    private suspend fun resolveStatusMatcher(
         dbName: String,
-        performanceFilter: PerformanceFilter
+        statusFilter: StatusFilter
     ): ((Long) -> Boolean)? {
+        if (statusFilter.isAll) return null
+
         val logDao = getLogDao()
-        return when (performanceFilter) {
-            PerformanceFilter.ALL -> null
-            PerformanceFilter.UNANSWERED -> notIn(logDao.getAllLoggedQids(dbName))
-            PerformanceFilter.LAST_CORRECT -> inSet(logDao.getLastCorrectQids(dbName))
-            PerformanceFilter.LAST_INCORRECT -> inSet(logDao.getLastIncorrectQids(dbName))
-            PerformanceFilter.EVER_CORRECT -> inSet(logDao.getEverCorrectQids(dbName))
-            PerformanceFilter.EVER_INCORRECT -> inSet(logDao.getEverIncorrectQids(dbName))
+        val includeUnanswered = QuestionStatus.NOT_YET_ANSWERED in statusFilter.statuses
+        val includeCorrect = QuestionStatus.ANSWERED_CORRECTLY in statusFilter.statuses
+        val includeIncorrect = QuestionStatus.ANSWERED_INCORRECTLY in statusFilter.statuses
+
+        val allLoggedQids = if (includeUnanswered) logDao.getAllLoggedQids(dbName).toSet() else null
+
+        val attemptedQids = mutableSetOf<Long>()
+        when (statusFilter.scope) {
+            StatusScope.LATEST_ATTEMPT -> {
+                if (includeCorrect) attemptedQids.addAll(logDao.getLastCorrectQids(dbName))
+                if (includeIncorrect) attemptedQids.addAll(logDao.getLastIncorrectQids(dbName))
+            }
+            StatusScope.ALL_ATTEMPTS -> {
+                if (includeCorrect) attemptedQids.addAll(logDao.getEverCorrectQids(dbName))
+                if (includeIncorrect) attemptedQids.addAll(logDao.getEverIncorrectQids(dbName))
+            }
         }
-    }
 
-    private fun inSet(qids: List<Long>): (Long) -> Boolean {
-        val set = qids.toSet()
-        return { qid -> qid in set }
-    }
-
-    private fun notIn(qids: List<Long>): (Long) -> Boolean {
-        val set = qids.toSet()
-        return { qid -> qid !in set }
+        return { qid ->
+            (allLoggedQids != null && qid !in allLoggedQids) || (qid in attemptedQids)
+        }
     }
 
     /**

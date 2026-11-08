@@ -9,7 +9,7 @@ import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.data.local.UserDatabase
 import com.medqb.app.shared.data.database.DatabaseProvider
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.orchestration.AppStartupCoordinator
 import com.medqb.app.shared.orchestration.DatabaseSelectionDecision
 import com.medqb.app.shared.data.database.QuestionDetails
@@ -150,7 +150,7 @@ class FakeQuizSessionRepository : QuizSessionRepository {
         excludedSubjectIds: Set<Long>,
         selectedSystemIds: Set<Long>,
         excludedSystemIds: Set<Long>,
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
         currentQuestionIndex: Int,
         isLoggingEnabled: Boolean,
         submissionMode: SubmissionMode,
@@ -259,16 +259,16 @@ class FakeDatabaseProvider(
 
     override suspend fun closeDatabase() = Unit
 
-    var questionIdsProvider: ((List<Long>?, List<Long>?, List<Long>?, List<Long>?, PerformanceFilter, Set<DifficultyTier>) -> List<Long>)? = null
+    var questionIdsProvider: ((List<Long>?, List<Long>?, List<Long>?, List<Long>?, StatusFilter, Set<DifficultyTier>) -> List<Long>)? = null
 
     override suspend fun getQuestionIds(
         subjectIds: List<Long>?,
         excludedSubjectIds: List<Long>?,
         systemIds: List<Long>?,
         excludedSystemIds: List<Long>?,
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
         difficultyFilters: Set<DifficultyTier>,
-    ): List<Long> = questionIdsProvider?.invoke(subjectIds, excludedSubjectIds, systemIds, excludedSystemIds, performanceFilter, difficultyFilters)
+    ): List<Long> = questionIdsProvider?.invoke(subjectIds, excludedSubjectIds, systemIds, excludedSystemIds, statusFilter, difficultyFilters)
         ?: listOf(1L, 2L)
 
     override suspend fun getQuestionById(id: Long) = detailsFor(id)?.question
@@ -282,20 +282,20 @@ class FakeDatabaseProvider(
     ): QuestionDetails = detailsFor(questionId)
         ?: QuestionDetails(null, emptyList(), null, null)
 
-    var countQuestionIdsProvider: ((List<Long>?, List<Long>?, List<Long>?, List<Long>?, PerformanceFilter, Set<DifficultyTier>) -> Int)? = null
+    var countQuestionIdsProvider: ((List<Long>?, List<Long>?, List<Long>?, List<Long>?, StatusFilter, Set<DifficultyTier>) -> Int)? = null
 
     override suspend fun countQuestionIds(
         subjectIds: List<Long>?,
         excludedSubjectIds: List<Long>?,
         systemIds: List<Long>?,
         excludedSystemIds: List<Long>?,
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
         difficultyFilters: Set<DifficultyTier>,
-    ): Int = countQuestionIdsProvider?.invoke(subjectIds, excludedSubjectIds, systemIds, excludedSystemIds, performanceFilter, difficultyFilters)
-        ?: if (performanceFilter == PerformanceFilter.ALL) 10 else 3
+    ): Int = countQuestionIdsProvider?.invoke(subjectIds, excludedSubjectIds, systemIds, excludedSystemIds, statusFilter, difficultyFilters)
+        ?: if (statusFilter.isAll) 10 else 3
 
     var difficultyAvailable: Boolean = false
-    var difficultyCountsProvider: ((List<Long>?, List<Long>?, List<Long>?, List<Long>?, PerformanceFilter) -> Map<DifficultyTier, Int>)? = null
+    var difficultyCountsProvider: ((List<Long>?, List<Long>?, List<Long>?, List<Long>?, StatusFilter) -> Map<DifficultyTier, Int>)? = null
 
     override suspend fun isDifficultyAvailable(): Boolean = difficultyAvailable
 
@@ -304,9 +304,9 @@ class FakeDatabaseProvider(
         excludedSubjectIds: List<Long>?,
         systemIds: List<Long>?,
         excludedSystemIds: List<Long>?,
-        performanceFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
     ): Map<DifficultyTier, Int> =
-        difficultyCountsProvider?.invoke(subjectIds, excludedSubjectIds, systemIds, excludedSystemIds, performanceFilter) ?: emptyMap()
+        difficultyCountsProvider?.invoke(subjectIds, excludedSubjectIds, systemIds, excludedSystemIds, statusFilter) ?: emptyMap()
 
     var seededSubjects: List<Subject> = emptyList()
     var seededSystems: List<System> = emptyList()

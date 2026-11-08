@@ -25,8 +25,8 @@ data class QuizHistoryEntity(
     val selectedSystemIds: String = "",
     @ColumnInfo(name = "excluded_system_ids", defaultValue = "")
     val excludedSystemIds: String = "",
-    @ColumnInfo(name = "performance_filter")
-    val performanceFilter: String = "ALL",
+    @ColumnInfo(name = "status_filter")
+    val statusFilter: String = "ALL",
     @ColumnInfo(name = "current_question_index")
     val currentQuestionIndex: Int = 0,
     @ColumnInfo(name = "updated_at")

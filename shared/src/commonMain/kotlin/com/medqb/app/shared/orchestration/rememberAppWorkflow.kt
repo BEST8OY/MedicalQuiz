@@ -11,7 +11,7 @@ import androidx.compose.runtime.setValue
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.StatusFilter
 
 private val AppWorkflowStateSaver = Saver<AppWorkflowState, List<Any?>>(
     save = { state ->
@@ -71,10 +71,10 @@ fun rememberAppWorkflow(
     }
 
     val onFilterSubjectsSync = remember(filterStateHolder) {
-        { subjectIds: Set<Long>, excludedSubjectIds: Set<Long>, systemIds: Set<Long>, excludedSystemIds: Set<Long>, perfFilter: PerformanceFilter, difficultyTiers: Set<DifficultyTier> ->
+        { subjectIds: Set<Long>, excludedSubjectIds: Set<Long>, systemIds: Set<Long>, excludedSystemIds: Set<Long>, statusFilter: StatusFilter, difficultyTiers: Set<DifficultyTier> ->
             filterStateHolder.setSubjects(subjectIds, excludedSubjectIds)
             filterStateHolder.setSystems(systemIds, excludedSystemIds)
-            filterStateHolder.updatePerformanceFilter(perfFilter)
+            filterStateHolder.updateStatusFilter(statusFilter)
             filterStateHolder.updateDifficultyTiers(difficultyTiers)
         }
     }
@@ -106,7 +106,7 @@ class AppWorkflowHandle(
         excludedSubjectIds: Set<Long>,
         systemIds: Set<Long>,
         excludedSystemIds: Set<Long>,
-        perfFilter: PerformanceFilter,
+        statusFilter: StatusFilter,
         difficultyTiers: Set<DifficultyTier>,
     ) -> Unit,
 )

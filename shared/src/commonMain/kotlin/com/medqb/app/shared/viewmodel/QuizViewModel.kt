@@ -9,7 +9,7 @@ import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
 import com.medqb.app.shared.data.database.QuestionPerformance
-import com.medqb.app.shared.data.database.PerformanceFilter
+import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.SubmissionMode
@@ -216,7 +216,7 @@ class QuizViewModel(
                 excludedSubjectIds = filterStateHolder.excludedSubjectIds.value,
                 selectedSystemIds = filterStateHolder.selectedSystemIds.value,
                 excludedSystemIds = filterStateHolder.excludedSystemIds.value,
-                performanceFilter = filterStateHolder.performanceFilter.value,
+                statusFilter = filterStateHolder.statusFilter.value,
                 currentQuestionIndex = state.value.currentQuestionIndex,
                 isLoggingEnabled = state.value.isLoggingEnabled,
                 submissionMode = state.value.submissionMode,
@@ -424,7 +424,7 @@ class QuizViewModel(
                     excludedSubjectIds = filterStateHolder.excludedSubjectIds.value.toList(),
                     systemIds = filterStateHolder.selectedSystemIds.value.toList(),
                     excludedSystemIds = filterStateHolder.excludedSystemIds.value.toList(),
-                    performanceFilter = filterStateHolder.performanceFilter.value,
+                    statusFilter = filterStateHolder.statusFilter.value,
                     difficultyFilters = filterStateHolder.selectedDifficultyTiers.value,
                 ) ?: emptyList()
 
