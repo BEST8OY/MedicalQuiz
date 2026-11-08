@@ -42,14 +42,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.ui.theme.ContainerSize
-import com.medqb.app.shared.ui.theme.HighlightToolbar
 import com.medqb.app.shared.ui.theme.IconSize
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.ui.theme.Stroke
+
+private object HighlightToolbarDefaults {
+    val ColorChipSize = IconSize.ExtraLarge
+    val DividerHeight = 32.dp
+    val TonalElevation = 6.dp
+    val ShadowElevation = 8.dp
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -62,8 +69,8 @@ internal fun SelectionToolbar(
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = HighlightToolbar.TonalElevation,
-        shadowElevation = HighlightToolbar.ShadowElevation,
+        tonalElevation = HighlightToolbarDefaults.TonalElevation,
+        shadowElevation = HighlightToolbarDefaults.ShadowElevation,
         border = BorderStroke(width = Stroke.Thin, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     ) {
         Column(
@@ -162,8 +169,8 @@ internal fun HighlightEditPopup(
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = HighlightToolbar.TonalElevation,
-        shadowElevation = HighlightToolbar.ShadowElevation,
+        tonalElevation = HighlightToolbarDefaults.TonalElevation,
+        shadowElevation = HighlightToolbarDefaults.ShadowElevation,
         border = BorderStroke(width = Stroke.Thin, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     ) {
         Row(
@@ -185,7 +192,7 @@ internal fun HighlightEditPopup(
             }
 
             VerticalDivider(
-                modifier = Modifier.size(width = Stroke.Thin, height = HighlightToolbar.DividerHeight),
+                modifier = Modifier.size(width = Stroke.Thin, height = HighlightToolbarDefaults.DividerHeight),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
             )
 
@@ -240,7 +247,7 @@ private fun HighlightColorChip(
 
     Box(
         modifier = Modifier
-            .size(HighlightToolbar.ColorChipSize)
+            .size(HighlightToolbarDefaults.ColorChipSize)
             .graphicsLayer {
                 scaleX = animatedScale
                 scaleY = animatedScale

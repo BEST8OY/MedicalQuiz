@@ -62,10 +62,10 @@ import com.medqb.app.shared.data.models.Subject
 import com.medqb.app.shared.data.models.System
 import com.medqb.app.shared.ui.dialogs.components.DialogActions
 import com.medqb.app.shared.ui.dialogs.components.DialogHeader
+import com.medqb.app.shared.ui.dialogs.components.DialogLayout
 import com.medqb.app.shared.ui.dialogs.components.DialogShell
 import com.medqb.app.shared.ui.dialogs.components.LocalDialogCompactMode
 import com.medqb.app.shared.ui.theme.ContainerSize
-import com.medqb.app.shared.ui.theme.DialogLayout
 import com.medqb.app.shared.ui.theme.IconSize
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.Layout

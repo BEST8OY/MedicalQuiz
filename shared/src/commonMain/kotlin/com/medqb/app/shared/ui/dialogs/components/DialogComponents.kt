@@ -29,12 +29,45 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.medqb.app.shared.ui.theme.DialogLayout
 import com.medqb.app.shared.ui.theme.Inset
 import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
+
+/**
+ * Responsive dialog layout tokens.
+ */
+internal object DialogLayout {
+    /** Minimum dialog container width per M3 specification (280dp) */
+    val MinWidth: Dp = 280.dp
+
+    /** Maximum dialog container width per M3 specification (560dp) */
+    val MaxWidth: Dp = 560.dp
+
+    /** Fraction of screen width for compact viewports (phones) */
+    const val CompactWidthFraction: Float = 0.92f
+
+    /** Fraction of screen width for expanded viewports (tablets/desktop) */
+    const val ExpandedWidthFraction: Float = 0.65f
+
+    /** Safety margin subtracted from screen height for dialog container max height */
+    val MaxHeightInset: Dp get() = Spacing.ExtraLarge
+
+    /** Minimum structural container height for dialog shell */
+    val MinContainerHeight: Dp = 200.dp
+
+    /** Viewport height threshold for compact landscape dialog adjustments */
+    val CompactHeightThreshold: Dp get() = ScreenLayout.CompactHeightBreakpoint
+
+    /** Compact vertical padding for list items in landscape mode */
+    val CompactItemPadding: Dp get() = Spacing.ExtraSmall
+
+    /** Compact padding for input fields in landscape mode */
+    val CompactInputPadding: Dp get() = Spacing.Micro
+}
 
 /**
  * Composition local providing whether the dialog is in compact height mode.
