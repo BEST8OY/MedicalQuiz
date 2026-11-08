@@ -1,7 +1,6 @@
 package com.medqb.app.shared.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
@@ -14,11 +13,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -54,16 +55,15 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.medqb.app.shared.data.FontScalePresets
 import com.medqb.app.shared.ui.richtext.scaledBy
 import com.medqb.app.shared.ui.theme.ContainerSize
 import com.medqb.app.shared.ui.theme.IconSize
-import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.ui.theme.Stroke
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -84,13 +84,13 @@ fun SettingsScreen(
 
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
                         "Settings",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleLargeEmphasized,
                     )
                 },
                 navigationIcon = {
@@ -118,7 +118,7 @@ fun SettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .widthIn(max = ScreenLayout.WideWidthBreakpoint)
+                    .widthIn(max = 640.dp)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = Spacing.MediumLarge, vertical = Spacing.Medium),
                 verticalArrangement = Arrangement.spacedBy(Spacing.MediumLarge)
@@ -138,8 +138,7 @@ fun SettingsScreen(
                     content = {
                         Text(
                             text = "Show metadata",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
+                            style = MaterialTheme.typography.titleMediumEmphasized,
                         )
                     },
                     supportingContent = {
@@ -176,9 +175,7 @@ fun SettingsScreen(
                 )
 
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .animateContentSize(animationSpec = motionScheme.defaultSpatialSpec()),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(Spacing.Small)
                 ) {
                     SegmentedListItem(
@@ -194,8 +191,7 @@ fun SettingsScreen(
                         content = {
                             Text(
                                 text = "Use system font size",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
+                                style = MaterialTheme.typography.titleMediumEmphasized,
                             )
                         },
                         supportingContent = {
@@ -250,8 +246,7 @@ fun SettingsScreen(
                             ) {
                                 Text(
                                     text = "Custom Reading Text Size",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleSmallEmphasized,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
 
@@ -264,7 +259,7 @@ fun SettingsScreen(
                                         imageVector = Icons.Outlined.FormatSize,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(Spacing.Medium)
+                                        modifier = Modifier.size(IconSize.Small)
                                     )
 
                                     val sliderIndex = scaleToIndex(currentScale)
@@ -279,7 +274,8 @@ fun SettingsScreen(
                                     Slider(
                                         state = sliderState,
                                         onValueChange = { indexFloat ->
-                                            val newScale = indexToScale(indexFloat.toInt())
+                                            sliderState.value = indexFloat
+                                            val newScale = indexToScale(indexFloat.roundToInt())
                                             onFontScaleChange(newScale)
                                         },
                                         modifier = Modifier.weight(1f)
@@ -289,14 +285,13 @@ fun SettingsScreen(
                                         imageVector = Icons.Outlined.FormatSize,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(Spacing.MediumLarge)
+                                        modifier = Modifier.size(IconSize.Large)
                                     )
                                 }
 
                                 Text(
                                     text = scaleToLabel(currentScale),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.bodyMediumEmphasized,
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.align(Alignment.CenterHorizontally)
                                 )
@@ -311,7 +306,9 @@ fun SettingsScreen(
 
                 // Info Notice
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics(mergeDescendants = true) {},
                     shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -359,15 +356,13 @@ private fun LivePreviewCard(currentScale: Float) {
         ) {
             Text(
                 text = "LIVE PREVIEW",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.labelSmallEmphasized,
                 color = MaterialTheme.colorScheme.secondary,
             )
 
             Text(
                 text = "A 62-year-old female presents with progressive shortness of breath, bilateral ankle swelling, and orthopnea.",
-                style = MaterialTheme.typography.bodyMedium.scaledBy(currentScale),
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.bodyMediumEmphasized.scaledBy(currentScale),
                 color = MaterialTheme.colorScheme.onSurface
             )
 
@@ -384,8 +379,7 @@ private fun LivePreviewCard(currentScale: Float) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 "A",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelSmallEmphasized,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }
@@ -409,8 +403,7 @@ private fun LivePreviewCard(currentScale: Float) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 "B",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelSmallEmphasized,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }

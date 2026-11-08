@@ -244,7 +244,7 @@ class QuizViewModel(
 
         loadQuestionJob?.cancel()
         loadQuestionJob = viewModelScope.launch(ioDispatcher) {
-            _state.update { it.copy(isLoading = true, currentPerformance = null) }
+            _state.update { it.copy(isLoading = true, errorMessage = null, currentPerformance = null) }
             val active = activeDatabaseHolder.activeDatabase.value
             val db = active?.provider
             try {
@@ -280,7 +280,9 @@ class QuizViewModel(
                 throw e
             } catch (e: Exception) {
                 Logger.e("QuizViewModel", "Error loading question $questionId", e)
-                emitSnackbar("Failed to load question: ${e.message}")
+                val msg = e.message ?: "Failed to load question"
+                _state.update { it.copy(errorMessage = msg) }
+                emitSnackbar("Failed to load question: $msg")
             } finally {
                 if (isActive) {
                     _state.update { it.copy(isLoading = false) }
@@ -408,13 +410,22 @@ class QuizViewModel(
         _state.update { it.copy(selectedAnswerId = null, answerSubmitted = false) }
     }
 
+    fun retry() {
+        val s = state.value
+        if (s.questionIds.isNotEmpty()) {
+            loadQuestion(s.currentQuestionIndex.coerceIn(0, s.questionIds.lastIndex))
+        } else {
+            loadFilteredQuestionIds(updatePreviewCount = true, startFromBeginning = true)
+        }
+    }
+
     private fun loadFilteredQuestionIds(
         updatePreviewCount: Boolean = true,
         startFromBeginning: Boolean = false,
     ) {
         filteredIdsJob?.cancel()
         filteredIdsJob = viewModelScope.launch(ioDispatcher) {
-            _state.update { it.copy(isLoading = true) }
+            _state.update { it.copy(isLoading = true, errorMessage = null) }
             val active = activeDatabaseHolder.activeDatabase.value
             val db = active?.provider
             try {
@@ -445,6 +456,7 @@ class QuizViewModel(
                             answerSubmitted = false,
                             previewQuestionCount = if (updatePreviewCount) 0 else it.previewQuestionCount,
                             isLoading = false,
+                            errorMessage = null,
                         )
                     }
                     return@launch
@@ -466,7 +478,8 @@ class QuizViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false) }
+                val msg = e.message ?: "Failed to load questions from database"
+                _state.update { it.copy(isLoading = false, errorMessage = msg) }
                 Logger.e("QuizViewModel", "Error loading filtered questions", e)
             }
         }

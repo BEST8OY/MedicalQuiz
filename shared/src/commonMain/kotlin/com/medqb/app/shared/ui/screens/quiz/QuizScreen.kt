@@ -5,6 +5,7 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -16,12 +17,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Quiz
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -37,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -64,6 +74,8 @@ fun QuizScreen(
     onHighlightRemove: (Long) -> Unit,
     onHighlightColorChange: (Long, HighlightColor) -> Unit,
     onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
+    onRetry: () -> Unit = {},
+    onNavigateHome: () -> Unit = {},
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     bottomClearance: Dp = ScreenLayout.BottomClearanceFloating,
@@ -79,6 +91,8 @@ fun QuizScreen(
             onHighlightRemove = onHighlightRemove,
             onHighlightColorChange = onHighlightColorChange,
             onShowSnackbar = onShowSnackbar,
+            onRetry = onRetry,
+            onNavigateHome = onNavigateHome,
             modifier = modifier,
             contentPadding = contentPadding,
             bottomClearance = bottomClearance,
@@ -95,6 +109,8 @@ private fun QuestionContent(
     onHighlightRemove: (Long) -> Unit,
     onHighlightColorChange: (Long, HighlightColor) -> Unit,
     onShowSnackbar: suspend (SnackbarMessage) -> Unit,
+    onRetry: () -> Unit,
+    onNavigateHome: () -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     bottomClearance: Dp = ScreenLayout.BottomClearanceFloating,
@@ -128,6 +144,8 @@ private fun QuestionContent(
                         onHighlightRemove = onHighlightRemove,
                         onHighlightColorChange = onHighlightColorChange,
                         onShowSnackbar = onShowSnackbar,
+                        onRetry = onRetry,
+                        onNavigateHome = onNavigateHome,
                         bottomClearance = bottomClearance,
                     )
                 }
@@ -146,6 +164,8 @@ private fun QuizQuestionCard(
     onHighlightRemove: (Long) -> Unit,
     onHighlightColorChange: (Long, HighlightColor) -> Unit,
     onShowSnackbar: suspend (SnackbarMessage) -> Unit,
+    onRetry: () -> Unit,
+    onNavigateHome: () -> Unit,
     bottomClearance: Dp,
     modifier: Modifier = Modifier,
 ) {
@@ -184,7 +204,12 @@ private fun QuizQuestionCard(
     }
 
     if (question == null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = Spacing.Large),
+            contentAlignment = Alignment.Center
+        ) {
             AnimatedVisibility(
                 visible = state.isLoading,
                 enter = fadeIn(animationSpec = defaultEffectsSpec),
@@ -193,15 +218,92 @@ private fun QuizQuestionCard(
                 LoadingIndicator()
             }
             AnimatedVisibility(
-                visible = !state.isLoading,
+                visible = !state.isLoading && state.errorMessage != null,
                 enter = fadeIn(animationSpec = defaultEffectsSpec),
                 exit = fadeOut(animationSpec = defaultEffectsSpec)
             ) {
-                Text(
-                    text = "Select a question to begin",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Spacing.Medium),
+                    modifier = Modifier.padding(Spacing.Large)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                shape = MaterialTheme.shapes.medium
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.ErrorOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    Text(
+                        text = "Unable to load question",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = state.errorMessage.orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.Small))
+                    Button(onClick = onRetry) {
+                        Text(text = "Retry")
+                    }
+                }
+            }
+            AnimatedVisibility(
+                visible = !state.isLoading && state.errorMessage == null,
+                enter = fadeIn(animationSpec = defaultEffectsSpec),
+                exit = fadeOut(animationSpec = defaultEffectsSpec)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Spacing.Medium),
+                    modifier = Modifier.padding(Spacing.Large)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = MaterialTheme.shapes.medium
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Quiz,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    Text(
+                        text = "No question selected",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Select a question to begin or return to the question bank.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.Small))
+                    FilledTonalButton(onClick = onNavigateHome) {
+                        Text(text = "Return to Bank")
+                    }
+                }
             }
         }
         return
@@ -331,7 +433,7 @@ private fun QuizQuestionCard(
         ) {
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.elevatedCardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                 ),

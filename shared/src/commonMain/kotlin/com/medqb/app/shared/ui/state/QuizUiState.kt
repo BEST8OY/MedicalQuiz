@@ -26,6 +26,7 @@ data class QuizUiState(
     val selectedAnswerId: Int? = null,
     val answerSubmitted: Boolean = false,
     val isLoading: Boolean = false,
+    val errorMessage: String? = null,
     
     val previewQuestionCount: Int = 0,
     val currentPerformance: QuestionPerformance? = null,
@@ -67,7 +68,8 @@ data class QuizUiState(
             questionHighlights = questionHighlights,
             explanationHighlights = explanationHighlights,
             selectedAnswerId = if (resetAnswerState) null else selectedAnswerId,
-            answerSubmitted = if (resetAnswerState) false else answerSubmitted
+            answerSubmitted = if (resetAnswerState) false else answerSubmitted,
+            errorMessage = null
         )
     }
 }

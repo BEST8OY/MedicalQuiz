@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,6 +42,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.HighlightColor
@@ -138,7 +141,6 @@ private fun ToolbarActionItem(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         contentColor = contentColor,
-        modifier = Modifier.clip(MaterialTheme.shapes.medium)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = Spacing.MediumSmall, vertical = Spacing.Small),
@@ -245,8 +247,11 @@ private fun HighlightColorChip(
         label = "chipScale"
     )
 
+    val colorLabel = "${color.name.lowercase().replaceFirstChar { it.uppercase() }} highlight"
+
     Box(
         modifier = Modifier
+            .minimumInteractiveComponentSize()
             .size(HighlightToolbarDefaults.ColorChipSize)
             .graphicsLayer {
                 scaleX = animatedScale
@@ -263,7 +268,10 @@ private fun HighlightColorChip(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(),
                 onClick = onClick
-            ),
+            )
+            .semantics {
+                contentDescription = if (isSelected) "$colorLabel, selected" else colorLabel
+            },
         contentAlignment = Alignment.Center
     ) {
         if (isSelected) {

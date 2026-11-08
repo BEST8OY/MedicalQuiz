@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
@@ -136,7 +137,7 @@ fun QuizFloatingToolbar(
                     ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec())
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        FilledTonalButton(
+                        Button(
                             onClick = onSubmit,
                             enabled = uiState.canSubmit,
                             modifier = Modifier.sizeIn(minHeight = Spacing.MediumLarge),

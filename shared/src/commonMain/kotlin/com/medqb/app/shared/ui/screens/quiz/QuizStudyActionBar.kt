@@ -60,7 +60,7 @@ fun QuizStudyActionBar(
         // KEY INFO button - only displayed if key info is present
         if (hasKeyInfo) {
             StudyToolButton(
-                label = "KEY INFO",
+                label = "Key info",
                 icon = Icons.Rounded.VpnKey,
                 isActive = isKeyInfoActive,
                 onClick = onToggleKeyInfo,
@@ -73,7 +73,7 @@ fun QuizStudyActionBar(
         // ATTENDING TIP button - only displayed if a hint exists
         if (hasAttendingTip) {
             StudyToolButton(
-                label = "ATTENDING TIP",
+                label = "Attending tip",
                 icon = Icons.Rounded.Lightbulb,
                 isActive = isAttendingTipActive,
                 onClick = onToggleAttendingTip,
@@ -90,7 +90,7 @@ fun QuizStudyActionBar(
                 shape = MaterialTheme.shapes.small,
                 label = {
                     Text(
-                        text = "LABS",
+                        text = "Labs",
                         style = MaterialTheme.typography.labelMedium
                     )
                 },

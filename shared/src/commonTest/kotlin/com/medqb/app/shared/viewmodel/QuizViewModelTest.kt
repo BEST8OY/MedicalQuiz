@@ -632,5 +632,31 @@ class QuizViewModelTest {
         assertEquals(setOf(100L), sessionRepo.lastAppendedSystemIds)
         assertEquals(setOf(200L), sessionRepo.lastAppendedExcludedSystemIds)
     }
+
+    @Test
+    fun loadFilteredQuestionIdsFailureSetsErrorMessageAndRetryRecovers() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        var shouldFail = true
+        provider.questionIdsProvider = { _, _, _, _, _, _ ->
+            if (shouldFail) throw RuntimeException("Database disk I/O failure")
+            listOf(1L, 2L)
+        }
+
+        val viewModel = createViewModel(provider, holder)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals("Database disk I/O failure", viewModel.state.value.errorMessage)
+        assertFalse(viewModel.state.value.isLoading)
+
+        shouldFail = false
+        viewModel.retry()
+        advanceUntilIdle()
+
+        assertNull(viewModel.state.value.errorMessage)
+        assertEquals(listOf(1L, 2L), viewModel.state.value.questionIds)
+        assertEquals(1L, viewModel.state.value.currentQuestion?.id)
+    }
 }
 

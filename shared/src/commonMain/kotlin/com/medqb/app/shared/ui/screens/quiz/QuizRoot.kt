@@ -53,6 +53,7 @@ fun QuizRoot(
                 topBar = {
                     TopBar(
                         title = title,
+                        onNavigateBack = onNavigateBack,
                         onResetLogClick = { viewModel.clearCurrentQuestionLog() },
                         onSettingsClick = onOpenSettingsScreen,
                     )
@@ -74,6 +75,8 @@ fun QuizRoot(
                     onHighlightRemove = viewModel::removeHighlight,
                     onHighlightColorChange = viewModel::changeHighlightColor,
                     onShowSnackbar = { viewModel.emitSnackbar(it) },
+                    onRetry = { viewModel.retry() },
+                    onNavigateHome = onNavigateBack,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = padding,
                     bottomClearance = bottomPadding + ScreenLayout.BottomClearanceFloating

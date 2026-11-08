@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
@@ -34,6 +35,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.graphics.shapes.Morph
@@ -168,6 +171,14 @@ private fun AnswerListItem(
         }
     }
 
+    val stateDescription = when {
+        showResult && isCorrect -> "Correct answer"
+        showResult && isSelected && !isCorrect -> "Your choice, incorrect"
+        showResult && isSelected -> "Your choice, correct"
+        isSelected -> "Selected"
+        else -> "Not selected"
+    }
+
     SegmentedListItem(
         selected = isSelected,
         onClick = onClick,
@@ -191,7 +202,11 @@ private fun AnswerListItem(
         interactionSource = interactionSource,
         leadingContent = leadingContent,
         trailingContent = trailingContent,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                this.stateDescription = stateDescription
+            },
         content = {
             RichText(
                 html = html,
@@ -281,7 +296,9 @@ fun AnswerOptions(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .selectableGroup(),
         verticalArrangement = Arrangement.spacedBy(Spacing.Small)
     ) {
         answers.forEachIndexed { index, answer ->
@@ -298,8 +315,12 @@ fun AnswerOptions(
                 isCorrect = isCorrect,
                 showResult = answerSubmitted,
                 percentage = percentage,
-                enabled = !answerSubmitted,
-                onClick = { onAnswerSelected(answer.answerId) },
+                enabled = true,
+                onClick = {
+                    if (!answerSubmitted) {
+                        onAnswerSelected(answer.answerId)
+                    }
+                },
                 onLinkClick = onLinkClick,
                 onMediaClick = onMediaClick
             )

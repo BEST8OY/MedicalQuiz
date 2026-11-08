@@ -35,14 +35,14 @@ class QuizStudyActionBarUiTest {
             )
         }
 
-        onNodeWithText("KEY INFO").assertIsDisplayed().performClick()
-        assertTrue(keyInfoToggled, "Clicking KEY INFO should invoke toggle")
+        onNodeWithText("Key info").assertIsDisplayed().performClick()
+        assertTrue(keyInfoToggled, "Clicking Key info should invoke toggle")
 
-        onNodeWithText("ATTENDING TIP").assertIsDisplayed().performClick()
-        assertTrue(attendingTipToggled, "Clicking ATTENDING TIP should invoke toggle")
+        onNodeWithText("Attending tip").assertIsDisplayed().performClick()
+        assertTrue(attendingTipToggled, "Clicking Attending tip should invoke toggle")
 
-        onNodeWithText("LABS").assertIsDisplayed().performClick()
-        assertTrue(labsOpened, "Clicking LABS should invoke open labs")
+        onNodeWithText("Labs").assertIsDisplayed().performClick()
+        assertTrue(labsOpened, "Clicking Labs should invoke open labs")
     }
 
     @Test
