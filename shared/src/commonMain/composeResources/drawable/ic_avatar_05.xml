@@ -1,0 +1,67 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="80dp"
+    android:height="88dp"
+    android:viewportWidth="80"
+    android:viewportHeight="88">
+        <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M53.88 67.94H26.52l5.4-18.5H48.1z"/>
+    <path
+        android:fillColor="#FFE3ECF0"
+        android:pathData="M69.52 68.75a21.07 21.07 0 0 0-20.84-18h-0.17L40 83l-8.5-32.23h-0.17a21.08 21.08 0 0 0-20.84 18 32.24 32.24 0 0 0 59 0Z"/>
+    <path
+        android:fillColor="#FF374751"
+        android:pathData="M49.66 10.8l0.43 14.8s5.94 2.1 7.64 0.4 2.07-5.76 2.07-5.76a8.6 8.6 0 0 0-5.31-8Zm-19.29 0l-0.43 14.8S24 27.7 22.3 26s-2.07-5.76-2.07-5.76a8.6 8.6 0 0 1 5.31-8Z"/>
+    <path
+        android:fillColor="#FFD9A87F"
+        android:pathData="M57.68 25.6c0 9.76-7.91 18.9-17.66 18.9s-17.67-9.14-17.67-18.9a17.67 17.67 0 0 1 35.33 0"/>
+    <path
+        android:fillColor="#FF374751"
+        android:pathData="M34.63 23.88a1.62 2.12 0 1 0 0 4.24 1.62 2.12 0 1 0 0-4.24z"/>
+    <path
+        android:fillColor="#FF374751"
+        android:pathData="M45.4 23.88a1.62 2.12 0 1 0 0 4.24 1.62 2.12 0 1 0 0-4.24z"/>
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF374751"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeMiterLimit="10"
+        android:pathData="M35.02 18.01h9.99m-7.49-3.74h5"/>
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF374751"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeMiterLimit="10"
+        android:pathData="M55.05 59.48a4.5 4.5 0 1 0 0 9 4.5 4.5 0 1 0 0-9z"/>
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF374751"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeMiterLimit="10"
+        android:pathData="M55.17 51.99v7.5m-31.04-7.5v9.99"/>
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF374751"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M18.22 73h-2.67v-4.28c0-3.9 2.78-6.69 6.18-6.69h4.62a6.19 6.19 0 0 1 6.19 6.19v4.83h-2.77"/>
+    <path
+        android:fillColor="#FF00B291"
+        android:pathData="M40.014 49.818l4.278 4.278-4.278 4.278-4.278-4.278z"/>
+    <path
+        android:fillColor="#FF00B291"
+        android:pathData="M43.99 67.97l-3.97-15.02-3.97 15.02L40.02 83z"/>
+    <path
+        android:fillColor="#FF374751"
+        android:pathData="M57.37 29s-2.92 8.15-8.57 9.54V38.2c0-3.77-3.06-4.23-6.83-4.23h-3.84c-3.77 0-6.83 0.46-6.83 4.23v0.3C25.79 37 22.66 29 22.66 29a23.5 23.5 0 0 0 1.44 9.12 4 4 0 0 0 3.27 6.37 5 5 0 0 0 0 0.54 4.31 4.31 0 0 0 4.3 4.3h0.22c1.23 2.55 4.44 3.16 8.2 3.16s7-0.61 8.21-3.16h0.22A4.3 4.3 0 0 0 52.77 45a5 5 0 0 0 0-0.54 4 4 0 0 0 3.38-6.22c1-2.4 1.22-5.44 1.22-9.24"/>
+    <path
+        android:fillColor="#FFD9A87F"
+        android:pathData="M43.53 38h-7.06a3.53 3.53 0 0 0 7.06 0"/>
+    <path
+        android:fillColor="#1A374751"
+        android:pathData="M50.38 48.83c-0.56 0-1.12-0.08-1.7-0.08h-0.89l0.18 1v0.06a4.7 4.7 0 0 1-0.52 0.64l-0.09 0.09a4 4 0 0 1-0.65 0.52l-0.1 0.07a5.5 5.5 0 0 1-0.76 0.41l-0.12 0.06c-0.27 0.11-0.55 0.22-0.85 0.31H44.7c-0.29 0.08-0.58 0.16-0.89 0.22h-0.29c-0.28 0-0.57 0.1-0.87 0.13h-0.53l-0.71 0.05h-3.26l-0.63-0.06c-0.3 0-0.58-0.08-0.86-0.12l-0.31-0.05c-0.32-0.07-0.62-0.14-0.91-0.23h-0.17a8 8 0 0 1-0.88-0.34H34.3a5 5 0 0 1-0.79-0.45h-0.08a4.4 4.4 0 0 1-0.66-0.56l-0.07-0.07a4.2 4.2 0 0 1-0.51-0.67l-0.06-0.08 0.16-0.87H31.4c-0.55 0-1.08 0-1.61 0.08L28.5 49a21.07 21.07 0 0 0-18 17.78 12 12 0 0 0-0.16 1.65l0.16 0.45 0.31-1.59a21 21 0 0 1 20.04-16.45 3.4 3.4 0 0 0 0.64 0.09h0.06v-0.19l0.29 0.19a9.27 9.27 0 0 0 8.2 4.81A9.37 9.37 0 0 0 48.2 51v0.05l0.24-0.13a4 4 0 0 0 0.84-0.1 21.06 21.06 0 0 1 19.93 16.43l0.31 1.59 0.16-0.45a12 12 0 0 0-0.16-1.65A21.07 21.07 0 0 0 51.57 49Z"/>
+</vector>

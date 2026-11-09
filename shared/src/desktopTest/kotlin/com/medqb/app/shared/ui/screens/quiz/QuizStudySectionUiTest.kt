@@ -78,17 +78,16 @@ class QuizStudySectionUiTest {
     }
 
     @Test
-    fun dockedAttendingTipCardRendersAndCanBeDismissed() = runComposeUiTest {
-        var tipToggled = false
-
+    fun attendingTipCardRendersAvatarAndContent() = runComposeUiTest {
         setContent {
             QuizStudySection(
+                questionId = 123L,
                 hasKeyInfo = true,
                 isKeyInfoActive = false,
                 onToggleKeyInfo = {},
                 hasAttendingTip = true,
                 isAttendingTipActive = true,
-                onToggleAttendingTip = { tipToggled = true },
+                onToggleAttendingTip = {},
                 onOpenLabs = {},
                 hintHtml = "<p>Look closely at serum sodium and glucose.</p>",
                 linkHandler = {},
@@ -96,10 +95,10 @@ class QuizStudySectionUiTest {
             )
         }
 
-        onNodeWithText("Attending's Tip").assertIsDisplayed()
+        onNodeWithTag("attending_tip_card").assertIsDisplayed()
+        onNodeWithTag("attending_doctor_avatar").assertIsDisplayed()
         onNodeWithText("Look closely at serum sodium and glucose.").assertIsDisplayed()
-
-        onNodeWithTag("attending_tip_close").assertIsDisplayed().performClick()
-        assertTrue(tipToggled, "Clicking close on Attending's Tip card should invoke toggle")
+        onNodeWithText("Attending's Tip").assertDoesNotExist()
+        onNodeWithTag("attending_tip_close").assertDoesNotExist()
     }
 }

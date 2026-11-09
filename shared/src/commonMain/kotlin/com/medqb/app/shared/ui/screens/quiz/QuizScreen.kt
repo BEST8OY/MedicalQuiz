@@ -388,12 +388,14 @@ private fun QuizQuestionCard(
         }
 
         QuizStudySection(
+            questionId = question.id,
             hasKeyInfo = hasKeyInfo,
             isKeyInfoActive = isKeyInfoActive,
             onToggleKeyInfo = { keyInfoToggled = !isKeyInfoActive },
             hasAttendingTip = hintHtml != null,
             isAttendingTipActive = attendingTipVisible,
             onToggleAttendingTip = { attendingTipVisible = !attendingTipVisible },
+            isLabsActive = showLabsSheet,
             onOpenLabs = { showLabsSheet = true },
             hintHtml = hintHtml,
             linkHandler = linkHandler,
