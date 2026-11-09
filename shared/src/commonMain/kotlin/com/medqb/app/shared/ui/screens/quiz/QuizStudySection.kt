@@ -108,8 +108,7 @@ fun QuizStudySection(
     }
 
     Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = modifier.fillMaxWidth()
     ) {
         ButtonGroup(
             overflowIndicator = {
@@ -178,27 +177,31 @@ fun QuizStudySection(
         AnimatedVisibility(
             visible = isAttendingTipActive && !hintHtml.isNullOrBlank(),
             enter = fadeIn(animationSpec = defaultEffectsSpec) +
-                expandVertically(animationSpec = defaultSpatialSpec),
-            exit = fadeOut(animationSpec = motionScheme.fastEffectsSpec()) +
-                shrinkVertically(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
+                expandVertically(
+                    animationSpec = defaultSpatialSpec,
+                    expandFrom = Alignment.Top
                 ),
+            exit = shrinkVertically(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMedium
+                ),
+                shrinkTowards = Alignment.Top
+            ),
             modifier = Modifier.fillMaxWidth()
         ) {
             Card(
                 shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                 ),
                 border = BorderStroke(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                    color = MaterialTheme.colorScheme.outlineVariant
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(top = 8.dp)
                     .testTag("attending_tip_card")
             ) {
                 Row(

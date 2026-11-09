@@ -85,10 +85,7 @@ internal fun QuestionMetadataCard(
         colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant,
-        )
+        border = CardDefaults.outlinedCardBorder(),
     ) {
         Column(
             modifier = Modifier
@@ -133,8 +130,12 @@ private fun MetadataChipGroupRow(label: String, values: List<String>) {
 @Composable
 private fun MetadataTag(text: String) {
     Surface(
-        shape = MaterialTheme.shapes.extraSmall,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        ),
         modifier = Modifier.heightIn(min = 24.dp)
     ) {
         Text(
@@ -143,7 +144,7 @@ private fun MetadataTag(text: String) {
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
         )
     }
 }
@@ -157,20 +158,17 @@ internal fun PerformanceCard(
 
     val contentColor = MaterialTheme.colorScheme.onSurface
     val lastResultColor = if (performance.lastCorrect)
-        MaterialTheme.colorScheme.tertiary
+        MaterialTheme.colorScheme.secondary
     else
         MaterialTheme.colorScheme.error
 
     OutlinedCard(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.outlinedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
+        border = CardDefaults.outlinedCardBorder(),
     ) {
         Row(
             modifier = Modifier
