@@ -1,22 +1,16 @@
 package com.medqb.app.shared.ui.screens.quiz
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
-class QuizStudyActionBarUiTest {
+class QuizStudySectionUiTest {
 
     @Test
     fun displaysAllStudyButtonsAndHandlesClicks() = runComposeUiTest {
@@ -25,7 +19,7 @@ class QuizStudyActionBarUiTest {
         var labsOpened = false
 
         setContent {
-            QuizStudyActionBar(
+            QuizStudySection(
                 isKeyInfoActive = false,
                 onToggleKeyInfo = { keyInfoToggled = true },
                 hasAttendingTip = true,
@@ -48,7 +42,7 @@ class QuizStudyActionBarUiTest {
     @Test
     fun attendingTipNotDisplayedWhenQuestionHasNoHint() = runComposeUiTest {
         setContent {
-            QuizStudyActionBar(
+            QuizStudySection(
                 hasKeyInfo = true,
                 isKeyInfoActive = false,
                 onToggleKeyInfo = {},
@@ -59,15 +53,15 @@ class QuizStudyActionBarUiTest {
             )
         }
 
-        onNodeWithTag("quiz_action_attending_tip").assertDoesNotExist()
-        onNodeWithTag("quiz_action_key_info").assertIsDisplayed()
-        onNodeWithTag("quiz_action_labs").assertIsDisplayed()
+        onNodeWithText("Attending tip").assertDoesNotExist()
+        onNodeWithText("Key info").assertIsDisplayed()
+        onNodeWithText("Labs").assertIsDisplayed()
     }
 
     @Test
     fun keyInfoNotDisplayedWhenQuestionHasNoKeyInfo() = runComposeUiTest {
         setContent {
-            QuizStudyActionBar(
+            QuizStudySection(
                 hasKeyInfo = false,
                 isKeyInfoActive = false,
                 onToggleKeyInfo = {},
@@ -78,23 +72,27 @@ class QuizStudyActionBarUiTest {
             )
         }
 
-        onNodeWithTag("quiz_action_key_info").assertDoesNotExist()
-        onNodeWithTag("quiz_action_attending_tip").assertIsDisplayed()
-        onNodeWithTag("quiz_action_labs").assertIsDisplayed()
+        onNodeWithText("Key info").assertDoesNotExist()
+        onNodeWithText("Attending tip").assertIsDisplayed()
+        onNodeWithText("Labs").assertIsDisplayed()
     }
 
     @Test
-    fun attendingTipSectionRendersAndCanBeDismissed() = runComposeUiTest {
-        var dismissed = false
+    fun dockedAttendingTipCardRendersAndCanBeDismissed() = runComposeUiTest {
+        var tipToggled = false
 
         setContent {
-            AttendingTipSection(
-                isVisible = true,
-                onDismiss = { dismissed = true },
+            QuizStudySection(
+                hasKeyInfo = true,
+                isKeyInfoActive = false,
+                onToggleKeyInfo = {},
+                hasAttendingTip = true,
+                isAttendingTipActive = true,
+                onToggleAttendingTip = { tipToggled = true },
+                onOpenLabs = {},
                 hintHtml = "<p>Look closely at serum sodium and glucose.</p>",
                 linkHandler = {},
                 mediaClick = {},
-                showSelectedHighlight = false
             )
         }
 
@@ -102,6 +100,6 @@ class QuizStudyActionBarUiTest {
         onNodeWithText("Look closely at serum sodium and glucose.").assertIsDisplayed()
 
         onNodeWithTag("attending_tip_close").assertIsDisplayed().performClick()
-        assertTrue(dismissed, "Clicking close on Attending's Tip card should invoke dismiss")
+        assertTrue(tipToggled, "Clicking close on Attending's Tip card should invoke toggle")
     }
 }

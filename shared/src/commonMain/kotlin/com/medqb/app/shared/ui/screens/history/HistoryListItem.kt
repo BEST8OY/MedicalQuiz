@@ -1,7 +1,6 @@
 package com.medqb.app.shared.ui.screens.history
 
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,7 +32,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,7 +51,7 @@ import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun HistoryItemCard(
+internal fun HistoryListItem(
     entry: QuizSessionRepository.QuizSession,
     isSelected: Boolean,
     selectionModeEnabled: Boolean,
@@ -61,7 +59,6 @@ internal fun HistoryItemCard(
     onLongPress: () -> Unit,
     onSwipeDelete: () -> Unit,
     onRename: () -> Unit,
-    onSelectChanged: () -> Unit,
     modifier: Modifier = Modifier,
     shapes: ListItemShapes = ListItemDefaults.shapes(),
 ) {
@@ -96,55 +93,63 @@ internal fun HistoryItemCard(
         },
         backgroundContent = {
             val dismissDirection = dismissState.dismissDirection
-            val backgroundColor by animateColorAsState(
-                when (dismissDirection) {
-                    EndToStart -> MaterialTheme.colorScheme.errorContainer
-                    StartToEnd -> MaterialTheme.colorScheme.tertiaryContainer
-                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surfaceContainerLow
-                }
-            )
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(backgroundColor)
-                    .padding(horizontal = 20.dp),
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
             ) {
                 if (dismissDirection == StartToEnd) {
-                    Row(
-                        modifier = Modifier.align(Alignment.CenterStart),
-                        verticalAlignment = Alignment.CenterVertically,
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(end = 8.dp)
+                            .background(MaterialTheme.colorScheme.tertiaryContainer)
+                            .padding(horizontal = 20.dp),
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Edit,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "Rename",
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                            style = MaterialTheme.typography.labelLarge,
-                        )
+                        Row(
+                            modifier = Modifier.align(Alignment.CenterStart),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Edit,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Rename",
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
                     }
                 } else if (dismissDirection == EndToStart) {
-                    Row(
-                        modifier = Modifier.align(Alignment.CenterEnd),
-                        verticalAlignment = Alignment.CenterVertically,
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(start = 8.dp)
+                            .background(MaterialTheme.colorScheme.errorContainer)
+                            .padding(horizontal = 20.dp),
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "Delete",
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.labelLarge,
-                        )
+                        Row(
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Delete",
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
                     }
                 }
             }
@@ -263,16 +268,6 @@ internal fun HistoryItemCard(
 
 internal fun QuizSessionRepository.QuizSession.displayName(): String =
     entryName.ifBlank { databaseName }
-
-internal fun Set<String>.toggle(id: String): Set<String> =
-    if (id in this) this - id else this + id
-
-internal fun Map<String, Int>.withIncrementedVersions(ids: Set<String>): Map<String, Int> =
-    toMutableMap().apply {
-        ids.forEach { id ->
-            this[id] = (this[id] ?: 0) + 1
-        }
-    }
 
 internal fun relativeTimestamp(epochMillis: Long): String {
     if (epochMillis <= 0L) return "Unknown"

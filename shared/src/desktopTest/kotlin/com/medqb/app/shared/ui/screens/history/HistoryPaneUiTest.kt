@@ -88,7 +88,7 @@ class HistoryPaneUiTest {
             )
         }
 
-        // Long press through HistoryItemCard onLongPress
+        // Long press through HistoryListItem onLongPress
         onNodeWithText("Pathology Quiz").performClick() // Clicking in normal mode selects it
         // Or verify selection mode changed notification
     }

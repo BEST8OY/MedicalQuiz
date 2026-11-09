@@ -186,7 +186,7 @@ internal fun HistoryPane(
                         items = visibleEntries,
                         key = { _, entry -> "${entry.id}:${restoredEntryVersions[entry.id] ?: 0}" },
                     ) { index, entry ->
-                        HistoryItemCard(
+                        HistoryListItem(
                             entry = entry,
                             isSelected = entry.id in selectedHistoryEntryIds,
                             selectionModeEnabled = selectedHistoryEntryIds.isNotEmpty(),
@@ -207,9 +207,6 @@ internal fun HistoryPane(
                             onRename = {
                                 renameTargetId = entry.id
                                 renameText = entry.displayName()
-                            },
-                            onSelectChanged = {
-                                selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
                             },
                             modifier = Modifier.animateItem(),
                         )
@@ -322,3 +319,14 @@ internal fun HistoryPane(
         }
     }
 }
+
+private fun Set<String>.toggle(id: String): Set<String> =
+    if (id in this) this - id else this + id
+
+private fun Map<String, Int>.withIncrementedVersions(ids: Set<String>): Map<String, Int> =
+    toMutableMap().apply {
+        ids.forEach { id ->
+            this[id] = (this[id] ?: 0) + 1
+        }
+    }
+

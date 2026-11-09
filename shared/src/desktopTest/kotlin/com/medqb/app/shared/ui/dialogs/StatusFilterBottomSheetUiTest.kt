@@ -20,7 +20,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
-class StatusFilterDialogUiTest {
+class StatusFilterBottomSheetUiTest {
 
     @Test
     fun displaysAllStatusesAndScopesAndHandlesMultiSelection() = runComposeUiTest {
@@ -28,7 +28,7 @@ class StatusFilterDialogUiTest {
         var dismissed = false
 
         setContent {
-            StatusFilterDialog(
+            StatusFilterBottomSheet(
                 current = StatusFilter.DEFAULT,
                 onSelect = { appliedFilter = it },
                 onDismiss = { dismissed = true }
@@ -72,7 +72,7 @@ class StatusFilterDialogUiTest {
         var appliedFilter: StatusFilter? = null
 
         setContent {
-            StatusFilterDialog(
+            StatusFilterBottomSheet(
                 current = StatusFilter(
                     statuses = setOf(QuestionStatus.NOT_YET_ANSWERED, QuestionStatus.ANSWERED_CORRECTLY),
                     scope = StatusScope.LATEST_ATTEMPT
@@ -104,7 +104,7 @@ class StatusFilterDialogUiTest {
         var appliedFilter: StatusFilter? = null
 
         setContent {
-            StatusFilterDialog(
+            StatusFilterBottomSheet(
                 current = StatusFilter(
                     statuses = setOf(QuestionStatus.ANSWERED_CORRECTLY),
                     scope = StatusScope.ALL_ATTEMPTS
@@ -131,7 +131,7 @@ class StatusFilterDialogUiTest {
         var dismissed = false
 
         setContent {
-            StatusFilterDialog(
+            StatusFilterBottomSheet(
                 current = StatusFilter.DEFAULT,
                 onSelect = {},
                 onDismiss = { dismissed = true }

@@ -13,7 +13,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
-class SelectionDialogUiTest {
+class SelectionBottomSheetUiTest {
 
     @Test
     fun displaysSubjectDialogWithProperVerticalLayoutWithoutOverlap() = runComposeUiTest {
@@ -24,7 +24,7 @@ class SelectionDialogUiTest {
         )
 
         setContent {
-            SubjectFilterDialog(
+            SubjectFilterBottomSheet(
                 resource = Resource.Success(testSubjects),
                 selectedIds = emptySet(),
                 excludedIds = emptySet(),
@@ -73,7 +73,7 @@ class SelectionDialogUiTest {
         var appliedExcluded: Set<Long>? = null
 
         setContent {
-            SubjectFilterDialog(
+            SubjectFilterBottomSheet(
                 resource = Resource.Success(testSubjects),
                 selectedIds = emptySet(),
                 excludedIds = emptySet(),

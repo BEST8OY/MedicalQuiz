@@ -3,19 +3,18 @@ package com.medqb.app.shared.ui.dialogs
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,20 +24,26 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,11 +65,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.Subject
 import com.medqb.app.shared.data.models.System
-import com.medqb.app.shared.ui.dialogs.components.DialogActions
-import com.medqb.app.shared.ui.dialogs.components.DialogHeader
-import com.medqb.app.shared.ui.dialogs.components.DialogLayout
-import com.medqb.app.shared.ui.dialogs.components.DialogShell
-import com.medqb.app.shared.ui.dialogs.components.LocalDialogCompactMode
 import com.medqb.app.shared.utils.Resource
 
 enum class ItemFilterState {
@@ -80,10 +80,10 @@ enum class ItemFilterState {
 }
 
 /**
- * Selection dialog for subjects filter.
+ * Selection bottom sheet for subjects filter.
  */
 @Composable
-fun SubjectFilterDialog(
+fun SubjectFilterBottomSheet(
     resource: Resource<List<Subject>>,
     selectedIds: Set<Long>,
     excludedIds: Set<Long> = emptySet(),
@@ -91,7 +91,7 @@ fun SubjectFilterDialog(
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    SelectionDialog(
+    SelectionBottomSheet(
         title = "Select subjects",
         resource = resource,
         selectedIds = selectedIds,
@@ -106,10 +106,10 @@ fun SubjectFilterDialog(
 }
 
 /**
- * Selection dialog for systems filter.
+ * Selection bottom sheet for systems filter.
  */
 @Composable
-fun SystemFilterDialog(
+fun SystemFilterBottomSheet(
     resource: Resource<List<System>>,
     selectedIds: Set<Long>,
     excludedIds: Set<Long> = emptySet(),
@@ -117,7 +117,7 @@ fun SystemFilterDialog(
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    SelectionDialog(
+    SelectionBottomSheet(
         title = "Select systems",
         resource = resource,
         selectedIds = selectedIds,
@@ -131,8 +131,9 @@ fun SystemFilterDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun <T> SelectionDialog(
+private fun <T> SelectionBottomSheet(
     title: String,
     resource: Resource<List<T>>,
     selectedIds: Set<Long>,
@@ -144,8 +145,30 @@ private fun <T> SelectionDialog(
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    DialogShell(onDismiss = onDismiss) {
-        DialogHeader(title = title, onClose = onDismiss)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        sheetMaxWidth = BottomSheetDefaults.SheetMaxWidth,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        dragHandle = {
+            BottomSheetDefaults.DragHandle(
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+        },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
 
         Crossfade(
             targetState = resource,
@@ -153,7 +176,7 @@ private fun <T> SelectionDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f, fill = false),
-            label = "selection_dialog_state"
+            label = "selection_sheet_state"
         ) { res ->
             when (res) {
                 Resource.Loading -> SelectionLoadingBody()
@@ -178,7 +201,7 @@ private fun <T> SelectionDialog(
                             idProvider = idProvider,
                             onApply = onApply,
                             onDismiss = onDismiss,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().fillMaxHeight()
                         )
                     }
                 }
@@ -310,7 +333,6 @@ private fun <T> SelectionListContent(
     }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
-    val isCompactHeight = LocalDialogCompactMode.current
 
     val allIds = remember(items) { items.map { idProvider(it) }.toSet() }
 
@@ -353,14 +375,11 @@ private fun <T> SelectionListContent(
             onValueChange = { searchQuery = it },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(
-                    horizontal = 24.dp,
-                    vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else 4.dp
-                ),
+                .padding(horizontal = 24.dp, vertical = 4.dp),
             placeholder = {
                 Text(
                     "Search...",
-                    style = if (isCompactHeight) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium
                 )
             },
             leadingIcon = {
@@ -368,14 +387,13 @@ private fun <T> SelectionListContent(
                     imageVector = Icons.Rounded.Search,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = if (isCompactHeight) Modifier.size(16.dp) else Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
                     IconButton(
                         onClick = { searchQuery = "" },
-                        modifier = if (isCompactHeight) Modifier.size(24.dp) else Modifier
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
@@ -394,166 +412,184 @@ private fun <T> SelectionListContent(
             )
         )
 
-    // Help banner explaining 3-state tap
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "💡 Tap row to cycle:  [✓] Include  →  [✕] Exclude  →  Clear",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-
-    // Consolidated Row: Subtitle (Left) + Actions (Right)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                horizontal = 24.dp,
-                vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else 4.dp
-            ),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            TextButton(
-                onClick = {
-                    if (searchQuery.isBlank()) {
-                        currentIncluded = effectiveSelectAllIds.toMutableSet()
-                        currentExcluded = mutableSetOf()
-                    } else {
-                        currentIncluded = (currentIncluded + effectiveSelectAllIds).toMutableSet()
-                        currentExcluded = (currentExcluded - effectiveSelectAllIds).toMutableSet()
-                    }
-                },
-                enabled = !isAllSelected,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-            ) {
-                Text(selectAllLabel, style = MaterialTheme.typography.labelSmall)
-            }
-
-            TextButton(
-                onClick = {
-                    currentIncluded = mutableSetOf()
-                    currentExcluded = mutableSetOf()
-                },
-                enabled = currentIncluded.isNotEmpty() || currentExcluded.isNotEmpty(),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-            ) {
-                Text("Clear", style = MaterialTheme.typography.labelSmall)
-            }
-        }
-    }
-
-    HorizontalDivider(
-        modifier = Modifier.padding(horizontal = 24.dp),
-        color = MaterialTheme.colorScheme.outlineVariant
-    )
-
-    // Item list
-    LazyColumn(
-        state = listState,
-        modifier = Modifier
-            .fillMaxWidth()
-            .weight(1f, fill = false),
-        contentPadding = PaddingValues(
-            horizontal = 24.dp,
-            vertical = if (isCompactHeight) DialogLayout.CompactInputPadding else 12.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(if (isCompactHeight) DialogLayout.CompactInputPadding else 4.dp)
-    ) {
-        items(
-            items = filteredItems,
-            key = { idProvider(it) }
-        ) { item ->
-            val itemId = idProvider(item)
-            val state = when {
-                itemId in currentIncluded -> ItemFilterState.INCLUDED
-                itemId in currentExcluded -> ItemFilterState.EXCLUDED
-                else -> ItemFilterState.NEUTRAL
-            }
-
-            SelectionItem(
-                label = labelProvider(item),
-                state = state,
-                compactMode = isCompactHeight,
-                onClick = {
-                    val next = state.next()
-                    val newIncluded = currentIncluded.toMutableSet()
-                    val newExcluded = currentExcluded.toMutableSet()
-                    when (next) {
-                        ItemFilterState.NEUTRAL -> {
-                            newIncluded.remove(itemId)
-                            newExcluded.remove(itemId)
-                        }
-                        ItemFilterState.INCLUDED -> {
-                            newIncluded.add(itemId)
-                            newExcluded.remove(itemId)
-                        }
-                        ItemFilterState.EXCLUDED -> {
-                            newIncluded.remove(itemId)
-                            newExcluded.add(itemId)
-                        }
-                    }
-                    currentIncluded = newIncluded
-                    currentExcluded = newExcluded
-                },
-                modifier = Modifier.animateItem(),
+        // Help banner explaining 3-state tap
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "💡 Tap row to cycle:  [✓] Include  →  [✕] Exclude  →  Clear",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
-        if (filteredItems.isEmpty() && searchQuery.isNotEmpty()) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
+        // Consolidated Row: Subtitle (Left) + Actions (Right)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(
+                    onClick = {
+                        if (searchQuery.isBlank()) {
+                            currentIncluded = effectiveSelectAllIds.toMutableSet()
+                            currentExcluded = mutableSetOf()
+                        } else {
+                            currentIncluded = (currentIncluded + effectiveSelectAllIds).toMutableSet()
+                            currentExcluded = (currentExcluded - effectiveSelectAllIds).toMutableSet()
+                        }
+                    },
+                    enabled = !isAllSelected,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                 ) {
-                    Text(
-                        text = "No matches found",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text(selectAllLabel, style = MaterialTheme.typography.labelSmall)
+                }
+
+                TextButton(
+                    onClick = {
+                        currentIncluded = mutableSetOf()
+                        currentExcluded = mutableSetOf()
+                    },
+                    enabled = currentIncluded.isNotEmpty() || currentExcluded.isNotEmpty(),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Text("Clear", style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
-    }
 
-        DialogActions(
-            primaryText = "Apply",
-            onPrimary = { onApply(currentIncluded.toSet(), currentExcluded.toSet()) },
-            secondaryText = "Cancel",
-            onSecondary = onDismiss
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 24.dp),
+            color = MaterialTheme.colorScheme.outlineVariant
         )
+
+        // Item list
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false),
+            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+        ) {
+            itemsIndexed(
+                items = filteredItems,
+                key = { _, item -> idProvider(item) }
+            ) { index, item ->
+                val itemId = idProvider(item)
+                val state = when {
+                    itemId in currentIncluded -> ItemFilterState.INCLUDED
+                    itemId in currentExcluded -> ItemFilterState.EXCLUDED
+                    else -> ItemFilterState.NEUTRAL
+                }
+
+                SelectionItem(
+                    label = labelProvider(item),
+                    state = state,
+                    shapes = ListItemDefaults.segmentedShapes(index = index, count = filteredItems.size),
+                    onClick = {
+                        val next = state.next()
+                        val newIncluded = currentIncluded.toMutableSet()
+                        val newExcluded = currentExcluded.toMutableSet()
+                        when (next) {
+                            ItemFilterState.NEUTRAL -> {
+                                newIncluded.remove(itemId)
+                                newExcluded.remove(itemId)
+                            }
+                            ItemFilterState.INCLUDED -> {
+                                newIncluded.add(itemId)
+                                newExcluded.remove(itemId)
+                            }
+                            ItemFilterState.EXCLUDED -> {
+                                newIncluded.remove(itemId)
+                                newExcluded.add(itemId)
+                            }
+                        }
+                        currentIncluded = newIncluded
+                        currentExcluded = newExcluded
+                    },
+                    modifier = Modifier.animateItem(),
+                )
+            }
+
+            if (filteredItems.isEmpty() && searchQuery.isNotEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No matches found",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        // Actions Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(
+                onClick = onDismiss,
+            ) {
+                Text("Cancel")
+            }
+            Button(
+                onClick = { onApply(currentIncluded.toSet(), currentExcluded.toSet()) },
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                Text(
+                    text = "Apply",
+                    style = MaterialTheme.typography.labelLargeEmphasized
+                )
+            }
+        }
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SelectionItem(
     label: String,
     state: ItemFilterState,
-    compactMode: Boolean = false,
+    shapes: ListItemShapes,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val backgroundColor = when (state) {
+    val containerColor = when (state) {
         ItemFilterState.INCLUDED -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
         ItemFilterState.EXCLUDED -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
-        ItemFilterState.NEUTRAL -> Color.Transparent
+        ItemFilterState.NEUTRAL -> MaterialTheme.colorScheme.surfaceContainer
     }
 
-    Surface(
+    val contentColor = when (state) {
+        ItemFilterState.INCLUDED -> MaterialTheme.colorScheme.onPrimaryContainer
+        ItemFilterState.EXCLUDED -> MaterialTheme.colorScheme.onErrorContainer
+        ItemFilterState.NEUTRAL -> MaterialTheme.colorScheme.onSurface
+    }
+
+    SegmentedListItem(
         onClick = onClick,
+        shapes = shapes,
         modifier = modifier
             .fillMaxWidth()
             .semantics {
@@ -564,19 +600,11 @@ private fun SelectionItem(
                     ItemFilterState.NEUTRAL -> "Not selected"
                 }
             },
-        color = backgroundColor,
-        shape = MaterialTheme.shapes.small,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    horizontal = 12.dp,
-                    vertical = if (compactMode) DialogLayout.CompactItemPadding else 12.dp,
-                ),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Start,
-        ) {
+        colors = ListItemDefaults.segmentedColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+        ),
+        leadingContent = {
             Box(
                 modifier = Modifier
                     .size(20.dp)
@@ -611,23 +639,17 @@ private fun SelectionItem(
                     ItemFilterState.NEUTRAL -> Unit
                 }
             }
-
+        },
+        content = {
             Text(
                 text = label,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 12.dp),
-                style = if (compactMode) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (state != ItemFilterState.NEUTRAL) FontWeight.SemiBold else FontWeight.Normal,
-                color = when (state) {
-                    ItemFilterState.INCLUDED -> MaterialTheme.colorScheme.onPrimaryContainer
-                    ItemFilterState.EXCLUDED -> MaterialTheme.colorScheme.onErrorContainer
-                    ItemFilterState.NEUTRAL -> MaterialTheme.colorScheme.onSurface
-                },
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-
+        },
+        trailingContent = {
             when (state) {
                 ItemFilterState.INCLUDED -> {
                     Surface(
@@ -662,5 +684,5 @@ private fun SelectionItem(
                 ItemFilterState.NEUTRAL -> Unit
             }
         }
-    }
+    )
 }

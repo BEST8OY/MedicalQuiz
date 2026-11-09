@@ -30,10 +30,10 @@ import com.medqb.app.shared.data.database.StatusScope
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.domain.SnackbarMessage
-import com.medqb.app.shared.ui.dialogs.DifficultyFilterDialog
-import com.medqb.app.shared.ui.dialogs.StatusFilterDialog
-import com.medqb.app.shared.ui.dialogs.SubjectFilterDialog
-import com.medqb.app.shared.ui.dialogs.SystemFilterDialog
+import com.medqb.app.shared.ui.dialogs.DifficultyFilterBottomSheet
+import com.medqb.app.shared.ui.dialogs.StatusFilterBottomSheet
+import com.medqb.app.shared.ui.dialogs.SubjectFilterBottomSheet
+import com.medqb.app.shared.ui.dialogs.SystemFilterBottomSheet
 import com.medqb.app.shared.ui.screens.history.HistoryPane
 import com.medqb.app.shared.viewmodel.FilterHubViewModel
 
@@ -107,10 +107,10 @@ internal fun FilterHubContent(
     val statusLabel = formatStatusFilterLabel(state.statusFilter)
     val difficultyLabel = formatDifficultyLabel(state.selectedDifficultyTiers)
 
-    var showSubjectDialog by rememberSaveable { mutableStateOf(false) }
-    var showSystemDialog by rememberSaveable { mutableStateOf(false) }
-    var showStatusDialog by rememberSaveable { mutableStateOf(false) }
-    var showDifficultyDialog by rememberSaveable { mutableStateOf(false) }
+    var showSubjectSheet by rememberSaveable { mutableStateOf(false) }
+    var showSystemSheet by rememberSaveable { mutableStateOf(false) }
+    var showStatusSheet by rememberSaveable { mutableStateOf(false) }
+    var showDifficultySheet by rememberSaveable { mutableStateOf(false) }
 
     var historySelectionMode by rememberSaveable { mutableStateOf(false) }
 
@@ -163,10 +163,10 @@ internal fun FilterHubContent(
                             submissionMode = state.submissionMode,
                             onSubmissionModeToggle = onSubmissionModeToggle,
                             bottomContentPadding = bottomContentPadding,
-                            onSelectSubjects = { showSubjectDialog = true },
-                            onSelectSystems = { showSystemDialog = true },
-                            onSelectStatus = { showStatusDialog = true },
-                            onSelectDifficulty = { showDifficultyDialog = true },
+                            onSelectSubjects = { showSubjectSheet = true },
+                            onSelectSystems = { showSystemSheet = true },
+                            onSelectStatus = { showStatusSheet = true },
+                            onSelectDifficulty = { showDifficultySheet = true },
                             onStart = {
                                 onDismissSnackbar()
                                 onStartQuiz()
@@ -195,54 +195,54 @@ internal fun FilterHubContent(
         }
     }
 
-    if (showSubjectDialog) {
-        SubjectFilterDialog(
+    if (showSubjectSheet) {
+        SubjectFilterBottomSheet(
             resource = state.subjectsResource,
             selectedIds = state.selectedSubjectIds,
             excludedIds = state.excludedSubjectIds,
             onRetry = onFetchSubjects,
             onApply = { included, excluded ->
                 onApplySelectedSubjects(included, excluded)
-                showSubjectDialog = false
+                showSubjectSheet = false
             },
-            onDismiss = { showSubjectDialog = false }
+            onDismiss = { showSubjectSheet = false }
         )
     }
 
-    if (showSystemDialog) {
-        SystemFilterDialog(
+    if (showSystemSheet) {
+        SystemFilterBottomSheet(
             resource = state.systemsResource,
             selectedIds = state.selectedSystemIds,
             excludedIds = state.excludedSystemIds,
             onRetry = onFetchSystems,
             onApply = { included, excluded ->
                 onApplySelectedSystems(included, excluded)
-                showSystemDialog = false
+                showSystemSheet = false
             },
-            onDismiss = { showSystemDialog = false }
+            onDismiss = { showSystemSheet = false }
         )
     }
 
-    if (showStatusDialog) {
-        StatusFilterDialog(
+    if (showStatusSheet) {
+        StatusFilterBottomSheet(
             current = state.statusFilter,
             onSelect = { filter ->
                 onSelectStatusFilter(filter)
-                showStatusDialog = false
+                showStatusSheet = false
             },
-            onDismiss = { showStatusDialog = false }
+            onDismiss = { showStatusSheet = false }
         )
     }
 
-    if (showDifficultyDialog) {
-        DifficultyFilterDialog(
+    if (showDifficultySheet) {
+        DifficultyFilterBottomSheet(
             selectedTiers = state.selectedDifficultyTiers,
             counts = state.difficultyCounts,
             onApply = { selected ->
                 onSelectDifficultyFilters(selected)
-                showDifficultyDialog = false
+                showDifficultySheet = false
             },
-            onDismiss = { showDifficultyDialog = false }
+            onDismiss = { showDifficultySheet = false }
         )
     }
 }

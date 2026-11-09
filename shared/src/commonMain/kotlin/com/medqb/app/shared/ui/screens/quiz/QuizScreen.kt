@@ -362,16 +362,6 @@ private fun QuizQuestionCard(
             .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        QuizStudyActionBar(
-            hasKeyInfo = hasKeyInfo,
-            isKeyInfoActive = isKeyInfoActive,
-            onToggleKeyInfo = { keyInfoToggled = !isKeyInfoActive },
-            hasAttendingTip = hintHtml != null,
-            isAttendingTipActive = attendingTipVisible,
-            onToggleAttendingTip = { attendingTipVisible = !attendingTipVisible },
-            onOpenLabs = { showLabsSheet = true }
-        )
-
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.large,
@@ -397,16 +387,18 @@ private fun QuizQuestionCard(
             )
         }
 
-        if (hintHtml != null) {
-            AttendingTipSection(
-                isVisible = attendingTipVisible,
-                onDismiss = { attendingTipVisible = false },
-                hintHtml = hintHtml,
-                linkHandler = linkHandler,
-                mediaClick = mediaClick,
-                showSelectedHighlight = isKeyInfoActive
-            )
-        }
+        QuizStudySection(
+            hasKeyInfo = hasKeyInfo,
+            isKeyInfoActive = isKeyInfoActive,
+            onToggleKeyInfo = { keyInfoToggled = !isKeyInfoActive },
+            hasAttendingTip = hintHtml != null,
+            isAttendingTipActive = attendingTipVisible,
+            onToggleAttendingTip = { attendingTipVisible = !attendingTipVisible },
+            onOpenLabs = { showLabsSheet = true },
+            hintHtml = hintHtml,
+            linkHandler = linkHandler,
+            mediaClick = mediaClick,
+        )
 
         AnswerOptions(
             answers = answers,

@@ -95,35 +95,6 @@ internal fun FilterScreen(
                     FilterPreviewCard(previewCount = previewCount)
 
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Max),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            FilterSelectionCard(
-                                title = "Subjects",
-                                subtitle = formatSelectionSubtitle(subjectCount, excludedSubjectCount, "subject", "subjects"),
-                                icon = Icons.Filled.Category,
-                                isActive = subjectCount > 0 || excludedSubjectCount > 0,
-                                onClick = onSelectSubjects,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight(),
-                            )
-
-                            FilterSelectionCard(
-                                title = "Systems",
-                                subtitle = formatSelectionSubtitle(systemCount, excludedSystemCount, "system", "systems"),
-                                icon = Icons.Filled.Layers,
-                                isActive = systemCount > 0 || excludedSystemCount > 0,
-                                onClick = onSelectSystems,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight(),
-                            )
-                        }
-
                         if (isWideScreen) {
                             Row(
                                 modifier = Modifier
@@ -131,65 +102,140 @@ internal fun FilterScreen(
                                     .height(IntrinsicSize.Max),
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                FilterSelectionCard(
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    FilterSelectionSegmentedItem(
+                                        title = "Subjects",
+                                        subtitle = formatSelectionSubtitle(subjectCount, excludedSubjectCount, "subject", "subjects"),
+                                        icon = Icons.Filled.Category,
+                                        index = 0,
+                                        count = 2,
+                                        isActive = subjectCount > 0 || excludedSubjectCount > 0,
+                                        onClick = onSelectSubjects,
+                                    )
+
+                                    FilterSelectionSegmentedItem(
+                                        title = "Systems",
+                                        subtitle = formatSelectionSubtitle(systemCount, excludedSystemCount, "system", "systems"),
+                                        icon = Icons.Filled.Layers,
+                                        index = 1,
+                                        count = 2,
+                                        isActive = systemCount > 0 || excludedSystemCount > 0,
+                                        onClick = onSelectSystems,
+                                    )
+                                }
+
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    FilterSelectionSegmentedItem(
+                                        title = "Status",
+                                        subtitle = statusLabel,
+                                        icon = Icons.AutoMirrored.Filled.TrendingUp,
+                                        index = 0,
+                                        count = 2,
+                                        isActive = !statusFilter.isAll,
+                                        onClick = onSelectStatus,
+                                    )
+
+                                    FilterSelectionSegmentedItem(
+                                        title = "Difficulty",
+                                        subtitle = if (!isDifficultyAvailable) "Not available for this bank" else difficultyLabel,
+                                        icon = Icons.Filled.FitnessCenter,
+                                        index = 1,
+                                        count = 2,
+                                        isActive = isDifficultyActive,
+                                        enabled = isDifficultyAvailable,
+                                        onClick = onSelectDifficulty,
+                                    )
+                                }
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                FilterSelectionSegmentedItem(
+                                    title = "Subjects",
+                                    subtitle = formatSelectionSubtitle(subjectCount, excludedSubjectCount, "subject", "subjects"),
+                                    icon = Icons.Filled.Category,
+                                    index = 0,
+                                    count = 2,
+                                    isActive = subjectCount > 0 || excludedSubjectCount > 0,
+                                    onClick = onSelectSubjects,
+                                )
+
+                                FilterSelectionSegmentedItem(
+                                    title = "Systems",
+                                    subtitle = formatSelectionSubtitle(systemCount, excludedSystemCount, "system", "systems"),
+                                    icon = Icons.Filled.Layers,
+                                    index = 1,
+                                    count = 2,
+                                    isActive = systemCount > 0 || excludedSystemCount > 0,
+                                    onClick = onSelectSystems,
+                                )
+                            }
+
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                FilterSelectionSegmentedItem(
                                     title = "Status",
                                     subtitle = statusLabel,
                                     icon = Icons.AutoMirrored.Filled.TrendingUp,
+                                    index = 0,
+                                    count = 2,
                                     isActive = !statusFilter.isAll,
                                     onClick = onSelectStatus,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight(),
                                 )
 
-                                FilterSelectionCard(
+                                FilterSelectionSegmentedItem(
                                     title = "Difficulty",
                                     subtitle = if (!isDifficultyAvailable) "Not available for this bank" else difficultyLabel,
                                     icon = Icons.Filled.FitnessCenter,
+                                    index = 1,
+                                    count = 2,
                                     isActive = isDifficultyActive,
                                     enabled = isDifficultyAvailable,
                                     onClick = onSelectDifficulty,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight(),
                                 )
                             }
-                        } else {
-                            FilterSelectionCard(
-                                title = "Status",
-                                subtitle = statusLabel,
-                                icon = Icons.AutoMirrored.Filled.TrendingUp,
-                                isActive = !statusFilter.isAll,
-                                onClick = onSelectStatus,
-                            )
-
-                            FilterSelectionCard(
-                                title = "Difficulty",
-                                subtitle = if (!isDifficultyAvailable) "Not available for this bank" else difficultyLabel,
-                                icon = Icons.Filled.FitnessCenter,
-                                isActive = isDifficultyActive,
-                                enabled = isDifficultyAvailable,
-                                onClick = onSelectDifficulty,
-                            )
                         }
 
-                        ToggleCard(
-                            icon = Icons.Filled.History,
-                            title = "Track Session Progress",
-                            description = "Record answer logs for historical tracking",
-                            checked = isLoggingEnabled,
-                            onCheckedChange = onLoggingToggle
-                        )
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            FilterToggleSegmentedItem(
+                                icon = Icons.Filled.History,
+                                title = "Track Session Progress",
+                                description = "Record answer logs for historical tracking",
+                                checked = isLoggingEnabled,
+                                onCheckedChange = onLoggingToggle,
+                                index = 0,
+                                count = 2,
+                            )
 
-                        ToggleCard(
-                            icon = Icons.Filled.Edit,
-                            title = "Manual Submission",
-                            description = "Review your answer before submitting",
-                            checked = submissionMode == SubmissionMode.MANUAL,
-                            onCheckedChange = { checked ->
-                                onSubmissionModeToggle(if (checked) SubmissionMode.MANUAL else SubmissionMode.INSTANT)
-                            }
-                        )
+                            FilterToggleSegmentedItem(
+                                icon = Icons.Filled.Edit,
+                                title = "Manual Submission",
+                                description = "Review your answer before submitting",
+                                checked = submissionMode == SubmissionMode.MANUAL,
+                                onCheckedChange = { checked ->
+                                    onSubmissionModeToggle(if (checked) SubmissionMode.MANUAL else SubmissionMode.INSTANT)
+                                },
+                                index = 1,
+                                count = 2,
+                            )
+                        }
                     }
 
                     PrimaryActionButtonGroup(

@@ -13,7 +13,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
-class HistoryItemCardUiTest {
+class HistoryListItemUiTest {
 
     private fun sampleSession(
         id: String = "session-1",
@@ -37,7 +37,7 @@ class HistoryItemCardUiTest {
         val session = sampleSession()
 
         setContent {
-            HistoryItemCard(
+            HistoryListItem(
                 entry = session,
                 isSelected = false,
                 selectionModeEnabled = false,
@@ -45,7 +45,6 @@ class HistoryItemCardUiTest {
                 onLongPress = {},
                 onSwipeDelete = {},
                 onRename = {},
-                onSelectChanged = {},
             )
         }
 
@@ -59,7 +58,7 @@ class HistoryItemCardUiTest {
         var clicked = false
 
         setContent {
-            HistoryItemCard(
+            HistoryListItem(
                 entry = session,
                 isSelected = false,
                 selectionModeEnabled = false,
@@ -67,7 +66,6 @@ class HistoryItemCardUiTest {
                 onLongPress = {},
                 onSwipeDelete = {},
                 onRename = {},
-                onSelectChanged = {},
             )
         }
 
@@ -81,7 +79,7 @@ class HistoryItemCardUiTest {
         var clicked = false
 
         setContent {
-            HistoryItemCard(
+            HistoryListItem(
                 entry = session,
                 isSelected = true,
                 selectionModeEnabled = true,
@@ -89,7 +87,6 @@ class HistoryItemCardUiTest {
                 onLongPress = {},
                 onSwipeDelete = {},
                 onRename = {},
-                onSelectChanged = {},
             )
         }
 
@@ -104,7 +101,7 @@ class HistoryItemCardUiTest {
         var renamed = false
 
         setContent {
-            HistoryItemCard(
+            HistoryListItem(
                 entry = session,
                 isSelected = false,
                 selectionModeEnabled = false,
@@ -112,7 +109,6 @@ class HistoryItemCardUiTest {
                 onLongPress = {},
                 onSwipeDelete = { deleted = true },
                 onRename = { renamed = true },
-                onSelectChanged = {},
             )
         }
 

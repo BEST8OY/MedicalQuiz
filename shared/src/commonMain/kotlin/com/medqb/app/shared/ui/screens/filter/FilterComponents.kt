@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.FilterAltOff
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Storage
@@ -19,10 +20,11 @@ import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ButtonGroupScope
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -31,43 +33,34 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun ToggleCard(
+internal fun FilterToggleSegmentedItem(
     icon: ImageVector,
     title: String,
     description: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    index: Int,
+    count: Int,
     modifier: Modifier = Modifier,
 ) {
     val motionScheme = MaterialTheme.motionScheme
-    val containerColor by animateColorAsState(
-        targetValue = if (checked)
-            MaterialTheme.colorScheme.secondaryContainer
-        else
-            MaterialTheme.colorScheme.surfaceContainerLow,
-        animationSpec = motionScheme.defaultEffectsSpec()
-    )
-
-    val contentColor by animateColorAsState(
-        targetValue = if (checked)
-            MaterialTheme.colorScheme.onSecondaryContainer
-        else
-            MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = motionScheme.defaultEffectsSpec()
-    )
 
     val iconContainerColor by animateColorAsState(
         targetValue = if (checked)
             MaterialTheme.colorScheme.secondary
         else
             MaterialTheme.colorScheme.surfaceContainerHighest,
-        animationSpec = motionScheme.defaultEffectsSpec()
+        animationSpec = motionScheme.defaultEffectsSpec(),
+        label = "toggleItemIconContainerColor"
     )
 
     val iconColor by animateColorAsState(
@@ -75,59 +68,60 @@ internal fun ToggleCard(
             MaterialTheme.colorScheme.onSecondary
         else
             MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = motionScheme.defaultEffectsSpec()
+        animationSpec = motionScheme.defaultEffectsSpec(),
+        label = "toggleItemIconColor"
     )
 
-    Card(
-        onClick = { onCheckedChange(!checked) },
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = containerColor)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    SegmentedListItem(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        colors = ListItemDefaults.segmentedColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            selectedContentColor = MaterialTheme.colorScheme.onSurface,
+            supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            selectedSupportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+        leadingContent = {
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = iconContainerColor,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = iconColor
+                        tint = iconColor,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = contentColor
-                )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = contentColor
-                )
-            }
-
+        },
+        content = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMediumEmphasized,
+            )
+        },
+        supportingContent = {
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        },
+        trailingContent = {
             Switch(
                 checked = checked,
                 onCheckedChange = null,
             )
-        }
-    }
+        },
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { role = Role.Switch }
+    )
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -236,12 +230,14 @@ internal fun FilterPreviewCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun FilterSelectionCard(
+internal fun FilterSelectionSegmentedItem(
     title: String,
     subtitle: String,
     icon: ImageVector,
+    index: Int,
+    count: Int,
     isActive: Boolean = false,
     enabled: Boolean = true,
     onClick: () -> Unit,
@@ -256,6 +252,12 @@ internal fun FilterSelectionCard(
     }
 
     val targetContentColor = when {
+        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        isActive -> MaterialTheme.colorScheme.onTertiaryContainer
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+
+    val targetSupportingColor = when {
         !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
         isActive -> MaterialTheme.colorScheme.onTertiaryContainer
         else -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -275,77 +277,92 @@ internal fun FilterSelectionCard(
 
     val containerColor by animateColorAsState(
         targetValue = targetContainerColor,
-        animationSpec = motionScheme.defaultEffectsSpec()
+        animationSpec = motionScheme.defaultEffectsSpec(),
+        label = "filterItemContainerColor"
     )
 
     val contentColor by animateColorAsState(
         targetValue = targetContentColor,
-        animationSpec = motionScheme.defaultEffectsSpec()
+        animationSpec = motionScheme.defaultEffectsSpec(),
+        label = "filterItemContentColor"
+    )
+
+    val supportingColor by animateColorAsState(
+        targetValue = targetSupportingColor,
+        animationSpec = motionScheme.defaultEffectsSpec(),
+        label = "filterItemSupportingColor"
     )
 
     val iconContainerColor by animateColorAsState(
         targetValue = targetIconContainerColor,
-        animationSpec = motionScheme.defaultEffectsSpec()
+        animationSpec = motionScheme.defaultEffectsSpec(),
+        label = "filterItemIconContainerColor"
     )
 
     val iconColor by animateColorAsState(
         targetValue = targetIconColor,
-        animationSpec = motionScheme.defaultEffectsSpec()
+        animationSpec = motionScheme.defaultEffectsSpec(),
+        label = "filterItemIconColor"
     )
 
-    Card(
+    SegmentedListItem(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
+        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        colors = ListItemDefaults.segmentedColors(
             containerColor = containerColor,
             disabledContainerColor = containerColor,
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+            contentColor = contentColor,
+            disabledContentColor = contentColor,
+            supportingContentColor = supportingColor,
+            disabledSupportingContentColor = supportingColor,
+            leadingContentColor = contentColor,
+            disabledLeadingContentColor = contentColor,
+            trailingContentColor = supportingColor,
+            disabledTrailingContentColor = supportingColor,
+        ),
+        leadingContent = {
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = iconContainerColor,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = iconColor
+                        tint = iconColor,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = contentColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = contentColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
+        },
+        content = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMediumEmphasized,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        supportingContent = {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        trailingContent = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = supportingColor,
+                modifier = Modifier.size(20.dp)
+            )
+        },
+        modifier = modifier.fillMaxWidth(),
+    )
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -403,10 +420,10 @@ private fun FilterActionControlButtonGroup(
         horizontalArrangement = groupArrangement,
         expandedRatio = 0f,
     ) {
-            StartQuizButtonGroupItem(
-                hasPreview = hasPreview,
-                onStart = onStart,
-            )
+        StartQuizButtonGroupItem(
+            hasPreview = hasPreview,
+            onStart = onStart,
+        )
 
         if (showReset) {
             ResetFiltersButtonGroupItem(onClearFilters = onClearFilters)
