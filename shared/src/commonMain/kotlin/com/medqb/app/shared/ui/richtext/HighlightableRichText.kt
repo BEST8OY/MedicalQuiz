@@ -12,8 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.Spacing
+import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.TextHighlight
@@ -86,7 +85,7 @@ fun HighlightableRichText(
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Track cumulative offset across blocks for proper highlight mapping
         var cumulativeOffset = 0
@@ -246,7 +245,7 @@ private fun HighlightableList(
     onShowSnackbar: suspend (SnackbarMessage) -> Unit
 ) {
     val richTextScale = LocalRichTextScale.current
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         var itemOffset = baseOffset
 
         items.forEachIndexed { index, itemText ->
@@ -263,7 +262,7 @@ private fun HighlightableList(
                 MaterialText(
                     text = markerProvider(index),
                     style = MaterialTheme.typography.bodyLarge.scaledBy(richTextScale.proseScale),
-                    modifier = Modifier.padding(end = Inset.Small),
+                    modifier = Modifier.padding(end = 12.dp),
                 )
                 HighlightableListItem(
                     text = itemText,

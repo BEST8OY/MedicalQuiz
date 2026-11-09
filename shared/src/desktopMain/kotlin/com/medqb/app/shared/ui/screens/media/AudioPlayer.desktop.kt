@@ -11,10 +11,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.platform.VlcDiscovery
-import com.medqb.app.shared.ui.theme.IconSize
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.Layout
-import com.medqb.app.shared.ui.theme.Spacing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import uk.co.caprica.vlcj.player.base.MediaPlayer
@@ -117,7 +113,7 @@ actual fun AudioPlayer(
     ) {
         if (errorMessage != null) {
             Column(
-                modifier = Modifier.padding(Inset.ExtraLarge),
+                modifier = Modifier.padding(40.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -125,12 +121,12 @@ actual fun AudioPlayer(
                     text = "⚠️",
                     style = MaterialTheme.typography.displayMedium
                 )
-                Spacer(Modifier.height(Spacing.Medium))
+                Spacer(Modifier.height(16.dp))
                 Text(
                     text = errorMessage!!,
                     style = MaterialTheme.typography.bodyLarge
                 )
-                Spacer(Modifier.height(Spacing.Medium))
+                Spacer(Modifier.height(16.dp))
                 Button(
                     onClick = {
                         if (VlcDiscovery.retry()) {
@@ -147,14 +143,14 @@ actual fun AudioPlayer(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(Inset.ExtraLarge),
+                    .padding(40.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(Spacing.Large),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.Medium)
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // File name
                     Text(
@@ -196,21 +192,21 @@ actual fun AudioPlayer(
                             Icon(
                                 imageVector = if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
                                 contentDescription = if (isPlaying) "Pause audio" else "Play audio",
-                                modifier = Modifier.size(Layout.MinTouchTarget)
+                                modifier = Modifier.size(48.dp)
                             )
                         }
 
                         // Volume control
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f).padding(start = Spacing.Medium)
+                            modifier = Modifier.weight(1f).padding(start = 16.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                                 contentDescription = "Volume control",
-                                modifier = Modifier.size(IconSize.Large)
+                                modifier = Modifier.size(24.dp)
                             )
-                            Spacer(Modifier.width(Spacing.Small))
+                            Spacer(Modifier.width(8.dp))
                             val sliderState = rememberSliderState(
                                 value = volume.toFloat(),
                                 trackRange = 0f..100f

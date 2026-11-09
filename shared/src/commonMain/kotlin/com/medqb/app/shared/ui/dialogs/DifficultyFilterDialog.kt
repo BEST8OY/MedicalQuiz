@@ -24,12 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.ui.dialogs.components.DialogActions
 import com.medqb.app.shared.ui.dialogs.components.DialogHeader
 import com.medqb.app.shared.ui.dialogs.components.DialogShell
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.Spacing
 
 /**
  * Material 3 multi-select dialog for choosing question difficulty tiers.
@@ -56,7 +55,7 @@ fun DifficultyFilterDialog(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Large),
+                .padding(horizontal = 24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -76,9 +75,9 @@ fun DifficultyFilterDialog(
 
         LazyColumn(
             modifier = Modifier
-                .padding(horizontal = Inset.Large)
+                .padding(horizontal = 24.dp)
                 .weight(1f, fill = false),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Small),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(tiers) { tier ->
                 val isSelected = tier in currentSelection
@@ -131,7 +130,7 @@ private fun DifficultyFilterItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Small, vertical = Spacing.MediumSmall),
+                .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start,
         ) {
@@ -146,7 +145,7 @@ private fun DifficultyFilterItem(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = Spacing.Small, end = Spacing.MediumSmall),
+                    .padding(start = 8.dp, end = 12.dp),
             ) {
                 Text(
                     text = tier.displayName,

@@ -32,9 +32,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text as MaterialText
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.Spacing
-import com.medqb.app.shared.ui.theme.Stroke
 
 @Composable
 internal fun RichTextBlockRenderer(
@@ -202,13 +199,13 @@ private fun RichTextList(
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ) {
     val richTextScale = LocalRichTextScale.current
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.forEachIndexed { index, item ->
             Row(modifier = Modifier.fillMaxWidth()) {
                 MaterialText(
                     text = markerProvider(index),
                     style = MaterialTheme.typography.bodyMedium.scaledBy(richTextScale.proseScale),
-                    modifier = Modifier.padding(end = Inset.Small),
+                    modifier = Modifier.padding(end = 12.dp),
                 )
                 RichTextParagraph(
                     text = item,
@@ -235,7 +232,7 @@ private fun RichTextCodeBlock(block: RichTextBlock.CodeBlock) {
                 fontFamily = FontFamily.Monospace,
                 fontSize = 14.sp,
             ).scaledBy(richTextScale.proseScale),
-            modifier = Modifier.padding(Inset.Small)
+            modifier = Modifier.padding(12.dp)
         )
     }
 }
@@ -252,9 +249,9 @@ private fun AbstractCard(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant,
-        border = BorderStroke(Stroke.Thin, MaterialTheme.colorScheme.outlineVariant)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Column(modifier = Modifier.padding(Inset.Medium), verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             block.title?.let {
                 MaterialText(
                     text = it,
@@ -262,7 +259,7 @@ private fun AbstractCard(
                 )
             }
             if (block.blocks.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     block.blocks.forEach { childBlock ->
                         RichTextBlockRenderer(
                             block = childBlock,

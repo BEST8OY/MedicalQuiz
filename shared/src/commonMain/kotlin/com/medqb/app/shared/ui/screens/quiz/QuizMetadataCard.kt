@@ -22,10 +22,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.models.Question
-import com.medqb.app.shared.ui.theme.Spacing
-import com.medqb.app.shared.ui.theme.Stroke
 
 internal sealed interface MetadataSection {
     data class Chips(val label: String, val values: List<String>) : MetadataSection
@@ -87,15 +86,15 @@ internal fun QuestionMetadataCard(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
         border = BorderStroke(
-            width = Stroke.Thin,
+            width = 1.dp,
             color = MaterialTheme.colorScheme.outlineVariant,
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Spacing.Medium, vertical = Spacing.MediumSmall),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Small)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             sections.forEach { section ->
                 when (section) {
@@ -112,7 +111,7 @@ private fun MetadataChipGroupRow(label: String, values: List<String>) {
     val contentColor = MaterialTheme.colorScheme.onSurfaceVariant
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
             text = label,
@@ -121,8 +120,8 @@ private fun MetadataChipGroupRow(label: String, values: List<String>) {
             color = contentColor
         )
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Small),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Small)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             values.forEach { value ->
                 MetadataTag(text = value)
@@ -136,7 +135,7 @@ private fun MetadataTag(text: String) {
     Surface(
         shape = MaterialTheme.shapes.extraSmall,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = Modifier.heightIn(min = Spacing.Large)
+        modifier = Modifier.heightIn(min = 24.dp)
     ) {
         Text(
             text = text,
@@ -144,7 +143,7 @@ private fun MetadataTag(text: String) {
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = Spacing.Small, vertical = Spacing.Micro)
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
         )
     }
 }
@@ -169,14 +168,14 @@ internal fun PerformanceCard(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
         border = BorderStroke(
-            width = Stroke.Thin,
+            width = 1.dp,
             color = MaterialTheme.colorScheme.outlineVariant
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Spacing.Medium, vertical = Spacing.MediumSmall),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -210,7 +209,7 @@ private fun PerformanceStat(
     Column(
         modifier = Modifier.semantics(mergeDescendants = true) {},
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.Micro)
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Text(
             text = value,

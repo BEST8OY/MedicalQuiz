@@ -10,9 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.medqb.app.shared.ui.theme.ScreenLayout
-import com.medqb.app.shared.ui.theme.Spacing
-
 @Composable
 fun EmptyStateMessage(
     title: String,
@@ -22,9 +19,9 @@ fun EmptyStateMessage(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = ScreenLayout.EmptyStatePadding),
+            .padding(top = 72.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
     ) {
         Text(
             text = title,

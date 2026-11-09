@@ -46,8 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -75,14 +73,14 @@ fun LabsBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = Spacing.ExtraLarge)
+                .padding(bottom = 32.dp)
         ) {
             // Header Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = Inset.Large)
-                    .padding(bottom = Spacing.Small),
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -91,7 +89,7 @@ fun LabsBottomSheet(
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
-                Spacer(modifier = Modifier.width(Spacing.Small))
+                Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Normal Laboratory Values",
@@ -120,7 +118,7 @@ fun LabsBottomSheet(
             val categories = remember { LabCategory.entries }
             SecondaryScrollableTabRow(
                 selectedTabIndex = selectedCategory.ordinal,
-                edgePadding = Inset.Large,
+                edgePadding = 24.dp,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 contentColor = MaterialTheme.colorScheme.primary,
                 divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) },
@@ -154,8 +152,8 @@ fun LabsBottomSheet(
                 category = selectedCategory,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = Inset.Large)
-                    .padding(top = Spacing.Medium)
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 16.dp)
             )
         }
     }
@@ -171,7 +169,7 @@ private fun LabCategoryPlaceholder(
     Column(
         modifier = modifier
             .verticalScroll(scrollState),
-        verticalArrangement = Arrangement.spacedBy(Spacing.Medium)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         val (icon, subtitle) = when (category) {
             LabCategory.SERUM -> Icons.Rounded.Science to "Electrolytes, enzymes, metabolites & proteins in serum"
@@ -192,9 +190,9 @@ private fun LabCategoryPlaceholder(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(Spacing.Large),
+                    .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(Spacing.Medium)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -235,7 +233,7 @@ private fun LabCategoryPlaceholder(
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             shape = MaterialTheme.shapes.extraSmall
                         )
-                        .padding(horizontal = Spacing.Medium, vertical = Spacing.Small),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
@@ -262,8 +260,8 @@ private fun LabCategoryPlaceholder(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = Spacing.Large),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.Small, Alignment.CenterHorizontally),
+                        .padding(vertical = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(

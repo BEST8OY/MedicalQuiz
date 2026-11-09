@@ -27,6 +27,7 @@ import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.QuestionStatus
 import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.database.StatusScope
+import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.ui.dialogs.DifficultyFilterDialog
@@ -34,7 +35,6 @@ import com.medqb.app.shared.ui.dialogs.StatusFilterDialog
 import com.medqb.app.shared.ui.dialogs.SubjectFilterDialog
 import com.medqb.app.shared.ui.dialogs.SystemFilterDialog
 import com.medqb.app.shared.ui.screens.history.HistoryPane
-import com.medqb.app.shared.ui.theme.ScreenLayout
 import com.medqb.app.shared.viewmodel.FilterHubViewModel
 
 import com.medqb.app.shared.ui.state.FilterUiState
@@ -123,7 +123,7 @@ internal fun FilterHubContent(
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val screenHeight = maxHeight
             val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            val baseBottomPadding = if (screenHeight < ScreenLayout.CompactHeightBreakpoint) ScreenLayout.BottomPaddingCompact else ScreenLayout.BottomPaddingDefault
+            val baseBottomPadding = if (screenHeight < 400.dp) 64.dp else 88.dp
             val bottomContentPadding = baseBottomPadding + navBarBottom
             val motionScheme = MaterialTheme.motionScheme
             AnimatedContent(

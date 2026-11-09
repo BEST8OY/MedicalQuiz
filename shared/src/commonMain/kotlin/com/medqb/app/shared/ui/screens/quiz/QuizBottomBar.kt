@@ -33,8 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import com.medqb.app.shared.ui.theme.ScreenLayout
-import com.medqb.app.shared.ui.theme.Spacing
+import androidx.compose.ui.unit.dp
 
 data class QuizBottomToolbarUiState(
     val currentQuestionIndex: Int,
@@ -57,13 +56,13 @@ fun QuizFloatingToolbar(
 ) {
     BoxWithConstraints(modifier = modifier) {
         val motionScheme = MaterialTheme.motionScheme
-        val isExpanded = maxWidth >= ScreenLayout.CompactWidthBreakpoint
+        val isExpanded = maxWidth >= 600.dp
         val currentQuestionNumber = uiState.currentQuestionIndex + 1
         val questionLabel = "$currentQuestionNumber / ${uiState.totalQuestions}"
 
         HorizontalFloatingToolbar(
             expanded = true,
-            modifier = Modifier.padding(horizontal = if (isExpanded) Spacing.Large else Spacing.Medium),
+            modifier = Modifier.padding(horizontal = if (isExpanded) 24.dp else 16.dp),
             colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
             contentPadding = FloatingToolbarDefaults.ContentPadding,
             leadingContent = {
@@ -76,7 +75,7 @@ fun QuizFloatingToolbar(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = null,
                         )
-                        Spacer(modifier = Modifier.width(Spacing.ExtraSmall))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "Prev",
                             style = MaterialTheme.typography.labelLargeEmphasized,
@@ -104,7 +103,7 @@ fun QuizFloatingToolbar(
                             text = "Next",
                             style = MaterialTheme.typography.labelLargeEmphasized,
                         )
-                        Spacer(modifier = Modifier.width(Spacing.ExtraSmall))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
                             contentDescription = null,
@@ -123,7 +122,7 @@ fun QuizFloatingToolbar(
                 }
             },
             content = {
-                Spacer(modifier = Modifier.width(Spacing.Small))
+                Spacer(modifier = Modifier.width(8.dp))
 
                 AnimatedVisibility(
                     visible = uiState.showSubmitButton,
@@ -140,11 +139,11 @@ fun QuizFloatingToolbar(
                         Button(
                             onClick = onSubmit,
                             enabled = uiState.canSubmit,
-                            modifier = Modifier.sizeIn(minHeight = Spacing.MediumLarge),
+                            modifier = Modifier.sizeIn(minHeight = 20.dp),
                         ) {
                             Text(text = "Submit")
                         }
-                        Spacer(modifier = Modifier.width(Spacing.Small))
+                        Spacer(modifier = Modifier.width(8.dp))
                     }
                 }
 
@@ -164,7 +163,7 @@ fun QuizFloatingToolbar(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(Spacing.Small))
+                Spacer(modifier = Modifier.width(8.dp))
             }
         )
     }

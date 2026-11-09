@@ -31,13 +31,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.database.QuestionStatus
 import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.database.StatusScope
 import com.medqb.app.shared.ui.dialogs.components.DialogHeader
 import com.medqb.app.shared.ui.dialogs.components.DialogShell
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.Spacing
 
 /**
  * AMBOSS-style question status filter dialog.
@@ -63,10 +62,10 @@ fun StatusFilterDialog(
 
         LazyColumn(
             modifier = Modifier
-                .padding(horizontal = Inset.Large)
+                .padding(horizontal = 24.dp)
                 .weight(1f, fill = false),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Small),
-            contentPadding = PaddingValues(vertical = Spacing.Small)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 8.dp)
         ) {
             // Upper Section Header: Multi-selective statuses
             item {
@@ -74,7 +73,7 @@ fun StatusFilterDialog(
                     text = "INCLUDE QUESTIONS WITH FOLLOWING STATUS:",
                     style = MaterialTheme.typography.labelMediumEmphasized,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = Spacing.ExtraSmall, bottom = Spacing.ExtraSmall)
+                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
                 )
             }
 
@@ -101,7 +100,7 @@ fun StatusFilterDialog(
             // Section Divider
             item {
                 HorizontalDivider(
-                    modifier = Modifier.padding(vertical = Spacing.Small),
+                    modifier = Modifier.padding(vertical = 8.dp),
                     color = MaterialTheme.colorScheme.outlineVariant
                 )
             }
@@ -112,7 +111,7 @@ fun StatusFilterDialog(
                     text = "HOW SHOULD STATUS FILTERS BE APPLIED?",
                     style = MaterialTheme.typography.labelMediumEmphasized,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = Spacing.ExtraSmall, bottom = Spacing.ExtraSmall)
+                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
                 )
             }
 
@@ -138,7 +137,7 @@ fun StatusFilterDialog(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Large, vertical = Spacing.MediumLarge),
+                .padding(horizontal = 24.dp, vertical = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -154,7 +153,7 @@ fun StatusFilterDialog(
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Small),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(

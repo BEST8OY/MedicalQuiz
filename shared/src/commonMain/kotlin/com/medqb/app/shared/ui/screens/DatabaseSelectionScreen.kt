@@ -31,9 +31,6 @@ import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.components.EmptyStateMessage
 import com.medqb.app.shared.ui.components.MedQBTopBar
 import com.medqb.app.shared.ui.components.SettingsActionButton
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.ScreenLayout
-import com.medqb.app.shared.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,18 +72,18 @@ fun DatabaseSelectionScreen(
                 onRefresh = onRefreshDatabases,
                 modifier = Modifier
                     .fillMaxSize()
-                    .widthIn(max = ScreenLayout.WideWidthBreakpoint),
+                    .widthIn(max = 840.dp),
             ) {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
                         .consumeWindowInsets(PaddingValues(bottom = bottomPadding)),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(
-                        start = Inset.Medium,
-                        top = Inset.Medium,
-                        end = Inset.Medium,
-                        bottom = bottomPadding + Spacing.Large
+                        start = 16.dp,
+                        top = 16.dp,
+                        end = 16.dp,
+                        bottom = bottomPadding + 24.dp
                     ),
                 ) {
                     if (databases.isEmpty() && !isLoading) {
@@ -131,15 +128,15 @@ private fun DatabaseItemCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(Spacing.Medium),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Medium),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Icon(
                 imageVector = Icons.Filled.Storage,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(Spacing.ExtraLarge),
+                modifier = Modifier.size(32.dp),
             )
             Text(
                 text = name,

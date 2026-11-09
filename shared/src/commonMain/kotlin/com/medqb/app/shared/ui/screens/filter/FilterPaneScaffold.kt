@@ -40,9 +40,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import com.medqb.app.shared.ui.theme.Layout
-import com.medqb.app.shared.ui.theme.Spacing
 
 enum class FilterPane(
     val icon: ImageVector,
@@ -77,7 +76,7 @@ internal fun FilterPaneScaffold(
                 onPaneSelected = onPaneSelected,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(Spacing.Large)
+                    .padding(24.dp)
                     .navigationBarsPadding()
                     .zIndex(1f),
             )
@@ -94,7 +93,7 @@ private fun FilterPaneFloatingToolbar(
 ) {
     HorizontalFloatingToolbar(
         expanded = true,
-        modifier = modifier.widthIn(max = Layout.MaxContentWidth),
+        modifier = modifier.widthIn(max = 320.dp),
         colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
     ) {
         val panes = FilterPane.entries

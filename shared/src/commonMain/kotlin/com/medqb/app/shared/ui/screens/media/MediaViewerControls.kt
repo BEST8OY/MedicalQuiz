@@ -38,8 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import com.medqb.app.shared.ui.theme.Layout
-import com.medqb.app.shared.ui.theme.Spacing
+import androidx.compose.ui.unit.dp
 
 internal enum class MediaControlsLayout {
     None,
@@ -104,7 +103,7 @@ internal fun MediaViewerTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(horizontal = Spacing.Small, vertical = Spacing.Small),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
             FilledIconButton(
                 onClick = onBack,
@@ -128,7 +127,7 @@ internal fun MediaViewerTopBar(
                 ) {
                     Text(
                         text = "${pagerState.currentPage + 1} / $mediaFilesCount",
-                        modifier = Modifier.padding(horizontal = Spacing.Medium, vertical = Spacing.Small),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -168,7 +167,7 @@ internal fun MediaViewerBottomBar(
     val transitionAlpha = rememberTransitionAlpha(animatedVisibilityScope)
 
     val hasControls = controlsLayout != MediaControlsLayout.None
-    val controlsWidth = Layout.PanelWidth
+    val controlsWidth = 280.dp
     val controlsEnterEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     val controlsExitEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
 
@@ -189,7 +188,7 @@ internal fun MediaViewerBottomBar(
             ),
         modifier = modifier
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(bottom = Spacing.Large)
+            .padding(bottom = 24.dp)
             .graphicsLayer { alpha = transitionAlpha },
     ) {
         Box(
@@ -218,7 +217,7 @@ private fun MediaViewerControlButtonGroup(
         MediaControlsLayout.OverlayAndInfo -> Modifier.fillMaxWidth()
         MediaControlsLayout.OverlayOnly,
         MediaControlsLayout.InfoOnly,
-        MediaControlsLayout.None -> Modifier.width(Layout.PanelWidth)
+        MediaControlsLayout.None -> Modifier.width(280.dp)
     }
     val groupArrangement = if (type == MediaControlsLayout.OverlayAndInfo) {
         Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)

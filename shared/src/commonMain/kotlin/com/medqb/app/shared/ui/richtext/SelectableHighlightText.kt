@@ -36,8 +36,6 @@ import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.platform.PlatformKind
 import com.medqb.app.shared.platform.TextIntentLauncher
 import com.medqb.app.shared.platform.getPlatformKind
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.domain.SnackbarMessage
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt

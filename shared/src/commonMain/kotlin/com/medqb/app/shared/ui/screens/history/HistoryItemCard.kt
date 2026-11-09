@@ -1,13 +1,7 @@
 package com.medqb.app.shared.ui.screens.history
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,17 +38,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.QuizSessionRepository
-import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.ui.screens.filter.formatDifficultyLabel
-import com.medqb.app.shared.ui.theme.IconSize
-import com.medqb.app.shared.ui.theme.Spacing
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -70,12 +60,14 @@ internal fun HistoryItemCard(
     onClick: () -> Unit,
     onLongPress: () -> Unit,
     onSwipeDelete: () -> Unit,
-    onSwipeRename: () -> Unit,
+    onRename: () -> Unit,
     onSelectChanged: () -> Unit,
     modifier: Modifier = Modifier,
     shapes: ListItemShapes = ListItemDefaults.shapes(),
 ) {
-    val dismissState = rememberSwipeToDismissBoxState()
+    val dismissState = rememberSwipeToDismissBoxState(
+        positionalThreshold = { totalDistance -> totalDistance * 0.4f }
+    )
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(selectionModeEnabled) {
@@ -84,18 +76,11 @@ internal fun HistoryItemCard(
         }
     }
 
-    val titleColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-    val subtitleColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-    val iconTint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-
     SwipeToDismissBox(
         state = dismissState,
         modifier = modifier
             .fillMaxWidth()
-            .clip(shapes.shape)
-            .semantics {
-                contentDescription = "Swipe left to delete, right to rename"
-            },
+            .clip(shapes.shape),
         enableDismissFromStartToEnd = !selectionModeEnabled,
         enableDismissFromEndToStart = !selectionModeEnabled,
         gesturesEnabled = !selectionModeEnabled,
@@ -103,7 +88,7 @@ internal fun HistoryItemCard(
             when (dismissValue) {
                 EndToStart -> onSwipeDelete()
                 StartToEnd -> {
-                    onSwipeRename()
+                    onRename()
                     scope.launch { dismissState.reset() }
                 }
                 SwipeToDismissBoxValue.Settled -> Unit
@@ -115,14 +100,7 @@ internal fun HistoryItemCard(
                 when (dismissDirection) {
                     EndToStart -> MaterialTheme.colorScheme.errorContainer
                     StartToEnd -> MaterialTheme.colorScheme.tertiaryContainer
-                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surface
-                }
-            )
-            val contentColor by animateColorAsState(
-                when (dismissDirection) {
-                    EndToStart -> MaterialTheme.colorScheme.onErrorContainer
-                    StartToEnd -> MaterialTheme.colorScheme.onTertiaryContainer
-                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.onSurface
+                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surfaceContainerLow
                 }
             )
 
@@ -130,35 +108,44 @@ internal fun HistoryItemCard(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(backgroundColor)
-                    .padding(horizontal = Spacing.MediumLarge),
+                    .padding(horizontal = 20.dp),
             ) {
-                Row(
-                    modifier = Modifier
-                        .align(
-                            if (dismissDirection == EndToStart) {
-                                Alignment.CenterEnd
-                            } else {
-                                Alignment.CenterStart
-                            },
-                        ),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = if (dismissDirection == EndToStart) {
-                            Icons.Filled.Delete
-                        } else {
-                            Icons.Filled.Edit
-                        },
-                        contentDescription = null,
-                        tint = contentColor,
-                        modifier = Modifier.size(IconSize.Medium),
-                    )
-                    Spacer(modifier = Modifier.width(Spacing.MediumSmall))
-                    Text(
-                        text = if (dismissDirection == EndToStart) "Delete" else "Rename",
-                        color = contentColor,
-                        style = MaterialTheme.typography.labelLarge,
-                    )
+                if (dismissDirection == StartToEnd) {
+                    Row(
+                        modifier = Modifier.align(Alignment.CenterStart),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Rename",
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                } else if (dismissDirection == EndToStart) {
+                    Row(
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Delete",
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
                 }
             }
         },
@@ -168,64 +155,68 @@ internal fun HistoryItemCard(
         val itemContent: @Composable () -> Unit = {
             Text(
                 text = entryDisplayName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = titleColor,
+                style = MaterialTheme.typography.titleMediumEmphasized,
             )
         }
 
         val itemSupportingContent: @Composable () -> Unit = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (entryDisplayName != entry.databaseName) {
                     Text(
                         text = entry.databaseName,
                         style = MaterialTheme.typography.bodySmall,
-                        color = subtitleColor,
                     )
                 }
-                val difficultyLabel = if (entry.selectedDifficultyTiers.isNotEmpty() && entry.selectedDifficultyTiers.size < DifficultyTier.entries.size) {
-                    " \u00B7 " + formatDifficultyLabel(entry.selectedDifficultyTiers)
-                } else ""
                 Text(
-                    text = "Q${entry.currentQuestionIndex + 1}$difficultyLabel \u00B7 ${relativeTimestamp(entry.updatedAtEpochMillis)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = subtitleColor,
+                    text = "Q${entry.currentQuestionIndex + 1} \u00B7 ${relativeTimestamp(entry.updatedAtEpochMillis)}",
+                    style = MaterialTheme.typography.labelSmall,
                 )
             }
         }
 
         val itemLeadingContent: @Composable () -> Unit = {
             val motionScheme = MaterialTheme.motionScheme
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AnimatedVisibility(
-                    visible = selectionModeEnabled,
-                    enter = expandHorizontally(
-                        animationSpec = motionScheme.defaultSpatialSpec(),
-                        expandFrom = Alignment.Start
-                    ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
-                    exit = shrinkHorizontally(
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMediumLow
-                        ),
-                        shrinkTowards = Alignment.Start
-                    ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()),
-                ) {
-                    Box(modifier = Modifier.size(IconSize.Large)) {
+            Box(
+                modifier = Modifier.size(24.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Crossfade(
+                    targetState = selectionModeEnabled,
+                    animationSpec = motionScheme.defaultEffectsSpec(),
+                ) { isSelectionMode ->
+                    if (isSelectionMode) {
                         Checkbox(
                             checked = isSelected,
                             onCheckedChange = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.History,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
                         )
                     }
                 }
-                Icon(
-                    imageVector = Icons.Filled.History,
-                    contentDescription = "Quiz history entry",
-                    tint = iconTint,
-                    modifier = Modifier.size(IconSize.Large),
-                )
             }
         }
+
+        val accessibilityModifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                if (!selectionModeEnabled) {
+                    customActions = listOf(
+                        CustomAccessibilityAction(label = "Delete") {
+                            onSwipeDelete()
+                            true
+                        },
+                        CustomAccessibilityAction(label = "Rename") {
+                            onRename()
+                            true
+                        },
+                    )
+                }
+            }
 
         if (selectionModeEnabled) {
             SegmentedListItem(
@@ -237,14 +228,14 @@ internal fun HistoryItemCard(
                     .fillMaxWidth()
                     .semantics { role = Role.Checkbox },
                 colors = ListItemDefaults.segmentedColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     selectedSupportingContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     leadingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    selectedLeadingContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    selectedLeadingContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 ),
                 content = itemContent,
                 supportingContent = itemSupportingContent,
@@ -256,12 +247,12 @@ internal fun HistoryItemCard(
                 onLongClick = onLongPress,
                 shapes = shapes,
                 colors = ListItemDefaults.segmentedColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    leadingContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    leadingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = accessibilityModifier,
                 content = itemContent,
                 supportingContent = itemSupportingContent,
                 leadingContent = itemLeadingContent,

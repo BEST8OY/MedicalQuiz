@@ -2,6 +2,7 @@ package com.medqb.app.shared.ui.screens.history
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -45,6 +47,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.AnnotatedString
 import com.medqb.app.shared.data.QuizSessionRepository
@@ -52,9 +55,8 @@ import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.ui.components.EmptyStateMessage
 import com.medqb.app.shared.ui.dialogs.RenameDialog
 import com.medqb.app.shared.ui.richtext.setPlainText
+import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.platform.PlatformBackHandler
-import com.medqb.app.shared.ui.theme.ScreenLayout
-import com.medqb.app.shared.ui.theme.Spacing
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -164,13 +166,13 @@ internal fun HistoryPane(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = ScreenLayout.WideWidthBreakpoint)
+                .widthIn(max = 720.dp)
         ) {
             val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(Spacing.Small),
-                contentPadding = PaddingValues(top = Spacing.Large, bottom = ScreenLayout.BottomPaddingWithFab + navBarBottom),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                contentPadding = PaddingValues(top = 24.dp, bottom = 112.dp + navBarBottom),
             ) {
                 if (visibleEntries.isEmpty()) {
                     item {
@@ -183,12 +185,12 @@ internal fun HistoryPane(
                     itemsIndexed(
                         items = visibleEntries,
                         key = { _, entry -> "${entry.id}:${restoredEntryVersions[entry.id] ?: 0}" },
-                    ) { _, entry ->
+                    ) { index, entry ->
                         HistoryItemCard(
                             entry = entry,
                             isSelected = entry.id in selectedHistoryEntryIds,
                             selectionModeEnabled = selectedHistoryEntryIds.isNotEmpty(),
-                            shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
+                            shapes = ListItemDefaults.segmentedShapes(index = index, count = visibleEntries.size),
                             onClick = {
                                 if (selectedHistoryEntryIds.isNotEmpty()) {
                                     selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
@@ -202,7 +204,7 @@ internal fun HistoryPane(
                             onSwipeDelete = {
                                 deleteHistoryEntries(listOf(entry))
                             },
-                            onSwipeRename = {
+                            onRename = {
                                 renameTargetId = entry.id
                                 renameText = entry.displayName()
                             },
@@ -216,7 +218,7 @@ internal fun HistoryPane(
             }
 
             val motionScheme = MaterialTheme.motionScheme
-            val horizontalMargin = if (this@BoxWithConstraints.maxWidth >= ScreenLayout.WideWidthBreakpoint) Spacing.ExtraLarge else Spacing.Large
+            val horizontalMargin = if (this@BoxWithConstraints.maxWidth >= 840.dp) 32.dp else 24.dp
             AnimatedVisibility(
                 visible = selectedHistoryEntryIds.isNotEmpty(),
                 enter = scaleIn(animationSpec = motionScheme.defaultSpatialSpec(), initialScale = 0.8f) +
@@ -230,7 +232,7 @@ internal fun HistoryPane(
                 ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = horizontalMargin, bottom = ScreenLayout.FabBottomPadding)
+                    .padding(end = horizontalMargin, bottom = 96.dp)
                     .navigationBarsPadding(),
             ) {
                 FloatingActionButtonMenu(
@@ -240,13 +242,33 @@ internal fun HistoryPane(
                             checked = isFabMenuExpanded,
                             onCheckedChange = { isFabMenuExpanded = it },
                         ) {
+                            val rotation by animateFloatAsState(
+                                targetValue = if (isFabMenuExpanded) 90f else 0f,
+                                animationSpec = motionScheme.fastSpatialSpec(),
+                            )
                             Icon(
                                 imageVector = if (isFabMenuExpanded) Icons.Filled.Close else Icons.Filled.MoreVert,
                                 contentDescription = if (isFabMenuExpanded) "Close actions" else "More actions",
+                                modifier = Modifier.graphicsLayer { rotationZ = rotation },
                             )
                         }
                     },
                 ) {
+                    if (selectedHistoryEntryIds.size == 1) {
+                        FloatingActionButtonMenuItem(
+                            onClick = {
+                                val targetEntry = historyEntries.firstOrNull { it.id in selectedHistoryEntryIds }
+                                if (targetEntry != null) {
+                                    renameTargetId = targetEntry.id
+                                    renameText = targetEntry.displayName()
+                                }
+                                isFabMenuExpanded = false
+                            },
+                            text = { Text("Rename") },
+                            icon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                        )
+                    }
+
                     FloatingActionButtonMenuItem(
                         onClick = {
                             selectedHistoryEntryIds = allHistoryEntryIds

@@ -55,8 +55,6 @@ import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.navigation.rememberMedQBNavEntries
 import com.medqb.app.shared.orchestration.rememberAppWorkflow
 import com.medqb.app.shared.ui.theme.AppTheme
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import kotlinx.coroutines.launch
@@ -245,9 +243,9 @@ fun App() {
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
                     .padding(
-                        start = Inset.Medium,
-                        end = Inset.Medium,
-                        bottom = if (isFilterRoute) 80.dp else Spacing.MediumSmall,
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = if (isFilterRoute) 80.dp else 12.dp,
                     ),
                 snackbar = { data ->
                     Snackbar(

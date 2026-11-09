@@ -46,12 +46,11 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.medqb.app.shared.platform.PlatformBackHandler
 import com.medqb.app.shared.ui.media.MediaType
-import com.medqb.app.shared.ui.theme.ContainerSize
-import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.MediaTypeUtils
 import net.engawapg.lib.zoomable.rememberZoomState
 import net.engawapg.lib.zoomable.zoomable
@@ -314,29 +313,29 @@ internal fun UnsupportedContent(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(Spacing.ExtraLarge),
+            modifier = Modifier.padding(32.dp),
         ) {
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier.size(ContainerSize.ExtraLarge),
+                modifier = Modifier.size(56.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Outlined.Warning,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(ContainerSize.Medium),
+                        modifier = Modifier.size(40.dp),
                     )
                 }
             }
-            Spacer(Modifier.height(Spacing.Medium))
+            Spacer(Modifier.height(16.dp))
             Text(
                 text = "Unsupported Media",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            Spacer(Modifier.height(Spacing.Small))
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = fileName,
                 style = MaterialTheme.typography.bodySmall,

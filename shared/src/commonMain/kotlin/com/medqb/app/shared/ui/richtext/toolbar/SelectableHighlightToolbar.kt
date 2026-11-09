@@ -48,14 +48,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.TextHighlight
-import com.medqb.app.shared.ui.theme.ContainerSize
-import com.medqb.app.shared.ui.theme.IconSize
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.Spacing
-import com.medqb.app.shared.ui.theme.Stroke
 
 private object HighlightToolbarDefaults {
-    val ColorChipSize = IconSize.ExtraLarge
+    val ColorChipSize = 36.dp
     val DividerHeight = 32.dp
     val TonalElevation = 6.dp
     val ShadowElevation = 8.dp
@@ -74,18 +69,18 @@ internal fun SelectionToolbar(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = HighlightToolbarDefaults.TonalElevation,
         shadowElevation = HighlightToolbarDefaults.ShadowElevation,
-        border = BorderStroke(width = Stroke.Thin, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        border = BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     ) {
         Column(
             modifier = Modifier
                 .width(IntrinsicSize.Max)
-                .padding(horizontal = Spacing.MediumSmall, vertical = Spacing.MediumSmall),
-            verticalArrangement = Arrangement.spacedBy(Spacing.Small),
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Row 1: Action Items (Copy & Dictionary)
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.Small, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ToolbarActionItem(
@@ -104,13 +99,13 @@ internal fun SelectionToolbar(
             }
 
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = Spacing.Small),
+                modifier = Modifier.padding(horizontal = 8.dp),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             )
 
             // Row 2: Color Swatches
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.MediumSmall, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HighlightColor.entries.forEach { color ->
@@ -143,15 +138,15 @@ private fun ToolbarActionItem(
         contentColor = contentColor,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = Spacing.MediumSmall, vertical = Spacing.Small),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Spacing.SubSmall)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconColor,
-                modifier = Modifier.size(IconSize.Medium)
+                modifier = Modifier.size(20.dp)
             )
             Text(
                 text = label,
@@ -173,15 +168,15 @@ internal fun HighlightEditPopup(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         tonalElevation = HighlightToolbarDefaults.TonalElevation,
         shadowElevation = HighlightToolbarDefaults.ShadowElevation,
-        border = BorderStroke(width = Stroke.Thin, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        border = BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = Inset.Medium, vertical = Spacing.MediumSmall),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Medium, Alignment.CenterHorizontally),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.MediumSmall, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HighlightColor.entries.forEach { color ->
@@ -194,14 +189,14 @@ internal fun HighlightEditPopup(
             }
 
             VerticalDivider(
-                modifier = Modifier.size(width = Stroke.Thin, height = HighlightToolbarDefaults.DividerHeight),
+                modifier = Modifier.size(width = 1.dp, height = HighlightToolbarDefaults.DividerHeight),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
             )
 
             IconButton(
                 onClick = onDelete,
                 modifier = Modifier
-                    .size(ContainerSize.Medium)
+                    .size(40.dp)
                     .clip(MaterialTheme.shapes.medium),
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -211,7 +206,7 @@ internal fun HighlightEditPopup(
                 Icon(
                     imageVector = Icons.Rounded.Delete,
                     contentDescription = "Delete highlight",
-                    modifier = Modifier.size(IconSize.Medium)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -237,7 +232,7 @@ private fun HighlightColorChip(
         label = "chipBorderColor"
     )
     val animatedBorderWidth by animateDpAsState(
-        targetValue = if (isSelected) Stroke.Thick else Stroke.Thin,
+        targetValue = if (isSelected) 2.5.dp else 1.dp,
         animationSpec = motionScheme.defaultSpatialSpec(),
         label = "chipBorderWidth"
     )
@@ -278,7 +273,7 @@ private fun HighlightColorChip(
             Icon(
                 imageVector = Icons.Rounded.Check,
                 contentDescription = null,
-                modifier = Modifier.size(IconSize.Medium),
+                modifier = Modifier.size(20.dp),
                 tint = contentColorFor(composeColor)
             )
         }

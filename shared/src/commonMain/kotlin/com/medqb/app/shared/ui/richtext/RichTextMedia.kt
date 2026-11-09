@@ -19,8 +19,6 @@ import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import coil3.compose.AsyncImage
 import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import com.medqb.app.shared.ui.LocalActiveSharedElementKey
-import com.medqb.app.shared.ui.theme.Layout
-import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.HtmlUtils
 
 import androidx.compose.material3.MaterialTheme
@@ -87,7 +85,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
         modifier = Modifier
             .fillMaxWidth()
             .zIndex(if (isZoomed) 10f else 0f)
-            .padding(vertical = Spacing.Small),
+            .padding(vertical = 8.dp),
         horizontalAlignment = when (block.alignment) {
             TextAlign.End -> Alignment.End
             TextAlign.Center -> Alignment.CenterHorizontally
@@ -115,14 +113,14 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = Spacing.ExtraSmall),
+                    .padding(top = 4.dp),
                 textAlign = block.alignment
             )
         }
     }
 }
 
-private val MaxEmbeddedImageWidth = Layout.MediaMaxWidth
+private val MaxEmbeddedImageWidth = 512.dp
 
 /**
  * Resolves the media source to a Coil-compatible model.

@@ -33,11 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import com.medqb.app.shared.ui.theme.ContainerSize
-import com.medqb.app.shared.ui.theme.IconSize
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.Layout
-import com.medqb.app.shared.ui.theme.Spacing
+import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -91,14 +87,14 @@ internal fun ToggleCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Medium, vertical = Spacing.Medium),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Large),
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = iconContainerColor,
-                modifier = Modifier.size(ContainerSize.Large)
+                modifier = Modifier.size(44.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -111,7 +107,7 @@ internal fun ToggleCard(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = title,
@@ -154,14 +150,14 @@ internal fun DatabaseHeaderCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Spacing.MediumLarge, vertical = Spacing.Large),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Large),
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(ContainerSize.Medium)
+                modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -222,8 +218,8 @@ internal fun FilterPreviewCard(
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = Inset.Large, vertical = Spacing.MediumLarge),
-            verticalArrangement = Arrangement.spacedBy(Spacing.MediumSmall)
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
                 text = statusText,
@@ -310,14 +306,14 @@ internal fun FilterSelectionCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Medium, vertical = Spacing.Medium),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.Large),
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = MaterialTheme.shapes.small,
                 color = iconContainerColor,
-                modifier = Modifier.size(ContainerSize.Large)
+                modifier = Modifier.size(44.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -330,7 +326,7 @@ internal fun FilterSelectionCard(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(Spacing.ExtraSmall)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = title,
@@ -364,12 +360,12 @@ internal fun PrimaryActionButtonGroup(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.MediumSmall),
+            .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
-                .widthIn(max = Layout.MaxContentWidth)
+                .widthIn(max = 320.dp)
                 .fillMaxWidth()
                 .animateContentSize(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()),
             contentAlignment = Alignment.Center,
@@ -392,7 +388,7 @@ private fun FilterActionControlButtonGroup(
     onStart: () -> Unit,
     onClearFilters: () -> Unit,
 ) {
-    val groupModifier = if (showReset) Modifier.fillMaxWidth() else Modifier.widthIn(min = Layout.SingleButtonMinWidth).fillMaxWidth()
+    val groupModifier = if (showReset) Modifier.fillMaxWidth() else Modifier.widthIn(min = 176.dp).fillMaxWidth()
     val groupArrangement = if (showReset) {
         Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
     } else {
@@ -430,7 +426,7 @@ private fun ButtonGroupScope.StartQuizButtonGroupItem(
             Icon(
                 imageVector = Icons.Filled.PlayArrow,
                 contentDescription = null,
-                modifier = Modifier.size(IconSize.Medium),
+                modifier = Modifier.size(20.dp),
             )
         },
         enabled = hasPreview,
@@ -449,7 +445,7 @@ private fun ButtonGroupScope.ResetFiltersButtonGroupItem(
             Icon(
                 imageVector = Icons.Filled.FilterAltOff,
                 contentDescription = null,
-                modifier = Modifier.size(IconSize.Medium),
+                modifier = Modifier.size(20.dp),
             )
         },
         weight = 1f,

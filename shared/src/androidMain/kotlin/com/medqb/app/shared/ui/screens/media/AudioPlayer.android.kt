@@ -32,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.MediaItem
-import com.medqb.app.shared.ui.theme.Spacing
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -105,7 +104,7 @@ actual fun AudioPlayer(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = Spacing.Medium, vertical = Spacing.Large),
+            .padding(horizontal = 16.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
         val sliderState = rememberSliderState(
@@ -147,7 +146,7 @@ actual fun AudioPlayer(
             )
         }
 
-        Spacer(modifier = Modifier.height(Spacing.Medium))
+        Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = {
@@ -168,7 +167,7 @@ actual fun AudioPlayer(
                 imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                 contentDescription = null,
             )
-            Spacer(modifier = Modifier.width(Spacing.Small))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(if (isPlaying) "Pause" else "Play")
         }
     }

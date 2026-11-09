@@ -25,8 +25,6 @@ import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.LocalActiveSharedElementKey
 import com.medqb.app.shared.ui.dialogs.JumpToDialog
-import com.medqb.app.shared.ui.theme.ScreenLayout
-import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.viewmodel.QuizViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -79,7 +77,7 @@ fun QuizRoot(
                     onNavigateHome = onNavigateBack,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = padding,
-                    bottomClearance = bottomPadding + ScreenLayout.BottomClearanceFloating
+                    bottomClearance = bottomPadding + 80.dp
                 )
             }
 
@@ -99,7 +97,7 @@ fun QuizRoot(
                 onSubmit = { viewModel.submitAnswer(timeTaken = 0L) },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = bottomPadding + Spacing.Medium)
+                    .padding(bottom = bottomPadding + 16.dp)
                     .zIndex(1f)
             )
         }

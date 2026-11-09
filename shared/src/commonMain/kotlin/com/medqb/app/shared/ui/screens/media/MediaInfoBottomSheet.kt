@@ -17,11 +17,10 @@ import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.MediaDescription
 import com.medqb.app.shared.ui.richtext.RichText
 import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -50,8 +49,8 @@ internal fun ExplanationBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Large)
-                .padding(bottom = Spacing.ExtraLarge),
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
         ) {
             Text(
                 text = description.title.ifBlank { "Explanation" },
@@ -59,11 +58,11 @@ internal fun ExplanationBottomSheet(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = Spacing.Medium),
+                    .padding(bottom = 16.dp),
             )
 
             HorizontalDivider(
-                modifier = Modifier.padding(bottom = Spacing.Medium),
+                modifier = Modifier.padding(bottom = 16.dp),
                 color = MaterialTheme.colorScheme.outlineVariant,
             )
 

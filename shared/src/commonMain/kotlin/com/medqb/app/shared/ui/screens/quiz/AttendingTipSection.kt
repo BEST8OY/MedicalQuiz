@@ -33,7 +33,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.richtext.RichText
 import com.medqb.app.shared.ui.richtext.RichTextPalette
-import com.medqb.app.shared.ui.theme.Spacing
 
 /**
  * Refactored Attending's Tip (Hint) card with animated disclosure and dismiss affordance.
@@ -79,10 +78,10 @@ internal fun AttendingTipSection(
                 .fillMaxWidth()
                 .testTag("attending_tip_card")
         ) {
-            Column(modifier = Modifier.padding(Spacing.Medium)) {
+            Column(modifier = Modifier.padding(16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.Small),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val hintContentColor = MaterialTheme.colorScheme.onTertiaryContainer
@@ -125,7 +124,7 @@ internal fun AttendingTipSection(
                 }
                 RichText(
                     html = hintHtml,
-                    modifier = Modifier.padding(top = Spacing.Small),
+                    modifier = Modifier.padding(top = 8.dp),
                     onLinkClick = linkHandler,
                     onMediaClick = mediaClick,
                     showSelectedHighlight = showSelectedHighlight,

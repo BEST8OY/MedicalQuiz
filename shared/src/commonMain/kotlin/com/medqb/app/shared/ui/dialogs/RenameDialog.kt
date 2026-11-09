@@ -1,23 +1,23 @@
 package com.medqb.app.shared.ui.dialogs
 
-
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.dialogs.components.DialogActions
 import com.medqb.app.shared.ui.dialogs.components.DialogHeader
 import com.medqb.app.shared.ui.dialogs.components.DialogShell
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.Spacing
 
 /**
  * Dialog for renaming history entries.
@@ -45,16 +45,30 @@ fun RenameDialog(
             onValueChange = { if (it.length <= maxLength) onNameChange(it) },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Inset.Large, vertical = Spacing.MediumSmall),
+                .padding(horizontal = 24.dp, vertical = 12.dp),
             label = { Text("Entry name") },
             singleLine = true,
-            isError = currentName.length > maxLength,
+            isError = currentName.isBlank(),
             supportingText = {
-                Text(
-                    text = "${currentName.length} / $maxLength",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    if (currentName.isBlank()) {
+                        Text(
+                            text = "Name cannot be empty",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                    Text(
+                        text = "${currentName.length} / $maxLength",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(
@@ -66,10 +80,6 @@ fun RenameDialog(
                 }
             ),
             shape = MaterialTheme.shapes.medium,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-            )
         )
 
         DialogActions(

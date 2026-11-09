@@ -33,9 +33,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.ScreenLayout
-import com.medqb.app.shared.ui.theme.Spacing
 
 /**
  * Responsive dialog layout tokens.
@@ -54,19 +51,19 @@ internal object DialogLayout {
     const val ExpandedWidthFraction: Float = 0.65f
 
     /** Safety margin subtracted from screen height for dialog container max height */
-    val MaxHeightInset: Dp get() = Spacing.ExtraLarge
+    val MaxHeightInset: Dp = 32.dp
 
     /** Minimum structural container height for dialog shell */
     val MinContainerHeight: Dp = 200.dp
 
     /** Viewport height threshold for compact landscape dialog adjustments */
-    val CompactHeightThreshold: Dp get() = ScreenLayout.CompactHeightBreakpoint
+    val CompactHeightThreshold: Dp = 400.dp
 
     /** Compact vertical padding for list items in landscape mode */
-    val CompactItemPadding: Dp get() = Spacing.ExtraSmall
+    val CompactItemPadding: Dp = 4.dp
 
     /** Compact padding for input fields in landscape mode */
-    val CompactInputPadding: Dp get() = Spacing.Micro
+    val CompactInputPadding: Dp = 2.dp
 }
 
 /**
@@ -110,7 +107,7 @@ fun DialogShell(
                     Surface(
                         modifier = Modifier
                             .widthIn(min = DialogLayout.MinWidth, max = DialogLayout.MaxWidth)
-                            .fillMaxWidth(if (maxWidth >= ScreenLayout.CompactWidthBreakpoint) DialogLayout.ExpandedWidthFraction else DialogLayout.CompactWidthFraction)
+                            .fillMaxWidth(if (maxWidth >= 600.dp) DialogLayout.ExpandedWidthFraction else DialogLayout.CompactWidthFraction)
                             .heightIn(
                                 min = DialogLayout.MinContainerHeight,
                                 max = (maxHeight - DialogLayout.MaxHeightInset).coerceAtLeast(DialogLayout.MinContainerHeight)
@@ -141,7 +138,7 @@ fun DialogHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = Inset.Large, end = Inset.Small, top = Spacing.MediumLarge, bottom = Spacing.MediumSmall),
+            .padding(start = 24.dp, end = 12.dp, top = 20.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
     ) {
@@ -157,7 +154,7 @@ fun DialogHeader(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = Spacing.ExtraSmall)
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
@@ -192,8 +189,8 @@ fun DialogActions(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = Inset.Large, vertical = Spacing.MediumLarge),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.Small, Alignment.End),
+            .padding(horizontal = 24.dp, vertical = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (secondaryText != null && onSecondary != null) {

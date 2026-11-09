@@ -39,13 +39,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import com.medqb.app.shared.data.models.Answer
 import kotlin.math.min
 import com.medqb.app.shared.ui.richtext.RichText
-import com.medqb.app.shared.ui.theme.ContainerSize
-import com.medqb.app.shared.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -119,8 +118,8 @@ private fun AnswerListItem(
         MorphingMaterialShapeBadge(
             targetShape = targetShape,
             backgroundColor = labelContainerColor,
-            size = ContainerSize.Medium,
-            modifier = Modifier.padding(end = Spacing.Small)
+            size = 40.dp,
+            modifier = Modifier.padding(end = 8.dp)
         ) {
             AnimatedContent(
                 targetState = label,
@@ -162,11 +161,11 @@ private fun AnswerListItem(
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
                         color = trailingTextColor,
-                        modifier = Modifier.padding(start = Spacing.Small)
+                        modifier = Modifier.padding(start = 8.dp)
                     )
                 }
 
-                else -> Spacer(modifier = Modifier.size(Spacing.ExtraSmall))
+                else -> Spacer(modifier = Modifier.size(4.dp))
             }
         }
     }
@@ -299,7 +298,7 @@ fun AnswerOptions(
         modifier = modifier
             .fillMaxWidth()
             .selectableGroup(),
-        verticalArrangement = Arrangement.spacedBy(Spacing.Small)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         answers.forEachIndexed { index, answer ->
             val label = ('A'.code + index).toChar().toString()

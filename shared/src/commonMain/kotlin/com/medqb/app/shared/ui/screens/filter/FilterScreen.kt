@@ -31,9 +31,6 @@ import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.models.SubmissionMode
-import com.medqb.app.shared.ui.theme.Inset
-import com.medqb.app.shared.ui.theme.ScreenLayout
-import com.medqb.app.shared.ui.theme.Spacing
 
 @Composable
 internal fun FilterScreen(
@@ -75,34 +72,34 @@ internal fun FilterScreen(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopCenter
         ) {
-            val isWideScreen = maxWidth >= ScreenLayout.CompactWidthBreakpoint
+            val isWideScreen = maxWidth >= 600.dp
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .widthIn(max = ScreenLayout.WideWidthBreakpoint)
+                    .widthIn(max = 840.dp)
                     .padding(
-                        start = Inset.Large,
-                        top = Inset.ExtraLarge,
-                        end = Inset.Large,
-                        bottom = Spacing.None,
+                        start = 24.dp,
+                        top = 40.dp,
+                        end = 24.dp,
+                        bottom = 0.dp,
                     )
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.ExtraLarge)
+                    verticalArrangement = Arrangement.spacedBy(32.dp)
                 ) {
                     DatabaseHeaderCard(databaseName = databaseName)
 
                     FilterPreviewCard(previewCount = previewCount)
 
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.Medium)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(IntrinsicSize.Max),
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.Medium)
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             FilterSelectionCard(
                                 title = "Subjects",
@@ -132,7 +129,7 @@ internal fun FilterScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(IntrinsicSize.Max),
-                                horizontalArrangement = Arrangement.spacedBy(Spacing.Medium)
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 FilterSelectionCard(
                                     title = "Status",
@@ -202,7 +199,7 @@ internal fun FilterScreen(
                         onClearFilters = onClearFilters
                     )
 
-                    Spacer(modifier = Modifier.height(bottomContentPadding + Spacing.Medium))
+                    Spacer(modifier = Modifier.height(bottomContentPadding + 16.dp))
                 }
             }
         }

@@ -59,8 +59,6 @@ import com.medqb.app.shared.ui.richtext.HighlightableRichText
 import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
 import com.medqb.app.shared.ui.screens.quiz.labs.LabsBottomSheet
 import com.medqb.app.shared.ui.state.QuizUiState
-import com.medqb.app.shared.ui.theme.ScreenLayout
-import com.medqb.app.shared.ui.theme.Spacing
 import com.medqb.app.shared.utils.HtmlUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -78,7 +76,7 @@ fun QuizScreen(
     onNavigateHome: () -> Unit = {},
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    bottomClearance: Dp = ScreenLayout.BottomClearanceFloating,
+    bottomClearance: Dp = 80.dp,
 ) {
     val fontScalePreference = state.fontScalePreference
 
@@ -113,7 +111,7 @@ private fun QuestionContent(
     onNavigateHome: () -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    bottomClearance: Dp = ScreenLayout.BottomClearanceFloating,
+    bottomClearance: Dp = 80.dp,
 ) {
     Column(
         modifier = modifier
@@ -134,7 +132,7 @@ private fun QuestionContent(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .widthIn(max = ScreenLayout.WideWidthBreakpoint)
+                        .widthIn(max = 840.dp)
                 ) {
                     QuizQuestionCard(
                         state = state,
@@ -207,7 +205,7 @@ private fun QuizQuestionCard(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = Spacing.Large),
+                .padding(horizontal = 24.dp),
             contentAlignment = Alignment.Center
         ) {
             AnimatedVisibility(
@@ -224,8 +222,8 @@ private fun QuizQuestionCard(
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(Spacing.Medium),
-                    modifier = Modifier.padding(Spacing.Large)
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(24.dp)
                 ) {
                     Box(
                         modifier = Modifier
@@ -255,7 +253,7 @@ private fun QuizQuestionCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(Spacing.Small))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Button(onClick = onRetry) {
                         Text(text = "Retry")
                     }
@@ -268,8 +266,8 @@ private fun QuizQuestionCard(
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(Spacing.Medium),
-                    modifier = Modifier.padding(Spacing.Large)
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(24.dp)
                 ) {
                     Box(
                         modifier = Modifier
@@ -299,7 +297,7 @@ private fun QuizQuestionCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(Spacing.Small))
+                    Spacer(modifier = Modifier.height(8.dp))
                     FilledTonalButton(onClick = onNavigateHome) {
                         Text(text = "Return to Bank")
                     }
@@ -360,9 +358,9 @@ private fun QuizQuestionCard(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = Spacing.Medium)
-            .padding(top = Spacing.MediumSmall, bottom = bottomClearance + Spacing.Medium),
-        verticalArrangement = Arrangement.spacedBy(Spacing.Medium)
+            .padding(horizontal = 16.dp)
+            .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         QuizStudyActionBar(
             hasKeyInfo = hasKeyInfo,
@@ -395,7 +393,7 @@ private fun QuizQuestionCard(
                 onLinkClick = linkHandler,
                 onMediaClick = mediaClick,
                 onShowSnackbar = onShowSnackbar,
-                modifier = Modifier.padding(Spacing.Medium)
+                modifier = Modifier.padding(16.dp)
             )
         }
 
@@ -442,8 +440,8 @@ private fun QuizQuestionCard(
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(Spacing.Medium),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.Small)
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
                         text = "Explanation",
@@ -476,7 +474,7 @@ private fun QuizQuestionCard(
             exit = ExitTransition.None,
         ) {
             Column {
-                Spacer(modifier = Modifier.height(Spacing.MediumSmall))
+                Spacer(modifier = Modifier.height(12.dp))
                 QuestionMetadataCard(sections = metadataSections)
             }
         }
@@ -491,7 +489,7 @@ private fun QuizQuestionCard(
             exit = ExitTransition.None,
         ) {
             Column {
-                Spacer(modifier = Modifier.height(Spacing.MediumSmall))
+                Spacer(modifier = Modifier.height(12.dp))
                 PerformanceCard(performance = state.currentPerformance)
             }
         }

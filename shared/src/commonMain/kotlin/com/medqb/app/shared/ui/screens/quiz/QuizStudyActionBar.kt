@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import com.medqb.app.shared.ui.theme.Spacing
 
 /**
  * Quiz study action bar containing AMBOSS-style study tools:
@@ -54,7 +53,7 @@ fun QuizStudyActionBar(
         modifier = modifier
             .fillMaxWidth()
             .horizontalScroll(scrollState),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.Small),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // KEY INFO button - only displayed if key info is present
