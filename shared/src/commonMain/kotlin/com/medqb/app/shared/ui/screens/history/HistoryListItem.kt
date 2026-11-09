@@ -97,13 +97,14 @@ internal fun HistoryListItem(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .padding(vertical = 4.dp, horizontal = 8.dp),
             ) {
                 if (dismissDirection == StartToEnd) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(end = 8.dp)
+                            .clip(MaterialTheme.shapes.large)
                             .background(MaterialTheme.colorScheme.tertiaryContainer)
                             .padding(horizontal = 20.dp),
                     ) {
@@ -129,7 +130,7 @@ internal fun HistoryListItem(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(start = 8.dp)
+                            .clip(MaterialTheme.shapes.large)
                             .background(MaterialTheme.colorScheme.errorContainer)
                             .padding(horizontal = 20.dp),
                     ) {
