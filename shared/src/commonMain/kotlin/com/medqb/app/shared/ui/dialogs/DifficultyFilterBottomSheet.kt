@@ -107,9 +107,9 @@ fun DifficultyFilterBottomSheet(
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
                 .weight(1f, fill = false),
-            contentPadding = PaddingValues(vertical = 8.dp),
+            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             itemsIndexed(
                 items = tiers,

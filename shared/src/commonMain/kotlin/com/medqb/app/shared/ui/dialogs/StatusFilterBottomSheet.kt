@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -88,9 +89,9 @@ fun StatusFilterBottomSheet(
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
                 .weight(1f, fill = false),
-            contentPadding = PaddingValues(vertical = 8.dp)
+            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             // Upper Section Header: Multi-selective statuses
             item {
@@ -142,18 +143,24 @@ fun StatusFilterBottomSheet(
             }
 
             // Radio Button Items (Segmented group)
-            itemsIndexed(
-                items = StatusScope.entries,
-                key = { _, scope -> scope.name }
-            ) { index, scope ->
-                val isSelected = scope == currentScope
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectableGroup(),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    StatusScope.entries.forEachIndexed { index, scope ->
+                        val isSelected = scope == currentScope
 
-                ScopeRadioItem(
-                    scope = scope,
-                    isSelected = isSelected,
-                    shapes = ListItemDefaults.segmentedShapes(index = index, count = StatusScope.entries.size),
-                    onSelect = { currentScope = scope }
-                )
+                        ScopeRadioItem(
+                            scope = scope,
+                            isSelected = isSelected,
+                            shapes = ListItemDefaults.segmentedShapes(index = index, count = StatusScope.entries.size),
+                            onSelect = { currentScope = scope }
+                        )
+                    }
+                }
             }
         }
 

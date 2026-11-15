@@ -481,6 +481,7 @@ private fun <T> SelectionListContent(
                 .fillMaxWidth()
                 .weight(1f, fill = false),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             itemsIndexed(
                 items = filteredItems,
@@ -576,8 +577,8 @@ private fun SelectionItem(
     modifier: Modifier = Modifier,
 ) {
     val containerColor = when (state) {
-        ItemFilterState.INCLUDED -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-        ItemFilterState.EXCLUDED -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
+        ItemFilterState.INCLUDED -> MaterialTheme.colorScheme.primaryContainer
+        ItemFilterState.EXCLUDED -> MaterialTheme.colorScheme.errorContainer
         ItemFilterState.NEUTRAL -> MaterialTheme.colorScheme.surfaceContainer
     }
 

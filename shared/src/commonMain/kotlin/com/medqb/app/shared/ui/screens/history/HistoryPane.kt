@@ -172,7 +172,12 @@ internal fun HistoryPane(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
-                contentPadding = PaddingValues(top = 24.dp, bottom = 112.dp + navBarBottom),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    top = 24.dp,
+                    end = 16.dp,
+                    bottom = 112.dp + navBarBottom,
+                ),
             ) {
                 if (visibleEntries.isEmpty()) {
                     item {
