@@ -5,11 +5,15 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.StatusFilter
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
@@ -128,5 +132,77 @@ class HistoryListItemUiTest {
 
         assertTrue(deleted)
         assertTrue(renamed)
+    }
+
+    @Test
+    fun swipeLeftInvokesDelete() = runComposeUiTest {
+        val session = sampleSession()
+        var deleted = false
+
+        setContent {
+            HistoryListItem(
+                entry = session,
+                isSelected = false,
+                selectionModeEnabled = false,
+                onClick = {},
+                onLongPress = {},
+                onSwipeDelete = { deleted = true },
+                onRename = {},
+            )
+        }
+
+        onNodeWithText("Cardiology Review").performTouchInput { swipeLeft() }
+        waitForIdle()
+        assertTrue(deleted)
+    }
+
+    @Test
+    fun swipeRightInvokesRenameAndResetsCard() = runComposeUiTest {
+        val session = sampleSession()
+        var renamed = false
+
+        setContent {
+            HistoryListItem(
+                entry = session,
+                isSelected = false,
+                selectionModeEnabled = false,
+                onClick = {},
+                onLongPress = {},
+                onSwipeDelete = {},
+                onRename = { renamed = true },
+            )
+        }
+
+        onNodeWithText("Cardiology Review").performTouchInput { swipeRight() }
+        waitForIdle()
+        assertTrue(renamed)
+        onNodeWithText("Cardiology Review").assertIsDisplayed()
+    }
+
+    @Test
+    fun selectionModeDisablesSwipeGestures() = runComposeUiTest {
+        val session = sampleSession()
+        var deleted = false
+        var renamed = false
+
+        setContent {
+            HistoryListItem(
+                entry = session,
+                isSelected = true,
+                selectionModeEnabled = true,
+                onClick = {},
+                onLongPress = {},
+                onSwipeDelete = { deleted = true },
+                onRename = { renamed = true },
+            )
+        }
+
+        onNodeWithText("Cardiology Review").performTouchInput { swipeLeft() }
+        waitForIdle()
+        onNodeWithText("Cardiology Review").performTouchInput { swipeRight() }
+        waitForIdle()
+
+        assertFalse(deleted)
+        assertFalse(renamed)
     }
 }

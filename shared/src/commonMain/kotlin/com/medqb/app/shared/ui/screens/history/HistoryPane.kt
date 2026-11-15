@@ -2,6 +2,7 @@ package com.medqb.app.shared.ui.screens.history
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -50,13 +51,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.domain.SnackbarMessage
+import com.medqb.app.shared.platform.PlatformBackHandler
 import com.medqb.app.shared.ui.components.EmptyStateMessage
 import com.medqb.app.shared.ui.dialogs.RenameDialog
 import com.medqb.app.shared.ui.richtext.setPlainText
-import androidx.compose.ui.unit.dp
-import com.medqb.app.shared.platform.PlatformBackHandler
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -213,7 +215,21 @@ internal fun HistoryPane(
                                 renameTargetId = entry.id
                                 renameText = entry.displayName()
                             },
-                            modifier = Modifier.animateItem(),
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow,
+                                ),
+                                placementSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow,
+                                    visibilityThreshold = IntOffset.VisibilityThreshold,
+                                ),
+                                fadeOutSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMedium,
+                                ),
+                            ),
                         )
                     }
                 }
@@ -334,4 +350,3 @@ private fun Map<String, Int>.withIncrementedVersions(ids: Set<String>): Map<Stri
             this[id] = (this[id] ?: 0) + 1
         }
     }
-
