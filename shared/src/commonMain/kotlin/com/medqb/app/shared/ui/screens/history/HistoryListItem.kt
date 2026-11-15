@@ -34,10 +34,12 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.customActions
@@ -219,12 +221,23 @@ internal fun HistoryListItem(
                 }
             }
 
+        val flatShapes = remember {
+            ListItemShapes(
+                shape = RectangleShape,
+                selectedShape = RectangleShape,
+                pressedShape = RectangleShape,
+                focusedShape = RectangleShape,
+                hoveredShape = RectangleShape,
+                draggedShape = RectangleShape,
+            )
+        }
+
         if (selectionModeEnabled) {
             SegmentedListItem(
                 selected = isSelected,
                 onClick = onClick,
                 onLongClick = onLongPress,
-                shapes = shapes,
+                shapes = flatShapes,
                 modifier = Modifier
                     .fillMaxWidth()
                     .semantics { role = Role.Checkbox },
@@ -246,7 +259,7 @@ internal fun HistoryListItem(
             SegmentedListItem(
                 onClick = onClick,
                 onLongClick = onLongPress,
-                shapes = shapes,
+                shapes = flatShapes,
                 colors = ListItemDefaults.segmentedColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     contentColor = MaterialTheme.colorScheme.onSurface,
