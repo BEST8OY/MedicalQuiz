@@ -41,14 +41,6 @@ fun QuizRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title = state.toolbarTitle
 
-    val markedIndices = remember(state.questionIds, state.markedQuestionIds) {
-        buildSet {
-            state.questionIds.forEachIndexed { index, id ->
-                if (id in state.markedQuestionIds) add(index)
-            }
-        }
-    }
-
     // Dialog states - these are overlays within the quiz screen
     var showJumpToDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -127,7 +119,6 @@ fun QuizRoot(
             JumpToDialog(
                 totalQuestions = state.totalQuestions,
                 currentIndex = state.currentQuestionIndex,
-                markedIndices = markedIndices,
                 onJumpTo = { index ->
                     viewModel.loadQuestion(index)
                     showJumpToDialog = false
