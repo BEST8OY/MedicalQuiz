@@ -15,6 +15,7 @@ import com.medqb.app.shared.data.models.Question
 import com.medqb.app.shared.data.models.Subject
 import com.medqb.app.shared.data.models.System
 import com.medqb.app.shared.platform.Logger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -22,13 +23,15 @@ import kotlinx.coroutines.withContext
 
 class DatabaseManager(
     private val dbPath: String,
-    val dbName: String,
+    dbName: String,
     private val userDataManager: UserDataManager,
 ) : DatabaseProvider {
+    val dbName: String = dbName.removeSuffix(".db")
     private val driver = BundledSQLiteDriver()
     private var connection: SQLiteConnection? = null
     private val mutex = Mutex()
-    private var isStringIds: Boolean = true
+    private var isStringSubId: Boolean = true
+    private var isStringSysId: Boolean = true
 
     val questionDao: QuestionDao
     val subjectDao: SubjectDao
@@ -40,7 +43,9 @@ class DatabaseManager(
         questionDao = QuestionDao(
             connProvider,
             mutex,
-            { isStringIds },
+            isStringColumn = { col ->
+                if (col.contains("subId", ignoreCase = true)) isStringSubId else isStringSysId
+            },
             getLogDao = { userDataManager.logDao() }
         )
         logDao = LogDao(userDataManager)
@@ -49,32 +54,58 @@ class DatabaseManager(
     suspend fun init() = withContext(Dispatchers.IO) {
         mutex.withLock {
             try {
+                connection?.close()
+                connection = null
                 connection = driver.open(dbPath)
                 getConnection().prepare("PRAGMA foreign_keys = ON").use { stmt ->
                     stmt.step()
                 }
                 checkSchema()
-            } catch (e: Exception) {
-                Logger.e("DatabaseManager", "Error initializing database", e)
+                questionDao.initDifficultyIndexUnderLock()
+            } catch (e: Throwable) {
+                try {
+                    connection?.close()
+                } catch (closeEx: Exception) {
+                    Logger.e("DatabaseManager", "Error closing connection after failed init", closeEx)
+                }
+                connection = null
+                if (e !is CancellationException) {
+                    Logger.e("DatabaseManager", "Error initializing database", e)
+                }
                 throw e
             }
         }
-        questionDao.initDifficultyIndex()
     }
 
     private fun checkSchema() {
         val conn = connection ?: throw IllegalStateException("Database not initialized")
         try {
-            conn.prepare("SELECT type FROM pragma_table_info('Questions') WHERE name = 'subId'").use { stmt ->
-                if (stmt.step()) {
-                    val type = stmt.getText(0)
-                    isStringIds = type.contains("char", ignoreCase = true) ||
-                                  type.contains("text", ignoreCase = true)
+            var foundSub = false
+            var subString = false
+            var foundSys = false
+            var sysString = false
+            conn.prepare("SELECT name, type FROM pragma_table_info('Questions') WHERE name IN ('subId', 'sysId')").use { stmt ->
+                while (stmt.step()) {
+                    val colName = stmt.getText(0)
+                    val colType = stmt.getText(1)
+                    val isString = colType.contains("char", ignoreCase = true) ||
+                                  colType.contains("text", ignoreCase = true)
+                    if (colName.equals("subId", ignoreCase = true)) {
+                        foundSub = true
+                        subString = isString
+                    }
+                    if (colName.equals("sysId", ignoreCase = true)) {
+                        foundSys = true
+                        sysString = isString
+                    }
                 }
             }
+            isStringSubId = if (foundSub) subString else true
+            isStringSysId = if (foundSys) sysString else true
         } catch (e: Exception) {
             Logger.e("DatabaseManager", "Schema check failed, defaulting to string IDs", e)
-            isStringIds = true
+            isStringSubId = true
+            isStringSysId = true
         }
     }
 

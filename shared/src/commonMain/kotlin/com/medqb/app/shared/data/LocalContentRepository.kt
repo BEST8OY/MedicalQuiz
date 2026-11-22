@@ -17,10 +17,20 @@ class LocalContentRepository {
         FileSystemHelper.listDatabases()
     }
 
+    fun safeMediaFilePath(fileName: String): String? {
+        val trimmed = fileName.trim()
+        if (trimmed.isBlank() || trimmed == "." || trimmed == "..") return null
+        val mediaDir = StorageProvider.getMediaDirectory()
+        val path = "$mediaDir/$trimmed"
+        return path.takeIf { FileSystemHelper.isSafePath(mediaDir, it) }
+    }
+
+    fun mediaFilePath(fileName: String): String =
+        safeMediaFilePath(fileName).orEmpty()
+
     suspend fun loadHtmlDocument(fileName: String): HtmlDocumentResult = withContext(Dispatchers.IO) {
-        val path = mediaFilePath(fileName)
-        val exists = FileSystemHelper.exists(path)
-        if (!exists) {
+        val path = safeMediaFilePath(fileName)
+        if (path == null || !FileSystemHelper.exists(path)) {
             return@withContext HtmlDocumentResult(
                 fileExists = false,
                 sanitizedHtml = null,
@@ -34,18 +44,18 @@ class LocalContentRepository {
         )
     }
 
-    fun mediaFilePath(fileName: String): String =
-        "${StorageProvider.getMediaDirectory()}/$fileName"
-
     suspend fun mediaFileExists(fileName: String): Boolean = withContext(Dispatchers.IO) {
-        FileSystemHelper.exists(mediaFilePath(fileName))
+        val path = safeMediaFilePath(fileName) ?: return@withContext false
+        FileSystemHelper.exists(path)
     }
 
     suspend fun resolveOverlayPaths(mediaFiles: List<String>): Map<String, String?> = withContext(Dispatchers.IO) {
         mediaFiles.associateWith { fileName ->
-            if (!fileName.startsWith("big_", ignoreCase = true)) return@associateWith null
+            if (!fileName.startsWith("big_", ignoreCase = true) || fileName.endsWith(".svg", ignoreCase = true)) {
+                return@associateWith null
+            }
             val overlayFile = fileName.substringBeforeLast('.') + ".svg"
-            val overlayPath = mediaFilePath(overlayFile)
+            val overlayPath = safeMediaFilePath(overlayFile) ?: return@associateWith null
             if (FileSystemHelper.exists(overlayPath)) overlayPath else null
         }
     }
@@ -62,13 +72,16 @@ class LocalContentRepository {
     }
 
     suspend fun saveMediaFile(fileName: String): SaveMediaResult = withContext(Dispatchers.IO) {
-        val saveDir = StorageProvider.getAppStorageDirectory() + "/saved_media"
-        val sanitizedName = fileName.substringAfterLast("/").substringAfterLast("\\")
+        val sourcePath = safeMediaFilePath(fileName) ?: return@withContext SaveMediaResult.InvalidFileName
+        val saveDir = StorageProvider.getSavedMediaDirectory()
+        val sanitizedName = fileName.substringAfterLast("/").substringAfterLast("\\").trim()
+        if (sanitizedName.isBlank() || sanitizedName == "." || sanitizedName == "..") {
+            return@withContext SaveMediaResult.InvalidFileName
+        }
         val destPath = "$saveDir/$sanitizedName"
         if (!FileSystemHelper.isSafePath(saveDir, destPath)) {
             return@withContext SaveMediaResult.InvalidFileName
         }
-        val sourcePath = mediaFilePath(fileName)
         val success = FileSystemHelper.copyFile(sourcePath, destPath)
         if (success) SaveMediaResult.Success(destPath) else SaveMediaResult.CopyFailed
     }

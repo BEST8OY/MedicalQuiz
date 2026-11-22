@@ -12,14 +12,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlin.concurrent.Volatile
 
 class QuestionDao(
     private val getConnection: () -> SQLiteConnection,
     private val mutex: Mutex,
-    private val isStringIds: () -> Boolean,
+    private val isStringColumn: (column: String) -> Boolean,
     private val getLogDao: suspend () -> RoomLogDao,
 ) {
+    @Volatile
     private var difficultyIndex: DifficultyIndex = DifficultyIndex.EMPTY
+
+    private var cachedSubjectNames: Map<Long, String>? = null
+    private var cachedSystemNames: Map<Long, String>? = null
 
     suspend fun initDifficultyIndex() = withContext(Dispatchers.IO) {
         mutex.withLock {
@@ -76,10 +81,10 @@ class QuestionDao(
 
     fun getDifficultyTier(qid: Long): DifficultyTier? = difficultyIndex.getTier(qid)
 
-    private fun initDifficultyIndexUnderLock() {
+    internal fun initDifficultyIndexUnderLock() {
         val stats = mutableListOf<Pair<Long, Double>>()
         try {
-            val sql = "SELECT id, pplTaken, corrTaken FROM Questions WHERE pplTaken IS NOT NULL AND pplTaken > 0 AND corrTaken IS NOT NULL"
+            val sql = "SELECT id, pplTaken, corrTaken FROM Questions WHERE pplTaken IS NOT NULL AND pplTaken > 0 AND corrTaken IS NOT NULL ORDER BY id"
             getConnection().prepare(sql).use { stmt ->
                 while (stmt.step()) {
                     val id = stmt.getLong(0)
@@ -105,9 +110,8 @@ class QuestionDao(
         statusFilter: StatusFilter,
         difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): List<Long> = withContext(Dispatchers.IO) {
+        val statusMatcher = resolveStatusMatcher(dbName, statusFilter)
         mutex.withLock {
-            val statusMatcher = resolveStatusMatcher(dbName, statusFilter)
-
             val args = mutableListOf<Any>()
             val whereClauses = mutableListOf<String>()
 
@@ -271,14 +275,18 @@ class QuestionDao(
         val allLoggedQids = if (includeUnanswered) logDao.getAllLoggedQids(dbName).toSet() else null
 
         val attemptedQids = mutableSetOf<Long>()
-        when (statusFilter.scope) {
-            StatusScope.LATEST_ATTEMPT -> {
-                if (includeCorrect) attemptedQids.addAll(logDao.getLastCorrectQids(dbName))
-                if (includeIncorrect) attemptedQids.addAll(logDao.getLastIncorrectQids(dbName))
-            }
-            StatusScope.ALL_ATTEMPTS -> {
-                if (includeCorrect) attemptedQids.addAll(logDao.getEverCorrectQids(dbName))
-                if (includeIncorrect) attemptedQids.addAll(logDao.getEverIncorrectQids(dbName))
+        if (includeCorrect && includeIncorrect) {
+            attemptedQids.addAll(allLoggedQids ?: logDao.getAllLoggedQids(dbName))
+        } else {
+            when (statusFilter.scope) {
+                StatusScope.LATEST_ATTEMPT -> {
+                    if (includeCorrect) attemptedQids.addAll(logDao.getLastCorrectQids(dbName))
+                    if (includeIncorrect) attemptedQids.addAll(logDao.getLastIncorrectQids(dbName))
+                }
+                StatusScope.ALL_ATTEMPTS -> {
+                    if (includeCorrect) attemptedQids.addAll(logDao.getEverCorrectQids(dbName))
+                    if (includeIncorrect) attemptedQids.addAll(logDao.getEverIncorrectQids(dbName))
+                }
             }
         }
 
@@ -287,28 +295,34 @@ class QuestionDao(
         }
     }
 
+    private fun getNamesMapUnderLock(table: String): Map<Long, String> {
+        val cached = if (table == "Subjects") cachedSubjectNames else cachedSystemNames
+        if (cached != null) return cached
+
+        val map = mutableMapOf<Long, String>()
+        val sql = "SELECT id, name FROM $table"
+        try {
+            getConnection().prepare(sql).use { stmt ->
+                while (stmt.step()) {
+                    map[stmt.getLong(0)] = if (stmt.isNull(1)) "" else stmt.getText(1)
+                }
+            }
+            if (table == "Subjects") cachedSubjectNames = map else cachedSystemNames = map
+        } catch (_: Exception) {
+            // Keep uncached on error
+        }
+        return map
+    }
+
     /**
      * Look up display names for a comma-separated id string against [table]
-     * ("Subjects" or "Systems"). Only callable from code already holding [mutex] —
-     * it executes SQL directly so no path can touch the connection unlocked.
+     * ("Subjects" or "Systems"). Uses cached lookup tables to avoid repeated SQL queries.
      */
     private fun lookupNamesUnderLock(idsStr: String, table: String): String {
         val ids = idsStr.split(",").mapNotNull { it.trim().toLongOrNull() }
         if (ids.isEmpty()) return ""
-
-        val placeholders = ids.joinToString(",") { "?" }
-        val sql = "SELECT name FROM $table WHERE id IN ($placeholders)"
-
-        val names = mutableListOf<String>()
-        getConnection().prepare(sql).use { stmt ->
-            ids.forEachIndexed { index, id -> stmt.bindLong(index + 1, id) }
-            while (stmt.step()) {
-                if (!stmt.isNull(0)) {
-                    names.add(stmt.getText(0))
-                }
-            }
-        }
-        return names.joinToString(", ")
+        val namesMap = getNamesMapUnderLock(table)
+        return ids.mapNotNull { namesMap[it] }.filter { it.isNotBlank() }.joinToString(", ")
     }
 
     private fun buildMultiValueCondition(
@@ -319,7 +333,7 @@ class QuestionDao(
         val normalizedIds = ids.distinct()
         if (normalizedIds.isEmpty()) return "1=1"
 
-        if (!isStringIds()) {
+        if (!isStringColumn(columnAlias)) {
             val placeholders = normalizedIds.joinToString(",") { "?" }
             args.addAll(normalizedIds)
             return "$columnAlias IN ($placeholders)"
@@ -327,12 +341,12 @@ class QuestionDao(
             return when (normalizedIds.size) {
                 1 -> {
                     args.add(normalizedIds[0].toString())
-                    "instr(',' || $columnAlias || ',', ',' || ? || ',') > 0"
+                    "instr(',' || REPLACE($columnAlias, ' ', '') || ',', ',' || ? || ',') > 0"
                 }
                 else -> {
                     val conditions = normalizedIds.map { id ->
                         args.add(id.toString())
-                        "instr(',' || $columnAlias || ',', ',' || ? || ',') > 0"
+                        "instr(',' || REPLACE($columnAlias, ' ', '') || ',', ',' || ? || ',') > 0"
                     }
                     "(${conditions.joinToString(" OR ")})"
                 }
@@ -348,7 +362,7 @@ class QuestionDao(
         val normalizedIds = ids.distinct()
         if (normalizedIds.isEmpty()) return "1=1"
 
-        if (!isStringIds()) {
+        if (!isStringColumn(columnAlias)) {
             val placeholders = normalizedIds.joinToString(",") { "?" }
             args.addAll(normalizedIds)
             return "($columnAlias IS NULL OR $columnAlias NOT IN ($placeholders))"
@@ -356,12 +370,12 @@ class QuestionDao(
             return when (normalizedIds.size) {
                 1 -> {
                     args.add(normalizedIds[0].toString())
-                    "($columnAlias IS NULL OR instr(',' || $columnAlias || ',', ',' || ? || ',') = 0)"
+                    "($columnAlias IS NULL OR instr(',' || REPLACE($columnAlias, ' ', '') || ',', ',' || ? || ',') = 0)"
                 }
                 else -> {
                     val conditions = normalizedIds.map { id ->
                         args.add(id.toString())
-                        "instr(',' || $columnAlias || ',', ',' || ? || ',') = 0"
+                        "instr(',' || REPLACE($columnAlias, ' ', '') || ',', ',' || ? || ',') = 0"
                     }
                     "($columnAlias IS NULL OR (${conditions.joinToString(" AND ")}))"
                 }

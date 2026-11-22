@@ -37,7 +37,7 @@ class DefaultTextHighlightsRepositoryTest {
 
             assertEquals(1, highlights.size)
             val first = highlights.first()
-            assertEquals("bank.db", first.dbName)
+            assertEquals("bank", first.dbName)
             assertEquals(1L, first.questionId)
             assertEquals(HighlightSection.QUESTION, first.section)
             assertEquals(5, first.startOffset)

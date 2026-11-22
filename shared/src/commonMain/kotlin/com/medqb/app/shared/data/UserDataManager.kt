@@ -13,6 +13,7 @@ import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.platform.StorageProvider
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -33,24 +34,31 @@ open class UserDataManager {
     @Volatile
     private var database: UserDatabase? = null
 
+    private val dbDir: String
+        get() = StorageProvider.getContentDirectory()
+
     private val dbPath: String
-        get() = "${StorageProvider.getAppStorageDirectory()}/user_data.db"
+        get() = "$dbDir/user_data.db"
 
     private suspend fun getDatabase(): UserDatabase {
         database?.let { return it }
-        return mutex.withLock {
-            database?.let { return@withLock it }
-            try {
-                val db = Room.databaseBuilder<UserDatabase>(dbPath)
-                    .setDriver(BundledSQLiteDriver())
-                    .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-                    .fallbackToDestructiveMigration(dropAllTables = true)
-                    .build()
-                database = db
-                db
-            } catch (e: Exception) {
-                Logger.e("UserDataManager", "Error initializing user data database", e)
-                throw e
+        return withContext(Dispatchers.IO) {
+            mutex.withLock {
+                database?.let { return@withLock it }
+                try {
+                    StorageProvider.ensureDirectoryExists(dbDir)
+                    val db = Room.databaseBuilder<UserDatabase>(dbPath)
+                        .setDriver(BundledSQLiteDriver())
+                        .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
+                        .build()
+                    database = db
+                    db
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Logger.e("UserDataManager", "Error initializing user data database", e)
+                    throw e
+                }
             }
         }
     }
@@ -82,4 +90,3 @@ open class UserDataManager {
         }
     }
 }
-

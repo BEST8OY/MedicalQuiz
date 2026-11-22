@@ -42,15 +42,12 @@ class DifficultyIndex private constructor(
             }
 
             // Check if there is actual variance in the rates (avoid dummy uniform rates like 1.0/100.0)
-            val sampleDistinct = stats.take(50).map { it.second }.distinct().size
-            if (sampleDistinct <= 1) {
-                val fullDistinct = stats.map { it.second }.distinct().size
-                if (fullDistinct <= 1) {
-                    return EMPTY
-                }
+            val firstRate = stats[0].second
+            if (stats.all { it.second == firstRate }) {
+                return EMPTY
             }
 
-            val sorted = stats.sortedBy { it.second }
+            val sorted = stats.sortedWith(compareBy<Pair<Long, Double>> { it.second }.thenBy { it.first })
             val n = sorted.size
 
             val idxP05 = (n * 0.05).roundToInt().coerceIn(0, n)

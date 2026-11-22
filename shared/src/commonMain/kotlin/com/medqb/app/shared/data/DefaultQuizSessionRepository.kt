@@ -13,11 +13,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
+import kotlin.random.Random
 import kotlin.time.Clock
 
 /**
@@ -35,6 +37,10 @@ class DefaultQuizSessionRepository(
         emitAll(userDataManager.sessionHistoryDao().listHistory())
     }
         .map { entities -> entities.map { it.toQuizSession() } }
+        .catch { e ->
+            Logger.e("QuizSession", "Error in historyEntries flow", e)
+            emit(emptyList())
+        }
         .stateIn(
             scope = scope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -60,21 +66,21 @@ class DefaultQuizSessionRepository(
         entryName: String,
         selectedDifficultyTiers: Set<DifficultyTier>,
     ): String {
-        if (databaseName.isBlank()) {
+        val canonicalDbName = databaseName.trim().removeSuffix(".db").trim()
+        if (canonicalDbName.isBlank()) {
             Logger.e("QuizSession", "Cannot append history: databaseName is blank")
             return ""
         }
-
         val now = Clock.System.now().toEpochMilliseconds()
         val sessionId = if (currentSessionId.isNotBlank()) {
             currentSessionId
         } else {
-            buildSessionId(databaseName, now)
+            buildSessionId(canonicalDbName, now)
         }
 
         val entity = QuizHistoryEntity(
             sessionId = sessionId,
-            databaseName = databaseName,
+            databaseName = canonicalDbName,
             entryName = entryName,
             selectedSubjectIds = selectedSubjectIds.toSortedSet().joinToString(","),
             excludedSubjectIds = excludedSubjectIds.toSortedSet().joinToString(","),
@@ -120,12 +126,13 @@ class DefaultQuizSessionRepository(
             userDataManager.sessionHistoryDao().getHistory(entryId)?.toQuizSession()
         }
 
-    private fun buildSessionId(databaseName: String, now: Long): String = "$databaseName-$now"
+    private fun buildSessionId(databaseName: String, now: Long): String =
+        "$databaseName-$now-${Random.nextLong().toULong().toString(16)}"
 }
 
 private fun QuizSessionRepository.QuizSession.toEntity() = QuizHistoryEntity(
     sessionId = id,
-    databaseName = databaseName,
+    databaseName = databaseName.trim().removeSuffix(".db").trim(),
     entryName = entryName,
     selectedSubjectIds = selectedSubjectIds.joinToString(","),
     excludedSubjectIds = excludedSubjectIds.joinToString(","),

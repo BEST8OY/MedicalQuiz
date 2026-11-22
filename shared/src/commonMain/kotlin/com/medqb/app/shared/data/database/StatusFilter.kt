@@ -58,7 +58,7 @@ data class StatusFilter(
     val isEmpty: Boolean
         get() = statuses.isEmpty()
 
-    fun serialize(): String = "${statuses.joinToString(",") { it.name }}:${scope.name}"
+    fun serialize(): String = "${statuses.sortedBy { it.ordinal }.joinToString(",") { it.name }}:${scope.name}"
 
     companion object {
         val ALL = StatusFilter(

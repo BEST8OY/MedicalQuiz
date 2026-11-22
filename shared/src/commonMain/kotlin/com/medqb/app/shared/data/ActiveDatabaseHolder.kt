@@ -6,6 +6,7 @@ import com.medqb.app.shared.platform.Logger
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -58,12 +59,12 @@ class ActiveDatabaseHolder {
         unlessSameAs: DatabaseProvider? = null,
     ) {
         if (provider == null || provider === unlessSameAs) return
-        try {
-            withContext(Dispatchers.IO) {
+        withContext(NonCancellable + Dispatchers.IO) {
+            try {
                 provider.closeDatabase()
+            } catch (e: Exception) {
+                Logger.e("ActiveDatabaseHolder", "Error closing old database connection", e)
             }
-        } catch (e: Exception) {
-            Logger.e("ActiveDatabaseHolder", "Error closing old database connection", e)
         }
     }
 }

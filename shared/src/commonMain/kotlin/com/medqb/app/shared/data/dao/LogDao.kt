@@ -21,10 +21,11 @@ class LogDao(
         time: Long,
         sessionId: String
     ) {
+        val canonicalDbName = dbName.removeSuffix(".db")
         val dateString = Clock.System.now().toString()
 
         val logEntity = LogEntity(
-            dbName = dbName,
+            dbName = canonicalDbName,
             qid = qid,
             selectedAnswer = selectedAnswer,
             corrAnswer = corrAnswer,
@@ -46,6 +47,10 @@ class LogDao(
     }
 
     suspend fun clearLogForQuestion(dbName: String, qid: Long) {
-        userDataManager.logDao().clearForQuestion(dbName, qid)
+        val canonicalDbName = dbName.removeSuffix(".db")
+        userDataManager.withTransaction {
+            userDataManager.logDao().clearForQuestion(canonicalDbName, qid)
+            userDataManager.sessionHistoryDao().deleteOrphanedSessions()
+        }
     }
 }

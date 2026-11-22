@@ -2,7 +2,6 @@ package com.medqb.app.shared.data.local.dao
 
 import androidx.room3.Dao
 import androidx.room3.Insert
-import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
 import com.medqb.app.shared.data.local.entity.LogEntity
 
@@ -18,7 +17,7 @@ data class QuestionPerformanceResult(
 @Dao
 interface RoomLogDao {
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert
     suspend fun insert(log: LogEntity): Long
 
     @Query("DELETE FROM logs WHERE db_name = :dbName AND qid = :qid")

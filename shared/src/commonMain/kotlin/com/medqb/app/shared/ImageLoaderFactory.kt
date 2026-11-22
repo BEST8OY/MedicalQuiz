@@ -6,8 +6,8 @@ import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
-import okio.Path.Companion.toPath
 import com.medqb.app.shared.platform.StorageProvider
+import okio.Path.Companion.toPath
 
 fun generateImageLoader(context: PlatformContext): ImageLoader {
     return ImageLoader.Builder(context)
@@ -22,7 +22,7 @@ fun generateImageLoader(context: PlatformContext): ImageLoader {
         }
         .diskCache {
             DiskCache.Builder()
-                .directory("${StorageProvider.getAppStorageDirectory()}/image_cache".toPath())
+                .directory(StorageProvider.getImageCacheDirectory().toPath())
                 .maxSizeBytes(100L * 1024 * 1024) // 100 MB
                 .build()
         }

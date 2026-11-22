@@ -1,5 +1,6 @@
 package com.medqb.app.shared.viewmodel
 
+import androidx.room3.withWriteTransaction
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.QuizSessionRepository
@@ -77,7 +78,7 @@ class FakeTextHighlightsRepository : TextHighlightsRepository {
     }
 
     fun highlightsFor(dbName: String, questionId: Long): List<TextHighlight> =
-        store[dbName to questionId].orEmpty()
+        store[dbName to questionId].orEmpty().toList()
 
     override suspend fun getHighlightsForQuestion(
         dbName: String,
@@ -279,8 +280,10 @@ class FakeDatabaseProvider(
     override suspend fun getQuestionWithDetails(
         questionId: Long,
         loadPerformance: Boolean,
-    ): QuestionDetails = detailsFor(questionId)
-        ?: QuestionDetails(null, emptyList(), null, null)
+    ): QuestionDetails {
+        val details = detailsFor(questionId) ?: QuestionDetails(null, emptyList(), null, null)
+        return if (loadPerformance) details else details.copy(performance = null)
+    }
 
     var countQuestionIdsProvider: ((List<Long>?, List<Long>?, List<Long>?, List<Long>?, StatusFilter, Set<DifficultyTier>) -> Int)? = null
 
@@ -356,7 +359,8 @@ open class FakeUserDataManager(
     override suspend fun logDao() = db?.logDao() ?: throw IllegalStateException("No test DB")
     override suspend fun sessionHistoryDao() = db?.sessionHistoryDao() ?: throw IllegalStateException("No test DB")
     override suspend fun textHighlightDao() = db?.textHighlightDao() ?: throw IllegalStateException("No test DB")
-    override suspend fun <R> withTransaction(block: suspend () -> R): R = block()
+    override suspend fun <R> withTransaction(block: suspend () -> R): R =
+        db?.withWriteTransaction { block() } ?: block()
     override suspend fun close() { db?.close() }
 }
 

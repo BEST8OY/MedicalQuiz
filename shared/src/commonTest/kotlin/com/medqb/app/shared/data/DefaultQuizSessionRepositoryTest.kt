@@ -49,7 +49,7 @@ class DefaultQuizSessionRepositoryTest {
             assertEquals(1, history.size)
             val session = history.first()
             assertEquals("sess-123", session.id)
-            assertEquals("cardiology.db", session.databaseName)
+            assertEquals("cardiology", session.databaseName)
             assertEquals("Cardio Quiz 1", session.entryName)
             assertEquals(listOf(1L, 2L), session.selectedSubjectIds)
             assertEquals(listOf(5L), session.excludedSubjectIds)

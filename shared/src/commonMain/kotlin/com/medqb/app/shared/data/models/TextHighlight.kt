@@ -40,7 +40,13 @@ data class TextHighlight(
 @Serializable
 enum class HighlightSection {
     QUESTION,    // Main question text
-    EXPLANATION  // Explanation/rationale text
+    EXPLANATION; // Explanation/rationale text
+
+    companion object {
+        fun fromName(name: String): HighlightSection {
+            return entries.find { it.name.equals(name, ignoreCase = true) } ?: QUESTION
+        }
+    }
 }
 
 /**

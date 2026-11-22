@@ -22,6 +22,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -40,23 +43,29 @@ class DataStoreSettingsRepository : SettingsRepository {
     private val dataStore: DataStore<Preferences> by lazy {
         PreferenceDataStoreFactory.createWithPath(
             corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
-            produceFile = { "${StorageProvider.getAppStorageDirectory()}/settings.preferences_pb".toPath() }
+            produceFile = { "${StorageProvider.getInternalDataDirectory()}/settings.preferences_pb".toPath() }
         )
     }
 
-    override val showMetadata: StateFlow<Boolean> = dataStore.data
+    private val preferencesFlow = flow { emitAll(dataStore.data) }
+        .catch { e ->
+            Logger.e("DataStoreSettingsRepository", "Error reading settings", e)
+            emit(emptyPreferences())
+        }
+
+    override val showMetadata: StateFlow<Boolean> = preferencesFlow
         .map { it[PreferenceKeys.SHOW_METADATA] ?: true }
         .stateIn(scope, SharingStarted.Eagerly, true)
 
-    override val fontScalePreference: StateFlow<Float?> = dataStore.data
+    override val fontScalePreference: StateFlow<Float?> = preferencesFlow
         .map { it[PreferenceKeys.FONT_SCALE] }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
-    override val isLoggingEnabled: StateFlow<Boolean> = dataStore.data
+    override val isLoggingEnabled: StateFlow<Boolean> = preferencesFlow
         .map { it[PreferenceKeys.LOGGING_ENABLED] ?: false }
         .stateIn(scope, SharingStarted.Eagerly, false)
 
-    override val submissionMode: StateFlow<SubmissionMode> = dataStore.data
+    override val submissionMode: StateFlow<SubmissionMode> = preferencesFlow
         .map { prefs ->
             prefs[PreferenceKeys.SUBMISSION_MODE]
                 ?.let { name -> runCatching { SubmissionMode.valueOf(name) }.getOrNull() }

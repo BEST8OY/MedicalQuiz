@@ -46,28 +46,22 @@ class SubjectDao(
                 }
             } else {
                 val placeholders = subjectIds.joinToString(",") { "?" }
-                val sysIdSql = "SELECT DISTINCT sysId FROM SubjectsSystems WHERE subId IN ($placeholders)"
-                val sysIds = mutableListOf<Long>()
+                val sql = """
+                    SELECT DISTINCT s.id, s.name, s.count 
+                    FROM Systems s 
+                    JOIN SubjectsSystems ss ON s.id = ss.sysId 
+                    WHERE ss.subId IN ($placeholders) 
+                    ORDER BY s.name
+                """.trimIndent()
 
-                getConnection().prepare(sysIdSql).use { stmt ->
+                getConnection().prepare(sql).use { stmt ->
                     subjectIds.forEachIndexed { index, id -> stmt.bindLong(index + 1, id) }
                     while (stmt.step()) {
-                        sysIds.add(stmt.getLong(0))
-                    }
-                }
-
-                if (sysIds.isNotEmpty()) {
-                    val sysPlaceholders = sysIds.joinToString(",") { "?" }
-                    val sql = "SELECT id, name, count FROM Systems WHERE id IN ($sysPlaceholders) ORDER BY name"
-                    getConnection().prepare(sql).use { stmt ->
-                        sysIds.forEachIndexed { index, id -> stmt.bindLong(index + 1, id) }
-                        while (stmt.step()) {
-                            systems.add(System(
-                                id = stmt.getLong(0),
-                                name = if (stmt.isNull(1)) "" else stmt.getText(1),
-                                count = if (stmt.isNull(2)) 0 else stmt.getLong(2).toInt()
-                            ))
-                        }
+                        systems.add(System(
+                            id = stmt.getLong(0),
+                            name = if (stmt.isNull(1)) "" else stmt.getText(1),
+                            count = if (stmt.isNull(2)) 0 else stmt.getLong(2).toInt()
+                        ))
                     }
                 }
             }

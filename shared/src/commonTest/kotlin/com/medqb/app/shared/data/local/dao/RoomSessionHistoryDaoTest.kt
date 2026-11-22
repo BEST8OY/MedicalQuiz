@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class RoomSessionHistoryDaoTest {
 
@@ -120,16 +122,22 @@ class RoomSessionHistoryDaoTest {
             sessionDao.ensureSessionExists(QuizSessionEntity("sess-1"))
             sessionDao.insertLogLink(SessionLogLinkEntity("sess-1", logId))
 
+            // Verify session and link exist prior to deletion
+            assertTrue(sessionDao.sessionExists("sess-1"))
+            assertEquals(1, sessionDao.countLinksForSession("sess-1"))
+
             // Delete the log via logDao
             logDao.clearForQuestion("db", 42L)
+
+            // Foreign key cascade must remove the link
+            assertEquals(0, sessionDao.countLinksForSession("sess-1"))
 
             // Orphan cleanup removes sessions if no links and no history
             sessionDao.deleteOrphanedSessions()
 
             // Since the link was cascade deleted by SQLite, the session now has 0 links
-            // and should be deleted as an orphan
-            val history = sessionDao.getHistory("sess-1")
-            assertNull(history)
+            // and no history, so it should be deleted as an orphan
+            assertFalse(sessionDao.sessionExists("sess-1"))
         } finally {
             db.close()
         }

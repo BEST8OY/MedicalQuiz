@@ -30,19 +30,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.medqb.app.shared.App
 import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.platform.AppContext
 import com.medqb.app.shared.ui.theme.AppTheme
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private var isPermissionGranted by mutableStateOf(false)
     private var shouldRetryPermissionCheck = false
+    private var permissionGrantJob: Job? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
-        isPermissionGranted = isGranted
+        if (isGranted) {
+            if (!isPermissionGranted) {
+                markPermissionGranted()
+            }
+        } else {
+            permissionGrantJob?.cancel()
+            permissionGrantJob = null
+            isPermissionGranted = false
+        }
     }
 
     private val manageStorageLauncher = registerForActivityResult(
@@ -86,17 +98,36 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            isPermissionGranted = Environment.isExternalStorageManager()
+        val nowGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
         } else {
-            isPermissionGranted = ContextCompat.checkSelfPermission(
+            ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.READ_EXTERNAL_STORAGE
             ) == PackageManager.PERMISSION_GRANTED
+        }
 
+        if (nowGranted) {
             if (!isPermissionGranted) {
-                requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                markPermissionGranted()
             }
+        } else {
+            permissionGrantJob?.cancel()
+            permissionGrantJob = null
+            isPermissionGranted = false
+        }
+
+        if (!nowGranted && Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+    }
+
+    private fun markPermissionGranted() {
+        if (permissionGrantJob?.isActive == true) return
+        val graph = (application as MedQBApp).graph
+        permissionGrantJob = lifecycleScope.launch {
+            graph.userDataManager.close()
+            isPermissionGranted = true
         }
     }
 

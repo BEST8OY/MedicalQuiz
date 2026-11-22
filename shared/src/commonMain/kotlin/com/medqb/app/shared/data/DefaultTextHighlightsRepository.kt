@@ -33,17 +33,21 @@ class DefaultTextHighlightsRepository(
 
     private val mutationMutex = Mutex()
 
-    private suspend fun getAllHighlights(dbName: String, questionId: Long): List<TextHighlight> =
-        userDataManager.textHighlightDao()
-            .getAllForQuestion(dbName, questionId)
+    private suspend fun getAllHighlights(dbName: String, questionId: Long): List<TextHighlight> {
+        val canonicalDbName = dbName.trim().removeSuffix(".db").trim()
+        if (canonicalDbName.isBlank()) return emptyList()
+        return userDataManager.textHighlightDao()
+            .getAllForQuestion(canonicalDbName, questionId)
             .map { it.toDomain() }
+    }
 
     override suspend fun getHighlightsForQuestion(
         dbName: String,
         questionId: Long,
     ): List<TextHighlight> {
-        if (dbName.isEmpty()) return emptyList()
-        return getAllHighlights(dbName, questionId)
+        val canonicalDbName = dbName.trim().removeSuffix(".db").trim()
+        if (canonicalDbName.isBlank()) return emptyList()
+        return getAllHighlights(canonicalDbName, questionId)
     }
 
     override suspend fun addHighlight(
@@ -55,18 +59,19 @@ class DefaultTextHighlightsRepository(
         highlightedText: String,
         color: HighlightColor,
     ): List<TextHighlight> {
-        if (dbName.isEmpty()) return emptyList()
+        val canonicalDbName = dbName.trim().removeSuffix(".db").trim()
+        if (canonicalDbName.isBlank()) return emptyList()
         val normalizedStart = minOf(startOffset, endOffset)
         val normalizedEnd = maxOf(startOffset, endOffset)
         if (normalizedStart >= normalizedEnd) {
-            return getHighlightsForQuestion(dbName, questionId)
+            return getHighlightsForQuestion(canonicalDbName, questionId)
         }
 
         mutationMutex.withLock {
-            val sectionHighlights = getAllHighlights(dbName, questionId)
-                .filter { it.section == section }
+            val allHighlights = getAllHighlights(canonicalDbName, questionId)
+            val sectionHighlights = allHighlights.filter { it.section == section }
             val overlappingHighlights = sectionHighlights.filter {
-                it.overlapsStrictly(normalizedStart, normalizedEnd)
+                it.overlaps(normalizedStart, normalizedEnd)
             }
 
             // Tapping an existing highlight with the identical range+color is a no-op.
@@ -76,7 +81,7 @@ class DefaultTextHighlightsRepository(
                     it.color == color
             }
             if (exactSameHighlight != null && overlappingHighlights.size == 1) {
-                return getAllHighlights(dbName, questionId)
+                return allHighlights
             }
 
             val mergedStart = minOf(
@@ -98,7 +103,7 @@ class DefaultTextHighlightsRepository(
 
             val now = Clock.System.now().toEpochMilliseconds()
             val insertEntity = TextHighlightEntity(
-                dbName = dbName,
+                dbName = canonicalDbName,
                 questionId = questionId,
                 section = section.name,
                 startOffset = mergedStart,
@@ -112,7 +117,7 @@ class DefaultTextHighlightsRepository(
                 insert = insertEntity
             )
 
-            return getAllHighlights(dbName, questionId)
+            return getAllHighlights(canonicalDbName, questionId)
         }
     }
 
@@ -121,9 +126,11 @@ class DefaultTextHighlightsRepository(
         questionId: Long,
         highlightId: Long,
     ): List<TextHighlight> {
+        val canonicalDbName = dbName.trim().removeSuffix(".db").trim()
+        if (canonicalDbName.isBlank()) return emptyList()
         mutationMutex.withLock {
             userDataManager.textHighlightDao().deleteById(highlightId)
-            return getAllHighlights(dbName, questionId)
+            return getAllHighlights(canonicalDbName, questionId)
         }
     }
 
@@ -133,9 +140,11 @@ class DefaultTextHighlightsRepository(
         highlightId: Long,
         color: HighlightColor,
     ): List<TextHighlight> {
+        val canonicalDbName = dbName.trim().removeSuffix(".db").trim()
+        if (canonicalDbName.isBlank()) return emptyList()
         mutationMutex.withLock {
             userDataManager.textHighlightDao().updateColor(highlightId, color.name)
-            return getAllHighlights(dbName, questionId)
+            return getAllHighlights(canonicalDbName, questionId)
         }
     }
 
@@ -179,25 +188,14 @@ class DefaultTextHighlightsRepository(
             return if (normalizedStart == mergedStart && normalizedEnd == mergedEnd) {
                 highlightedText
             } else {
-                (overlappingHighlights + TextHighlight(
-                    dbName = "",
-                    questionId = -1,
-                    section = HighlightSection.QUESTION,
-                    startOffset = normalizedStart,
-                    endOffset = normalizedEnd,
-                    highlightedText = highlightedText,
-                    color = HighlightColor.YELLOW,
-                    createdAt = 0L
-                ))
-                    .sortedBy { it.startOffset }
-                    .joinToString(separator = "") { it.highlightedText }
+                buildString(mergedChars.size) {
+                    for (c in mergedChars) {
+                        append(if (c != '\u0000') c else ' ')
+                    }
+                }
             }
         }
 
         return mergedChars.concatToString()
-    }
-
-    private fun TextHighlight.overlapsStrictly(start: Int, end: Int): Boolean {
-        return startOffset < end && endOffset > start
     }
 }

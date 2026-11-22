@@ -83,6 +83,12 @@ interface RoomSessionHistoryDao {
     )
     suspend fun deleteOrphanedSessions()
 
+    @Query("SELECT COUNT(*) FROM session_log_links WHERE session_id = :sessionId")
+    suspend fun countLinksForSession(sessionId: String): Int
+
+    @Query("SELECT COUNT(*) > 0 FROM quiz_sessions WHERE session_id = :sessionId")
+    suspend fun sessionExists(sessionId: String): Boolean
+
     suspend fun upsertHistory(entity: QuizHistoryEntity) = upsertHistory(
         sessionId = entity.sessionId,
         databaseName = entity.databaseName,
