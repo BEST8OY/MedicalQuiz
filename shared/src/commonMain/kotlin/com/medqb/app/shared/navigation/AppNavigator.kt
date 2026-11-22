@@ -18,18 +18,20 @@ class AppNavigator(
         get() = backStack.size > 1
 
     fun navigateTo(route: MedQBRoutes) {
-        if (currentRoute != route) {
+        if (currentRoute == route) return
+        val existingIndex = backStack.indexOf(route)
+        if (existingIndex >= 0) {
+            if (backStack.size > existingIndex + 1) {
+                backStack.subList(existingIndex + 1, backStack.size).clear()
+            }
+        } else {
             backStack.add(route)
         }
     }
 
     fun navigateBack(): Boolean {
         if (!canNavigateBack) return false
-        if (currentRoute is MedQBRoutes.Quiz) {
-            returnQuizToFilter()
-        } else {
-            backStack.removeLastOrNull()
-        }
+        backStack.removeLastOrNull()
         return true
     }
 
@@ -49,28 +51,6 @@ class AppNavigator(
         } else {
             backStack.clear()
             backStack.add(MedQBRoutes.DatabaseSelection)
-        }
-    }
-
-    /**
-     * Returns from the quiz session to the filter screen.
-     *
-     * If a [MedQBRoutes.Filter] route is already in the back stack, pops all routes above it
-     * while preserving the original [MedQBRoutes.Filter] instance identity. This maintains
-     * its scoped ViewModel and saved state in the Navigation 3 entry decorators.
-     *
-     * If no [MedQBRoutes.Filter] exists in the back stack, resets to [MedQBRoutes.DatabaseSelection]
-     * and navigates forward to a new [MedQBRoutes.Filter] initialized with [targetPaneName].
-     */
-    fun returnQuizToFilter(targetPaneName: String? = null) {
-        val filterIndex = backStack.indexOfLast { it is MedQBRoutes.Filter }
-        if (filterIndex >= 0) {
-            if (backStack.size > filterIndex + 1) {
-                backStack.subList(filterIndex + 1, backStack.size).clear()
-            }
-        } else {
-            popToDatabaseSelection()
-            navigateTo(MedQBRoutes.Filter(initialPaneName = targetPaneName))
         }
     }
 }

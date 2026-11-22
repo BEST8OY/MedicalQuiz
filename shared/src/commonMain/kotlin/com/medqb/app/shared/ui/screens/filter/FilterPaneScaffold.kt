@@ -33,6 +33,8 @@ import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import com.medqb.app.shared.ui.LocalSnackbarBottomPadding
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -59,6 +61,18 @@ internal fun FilterPaneScaffold(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    val snackbarBottomPadding = LocalSnackbarBottomPadding.current
+    DisposableEffect(showPaneToolbar) {
+        if (showPaneToolbar) {
+            snackbarBottomPadding.value = 80.dp
+        }
+        onDispose {
+            if (snackbarBottomPadding.value == 80.dp) {
+                snackbarBottomPadding.value = 12.dp
+            }
+        }
+    }
+
     Box(
         modifier = modifier.fillMaxSize(),
     ) {

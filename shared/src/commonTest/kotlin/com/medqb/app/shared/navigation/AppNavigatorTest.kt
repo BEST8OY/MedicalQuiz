@@ -1,10 +1,8 @@
 package com.medqb.app.shared.navigation
 
 import androidx.navigation3.runtime.NavKey
+import com.medqb.app.shared.data.models.SubmissionMode
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
-import kotlinx.serialization.modules.subclass
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -20,9 +18,9 @@ class AppNavigatorTest {
         assertEquals(MedQBRoutes.DatabaseSelection, navigator.currentRoute)
         assertFalse(navigator.canNavigateBack)
 
-        navigator.navigateTo(MedQBRoutes.Filter())
+        navigator.navigateTo(MedQBRoutes.Filter)
         assertEquals(2, stack.size)
-        assertEquals(MedQBRoutes.Filter(), navigator.currentRoute)
+        assertEquals(MedQBRoutes.Filter, navigator.currentRoute)
         assertTrue(navigator.canNavigateBack)
 
         val popped = navigator.navigateBack()
@@ -37,8 +35,8 @@ class AppNavigatorTest {
     }
 
     @Test
-    fun testNavigateBackFromQuizDelegatesToReturnQuizToFilter() {
-        val initialFilter = MedQBRoutes.Filter()
+    fun testNavigateBackFromQuizPopsToFilter() {
+        val initialFilter = MedQBRoutes.Filter
         val stack = mutableListOf<NavKey>(
             MedQBRoutes.DatabaseSelection,
             initialFilter,
@@ -55,6 +53,32 @@ class AppNavigatorTest {
     }
 
     @Test
+    fun testNavigateBackWhenQuizHasNoFilterUnderneathPopsToDatabaseSelection() {
+        val stack = mutableListOf<NavKey>(
+            MedQBRoutes.DatabaseSelection,
+            MedQBRoutes.Quiz(sessionId = "s1"),
+        )
+        val navigator = AppNavigator(stack)
+        assertEquals(2, stack.size)
+
+        val popped = navigator.navigateBack()
+        assertTrue(popped)
+        assertEquals(1, stack.size)
+        assertEquals(MedQBRoutes.DatabaseSelection, navigator.currentRoute)
+    }
+
+    @Test
+    fun testOperationsOnEmptyStack() {
+        val stack = mutableListOf<NavKey>()
+        val navigator = AppNavigator(stack)
+        assertFalse(navigator.canNavigateBack)
+        assertFalse(navigator.navigateBack())
+        navigator.popToDatabaseSelection()
+        assertEquals(1, stack.size)
+        assertEquals(MedQBRoutes.DatabaseSelection, navigator.currentRoute)
+    }
+
+    @Test
     fun testNavigateToDuplicateRouteIgnored() {
         val stack = mutableListOf<NavKey>(MedQBRoutes.DatabaseSelection)
         val navigator = AppNavigator(stack)
@@ -62,18 +86,41 @@ class AppNavigatorTest {
         navigator.navigateTo(MedQBRoutes.DatabaseSelection)
         assertEquals(1, stack.size)
 
-        navigator.navigateTo(MedQBRoutes.Filter())
+        navigator.navigateTo(MedQBRoutes.Filter)
         assertEquals(2, stack.size)
 
-        navigator.navigateTo(MedQBRoutes.Filter())
+        navigator.navigateTo(MedQBRoutes.Filter)
         assertEquals(2, stack.size)
+    }
+
+    @Test
+    fun testNavigateToNonAdjacentExistingRoutePopsToExisting() {
+        val stack = mutableListOf<NavKey>(
+            MedQBRoutes.DatabaseSelection,
+            MedQBRoutes.Filter,
+            MedQBRoutes.Quiz(sessionId = "session_1"),
+            MedQBRoutes.HtmlViewer(fileName = "a.html"),
+            MedQBRoutes.MediaViewer(files = listOf("image.png"), startIndex = 0),
+        )
+        val navigator = AppNavigator(stack)
+        assertEquals(5, stack.size)
+
+        // Navigating to existing HtmlViewer should pop MediaViewer
+        navigator.navigateTo(MedQBRoutes.HtmlViewer(fileName = "a.html"))
+        assertEquals(4, stack.size)
+        assertEquals(MedQBRoutes.HtmlViewer(fileName = "a.html"), navigator.currentRoute)
+
+        // Navigating to existing Filter should pop everything above Filter
+        navigator.navigateTo(MedQBRoutes.Filter)
+        assertEquals(2, stack.size)
+        assertEquals(MedQBRoutes.Filter, navigator.currentRoute)
     }
 
     @Test
     fun testPopToDatabaseSelectionWithDeepStack() {
         val stack = mutableListOf<NavKey>(
             MedQBRoutes.DatabaseSelection,
-            MedQBRoutes.Filter(),
+            MedQBRoutes.Filter,
             MedQBRoutes.Quiz(sessionId = "session_1"),
             MedQBRoutes.MediaViewer(files = listOf("image.png"), startIndex = 0),
         )
@@ -89,7 +136,7 @@ class AppNavigatorTest {
     @Test
     fun testPopToDatabaseSelectionWhenDatabaseSelectionMissingReinitializesRoot() {
         val stack = mutableListOf<NavKey>(
-            MedQBRoutes.Filter(),
+            MedQBRoutes.Filter,
             MedQBRoutes.Quiz(sessionId = "session_orphaned"),
         )
         val navigator = AppNavigator(stack)
@@ -113,75 +160,35 @@ class AppNavigatorTest {
     }
 
     @Test
-    fun testReturnQuizToFilterPreservesExistingFilterKey() {
-        val initialFilter = MedQBRoutes.Filter(initialPaneName = null)
-        val stack = mutableListOf<NavKey>(MedQBRoutes.DatabaseSelection, initialFilter)
-        val navigator = AppNavigator(stack)
-
-        navigator.navigateTo(MedQBRoutes.Quiz(sessionId = "session_1"))
-        assertEquals(3, stack.size)
-
-        // Return quiz to filter requesting "History" pane
-        navigator.returnQuizToFilter("History")
-
-        // Stack size should be 2, and the Filter entry at index 1 must be the exact original object instance
-        assertEquals(2, stack.size)
-        assertEquals(initialFilter, stack[1])
-        assertTrue(stack[1] === initialFilter, "Existing Filter instance identity should be preserved without mutating NavKey in-place")
-    }
-
-    @Test
-    fun testReturnQuizToFilterWithDeepStack() {
-        val initialFilter = MedQBRoutes.Filter()
-        val stack = mutableListOf<NavKey>(
-            MedQBRoutes.DatabaseSelection,
-            initialFilter,
-            MedQBRoutes.Quiz(sessionId = "session_1"),
-            MedQBRoutes.MediaViewer(files = listOf("diag.jpg"), startIndex = 0),
-            MedQBRoutes.HtmlViewer(fileName = "details.html"),
-        )
-        val navigator = AppNavigator(stack)
-        assertEquals(5, stack.size)
-
-        navigator.returnQuizToFilter()
-
-        assertEquals(2, stack.size)
-        assertEquals(MedQBRoutes.DatabaseSelection, stack[0])
-        assertEquals(initialFilter, stack[1])
-        assertTrue(stack[1] === initialFilter)
-    }
-
-    @Test
-    fun testReturnQuizToFilterWhenFilterNotInStack() {
-        val stack = mutableListOf<NavKey>(MedQBRoutes.DatabaseSelection, MedQBRoutes.Quiz(sessionId = "session_2"))
-        val navigator = AppNavigator(stack)
-
-        navigator.returnQuizToFilter("History")
-
-        assertEquals(2, stack.size)
-        assertEquals(MedQBRoutes.DatabaseSelection, stack[0])
-        assertEquals(MedQBRoutes.Filter(initialPaneName = "History"), stack[1])
-    }
-
-    @Test
     fun testRoutesPolymorphicSerialization() {
         val json = Json {
-            serializersModule = SerializersModule {
-                polymorphic(baseClass = NavKey::class) {
-                    subclass(serializer = MedQBRoutes.DatabaseSelection.serializer())
-                    subclass(serializer = MedQBRoutes.Filter.serializer())
-                    subclass(serializer = MedQBRoutes.Quiz.serializer())
-                    subclass(serializer = MedQBRoutes.Settings.serializer())
-                    subclass(serializer = MedQBRoutes.MediaViewer.serializer())
-                    subclass(serializer = MedQBRoutes.HtmlViewer.serializer())
-                }
-            }
+            serializersModule = medQBSerializersModule
         }
 
         val routes: List<NavKey> = listOf(
             MedQBRoutes.DatabaseSelection,
-            MedQBRoutes.Filter(initialPaneName = "History"),
-            MedQBRoutes.Quiz(sessionId = "123", entryName = "Test Quiz", initialQuestionIndex = 5),
+            MedQBRoutes.Filter,
+            MedQBRoutes.Quiz(
+                sessionId = "123",
+                entryName = "Test Quiz",
+                initialQuestionIndex = 5,
+                isLoggingEnabled = true,
+                submissionMode = SubmissionMode.MANUAL,
+            ),
+            MedQBRoutes.Quiz(
+                sessionId = "456",
+                entryName = "Instant Quiz",
+                initialQuestionIndex = 0,
+                isLoggingEnabled = false,
+                submissionMode = SubmissionMode.INSTANT,
+            ),
+            MedQBRoutes.Quiz(
+                sessionId = "789",
+                entryName = "Default Mode Quiz",
+                initialQuestionIndex = 0,
+                isLoggingEnabled = null,
+                submissionMode = null,
+            ),
             MedQBRoutes.Settings,
             MedQBRoutes.MediaViewer(files = listOf("img1.png", "img2.png"), startIndex = 1),
             MedQBRoutes.HtmlViewer(fileName = "doc.html"),

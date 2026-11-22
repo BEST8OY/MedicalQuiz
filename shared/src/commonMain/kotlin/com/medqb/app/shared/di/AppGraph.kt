@@ -17,15 +17,24 @@ import com.medqb.app.shared.domain.AppIntentDispatcher
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.LoadQuestionUseCase
 import com.medqb.app.shared.domain.SnackbarDispatcher
+import com.medqb.app.shared.domain.SnackbarSink
+import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
 import com.medqb.app.shared.orchestration.AppStartupCoordinator
 import com.medqb.app.shared.orchestration.AppWorkflowCoordinator
 import com.medqb.app.shared.orchestration.MediaNavigationCoordinator
 import com.medqb.app.shared.viewmodel.DatabaseSelectionViewModel
 import com.medqb.app.shared.viewmodel.FilterHubViewModel
+import com.medqb.app.shared.viewmodel.HtmlViewerViewModel
+import com.medqb.app.shared.viewmodel.MediaViewerViewModel
 import com.medqb.app.shared.viewmodel.QuizViewModel
 import com.medqb.app.shared.viewmodel.SettingsViewModel
 import dev.zacsweers.metro.Binds
+import dev.zacsweers.metro.Provides
+import dev.zacsweers.metro.SingleIn
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /**
  * Common dependency graph interface.
@@ -61,6 +70,13 @@ interface AppGraph {
     @Binds
     fun bindMarkedQuestionsRepository(impl: DefaultMarkedQuestionsRepository): MarkedQuestionsRepository
 
+    @Binds
+    fun bindSnackbarSink(impl: SnackbarDispatcher): SnackbarSink
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideApplicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     fun createDatabaseSelectionViewModel(): DatabaseSelectionViewModel {
         return DatabaseSelectionViewModel(
             startupCoordinator = startupCoordinator
@@ -81,8 +97,12 @@ interface AppGraph {
         )
     }
 
-    fun createQuizViewModel(savedStateHandle: SavedStateHandle): QuizViewModel {
+    fun createQuizViewModel(
+        savedStateHandle: SavedStateHandle,
+        route: MedQBRoutes.Quiz = MedQBRoutes.Quiz(),
+    ): QuizViewModel {
         return QuizViewModel(
+            route = route,
             settingsRepository = settingsRepository,
             textHighlightsRepository = textHighlightsRepository,
             markedQuestionsRepository = markedQuestionsRepository,
@@ -98,6 +118,20 @@ interface AppGraph {
     fun createSettingsViewModel(): SettingsViewModel {
         return SettingsViewModel(
             settingsRepository = settingsRepository
+        )
+    }
+
+    fun createHtmlViewerViewModel(fileName: String): HtmlViewerViewModel {
+        return HtmlViewerViewModel(
+            fileName = fileName,
+            localContentRepository = localContentRepository,
+        )
+    }
+
+    fun createMediaViewerViewModel(): MediaViewerViewModel {
+        return MediaViewerViewModel(
+            mediaNavigationCoordinator = mediaNavigationCoordinator,
+            settingsRepository = settingsRepository,
         )
     }
 }

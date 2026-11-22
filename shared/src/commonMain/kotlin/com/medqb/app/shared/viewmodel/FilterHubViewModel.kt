@@ -24,6 +24,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -520,12 +521,15 @@ class FilterHubViewModel(
         sessionRepository.restoreDeletedHistoryEntry(entry)
     }
 
+    private var restoreHistoryJob: Job? = null
+
     fun restoreHistoryEntry(
         entry: QuizSessionRepository.QuizSession,
         onSuccess: suspend (String) -> Unit,
         onFailure: suspend () -> Unit
     ) {
-        viewModelScope.launch {
+        restoreHistoryJob?.cancel()
+        restoreHistoryJob = viewModelScope.launch {
             try {
                 val dbName = historyCoordinator.restoreHistoryEntry(entry)
                 if (dbName != null) {

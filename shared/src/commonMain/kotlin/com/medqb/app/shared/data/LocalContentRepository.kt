@@ -7,6 +7,7 @@ import com.medqb.app.shared.utils.HtmlUtils
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 @Inject
@@ -71,7 +72,7 @@ class LocalContentRepository {
         data object CopyFailed : SaveMediaResult()
     }
 
-    suspend fun saveMediaFile(fileName: String): SaveMediaResult = withContext(Dispatchers.IO) {
+    suspend fun saveMediaFile(fileName: String): SaveMediaResult = withContext(Dispatchers.IO + NonCancellable) {
         val sourcePath = safeMediaFilePath(fileName) ?: return@withContext SaveMediaResult.InvalidFileName
         val saveDir = StorageProvider.getSavedMediaDirectory()
         val sanitizedName = fileName.substringAfterLast("/").substringAfterLast("\\").trim()

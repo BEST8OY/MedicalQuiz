@@ -79,6 +79,7 @@ kotlin {
                 // Navigation 3
                 implementation(libs.androidx.navigation3.ui)
                 implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+                implementation(libs.androidx.navigationevent.compose)
                 
                 // Zoomable
                 implementation(libs.zoomable)
@@ -89,7 +90,6 @@ kotlin {
             dependencies {
                 implementation(libs.compose.preview)
                 implementation(libs.androidx.activity.compose)
-                implementation(libs.androidx.navigationevent.compose)
                 implementation(libs.coil.android)
                 implementation(libs.ktor.client.okhttp)
                 

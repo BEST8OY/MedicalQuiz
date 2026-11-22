@@ -1,7 +1,7 @@
 package com.medqb.app.shared.ui.richtext
 
+import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,9 +23,9 @@ import com.medqb.app.shared.utils.HtmlUtils
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.zIndex
 import net.engawapg.lib.zoomable.rememberZoomState
 import net.engawapg.lib.zoomable.snapBackZoomable
@@ -38,11 +38,14 @@ import net.engawapg.lib.zoomable.snapBackZoomable
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Unit) {
+internal fun RichMedia(
+    block: RichTextBlock.Media,
+    onMediaClick: (String) -> Unit,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+) {
     val mediaModel = remember(block.source, block.mediaRef) {
         mediaModelForSource(block.source, block.mediaRef)
     }
-    if (mediaModel == null) return
 
     val clickTarget = block.mediaRef ?: extractMediaRef(block.source) ?: block.source
     val imageSizeModifier = remember(block.width) {
@@ -60,7 +63,9 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     val isZoomed by remember { derivedStateOf { zoomState.scale > 1.001f } }
 
     val sharedTransitionScope = LocalSharedTransitionScope.current
-    val animatedVisibilityScope = LocalNavAnimatedContentScope.current
+    val navAnimatedScope = animatedVisibilityScope ?: if (sharedTransitionScope != null) {
+        LocalNavAnimatedContentScope.current
+    } else null
     val activeKey = LocalActiveSharedElementKey.current?.value
     val motionScheme = MaterialTheme.motionScheme
     val defaultSpatialSpec = motionScheme.defaultSpatialSpec<Rect>()
@@ -69,12 +74,13 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
     // hero transition without duplicate image crossfade artifacts.
     val sharedElementModifier = if (
         sharedTransitionScope != null &&
+        navAnimatedScope != null &&
         activeKey == clickTarget
     ) {
         with(sharedTransitionScope) {
             Modifier.sharedElement(
                 sharedContentState = rememberSharedContentState(key = "media_$clickTarget"),
-                animatedVisibilityScope = animatedVisibilityScope,
+                animatedVisibilityScope = navAnimatedScope,
                 boundsTransform = { _, _ -> defaultSpatialSpec },
                 clipInOverlayDuringTransition = OverlayClip(RectangleShape),
             )
@@ -100,7 +106,7 @@ internal fun RichMedia(block: RichTextBlock.Media, onMediaClick: (String) -> Uni
                 .zIndex(if (isZoomed) 1f else 0f)
                 .then(imageSizeModifier)
                 .then(sharedElementModifier)
-                .clipToBounds()
+                .graphicsLayer { clip = zoomState.scale <= 1.001f }
                 .snapBackZoomable(
                     zoomState = zoomState,
                     onTap = { onMediaClick(clickTarget) },
@@ -128,9 +134,9 @@ private val MaxEmbeddedImageWidth = 512.dp
  *
  * @param source The source URL or path
  * @param mediaRef Optional explicit media reference/filename
- * @return Coil model (file path string or URL), or null if resolution fails
+ * @return Coil model (file path string or URL)
  */
-internal fun mediaModelForSource(source: String, mediaRef: String?): Any? {
+internal fun mediaModelForSource(source: String, mediaRef: String?): String {
     val filename = mediaRef ?: extractMediaRef(source)
     if (filename != null) {
         HtmlUtils.getMediaPath(filename)?.let { path ->

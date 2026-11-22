@@ -2,19 +2,15 @@ package com.medqb.app.shared.ui.entry
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import com.medqb.app.shared.di.AppGraph
 import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.orchestration.AppWorkflowHandle
+import com.medqb.app.shared.platform.rememberDropUnlessResumed
 import com.medqb.app.shared.ui.screens.DatabaseSelectionScreen
-import com.medqb.app.shared.viewmodel.DatabaseSelectionViewModel
 
 @Composable
 fun DatabaseSelectionEntry(
@@ -22,29 +18,21 @@ fun DatabaseSelectionEntry(
     workflow: AppWorkflowHandle,
     navigator: AppNavigator,
 ) {
-    val dbVM = viewModel<DatabaseSelectionViewModel>(
-        factory = viewModelFactory {
-            initializer {
-                graph.createDatabaseSelectionViewModel()
-            }
-        }
-    )
+    val dbVM = viewModel {
+        graph.createDatabaseSelectionViewModel()
+    }
     val databases by dbVM.availableDatabases.collectAsStateWithLifecycle()
     val isLoading by dbVM.isLoading.collectAsStateWithLifecycle()
     val errorMessage by dbVM.errorMessage.collectAsStateWithLifecycle()
-
-    val lifecycleOwner = LocalLifecycleOwner.current
 
     DatabaseSelectionScreen(
         databases = databases,
         isLoading = isLoading,
         errorMessage = errorMessage,
         onRefreshDatabases = { dbVM.refreshDatabases() },
-        onDatabaseSelected = { dbName ->
-            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                workflow.onDatabaseSelected(dbName)
-                navigator.navigateTo(MedQBRoutes.Filter())
-            }
+        onDatabaseSelected = rememberDropUnlessResumed { dbName ->
+            workflow.onDatabaseSelected(dbName)
+            navigator.navigateTo(MedQBRoutes.Filter)
         },
         onOpenSettings = dropUnlessResumed {
             navigator.navigateTo(MedQBRoutes.Settings)

@@ -4,14 +4,11 @@ import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import com.medqb.app.shared.di.AppGraph
 import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.screens.quiz.QuizRoot
-import com.medqb.app.shared.viewmodel.QuizViewModel
 
 @Composable
 fun QuizEntry(
@@ -20,20 +17,9 @@ fun QuizEntry(
     navigator: AppNavigator,
     mediaHandler: MediaHandler,
 ) {
-    val quizVM = viewModel<QuizViewModel>(
-        key = route.sessionId.ifEmpty { "default_quiz" },
-        factory = viewModelFactory {
-            initializer {
-                val handle = createSavedStateHandle()
-                if (route.sessionId.isNotBlank() && !handle.contains("sessionId")) handle["sessionId"] = route.sessionId
-                if (route.entryName.isNotBlank() && !handle.contains("entryName")) handle["entryName"] = route.entryName
-                if (!handle.contains("currentQuestionIndex")) handle["currentQuestionIndex"] = route.initialQuestionIndex
-                if (!handle.contains("isLoggingEnabled")) route.isLoggingEnabled?.let { handle["isLoggingEnabled"] = it }
-                if (!handle.contains("submissionMode")) route.submissionMode?.let { handle["submissionMode"] = it }
-                graph.createQuizViewModel(handle)
-            }
-        }
-    )
+    val quizVM = viewModel {
+        graph.createQuizViewModel(createSavedStateHandle(), route)
+    }
 
     QuizRoot(
         viewModel = quizVM,

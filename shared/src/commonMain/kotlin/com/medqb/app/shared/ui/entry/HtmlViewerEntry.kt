@@ -2,12 +2,13 @@ package com.medqb.app.shared.ui.entry
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
-import com.medqb.app.shared.data.LocalContentRepository
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.medqb.app.shared.di.AppGraph
 import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.navigation.MedQBRoutes
+import com.medqb.app.shared.platform.rememberDropUnlessResumed
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.screens.media.HtmlViewerScreen
 
@@ -18,12 +19,10 @@ fun HtmlViewerEntry(
     navigator: AppNavigator,
     mediaHandler: MediaHandler,
 ) {
-    val htmlDocument by produceState<LocalContentRepository.HtmlDocumentResult?>(
-        initialValue = null,
-        key1 = key.fileName,
-    ) {
-        value = graph.localContentRepository.loadHtmlDocument(key.fileName)
+    val viewModel = viewModel {
+        graph.createHtmlViewerViewModel(key.fileName)
     }
+    val htmlDocument by viewModel.htmlDocument.collectAsStateWithLifecycle()
 
     HtmlViewerScreen(
         fileName = key.fileName,
@@ -33,7 +32,7 @@ fun HtmlViewerEntry(
         onBack = dropUnlessResumed {
             navigator.navigateBack()
         },
-        onLinkClick = { url ->
+        onLinkClick = rememberDropUnlessResumed { url ->
             mediaHandler.handleMediaLink(url)
         }
     )

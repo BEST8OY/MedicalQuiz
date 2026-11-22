@@ -16,23 +16,24 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.util.lerp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.rememberLifecycleOwner
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import com.medqb.app.shared.data.MediaDescription
+import kotlinx.coroutines.flow.drop
 import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import kotlin.math.absoluteValue
 
@@ -49,10 +50,13 @@ fun MediaViewerScreen(
     onLinkClick: ((String) -> Unit)? = null,
     onBack: () -> Unit,
     onSaveMedia: ((String) -> Unit)? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier,
 ) {
     val sharedTransitionScope = LocalSharedTransitionScope.current
-    val animatedVisibilityScope = LocalNavAnimatedContentScope.current
+    val navAnimatedScope = animatedVisibilityScope ?: if (sharedTransitionScope != null) {
+        LocalNavAnimatedContentScope.current
+    } else null
 
     MediaViewerContent(
         mediaFiles = mediaFiles,
@@ -66,7 +70,7 @@ fun MediaViewerScreen(
         onBack = onBack,
         onSaveMedia = onSaveMedia,
         sharedTransitionScope = sharedTransitionScope,
-        animatedVisibilityScope = animatedVisibilityScope,
+        animatedVisibilityScope = navAnimatedScope,
         modifier = modifier,
     )
 }
@@ -106,17 +110,21 @@ private fun MediaViewerContent(
         initialPage = safeInitialPage,
         pageCount = { mediaFiles.size },
     )
-    var isZoomed by rememberSaveable { mutableStateOf(false) }
+    var isZoomed by remember { mutableStateOf(false) }
     var showUI by rememberSaveable { mutableStateOf(true) }
     var showExplanation by rememberSaveable { mutableStateOf(false) }
     var showOverlay by rememberSaveable { mutableStateOf(true) }
     val currentFileName = mediaFiles.getOrNull(pagerState.currentPage) ?: ""
     val currentDescription = mediaDescriptions[currentFileName]
 
-    LaunchedEffect(pagerState.currentPage) {
-        isZoomed = false
-        showOverlay = true
-        showExplanation = false
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }
+            .drop(1)
+            .collect {
+                isZoomed = false
+                showOverlay = true
+                showExplanation = false
+            }
     }
 
     val onToggleUI: () -> Unit = { showUI = !showUI }
@@ -138,48 +146,14 @@ private fun MediaViewerContent(
     ) {
         HorizontalPager(
             state = pagerState,
-            key = { mediaFiles[it] },
+            key = { index -> "$index:${mediaFiles[index]}" },
             modifier = Modifier.fillMaxSize(),
             userScrollEnabled = !isZoomed,
             beyondViewportPageCount = 1,
             flingBehavior = PagerDefaults.flingBehavior(state = pagerState),
         ) { page ->
-            val parentLifecycleOwner = LocalLifecycleOwner.current
             val maxState = if (pagerState.settledPage == page) Lifecycle.State.RESUMED else Lifecycle.State.STARTED
-            val pageLifecycleOwner = remember(parentLifecycleOwner) {
-                object : androidx.lifecycle.LifecycleOwner {
-                    val registry = androidx.lifecycle.LifecycleRegistry(this)
-                    override val lifecycle: Lifecycle get() = registry
-                }
-            }
-
-            DisposableEffect(pageLifecycleOwner) {
-                onDispose {
-                    pageLifecycleOwner.registry.currentState = Lifecycle.State.DESTROYED
-                }
-            }
-
-            DisposableEffect(parentLifecycleOwner, maxState) {
-                val observer = androidx.lifecycle.LifecycleEventObserver { _, _ ->
-                    val targetState = if (parentLifecycleOwner.lifecycle.currentState < maxState) {
-                        parentLifecycleOwner.lifecycle.currentState
-                    } else {
-                        maxState
-                    }
-                    pageLifecycleOwner.registry.currentState = targetState
-                }
-                parentLifecycleOwner.lifecycle.addObserver(observer)
-                val initialTargetState = if (parentLifecycleOwner.lifecycle.currentState < maxState) {
-                    parentLifecycleOwner.lifecycle.currentState
-                } else {
-                    maxState
-                }
-                pageLifecycleOwner.registry.currentState = initialTargetState
-
-                onDispose {
-                    parentLifecycleOwner.lifecycle.removeObserver(observer)
-                }
-            }
+            val pageLifecycleOwner = rememberLifecycleOwner(maxLifecycle = maxState)
 
             CompositionLocalProvider(LocalLifecycleOwner provides pageLifecycleOwner) {
                 Box(
@@ -201,8 +175,10 @@ private fun MediaViewerContent(
                         resolveMediaFilePath = resolveMediaFilePath,
                         mediaFileExists = mediaFileExists,
                         onZoomChanged = {
-                            isZoomed = it
-                            if (it) showUI = false
+                            if (pagerState.currentPage == page) {
+                                isZoomed = it
+                                if (it) showUI = false
+                            }
                         },
                         onSingleTap = onToggleUI,
                         overlayPath = overlayPathsByFile[mediaFiles[page]],
@@ -225,7 +201,7 @@ private fun MediaViewerContent(
             modifier = Modifier.align(Alignment.TopCenter),
         )
 
-        val hasOverlay by derivedStateOf { currentOverlayPath != null }
+        val hasOverlay = currentOverlayPath != null
         val hasDescription = currentDescription != null
         val controlsLayout = remember(hasOverlay, hasDescription) {
             resolveControlsLayout(hasOverlay = hasOverlay, hasDescription = hasDescription)

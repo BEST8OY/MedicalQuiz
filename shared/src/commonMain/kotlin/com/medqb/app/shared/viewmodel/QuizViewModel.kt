@@ -18,6 +18,7 @@ import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.domain.LoadQuestionUseCase
 import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.domain.SnackbarMessage
+import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.ui.state.QuizUiState
 import dev.zacsweers.metro.Inject
@@ -48,6 +49,7 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalCoroutinesApi::class)
 @Inject
 class QuizViewModel(
+    private val route: MedQBRoutes.Quiz = MedQBRoutes.Quiz(),
     private val settingsRepository: SettingsRepository,
     private val textHighlightsRepository: TextHighlightsRepository,
     private val markedQuestionsRepository: MarkedQuestionsRepository,
@@ -69,9 +71,9 @@ class QuizViewModel(
         const val KEY_SESSION_ID = "sessionId"
     }
 
-    private val isSessionRestored = savedStateHandle.get<String>(KEY_SESSION_ID)?.isNotBlank() == true
-    private val hasExplicitLoggingSetting = savedStateHandle.contains(KEY_IS_LOGGING_ENABLED)
-    private val hasExplicitSubmissionMode = savedStateHandle.contains(KEY_SUBMISSION_MODE)
+    private val isSessionRestored = (savedStateHandle.get<String>(KEY_SESSION_ID) ?: route.sessionId).isNotBlank()
+    private val hasExplicitLoggingSetting = savedStateHandle.contains(KEY_IS_LOGGING_ENABLED) || route.isLoggingEnabled != null
+    private val hasExplicitSubmissionMode = savedStateHandle.contains(KEY_SUBMISSION_MODE) || route.submissionMode != null
     private val _state = MutableStateFlow(restoreInitialState())
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
 
@@ -80,7 +82,7 @@ class QuizViewModel(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.Eagerly, _state.value.toolbarTitle)
 
-    private val sessionIdState: MutableStateFlow<String> = savedStateHandle.getMutableStateFlow(KEY_SESSION_ID, "")
+    private val sessionIdState: MutableStateFlow<String> = savedStateHandle.getMutableStateFlow(KEY_SESSION_ID, route.sessionId)
     private val sessionId: String
         get() = sessionIdState.value
     private var filteredIdsJob: Job? = null
@@ -157,13 +159,15 @@ class QuizViewModel(
 
     private fun restoreInitialState(): QuizUiState {
         val savedDatabaseName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
-        val savedEntryName = savedStateHandle.get<String>(KEY_ENTRY_NAME).orEmpty()
-        val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: 0
+        val savedEntryName = savedStateHandle.get<String>(KEY_ENTRY_NAME) ?: route.entryName
+        val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: route.initialQuestionIndex
         val savedIsLoggingEnabled = savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED)
+            ?: route.isLoggingEnabled
             ?: settingsRepository.isLoggingEnabled.value
         val savedSubmissionModeStr = savedStateHandle.get<String>(KEY_SUBMISSION_MODE)
         val savedSubmissionMode = savedSubmissionModeStr
             ?.let { runCatching { SubmissionMode.valueOf(it) }.getOrNull() }
+            ?: route.submissionMode
             ?: settingsRepository.submissionMode.value
 
         return QuizUiState.EMPTY.copy(

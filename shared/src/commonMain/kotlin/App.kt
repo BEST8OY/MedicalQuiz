@@ -4,8 +4,6 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -29,71 +27,56 @@ import androidx.compose.ui.Modifier
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.unit.Dp
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
-import androidx.savedstate.serialization.SavedStateConfiguration
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.subclass
-import kotlinx.serialization.modules.polymorphic
+import androidx.navigationevent.NavigationEvent
 import coil3.compose.setSingletonImageLoaderFactory
 import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.domain.AppIntent
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.navigation.AppNavigator
+import com.medqb.app.shared.navigation.MedQBNavConfig
+import com.medqb.app.shared.navigation.exitSpatialSpec
 import com.medqb.app.shared.navigation.rememberMedQBNavEntries
 import com.medqb.app.shared.orchestration.rememberAppWorkflow
 import com.medqb.app.shared.ui.theme.AppTheme
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.LocalSharedTransitionScope
+import com.medqb.app.shared.ui.LocalSnackbarBottomPadding
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
 private val START_DESTINATION: MedQBRoutes = MedQBRoutes.DatabaseSelection
 
-private val navConfig = SavedStateConfiguration {
-    serializersModule = SerializersModule {
-        polymorphic(baseClass = NavKey::class) {
-            subclass(serializer = MedQBRoutes.DatabaseSelection.serializer())
-            subclass(serializer = MedQBRoutes.Filter.serializer())
-            subclass(serializer = MedQBRoutes.Quiz.serializer())
-            subclass(serializer = MedQBRoutes.Settings.serializer())
-            subclass(serializer = MedQBRoutes.MediaViewer.serializer())
-            subclass(serializer = MedQBRoutes.HtmlViewer.serializer())
-        }
-    }
-}
-
 @Composable
 fun App() {
-    var coilInstalled by remember { mutableStateOf(false) }
-    if (!coilInstalled) {
-        setSingletonImageLoaderFactory { context ->
-            generateImageLoader(context)
-        }
-        SideEffect {
-            coilInstalled = true
-        }
+    val graph = LocalAppGraph.current
+
+    setSingletonImageLoaderFactory { context ->
+        generateImageLoader(context)
     }
 
-    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     AppTheme {
-        val motionScheme = MaterialTheme.motionScheme
         val scope = rememberCoroutineScope()
-        val graph = LocalAppGraph.current
+        @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+        val motionScheme = MaterialTheme.motionScheme
 
-
-        val backStack = rememberNavBackStack(navConfig, START_DESTINATION)
+        val backStack = rememberNavBackStack(MedQBNavConfig, START_DESTINATION)
         val navigator = remember(backStack) { AppNavigator(backStack) }
         val workflow = rememberAppWorkflow(
             workflowCoordinator = graph.workflowCoordinator,
@@ -102,12 +85,23 @@ fun App() {
         )
 
         val snackbarHostState = remember { SnackbarHostState() }
+        val snackbarBottomPadding = remember { mutableStateOf(12.dp) }
+
+        LaunchedEffect(navigator) {
+            snapshotFlow { navigator.currentRoute }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { snackbarHostState.currentSnackbarData?.dismiss() }
+        }
 
         val navigateToMediaViewer: (List<String>, Int) -> Unit = remember(scope, graph.mediaNavigationCoordinator, navigator) {
+            var mediaNavJob: Job? = null
             { files, index ->
-                scope.launch {
+                val originRoute = navigator.currentRoute
+                mediaNavJob?.cancel()
+                mediaNavJob = scope.launch {
                     val route = graph.mediaNavigationCoordinator.resolveMediaViewerRoute(files, index)
-                    if (route != null) {
+                    if (route != null && navigator.currentRoute == originRoute) {
                         navigator.navigateTo(route)
                     }
                 }
@@ -123,38 +117,47 @@ fun App() {
             )
         }
 
+        val currentNavigator by rememberUpdatedState(navigator)
+        val currentWorkflow by rememberUpdatedState(workflow)
+        val currentNavigateToMediaViewer by rememberUpdatedState(navigateToMediaViewer)
+
         LaunchedEffect(graph.appIntentDispatcher, graph.snackbarDispatcher) {
             launch {
                 graph.appIntentDispatcher.intents.collect { intent ->
                     when (intent) {
                         is AppIntent.OpenHtmlFile -> {
-                            navigator.navigateTo(MedQBRoutes.HtmlViewer(fileName = intent.fileName))
+                            currentNavigator.navigateTo(MedQBRoutes.HtmlViewer(fileName = intent.fileName))
                         }
                         is AppIntent.OpenMedia -> {
-                            navigateToMediaViewer(intent.urls, intent.startIndex)
+                            currentNavigateToMediaViewer(intent.urls, intent.startIndex)
                         }
                         is AppIntent.NavigateToDatabaseSelection -> {
-                            navigator.popToDatabaseSelection()
-                            scope.launch { graph.activeDatabaseHolder.closeDatabase() }
-                            workflow.onDatabaseSelectionRequested()
+                            currentNavigator.popToDatabaseSelection()
+                            graph.activeDatabaseHolder.closeDatabase()
+                            currentWorkflow.onDatabaseSelectionRequested()
                         }
                     }
                 }
             }
             launch {
+                var currentSnackbarJob: Job? = null
                 graph.snackbarDispatcher.messages.collect { snackbarMessage ->
-                    when (snackbarMessage) {
-                        is SnackbarMessage.Simple -> {
-                            snackbarHostState.showSnackbar(snackbarMessage.message)
-                        }
-                        is SnackbarMessage.Action -> {
-                            val result = snackbarHostState.showSnackbar(
-                                message = snackbarMessage.message,
-                                actionLabel = snackbarMessage.actionLabel,
-                                duration = snackbarMessage.duration,
-                            )
-                            if (result == SnackbarResult.ActionPerformed) {
-                                snackbarMessage.onActionPerformed()
+                    currentSnackbarJob?.cancel()
+                    snackbarHostState.currentSnackbarData?.dismiss()
+                    currentSnackbarJob = launch {
+                        when (snackbarMessage) {
+                            is SnackbarMessage.Simple -> {
+                                snackbarHostState.showSnackbar(snackbarMessage.message)
+                            }
+                            is SnackbarMessage.Action -> {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = snackbarMessage.message,
+                                    actionLabel = snackbarMessage.actionLabel,
+                                    duration = snackbarMessage.duration,
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    snackbarMessage.onActionPerformed()
+                                }
                             }
                         }
                     }
@@ -170,92 +173,111 @@ fun App() {
             snackbarHostState = snackbarHostState,
         )
 
+        val saveableDecorator = rememberSaveableStateHolderNavEntryDecorator<NavKey>()
+        val viewModelStoreDecorator = rememberViewModelStoreNavEntryDecorator<NavKey>()
+        val entryDecorators = remember(saveableDecorator, viewModelStoreDecorator) {
+            listOf(saveableDecorator, viewModelStoreDecorator)
+        }
+
         Box(modifier = Modifier.fillMaxSize()) {
             @OptIn(ExperimentalSharedTransitionApi::class)
             SharedTransitionLayout {
-                CompositionLocalProvider(LocalSharedTransitionScope provides this@SharedTransitionLayout) {
-                    val popTransition: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform = {
-                        (slideInHorizontally(
-                            animationSpec = motionScheme.defaultSpatialSpec(),
-                            initialOffsetX = { -it / 4 }
-                        ) + scaleIn(
-                            animationSpec = motionScheme.defaultSpatialSpec(),
-                            initialScale = 0.96f
-                        ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec(), initialAlpha = 0f)) togetherWith
-                            (slideOutHorizontally(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                ),
-                                targetOffsetX = { it }
-                            ) + scaleOut(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                ),
-                                targetScale = 0.96f
-                            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec(), targetAlpha = 0f))
+                CompositionLocalProvider(
+                    LocalSharedTransitionScope provides this@SharedTransitionLayout,
+                    LocalSnackbarBottomPadding provides snackbarBottomPadding,
+                ) {
+                    val popTransition: AnimatedContentTransitionScope<Scene<NavKey>>.(swipeEdge: Int) -> ContentTransform = remember(motionScheme) {
+                        { swipeEdge ->
+                            val isRightEdge = swipeEdge == NavigationEvent.EDGE_RIGHT
+                            (slideInHorizontally(
+                                animationSpec = motionScheme.defaultSpatialSpec(),
+                                initialOffsetX = if (isRightEdge) ({ it / 4 }) else ({ -it / 4 })
+                            ) + scaleIn(
+                                animationSpec = motionScheme.defaultSpatialSpec(),
+                                initialScale = 0.96f
+                            ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec(), initialAlpha = 0f)) togetherWith
+                                (slideOutHorizontally(
+                                    animationSpec = exitSpatialSpec(),
+                                    targetOffsetX = if (isRightEdge) ({ -it }) else ({ it })
+                                ) + scaleOut(
+                                    animationSpec = exitSpatialSpec(),
+                                    targetScale = 0.96f
+                                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec(), targetAlpha = 0f))
+                        }
                     }
 
-                    NavDisplay(
-                        backStack = backStack,
-                        onBack = {
-                            snackbarHostState.currentSnackbarData?.dismiss()
-                            navigator.navigateBack()
-                        },
-                        entryProvider = entryProvider,
-                        entryDecorators = listOf(
-                            rememberSaveableStateHolderNavEntryDecorator(),
-                            rememberViewModelStoreNavEntryDecorator()
-                        ),
-                        sharedTransitionScope = this@SharedTransitionLayout,
-                        transitionSpec = {
+                    val onBack: () -> Unit = remember(navigator) {
+                        { navigator.navigateBack() }
+                    }
+
+                    val transitionSpec: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform = remember(motionScheme) {
+                        {
                             (slideInHorizontally(
                                 animationSpec = motionScheme.defaultSpatialSpec(),
                                 initialOffsetX = { it }
                             ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec(), initialAlpha = 0f)) togetherWith
                                 (slideOutHorizontally(
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                        stiffness = Spring.StiffnessMediumLow
-                                    ),
+                                    animationSpec = exitSpatialSpec(),
                                     targetOffsetX = { -it / 4 }
                                 ) + scaleOut(
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                        stiffness = Spring.StiffnessMediumLow
-                                    ),
+                                    animationSpec = exitSpatialSpec(),
                                     targetScale = 0.96f
                                 ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec(), targetAlpha = 0f))
-                        },
-                        popTransitionSpec = popTransition,
-                        predictivePopTransitionSpec = { popTransition() }
+                        }
+                    }
+
+                    val popTransitionSpec: AnimatedContentTransitionScope<Scene<NavKey>>.() -> ContentTransform = remember(popTransition) {
+                        { popTransition(NavigationEvent.EDGE_LEFT) }
+                    }
+
+                    val predictivePopTransitionSpec: AnimatedContentTransitionScope<Scene<NavKey>>.(swipeEdge: Int) -> ContentTransform = remember(popTransition) {
+                        { swipeEdge -> popTransition(swipeEdge) }
+                    }
+
+                    NavDisplay(
+                        backStack = backStack,
+                        onBack = onBack,
+                        entryProvider = entryProvider,
+                        entryDecorators = entryDecorators,
+                        sharedTransitionScope = this@SharedTransitionLayout,
+                        transitionSpec = transitionSpec,
+                        popTransitionSpec = popTransitionSpec,
+                        predictivePopTransitionSpec = predictivePopTransitionSpec,
                     )
                 }
             }
 
-            val isFilterRoute by remember(backStack) {
-                derivedStateOf { navigator.currentRoute is MedQBRoutes.Filter }
-            }
-            SnackbarHost(
-                hostState = snackbarHostState,
+            AppSnackbarHost(
+                snackbarHostState = snackbarHostState,
+                bottomPadding = snackbarBottomPadding,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(
-                        start = 16.dp,
-                        end = 16.dp,
-                        bottom = if (isFilterRoute) 80.dp else 12.dp,
-                    ),
-                snackbar = { data ->
-                    Snackbar(
-                        snackbarData = data,
-                        containerColor = MaterialTheme.colorScheme.inverseSurface,
-                        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                        shape = MaterialTheme.shapes.medium,
-                    )
-                }
+                    .navigationBarsPadding(),
             )
         }
     }
+}
+
+@Composable
+private fun AppSnackbarHost(
+    snackbarHostState: SnackbarHostState,
+    bottomPadding: State<Dp>,
+    modifier: Modifier = Modifier,
+) {
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = modifier.padding(
+            start = 16.dp,
+            end = 16.dp,
+            bottom = bottomPadding.value,
+        ),
+        snackbar = { data ->
+            Snackbar(
+                snackbarData = data,
+                containerColor = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                shape = MaterialTheme.shapes.medium,
+            )
+        }
+    )
 }

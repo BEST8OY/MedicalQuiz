@@ -1,12 +1,27 @@
 package com.medqb.app.shared.platform
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 
 /**
- * Platform-aware back gesture handler for in-screen states (e.g., zoomed media, selection modes).
+ * Multiplatform back gesture handler for in-screen states (e.g., zoomed media, selection modes).
  *
- * On Android, integrates unconditionally with Navigation 3's [androidx.navigationevent.compose.NavigationBackHandler].
- * On Desktop, operates as a no-op since desktop platforms do not have a system back gesture.
+ * Integrates directly with Navigation 3's [androidx.navigationevent.compose.NavigationBackHandler].
+ * Gracefully no-ops in @Preview and isolated tests where no [LocalNavigationEventDispatcherOwner] is present.
  */
 @Composable
-expect fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit)
+fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
+    if (LocalNavigationEventDispatcherOwner.current == null) return
+    val currentOnBack by rememberUpdatedState(onBack)
+    val navState = rememberNavigationEventState(NavigationEventInfo.None)
+    NavigationBackHandler(
+        state = navState,
+        isBackEnabled = enabled,
+        onBackCompleted = { currentOnBack() },
+    )
+}

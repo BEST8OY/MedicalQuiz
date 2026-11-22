@@ -1,8 +1,7 @@
 package com.medqb.app.shared.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -18,8 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.metadata
-import androidx.navigation3.ui.NavDisplay
+import androidx.navigation3.scene.Scene
 import com.medqb.app.shared.di.AppGraph
 import com.medqb.app.shared.orchestration.AppWorkflowHandle
 import com.medqb.app.shared.ui.entry.DatabaseSelectionEntry
@@ -53,7 +51,7 @@ fun rememberMedQBNavEntries(
         snackbarHostState,
         motionScheme,
     ) {
-        val modalEnterTransition: () -> ContentTransform = {
+        val modalEnterTransition: AnimatedContentTransitionScope<Scene<*>>.() -> ContentTransform = {
             (slideInVertically(
                 animationSpec = motionScheme.defaultSpatialSpec(),
                 initialOffsetY = { (it * 0.12f).toInt() }
@@ -62,38 +60,38 @@ fun rememberMedQBNavEntries(
                 initialScale = 0.94f
             ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
                 (scaleOut(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
+                    animationSpec = exitSpatialSpec(),
                     targetScale = 0.96f
                 ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
         }
 
-        val modalPopTransition: () -> ContentTransform = {
+        val modalPopTransition: AnimatedContentTransitionScope<Scene<*>>.() -> ContentTransform = {
             (scaleIn(
                 animationSpec = motionScheme.defaultSpatialSpec(),
                 initialScale = 0.96f
             ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
                 (slideOutVertically(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
+                    animationSpec = exitSpatialSpec(),
                     targetOffsetY = { (it * 0.12f).toInt() }
                 ) + scaleOut(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
+                    animationSpec = exitSpatialSpec(),
                     targetScale = 0.94f
                 ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
         }
 
-        val mediaViewerFadeTransition: () -> ContentTransform = {
+        val mediaViewerFadeTransition: AnimatedContentTransitionScope<Scene<*>>.() -> ContentTransform = {
             fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
                 fadeOut(animationSpec = motionScheme.fastEffectsSpec())
         }
+
+        val modalMetadata = modalNavMetadata(
+            enterTransition = modalEnterTransition,
+            popTransition = modalPopTransition,
+        )
+        val mediaViewerMetadata = modalNavMetadata(
+            enterTransition = mediaViewerFadeTransition,
+            popTransition = mediaViewerFadeTransition,
+        )
 
         entryProvider<NavKey> {
             entry<MedQBRoutes.DatabaseSelection> {
@@ -104,9 +102,8 @@ fun rememberMedQBNavEntries(
                 )
             }
 
-            entry<MedQBRoutes.Filter> { route ->
+            entry<MedQBRoutes.Filter> {
                 FilterEntry(
-                    route = route,
                     graph = graph,
                     workflow = workflow,
                     navigator = navigator,
@@ -123,26 +120,14 @@ fun rememberMedQBNavEntries(
                 )
             }
 
-            entry<MedQBRoutes.Settings>(
-                metadata = metadata {
-                    put(NavDisplay.TransitionKey) { modalEnterTransition() }
-                    put(NavDisplay.PopTransitionKey) { modalPopTransition() }
-                    put(NavDisplay.PredictivePopTransitionKey) { modalPopTransition() }
-                }
-            ) {
+            entry<MedQBRoutes.Settings>(metadata = modalMetadata) {
                 SettingsEntry(
                     graph = graph,
                     navigator = navigator,
                 )
             }
 
-            entry<MedQBRoutes.MediaViewer>(
-                metadata = metadata {
-                    put(NavDisplay.TransitionKey) { mediaViewerFadeTransition() }
-                    put(NavDisplay.PopTransitionKey) { mediaViewerFadeTransition() }
-                    put(NavDisplay.PredictivePopTransitionKey) { mediaViewerFadeTransition() }
-                }
-            ) { key ->
+            entry<MedQBRoutes.MediaViewer>(metadata = mediaViewerMetadata) { key ->
                 MediaViewerEntry(
                     key = key,
                     graph = graph,
@@ -151,13 +136,7 @@ fun rememberMedQBNavEntries(
                 )
             }
 
-            entry<MedQBRoutes.HtmlViewer>(
-                metadata = metadata {
-                    put(NavDisplay.TransitionKey) { modalEnterTransition() }
-                    put(NavDisplay.PopTransitionKey) { modalPopTransition() }
-                    put(NavDisplay.PredictivePopTransitionKey) { modalPopTransition() }
-                }
-            ) { key ->
+            entry<MedQBRoutes.HtmlViewer>(metadata = modalMetadata) { key ->
                 HtmlViewerEntry(
                     key = key,
                     graph = graph,

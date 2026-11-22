@@ -2,18 +2,15 @@ package com.medqb.app.shared.ui.entry
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.produceState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
-import com.medqb.app.shared.data.LocalContentRepository
-import com.medqb.app.shared.data.MediaDescription
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.medqb.app.shared.di.AppGraph
 import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.navigation.MedQBRoutes
+import com.medqb.app.shared.platform.rememberDropUnlessResumed
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.screens.media.MediaViewerScreen
-import kotlinx.coroutines.launch
 
 @Composable
 fun MediaViewerEntry(
@@ -22,20 +19,17 @@ fun MediaViewerEntry(
     navigator: AppNavigator,
     mediaHandler: MediaHandler,
 ) {
-    val scope = rememberCoroutineScope()
-    val mediaDescriptions by produceState<Map<String, MediaDescription>>(
-        initialValue = emptyMap(),
-    ) {
-        value = graph.mediaNavigationCoordinator.loadDescriptions()
+    val viewModel = viewModel {
+        graph.createMediaViewerViewModel()
     }
-    val fontScalePreference = graph.settingsRepository.fontScalePreference
-        .collectAsStateWithLifecycle(null).value
+    val mediaDescriptions by viewModel.mediaDescriptions.collectAsStateWithLifecycle()
+    val fontScalePreference by viewModel.fontScalePreference.collectAsStateWithLifecycle()
 
     MediaViewerScreen(
         mediaFiles = key.files,
         startIndex = key.startIndex,
         mediaDescriptions = mediaDescriptions,
-        richTextScale = fontScalePreference ?: 1f,
+        richTextScale = fontScalePreference,
         resolveMediaFilePath = graph.localContentRepository::mediaFilePath,
         mediaFileExists = { fileName ->
             graph.localContentRepository.mediaFileExists(fileName)
@@ -43,20 +37,11 @@ fun MediaViewerEntry(
         resolveOverlayPaths = { files ->
             graph.localContentRepository.resolveOverlayPaths(files)
         },
-        onLinkClick = { url ->
+        onLinkClick = rememberDropUnlessResumed { url ->
             mediaHandler.handleMediaLink(url)
         },
         onSaveMedia = { fileName ->
-            scope.launch {
-                when (val result = graph.localContentRepository.saveMediaFile(fileName)) {
-                    is LocalContentRepository.SaveMediaResult.Success ->
-                        graph.snackbarDispatcher.emitSnackbar("Media saved to: ${result.destPath}")
-                    LocalContentRepository.SaveMediaResult.InvalidFileName ->
-                        graph.snackbarDispatcher.emitSnackbar("Invalid file name")
-                    LocalContentRepository.SaveMediaResult.CopyFailed ->
-                        graph.snackbarDispatcher.emitSnackbar("Failed to save media")
-                }
-            }
+            viewModel.saveMedia(fileName)
         },
         onBack = dropUnlessResumed {
             navigator.navigateBack()
