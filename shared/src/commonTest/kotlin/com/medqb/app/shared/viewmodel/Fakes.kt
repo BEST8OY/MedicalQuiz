@@ -3,6 +3,7 @@ package com.medqb.app.shared.viewmodel
 import androidx.room3.withWriteTransaction
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.LocalContentRepository
+import com.medqb.app.shared.data.MarkedQuestionsRepository
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
@@ -26,8 +27,11 @@ import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.domain.SnackbarSink
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 
 class FakeSettingsRepository(
     showMetadata: Boolean = true,
@@ -130,6 +134,73 @@ class FakeTextHighlightsRepository : TextHighlightsRepository {
             if (it.id == highlightId) it.copy(color = color) else it
         }
         return highlightsFor(dbName, questionId)
+    }
+}
+
+class FakeMarkedQuestionsRepository : MarkedQuestionsRepository {
+    private val marksByDb = MutableStateFlow<Map<String, Set<Long>>>(emptyMap())
+    var setGate: CompletableDeferred<Unit>? = null
+    var failWrites: Boolean = false
+    var failReads: Boolean = false
+
+    private fun canonical(dbName: String) = dbName.trim().removeSuffix(".db").trim()
+
+    fun seedMarked(dbName: String, vararg questionIds: Long) {
+        val c = canonical(dbName)
+        marksByDb.update { current ->
+            current + (c to (current[c].orEmpty() + questionIds.toSet()))
+        }
+    }
+
+    fun markedIdsFor(dbName: String): Set<Long> {
+        val c = canonical(dbName)
+        return marksByDb.value[c].orEmpty()
+    }
+
+    override suspend fun isMarked(dbName: String, questionId: Long): Boolean {
+        if (failReads) throw RuntimeException("Simulated read failure")
+        val c = canonical(dbName)
+        return marksByDb.value[c]?.contains(questionId) == true
+    }
+
+    override suspend fun getMarkedQuestionIds(dbName: String): Set<Long> {
+        if (failReads) throw RuntimeException("Simulated read failure")
+        val c = canonical(dbName)
+        return marksByDb.value[c].orEmpty()
+    }
+
+    override fun observeMarkedQuestionIds(dbName: String): Flow<Set<Long>> {
+        val c = canonical(dbName)
+        return marksByDb.map { it[c].orEmpty() }
+    }
+
+    override suspend fun setMarked(dbName: String, questionId: Long, marked: Boolean): Boolean {
+        setGate?.await()
+        if (failWrites) throw RuntimeException("Simulated write failure")
+        val c = canonical(dbName)
+        marksByDb.update { current ->
+            val set = current[c].orEmpty()
+            val newSet = if (marked) set + questionId else set - questionId
+            current + (c to newSet)
+        }
+        return marked
+    }
+
+    override suspend fun toggleMark(dbName: String, questionId: Long): Boolean {
+        setGate?.await()
+        if (failWrites) throw RuntimeException("Simulated write failure")
+        val c = canonical(dbName)
+        val currentlyMarked = isMarked(c, questionId)
+        val target = !currentlyMarked
+        setMarked(c, questionId, target)
+        return target
+    }
+
+    override suspend fun clearForDatabase(dbName: String) {
+        val c = canonical(dbName)
+        marksByDb.update { current ->
+            current - c
+        }
     }
 }
 
@@ -359,6 +430,7 @@ open class FakeUserDataManager(
     override suspend fun logDao() = db?.logDao() ?: throw IllegalStateException("No test DB")
     override suspend fun sessionHistoryDao() = db?.sessionHistoryDao() ?: throw IllegalStateException("No test DB")
     override suspend fun textHighlightDao() = db?.textHighlightDao() ?: throw IllegalStateException("No test DB")
+    override suspend fun markedQuestionDao() = db?.markedQuestionDao() ?: throw IllegalStateException("No test DB")
     override suspend fun <R> withTransaction(block: suspend () -> R): R =
         db?.withWriteTransaction { block() } ?: block()
     override suspend fun close() { db?.close() }

@@ -226,6 +226,7 @@ internal fun FilterHubContent(
     if (showStatusSheet) {
         StatusFilterBottomSheet(
             current = state.statusFilter,
+            markedCount = state.markedQuestionCount,
             onSelect = { filter ->
                 onSelectStatusFilter(filter)
                 showStatusSheet = false
@@ -256,13 +257,11 @@ private fun formatStatusFilterLabel(filter: StatusFilter): String {
             QuestionStatus.NOT_YET_ANSWERED -> "Not yet answered"
             QuestionStatus.ANSWERED_INCORRECTLY -> if (filter.scope == StatusScope.LATEST_ATTEMPT) "Last incorrect" else "Ever incorrect"
             QuestionStatus.ANSWERED_CORRECTLY -> if (filter.scope == StatusScope.LATEST_ATTEMPT) "Last correct" else "Ever correct"
+            QuestionStatus.MARKED -> "Marked"
         }
     }
 
-    if (filter.statuses.size == 2 &&
-        QuestionStatus.NOT_YET_ANSWERED in filter.statuses &&
-        QuestionStatus.ANSWERED_INCORRECTLY in filter.statuses
-    ) {
+    if (filter.statuses == setOf(QuestionStatus.NOT_YET_ANSWERED, QuestionStatus.ANSWERED_INCORRECTLY)) {
         return if (filter.scope == StatusScope.LATEST_ATTEMPT) {
             "Unanswered & Incorrect"
         } else {
@@ -270,6 +269,22 @@ private fun formatStatusFilterLabel(filter: StatusFilter): String {
         }
     }
 
-    return "${filter.statuses.size} statuses (${filter.scope.shortLabel})"
+    if (filter.statuses == setOf(QuestionStatus.NOT_YET_ANSWERED, QuestionStatus.MARKED)) {
+        return "Unanswered & Marked"
+    }
+
+    if (filter.statuses == setOf(QuestionStatus.ANSWERED_INCORRECTLY, QuestionStatus.MARKED)) {
+        return if (filter.scope == StatusScope.LATEST_ATTEMPT) {
+            "Incorrect & Marked"
+        } else {
+            "Ever incorrect & Marked"
+        }
+    }
+
+    return if (filter.usesAttemptScope) {
+        "${filter.statuses.size} statuses (${filter.scope.shortLabel})"
+    } else {
+        "${filter.statuses.size} statuses"
+    }
 }
 

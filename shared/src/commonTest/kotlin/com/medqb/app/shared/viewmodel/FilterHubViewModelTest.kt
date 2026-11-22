@@ -54,6 +54,7 @@ class FilterHubViewModelTest {
         holder: ActiveDatabaseHolder,
         filterStateHolder: FilterStateHolder = FilterStateHolder(),
         savedStateHandle: SavedStateHandle = SavedStateHandle(),
+        markedQuestionsRepository: FakeMarkedQuestionsRepository = FakeMarkedQuestionsRepository(),
     ): FilterHubViewModel {
         val sessionRepository = FakeQuizSessionRepository()
         return FilterHubViewModel(
@@ -69,6 +70,7 @@ class FilterHubViewModelTest {
                 activeDatabaseHolder = ActiveDatabaseHolder(),
             ),
             sessionRepository = sessionRepository,
+            markedQuestionsRepository = markedQuestionsRepository,
             ioDispatcher = StandardTestDispatcher(scheduler),
         )
     }
@@ -474,5 +476,75 @@ class FilterHubViewModelTest {
         assertEquals(setOf(200L), viewModel.state.value.excludedSystemIds)
         assertEquals(emptySet(), viewModel.state.value.selectedSubjectIds)
         assertEquals(setOf(21L), viewModel.state.value.excludedSubjectIds)
+    }
+
+    @Test
+    fun markedQuestionCountUpdatesReactivelyWhenRepositoryEmits() = runHubTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val markedRepo = FakeMarkedQuestionsRepository()
+        val viewModel = createViewModel(provider, holder, markedQuestionsRepository = markedRepo)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        // Initially 0 marked
+        assertEquals(0, viewModel.state.value.markedQuestionCount)
+
+        // Seed 3 marked questions
+        markedRepo.seedMarked("bank", 1L, 2L, 3L)
+        advanceUntilIdle()
+
+        assertEquals(3, viewModel.state.value.markedQuestionCount)
+
+        // Clear marked for database
+        markedRepo.clearForDatabase("bank")
+        advanceUntilIdle()
+
+        assertEquals(0, viewModel.state.value.markedQuestionCount)
+    }
+
+    @Test
+    fun markedFilterRecomputesPreviewCountWhenMarkedChanges() = runHubTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val markedRepo = FakeMarkedQuestionsRepository()
+        val filterStateHolder = FilterStateHolder()
+        var countQueries = 0
+        provider.countQuestionIdsProvider = { _, _, _, _, filter, _ ->
+            countQueries++
+            if (QuestionStatus.MARKED in filter.statuses) {
+                markedRepo.markedIdsFor("bank").size
+            } else {
+                10
+            }
+        }
+
+        val viewModel = createViewModel(
+            provider = provider,
+            holder = holder,
+            filterStateHolder = filterStateHolder,
+            markedQuestionsRepository = markedRepo,
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        // With default filter (isAll = true), preview count is 10
+        assertEquals(10, viewModel.state.value.previewQuestionCount)
+        val queriesBefore = countQueries
+
+        // Seed marks while MARKED is not selected: no redundant query re-computation
+        markedRepo.seedMarked("bank", 1L, 2L)
+        advanceUntilIdle()
+        assertEquals(queriesBefore, countQueries)
+
+        // Select MARKED status filter
+        filterStateHolder.updateStatusFilter(StatusFilter(setOf(QuestionStatus.MARKED)))
+        advanceUntilIdle()
+        assertEquals(2, viewModel.state.value.previewQuestionCount)
+
+        // Now seed another mark — preview count recomputes reactively
+        markedRepo.seedMarked("bank", 3L)
+        advanceUntilIdle()
+        assertEquals(3, viewModel.state.value.previewQuestionCount)
     }
 }

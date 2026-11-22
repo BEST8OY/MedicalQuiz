@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -39,6 +40,14 @@ fun QuizRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val title = state.toolbarTitle
 
+    val markedIndices = remember(state.questionIds, state.markedQuestionIds) {
+        buildSet {
+            state.questionIds.forEachIndexed { index, id ->
+                if (id in state.markedQuestionIds) add(index)
+            }
+        }
+    }
+
     // Dialog states - these are overlays within the quiz screen
     var showJumpToDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -51,6 +60,9 @@ fun QuizRoot(
                 topBar = {
                     TopBar(
                         title = title,
+                        isMarked = state.isCurrentQuestionMarked,
+                        canMark = state.currentQuestion != null,
+                        onToggleMark = { viewModel.toggleMark() },
                         onNavigateBack = onNavigateBack,
                         onResetLogClick = { viewModel.clearCurrentQuestionLog() },
                         onSettingsClick = onOpenSettingsScreen,
@@ -90,6 +102,7 @@ fun QuizRoot(
                     hasNextQuestion = state.hasNextQuestion,
                     showSubmitButton = !state.answerSubmitted && state.submissionMode == SubmissionMode.MANUAL,
                     canSubmit = state.selectedAnswerId != null,
+                    isCurrentQuestionMarked = state.isCurrentQuestionMarked,
                 ),
                 onPrevious = { viewModel.loadPrevious() },
                 onNext = { viewModel.loadNext() },
@@ -107,6 +120,7 @@ fun QuizRoot(
             JumpToDialog(
                 totalQuestions = state.questionIds.size,
                 currentIndex = state.currentQuestionIndex,
+                markedIndices = markedIndices,
                 onJumpTo = { index ->
                     viewModel.loadQuestion(index)
                     showJumpToDialog = false

@@ -29,6 +29,7 @@ data class FilterUiState(
     val submissionMode: SubmissionMode = SubmissionMode.INSTANT,
     val activePane: FilterPane = FilterPane.Filters,
     val historyEntries: List<QuizSessionRepository.QuizSession> = emptyList(),
+    val markedQuestionCount: Int = 0,
 ) {
     companion object {
         val EMPTY = FilterUiState()

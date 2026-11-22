@@ -46,7 +46,8 @@ class DatabaseManager(
             isStringColumn = { col ->
                 if (col.contains("subId", ignoreCase = true)) isStringSubId else isStringSysId
             },
-            getLogDao = { userDataManager.logDao() }
+            getLogDao = { userDataManager.logDao() },
+            getMarkedQuestionDao = { userDataManager.markedQuestionDao() },
         )
         logDao = LogDao(userDataManager)
     }

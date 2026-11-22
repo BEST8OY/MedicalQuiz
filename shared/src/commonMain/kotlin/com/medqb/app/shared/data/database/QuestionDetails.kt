@@ -21,6 +21,7 @@ data class QuestionDetails(
     val correctAnswerId: Int?,
     val questionHighlights: List<TextHighlight> = emptyList(),
     val explanationHighlights: List<TextHighlight> = emptyList(),
+    val isMarked: Boolean = false,
 ) {
     companion object {
         fun from(

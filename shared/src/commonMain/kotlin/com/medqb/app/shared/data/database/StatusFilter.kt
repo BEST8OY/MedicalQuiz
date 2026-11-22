@@ -21,6 +21,10 @@ enum class QuestionStatus(
     ANSWERED_CORRECTLY(
         displayName = "Answered correctly",
         description = "Questions answered correctly"
+    ),
+    MARKED(
+        displayName = "Marked",
+        description = "Questions you flagged for later review"
     )
 }
 
@@ -53,7 +57,14 @@ data class StatusFilter(
     val scope: StatusScope = StatusScope.ALL_ATTEMPTS
 ) {
     val isAll: Boolean
-        get() = statuses.isEmpty() || statuses.size == QuestionStatus.entries.size
+        get() = statuses.isEmpty() ||
+            (QuestionStatus.NOT_YET_ANSWERED in statuses &&
+                QuestionStatus.ANSWERED_INCORRECTLY in statuses &&
+                QuestionStatus.ANSWERED_CORRECTLY in statuses)
+
+    val usesAttemptScope: Boolean
+        get() = QuestionStatus.ANSWERED_CORRECTLY in statuses ||
+            QuestionStatus.ANSWERED_INCORRECTLY in statuses
 
     val isEmpty: Boolean
         get() = statuses.isEmpty()

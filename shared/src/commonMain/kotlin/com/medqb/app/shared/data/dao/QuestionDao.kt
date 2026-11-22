@@ -6,6 +6,7 @@ import com.medqb.app.shared.data.database.QuestionStatus
 import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.database.StatusScope
 import com.medqb.app.shared.data.local.dao.RoomLogDao
+import com.medqb.app.shared.data.local.dao.RoomMarkedQuestionDao
 import com.medqb.app.shared.data.models.Answer
 import com.medqb.app.shared.data.models.Question
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,7 @@ class QuestionDao(
     private val mutex: Mutex,
     private val isStringColumn: (column: String) -> Boolean,
     private val getLogDao: suspend () -> RoomLogDao,
+    private val getMarkedQuestionDao: (suspend () -> RoomMarkedQuestionDao)? = null,
 ) {
     @Volatile
     private var difficultyIndex: DifficultyIndex = DifficultyIndex.EMPTY
@@ -103,11 +105,11 @@ class QuestionDao(
 
     suspend fun getQuestionIds(
         dbName: String,
-        subjectIds: List<Long>?,
+        subjectIds: List<Long>? = null,
         excludedSubjectIds: List<Long>? = null,
-        systemIds: List<Long>?,
+        systemIds: List<Long>? = null,
         excludedSystemIds: List<Long>? = null,
-        statusFilter: StatusFilter,
+        statusFilter: StatusFilter = StatusFilter.ALL,
         difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): List<Long> = withContext(Dispatchers.IO) {
         val statusMatcher = resolveStatusMatcher(dbName, statusFilter)
@@ -267,31 +269,45 @@ class QuestionDao(
     ): ((Long) -> Boolean)? {
         if (statusFilter.isAll) return null
 
-        val logDao = getLogDao()
         val includeUnanswered = QuestionStatus.NOT_YET_ANSWERED in statusFilter.statuses
         val includeCorrect = QuestionStatus.ANSWERED_CORRECTLY in statusFilter.statuses
         val includeIncorrect = QuestionStatus.ANSWERED_INCORRECTLY in statusFilter.statuses
+        val includeMarked = QuestionStatus.MARKED in statusFilter.statuses
 
-        val allLoggedQids = if (includeUnanswered) logDao.getAllLoggedQids(dbName).toSet() else null
-
+        val needsLogDao = includeUnanswered || includeCorrect || includeIncorrect
+        var allLoggedQids: Set<Long>? = null
         val attemptedQids = mutableSetOf<Long>()
-        if (includeCorrect && includeIncorrect) {
-            attemptedQids.addAll(allLoggedQids ?: logDao.getAllLoggedQids(dbName))
-        } else {
-            when (statusFilter.scope) {
-                StatusScope.LATEST_ATTEMPT -> {
-                    if (includeCorrect) attemptedQids.addAll(logDao.getLastCorrectQids(dbName))
-                    if (includeIncorrect) attemptedQids.addAll(logDao.getLastIncorrectQids(dbName))
-                }
-                StatusScope.ALL_ATTEMPTS -> {
-                    if (includeCorrect) attemptedQids.addAll(logDao.getEverCorrectQids(dbName))
-                    if (includeIncorrect) attemptedQids.addAll(logDao.getEverIncorrectQids(dbName))
+
+        if (needsLogDao) {
+            val logDao = getLogDao()
+            allLoggedQids = if (includeUnanswered) logDao.getAllLoggedQids(dbName).toSet() else null
+
+            if (includeCorrect && includeIncorrect) {
+                attemptedQids.addAll(allLoggedQids ?: logDao.getAllLoggedQids(dbName))
+            } else {
+                when (statusFilter.scope) {
+                    StatusScope.LATEST_ATTEMPT -> {
+                        if (includeCorrect) attemptedQids.addAll(logDao.getLastCorrectQids(dbName))
+                        if (includeIncorrect) attemptedQids.addAll(logDao.getLastIncorrectQids(dbName))
+                    }
+                    StatusScope.ALL_ATTEMPTS -> {
+                        if (includeCorrect) attemptedQids.addAll(logDao.getEverCorrectQids(dbName))
+                        if (includeIncorrect) attemptedQids.addAll(logDao.getEverIncorrectQids(dbName))
+                    }
                 }
             }
         }
 
+        val markedQids: Set<Long>? = if (includeMarked) {
+            getMarkedQuestionDao?.invoke()?.getMarkedQuestionIds(dbName)?.toSet() ?: emptySet()
+        } else {
+            null
+        }
+
         return { qid ->
-            (allLoggedQids != null && qid !in allLoggedQids) || (qid in attemptedQids)
+            (allLoggedQids != null && qid !in allLoggedQids) ||
+                (qid in attemptedQids) ||
+                (markedQids != null && qid in markedQids)
         }
     }
 

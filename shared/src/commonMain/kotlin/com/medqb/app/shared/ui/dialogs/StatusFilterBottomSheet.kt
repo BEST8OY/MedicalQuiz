@@ -51,6 +51,7 @@ import com.medqb.app.shared.data.database.StatusScope
 @Composable
 fun StatusFilterBottomSheet(
     current: StatusFilter,
+    markedCount: Int? = null,
     onSelect: (StatusFilter) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -113,6 +114,7 @@ fun StatusFilterBottomSheet(
                 StatusCheckboxItem(
                     status = status,
                     isSelected = isSelected,
+                    trailingBadge = if (status == QuestionStatus.MARKED) markedCount?.toString() else null,
                     shapes = ListItemDefaults.segmentedShapes(index = index, count = QuestionStatus.entries.size),
                     onToggle = {
                         currentStatuses = if (isSelected) {
@@ -134,12 +136,21 @@ fun StatusFilterBottomSheet(
 
             // Lower Section Header: Mono-selective attempt scopes
             item {
-                Text(
-                    text = "HOW SHOULD STATUS FILTERS BE APPLIED?",
-                    style = MaterialTheme.typography.labelMediumEmphasized,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+                Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                    Text(
+                        text = "HOW SHOULD STATUS FILTERS BE APPLIED?",
+                        style = MaterialTheme.typography.labelMediumEmphasized,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    if (currentStatuses.isNotEmpty() && !StatusFilter(currentStatuses, currentScope).usesAttemptScope) {
+                        Text(
+                            text = "Applies to answered correctly / incorrectly",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
             }
 
             // Radio Button Items (Segmented group)
@@ -217,6 +228,7 @@ private fun StatusCheckboxItem(
     isSelected: Boolean,
     shapes: ListItemShapes,
     onToggle: () -> Unit,
+    trailingBadge: String? = null,
     modifier: Modifier = Modifier
 ) {
     SegmentedListItem(
@@ -245,6 +257,15 @@ private fun StatusCheckboxItem(
                 checked = isSelected,
                 onCheckedChange = null
             )
+        },
+        trailingContent = trailingBadge?.let {
+            {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         },
         supportingContent = {
             Text(

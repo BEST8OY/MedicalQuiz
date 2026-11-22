@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -42,6 +44,7 @@ data class QuizBottomToolbarUiState(
     val hasNextQuestion: Boolean,
     val showSubmitButton: Boolean = false,
     val canSubmit: Boolean = false,
+    val isCurrentQuestionMarked: Boolean = false,
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -154,9 +157,31 @@ fun QuizFloatingToolbar(
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                     ),
                     modifier = Modifier.semantics {
-                        contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}. Tap to jump."
+                        val markSuffix = if (uiState.isCurrentQuestionMarked) ", marked" else ""
+                        contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}$markSuffix. Tap to jump."
                     },
                 ) {
+                    AnimatedVisibility(
+                        visible = uiState.isCurrentQuestionMarked,
+                        enter = expandHorizontally(animationSpec = motionScheme.fastSpatialSpec()) +
+                                fadeIn(animationSpec = motionScheme.fastEffectsSpec()),
+                        exit = shrinkHorizontally(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
+                        ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.Flag,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                    }
                     Text(
                         text = questionLabel,
                         style = MaterialTheme.typography.labelLargeEmphasized,

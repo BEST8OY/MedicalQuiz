@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.FilterStateHolder
+import com.medqb.app.shared.data.MarkedQuestionsRepository
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.DifficultyTier
+import com.medqb.app.shared.data.database.QuestionStatus
 import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.SnackbarSink
@@ -24,17 +26,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -50,6 +55,7 @@ class FilterHubViewModel(
     private val savedStateHandle: SavedStateHandle,
     private val historyCoordinator: AppHistoryCoordinator,
     private val sessionRepository: QuizSessionRepository,
+    private val markedQuestionsRepository: MarkedQuestionsRepository,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
 
@@ -71,6 +77,7 @@ class FilterHubViewModel(
             val status: StatusFilter,
             val difficulties: Set<DifficultyTier>,
             val db: com.medqb.app.shared.data.database.DatabaseProvider?,
+            val markedIdsTrigger: Set<Long> = emptySet(),
         )
 
         private data class DifficultyFilterParameters(
@@ -80,6 +87,7 @@ class FilterHubViewModel(
             val systems: Set<Long>,
             val excludedSystems: Set<Long>,
             val status: StatusFilter,
+            val markedIdsTrigger: Set<Long> = emptySet(),
         )
 
         private data class FilterSelection(
@@ -100,6 +108,16 @@ class FilterHubViewModel(
 
     private val activePaneState = savedStateHandle.getMutableStateFlow<String?>(KEY_ACTIVE_PANE, null)
     private val databaseNameState = savedStateHandle.getMutableStateFlow(KEY_DATABASE_NAME, "")
+
+    private val markedQuestionIdsState: StateFlow<Set<Long>> = activeDatabaseHolder.activeDatabase
+        .map { it?.name.orEmpty() }
+        .distinctUntilChanged()
+        .flatMapLatest { dbName ->
+            if (dbName.isBlank()) flowOf(emptySet())
+            else markedQuestionsRepository.observeMarkedQuestionIds(dbName)
+        }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     private val filterSelectionFlow = combine(
         combine(filterStateHolder.selectedSubjectIds, filterStateHolder.excludedSubjectIds) { sel, excl -> sel to excl },
@@ -124,6 +142,7 @@ class FilterHubViewModel(
         }
 
         setupDatabaseNameTracking()
+        setupMarkedQuestionTracking()
         setupDifficultyTracking()
         setupSubjectsFlow()
         setupSystemsFlow()
@@ -133,6 +152,14 @@ class FilterHubViewModel(
         setupHistoryEntriesFlow()
         setupFilterPersistence()
         restoreSavedFilters()
+    }
+
+    private fun setupMarkedQuestionTracking() {
+        markedQuestionIdsState
+            .onEach { ids ->
+                _state.update { it.copy(markedQuestionCount = ids.size) }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun setActivePane(pane: FilterPane) {
@@ -165,16 +192,19 @@ class FilterHubViewModel(
         combine(
             activeDatabaseHolder.activeDatabase,
             filterSelectionFlow,
-        ) { active, selection ->
+            markedQuestionIdsState,
+        ) { active, selection, markedIds ->
             DifficultyFilterParameters(
-                active?.provider,
-                selection.subjectIds,
-                selection.excludedSubjectIds,
-                selection.systemIds,
-                selection.excludedSystemIds,
-                selection.statusFilter,
+                db = active?.provider,
+                subjects = selection.subjectIds,
+                excludedSubjects = selection.excludedSubjectIds,
+                systems = selection.systemIds,
+                excludedSystems = selection.excludedSystemIds,
+                status = selection.statusFilter,
+                markedIdsTrigger = if (QuestionStatus.MARKED in selection.statusFilter.statuses) markedIds else emptySet(),
             )
         }
+            .distinctUntilChanged()
             .flatMapLatest { params ->
                 flow {
                     val db = params.db
@@ -278,17 +308,20 @@ class FilterHubViewModel(
         combine(
             filterSelectionFlow,
             activeDatabaseHolder.activeDatabase,
-        ) { selection, active ->
+            markedQuestionIdsState,
+        ) { selection, active, markedIds ->
             PreviewFilterParameters(
-                selection.subjectIds,
-                selection.excludedSubjectIds,
-                selection.systemIds,
-                selection.excludedSystemIds,
-                selection.statusFilter,
-                selection.difficultyTiers,
-                active?.provider,
+                subjects = selection.subjectIds,
+                excludedSubjects = selection.excludedSubjectIds,
+                systems = selection.systemIds,
+                excludedSystems = selection.excludedSystemIds,
+                status = selection.statusFilter,
+                difficulties = selection.difficultyTiers,
+                db = active?.provider,
+                markedIdsTrigger = if (QuestionStatus.MARKED in selection.statusFilter.statuses) markedIds else emptySet(),
             )
         }
+            .distinctUntilChanged()
             .flatMapLatest { params ->
                 flow {
                     val count = withContext(ioDispatcher) {

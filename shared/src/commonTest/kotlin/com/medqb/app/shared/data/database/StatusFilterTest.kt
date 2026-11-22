@@ -33,6 +33,35 @@ class StatusFilterTest {
     }
 
     @Test
+    fun allAttemptStatusesWithoutMarkedMatchesAllQuestions() {
+        val filter = StatusFilter(
+            statuses = setOf(
+                QuestionStatus.NOT_YET_ANSWERED,
+                QuestionStatus.ANSWERED_INCORRECTLY,
+                QuestionStatus.ANSWERED_CORRECTLY
+            ),
+            scope = StatusScope.ALL_ATTEMPTS
+        )
+        assertTrue(filter.isAll)
+        assertFalse(filter.isEmpty)
+    }
+
+    @Test
+    fun markedStatusProperties() {
+        val markedFilter = StatusFilter(statuses = setOf(QuestionStatus.MARKED))
+        assertFalse(markedFilter.isAll)
+        assertFalse(markedFilter.isEmpty)
+        assertFalse(markedFilter.usesAttemptScope)
+
+        val combinedFilter = StatusFilter(
+            statuses = setOf(QuestionStatus.ANSWERED_INCORRECTLY, QuestionStatus.MARKED),
+            scope = StatusScope.LATEST_ATTEMPT
+        )
+        assertFalse(combinedFilter.isAll)
+        assertTrue(combinedFilter.usesAttemptScope)
+    }
+
+    @Test
     fun specificFilterProperties() {
         val filter = StatusFilter(statuses = setOf(QuestionStatus.ANSWERED_CORRECTLY), scope = StatusScope.ALL_ATTEMPTS)
         assertFalse(filter.isAll)

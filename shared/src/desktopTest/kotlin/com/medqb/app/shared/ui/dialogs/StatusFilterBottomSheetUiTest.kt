@@ -40,10 +40,11 @@ class StatusFilterBottomSheetUiTest {
         onNodeWithText("INCLUDE QUESTIONS WITH FOLLOWING STATUS:").assertIsDisplayed()
         onNodeWithText("HOW SHOULD STATUS FILTERS BE APPLIED?").assertIsDisplayed()
 
-        // Verify all 3 status checkbox options exist and default to OFF (no option selected)
+        // Verify all 4 status checkbox options exist and default to OFF (no option selected)
         onNodeWithTag("status_checkbox_not_yet_answered").assertIsDisplayed().assertIsOff()
         onNodeWithTag("status_checkbox_answered_incorrectly").assertIsDisplayed().assertIsOff()
         onNodeWithTag("status_checkbox_answered_correctly").assertIsDisplayed().assertIsOff()
+        onNodeWithTag("status_checkbox_marked").assertIsDisplayed().assertIsOff()
 
         // Verify both scope radio options exist and default to ALL_ATTEMPTS
         onNodeWithTag("status_scope_all_attempts").assertIsDisplayed().assertIsSelected()
@@ -140,5 +141,35 @@ class StatusFilterBottomSheetUiTest {
 
         onNodeWithTag("status_cancel_button").performClick()
         assertTrue(dismissed)
+    }
+
+    @Test
+    fun displaysMarkedOptionWithCountBadgeAndScopeHelper() = runComposeUiTest {
+        var appliedFilter: StatusFilter? = null
+
+        setContent {
+            StatusFilterBottomSheet(
+                current = StatusFilter.DEFAULT,
+                markedCount = 14,
+                onSelect = { appliedFilter = it },
+                onDismiss = {}
+            )
+        }
+
+        // Verify Marked checkbox is displayed and shows count badge "14"
+        onNodeWithTag("status_checkbox_marked").assertIsDisplayed().assertIsOff()
+        onNodeWithText("14").assertIsDisplayed()
+
+        // Select Marked
+        onNodeWithTag("status_checkbox_marked").performClick().assertIsOn()
+
+        // Scope helper caption should appear since only non-attempt statuses (MARKED) are selected
+        onNodeWithText("Applies to answered correctly / incorrectly").assertIsDisplayed()
+
+        // Apply
+        onNodeWithTag("status_apply_button").performClick()
+
+        val filter = assertNotNull(appliedFilter)
+        assertEquals(setOf(QuestionStatus.MARKED), filter.statuses)
     }
 }

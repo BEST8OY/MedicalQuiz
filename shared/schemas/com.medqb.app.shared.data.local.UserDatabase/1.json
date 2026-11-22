@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "156548c04005b6130a05d3646744b638",
+    "identityHash": "af06ec1f5fcf5bce5b1ec321b45db71c",
     "entities": [
       {
         "tableName": "text_highlights",
@@ -337,11 +337,42 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_quiz_history_updated_at` ON `${TABLE_NAME}` (`updated_at`)"
           }
         ]
+      },
+      {
+        "tableName": "marked_questions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`db_name` TEXT NOT NULL, `question_id` INTEGER NOT NULL, `marked_at` INTEGER NOT NULL, PRIMARY KEY(`db_name`, `question_id`))",
+        "fields": [
+          {
+            "fieldPath": "dbName",
+            "columnName": "db_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "questionId",
+            "columnName": "question_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "markedAt",
+            "columnName": "marked_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "db_name",
+            "question_id"
+          ]
+        }
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '156548c04005b6130a05d3646744b638')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'af06ec1f5fcf5bce5b1ec321b45db71c')"
     ]
   }
 }

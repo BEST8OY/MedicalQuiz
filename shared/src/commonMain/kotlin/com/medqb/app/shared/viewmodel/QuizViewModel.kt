@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.FilterStateHolder
+import com.medqb.app.shared.data.MarkedQuestionsRepository
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
@@ -40,12 +41,16 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Inject
 class QuizViewModel(
     private val settingsRepository: SettingsRepository,
     private val textHighlightsRepository: TextHighlightsRepository,
+    private val markedQuestionsRepository: MarkedQuestionsRepository,
     private val sessionRepository: QuizSessionRepository,
     private val savedStateHandle: SavedStateHandle,
     private val activeDatabaseHolder: ActiveDatabaseHolder,
@@ -81,6 +86,9 @@ class QuizViewModel(
     // Name of the database whose question ids were last (re)loaded. Distinguishes
     // "first load / db switched" from "filters legitimately produced zero results".
     private var loadedForDbName: String? = null
+    private val markWriteMutex = Mutex()
+    private var markMutationSeq = 0L
+    private val latestMarkSeqByQuestion = mutableMapOf<Pair<String, Long>, Long>()
 
     private fun updateSessionId(id: String) {
         sessionIdState.value = id
@@ -96,7 +104,14 @@ class QuizViewModel(
                 val isFirstLoad = loadedForDbName == null
                 if (dbName != loadedForDbName) {
                     loadedForDbName = dbName
-                    _state.update { it.copy(databaseName = dbName, questionIds = emptyList()) }
+                    _state.update {
+                        it.copy(
+                            databaseName = dbName,
+                            questionIds = emptyList(),
+                            isCurrentQuestionMarked = false,
+                            markedQuestionIds = emptySet(),
+                        )
+                    }
                     // First load after process restore resumes the saved position;
                     // switching to a different QBank restarts at the first question.
                     loadFilteredQuestionIds(
@@ -261,13 +276,18 @@ class QuizViewModel(
                     return@launch
                 }
                 _state.update {
-                    it.copy(currentQuestionIndex = index)
+                    val updatedMarkedIds = if (result.question != null) {
+                        if (result.isMarked) it.markedQuestionIds + result.question.id
+                        else it.markedQuestionIds - result.question.id
+                    } else it.markedQuestionIds
+                    it.copy(currentQuestionIndex = index, markedQuestionIds = updatedMarkedIds)
                         .copyWithQuestion(
                             question = result.question,
                             answers = result.answers,
                             correctAnswerId = result.correctAnswerId,
                             questionHighlights = result.questionHighlights,
                             explanationHighlights = result.explanationHighlights,
+                            isMarked = result.isMarked,
                             resetAnswerState = resetAnswerState
                         )
                         .copy(currentPerformance = result.performance)
@@ -430,6 +450,17 @@ class QuizViewModel(
             val db = active?.provider
             try {
                 val currentState = state.value
+                val markedIds = if (active != null) {
+                    try {
+                        markedQuestionsRepository.getMarkedQuestionIds(active.name)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Logger.e("QuizViewModel", "Error loading marked question ids", e)
+                        emptySet()
+                    }
+                } else emptySet()
+
                 val ids = db?.getQuestionIds(
                     subjectIds = filterStateHolder.selectedSubjectIds.value.toList(),
                     excludedSubjectIds = filterStateHolder.excludedSubjectIds.value.toList(),
@@ -457,6 +488,8 @@ class QuizViewModel(
                             previewQuestionCount = if (updatePreviewCount) 0 else it.previewQuestionCount,
                             isLoading = false,
                             errorMessage = null,
+                            isCurrentQuestionMarked = false,
+                            markedQuestionIds = emptySet(),
                         )
                     }
                     return@launch
@@ -471,7 +504,8 @@ class QuizViewModel(
                     it.copy(
                         questionIds = ids,
                         currentQuestionIndex = newIndex,
-                        previewQuestionCount = if (updatePreviewCount) ids.size else it.previewQuestionCount
+                        previewQuestionCount = if (updatePreviewCount) ids.size else it.previewQuestionCount,
+                        markedQuestionIds = markedIds,
                     )
                 }
                 loadQuestion(newIndex)
@@ -507,6 +541,97 @@ class QuizViewModel(
                 throw e
             } catch (e: Exception) {
                 emitSnackbar("Failed to clear log: ${e.message}")
+            }
+        }
+    }
+
+    fun toggleMark() {
+        val snapshot = state.value
+        val dbName = snapshot.databaseName
+        val questionId = snapshot.currentQuestion?.id ?: return
+        if (dbName.isBlank()) return
+
+        val previousMarked = snapshot.isCurrentQuestionMarked
+        val targetMarked = !previousMarked
+        val key = dbName to questionId
+        val seq = ++markMutationSeq
+        latestMarkSeqByQuestion[key] = seq
+
+        // 1. Optimistic UI update (0ms latency)
+        _state.update { current ->
+            if (current.databaseName != dbName || current.currentQuestion?.id != questionId) {
+                current
+            } else {
+                current.copy(
+                    isCurrentQuestionMarked = targetMarked,
+                    markedQuestionIds = if (targetMarked) {
+                        current.markedQuestionIds + questionId
+                    } else {
+                        current.markedQuestionIds - questionId
+                    }
+                )
+            }
+        }
+
+        // 2. Serialized persistence — Main owns map access, IO performs DB write
+        viewModelScope.launch {
+            markWriteMutex.withLock {
+                // Drop superseded writes before hitting SQLite
+                if (latestMarkSeqByQuestion[key] != seq) return@withLock
+                try {
+                    val persisted = withContext(ioDispatcher) {
+                        markedQuestionsRepository.setMarked(dbName, questionId, targetMarked)
+                    }
+                    if (latestMarkSeqByQuestion[key] != seq) return@withLock
+                    _state.update { current ->
+                        if (current.databaseName != dbName) return@update current
+                        val updatedIds = if (persisted) {
+                            current.markedQuestionIds + questionId
+                        } else {
+                            current.markedQuestionIds - questionId
+                        }
+                        current.copy(
+                            markedQuestionIds = updatedIds,
+                            isCurrentQuestionMarked = if (current.currentQuestion?.id == questionId) {
+                                persisted
+                            } else {
+                                current.isCurrentQuestionMarked
+                            }
+                        )
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Logger.e("QuizViewModel", "Error updating mark for question $questionId", e)
+                    if (latestMarkSeqByQuestion[key] == seq) {
+                        val fallbackMarked = try {
+                            withContext(ioDispatcher) {
+                                markedQuestionsRepository.isMarked(dbName, questionId)
+                            }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            previousMarked
+                        }
+                        _state.update { current ->
+                            if (current.databaseName != dbName) return@update current
+                            val revertedIds = if (fallbackMarked) {
+                                current.markedQuestionIds + questionId
+                            } else {
+                                current.markedQuestionIds - questionId
+                            }
+                            current.copy(
+                                markedQuestionIds = revertedIds,
+                                isCurrentQuestionMarked = if (current.currentQuestion?.id == questionId) {
+                                    fallbackMarked
+                                } else {
+                                    current.isCurrentQuestionMarked
+                                }
+                            )
+                        }
+                    }
+                    emitSnackbar("Failed to update marked status")
+                }
             }
         }
     }

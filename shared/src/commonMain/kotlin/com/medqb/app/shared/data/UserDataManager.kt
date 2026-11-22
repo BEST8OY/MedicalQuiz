@@ -6,6 +6,7 @@ import androidx.room3.withWriteTransaction
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.medqb.app.shared.data.local.UserDatabase
 import com.medqb.app.shared.data.local.dao.RoomLogDao
+import com.medqb.app.shared.data.local.dao.RoomMarkedQuestionDao
 import com.medqb.app.shared.data.local.dao.RoomSessionHistoryDao
 import com.medqb.app.shared.data.local.dao.RoomTextHighlightDao
 import com.medqb.app.shared.di.AppScope
@@ -74,6 +75,8 @@ open class UserDataManager {
     open suspend fun sessionHistoryDao(): RoomSessionHistoryDao = getDatabase().sessionHistoryDao()
 
     open suspend fun textHighlightDao(): RoomTextHighlightDao = getDatabase().textHighlightDao()
+
+    open suspend fun markedQuestionDao(): RoomMarkedQuestionDao = getDatabase().markedQuestionDao()
 
     /**
      * Runs [block] inside a single write transaction on the user database.

@@ -56,6 +56,7 @@ class QuizViewModelTest {
         settings: FakeSettingsRepository = FakeSettingsRepository(isLoggingEnabled = true),
         snackbar: FakeSnackbarSink = FakeSnackbarSink(),
         highlights: FakeTextHighlightsRepository = FakeTextHighlightsRepository(),
+        markedQuestions: FakeMarkedQuestionsRepository = FakeMarkedQuestionsRepository(),
     ): QuizViewModel {
         return QuizViewModel(
             settingsRepository = settings,
@@ -63,9 +64,10 @@ class QuizViewModelTest {
             sessionRepository = sessionRepository,
             savedStateHandle = SavedStateHandle(),
             activeDatabaseHolder = holder,
-            loadQuestionUseCase = LoadQuestionUseCase(highlights),
+            loadQuestionUseCase = LoadQuestionUseCase(highlights, markedQuestions),
             snackbarSink = snackbar,
             filterStateHolder = FilterStateHolder(),
+            markedQuestionsRepository = markedQuestions,
             ioDispatcher = StandardTestDispatcher(scheduler),
         )
     }
@@ -359,9 +361,10 @@ class QuizViewModelTest {
             sessionRepository = FakeQuizSessionRepository(),
             savedStateHandle = SavedStateHandle(),
             activeDatabaseHolder = holder,
-            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository()),
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
             snackbarSink = FakeSnackbarSink(),
             filterStateHolder = FilterStateHolder(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
             ioDispatcher = StandardTestDispatcher(scheduler),
         )
         provider.installInto(holder)
@@ -404,9 +407,10 @@ class QuizViewModelTest {
             sessionRepository = FakeQuizSessionRepository(),
             savedStateHandle = savedStateHandle,
             activeDatabaseHolder = holder,
-            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository()),
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
             snackbarSink = FakeSnackbarSink(),
             filterStateHolder = FilterStateHolder(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
             ioDispatcher = StandardTestDispatcher(scheduler),
         )
         // Immediately upon construction without advanceUntilIdle, toolbarTitle.value must be synchronous
@@ -441,9 +445,10 @@ class QuizViewModelTest {
             sessionRepository = FakeQuizSessionRepository(),
             savedStateHandle = savedStateHandle,
             activeDatabaseHolder = holder,
-            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository()),
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
             snackbarSink = FakeSnackbarSink(),
             filterStateHolder = FilterStateHolder(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
             ioDispatcher = StandardTestDispatcher(scheduler),
         )
         provider.installInto(holder)
@@ -537,9 +542,10 @@ class QuizViewModelTest {
             sessionRepository = sessionRepo,
             savedStateHandle = SavedStateHandle(),
             activeDatabaseHolder = holder,
-            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository()),
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
             snackbarSink = FakeSnackbarSink(),
             filterStateHolder = filterHolder,
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
             ioDispatcher = StandardTestDispatcher(scheduler),
         )
         provider.installInto(holder)
@@ -581,9 +587,10 @@ class QuizViewModelTest {
             sessionRepository = FakeQuizSessionRepository(),
             savedStateHandle = SavedStateHandle(),
             activeDatabaseHolder = holder,
-            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository()),
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
             snackbarSink = FakeSnackbarSink(),
             filterStateHolder = filterHolder,
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
             ioDispatcher = StandardTestDispatcher(scheduler),
         )
         provider.installInto(holder)
@@ -616,9 +623,10 @@ class QuizViewModelTest {
             sessionRepository = sessionRepo,
             savedStateHandle = SavedStateHandle(),
             activeDatabaseHolder = holder,
-            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository()),
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
             snackbarSink = FakeSnackbarSink(),
             filterStateHolder = filterHolder,
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
             ioDispatcher = StandardTestDispatcher(scheduler),
         )
         provider.installInto(holder)
@@ -657,6 +665,178 @@ class QuizViewModelTest {
         assertNull(viewModel.state.value.errorMessage)
         assertEquals(listOf(1L, 2L), viewModel.state.value.questionIds)
         assertEquals(1L, viewModel.state.value.currentQuestion?.id)
+    }
+
+    @Test
+    fun toggleMarkOptimisticallyUpdatesUiAndPersists() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val markedRepo = FakeMarkedQuestionsRepository()
+        val viewModel = createViewModel(provider, holder, markedQuestions = markedRepo)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals(1L, viewModel.state.value.currentQuestion?.id)
+        assertFalse(viewModel.state.value.isCurrentQuestionMarked)
+        assertTrue(viewModel.state.value.markedQuestionIds.isEmpty())
+
+        // 1. Toggle mark to true
+        viewModel.toggleMark()
+        // Optimistic update happens immediately
+        assertTrue(viewModel.state.value.isCurrentQuestionMarked)
+        assertEquals(setOf(1L), viewModel.state.value.markedQuestionIds)
+
+        // Wait for persistence
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.isCurrentQuestionMarked)
+        assertTrue(markedRepo.isMarked("bank", 1L))
+
+        // 2. Toggle mark to false
+        viewModel.toggleMark()
+        assertFalse(viewModel.state.value.isCurrentQuestionMarked)
+        assertTrue(viewModel.state.value.markedQuestionIds.isEmpty())
+
+        advanceUntilIdle()
+        assertFalse(viewModel.state.value.isCurrentQuestionMarked)
+        assertFalse(markedRepo.isMarked("bank", 1L))
+    }
+
+    @Test
+    fun rapidDoubleTogglePreservesFinalStateWithoutFlicker() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val markedRepo = FakeMarkedQuestionsRepository()
+        val viewModel = createViewModel(provider, holder, markedQuestions = markedRepo)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        // Block persistence in fake
+        val gate = CompletableDeferred<Unit>()
+        markedRepo.setGate = gate
+
+        // Rapid tap: false -> true -> false
+        viewModel.toggleMark()
+        assertTrue(viewModel.state.value.isCurrentQuestionMarked)
+
+        viewModel.toggleMark()
+        assertFalse(viewModel.state.value.isCurrentQuestionMarked)
+
+        // Release first and second writes
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        // Final state must remain false without out-of-order race clobbering
+        assertFalse(viewModel.state.value.isCurrentQuestionMarked)
+        assertFalse(markedRepo.isMarked("bank", 1L))
+        assertTrue(viewModel.state.value.markedQuestionIds.isEmpty())
+    }
+
+    @Test
+    fun slowMarkWriteDoesNotClobberNextQuestion() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val markedRepo = FakeMarkedQuestionsRepository()
+        val viewModel = createViewModel(provider, holder, markedQuestions = markedRepo)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals(1L, viewModel.state.value.currentQuestion?.id)
+        val gate = CompletableDeferred<Unit>()
+        markedRepo.setGate = gate
+
+        // Mark question 1 (write hangs at gate)
+        viewModel.toggleMark()
+        assertTrue(viewModel.state.value.isCurrentQuestionMarked)
+
+        // Move to question 2 (id=2L, which is unmarked)
+        viewModel.loadQuestion(1)
+        advanceUntilIdle()
+
+        assertEquals(2L, viewModel.state.value.currentQuestion?.id)
+        assertFalse(viewModel.state.value.isCurrentQuestionMarked)
+
+        // Now complete the slow write for question 1
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        // Question 2 must still NOT be marked, but question 1 remains in markedQuestionIds
+        assertEquals(2L, viewModel.state.value.currentQuestion?.id)
+        assertFalse(viewModel.state.value.isCurrentQuestionMarked)
+        assertEquals(setOf(1L), viewModel.state.value.markedQuestionIds)
+        assertTrue(markedRepo.isMarked("bank", 1L))
+    }
+
+    @Test
+    fun markWriteFailureRevertsOptimisticStateAndEmitsSnackbar() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val markedRepo = FakeMarkedQuestionsRepository()
+        val snackbar = FakeSnackbarSink()
+        val viewModel = createViewModel(provider, holder, markedQuestions = markedRepo, snackbar = snackbar)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        markedRepo.failWrites = true
+
+        viewModel.toggleMark()
+        // Optimistic update initially sets it to true
+        assertTrue(viewModel.state.value.isCurrentQuestionMarked)
+
+        // Persistence fails
+        advanceUntilIdle()
+
+        // Reverted to false
+        assertFalse(viewModel.state.value.isCurrentQuestionMarked)
+        assertTrue(viewModel.state.value.markedQuestionIds.isEmpty())
+        assertTrue(snackbar.messages.any { (it as? SnackbarMessage.Simple)?.message == "Failed to update marked status" })
+    }
+
+    @Test
+    fun clearingLogPreservesMarkedStatus() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val markedRepo = FakeMarkedQuestionsRepository()
+        val viewModel = createViewModel(provider, holder, markedQuestions = markedRepo)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        viewModel.toggleMark()
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.isCurrentQuestionMarked)
+
+        viewModel.clearCurrentQuestionLog()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.isCurrentQuestionMarked)
+        assertEquals(setOf(1L), viewModel.state.value.markedQuestionIds)
+        assertTrue(markedRepo.isMarked("bank", 1L))
+    }
+
+    @Test
+    fun initialAtomicLoadReflectsPreExistingMarkAndNavigationUpdatesMarkedState() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val markedRepo = FakeMarkedQuestionsRepository()
+        // Pre-seed question 1 as marked
+        markedRepo.seedMarked("bank", 1L)
+
+        val viewModel = createViewModel(provider, holder, markedQuestions = markedRepo)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        // Initial question 1 is marked
+        assertEquals(1L, viewModel.state.value.currentQuestion?.id)
+        assertTrue(viewModel.state.value.isCurrentQuestionMarked)
+        assertEquals(setOf(1L), viewModel.state.value.markedQuestionIds)
+
+        // Navigate to question 2 (id=2L, unmarked)
+        viewModel.loadNext()
+        advanceUntilIdle()
+
+        assertEquals(2L, viewModel.state.value.currentQuestion?.id)
+        assertFalse(viewModel.state.value.isCurrentQuestionMarked)
+        // Session markedQuestionIds still retains 1L
+        assertEquals(setOf(1L), viewModel.state.value.markedQuestionIds)
     }
 }
 

@@ -35,6 +35,8 @@ data class QuizUiState(
     val showMetadata: Boolean = true,
     val autoLoadFirstQuestion: Boolean = false,
     val fontScalePreference: Float? = null,
+    val isCurrentQuestionMarked: Boolean = false,
+    val markedQuestionIds: Set<Long> = emptySet(),
 ) {
     val totalQuestions: Int
         get() = questionIds.size
@@ -58,6 +60,7 @@ data class QuizUiState(
         correctAnswerId: Int?,
         questionHighlights: List<TextHighlight>,
         explanationHighlights: List<TextHighlight>,
+        isMarked: Boolean = false,
         resetAnswerState: Boolean
     ): QuizUiState {
         return copy(
@@ -67,6 +70,7 @@ data class QuizUiState(
             // Highlights always swap with the question — they belong to it.
             questionHighlights = questionHighlights,
             explanationHighlights = explanationHighlights,
+            isCurrentQuestionMarked = isMarked,
             selectedAnswerId = if (resetAnswerState) null else selectedAnswerId,
             answerSubmitted = if (resetAnswerState) false else answerSubmitted,
             errorMessage = null

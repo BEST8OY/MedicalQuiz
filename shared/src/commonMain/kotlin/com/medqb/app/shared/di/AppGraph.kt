@@ -3,10 +3,12 @@ package com.medqb.app.shared.di
 import androidx.lifecycle.SavedStateHandle
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.DataStoreSettingsRepository
+import com.medqb.app.shared.data.DefaultMarkedQuestionsRepository
 import com.medqb.app.shared.data.DefaultQuizSessionRepository
 import com.medqb.app.shared.data.DefaultTextHighlightsRepository
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.LocalContentRepository
+import com.medqb.app.shared.data.MarkedQuestionsRepository
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
@@ -36,6 +38,7 @@ interface AppGraph {
     val userDataManager: UserDataManager
     val sessionRepository: QuizSessionRepository
     val textHighlightsRepository: TextHighlightsRepository
+    val markedQuestionsRepository: MarkedQuestionsRepository
     val filterStateHolder: FilterStateHolder
     val appIntentDispatcher: AppIntentDispatcher
     val snackbarDispatcher: SnackbarDispatcher
@@ -55,6 +58,9 @@ interface AppGraph {
     @Binds
     fun bindTextHighlightsRepository(impl: DefaultTextHighlightsRepository): TextHighlightsRepository
 
+    @Binds
+    fun bindMarkedQuestionsRepository(impl: DefaultMarkedQuestionsRepository): MarkedQuestionsRepository
+
     fun createDatabaseSelectionViewModel(): DatabaseSelectionViewModel {
         return DatabaseSelectionViewModel(
             startupCoordinator = startupCoordinator
@@ -71,6 +77,7 @@ interface AppGraph {
             savedStateHandle = savedStateHandle,
             historyCoordinator = historyCoordinator,
             sessionRepository = sessionRepository,
+            markedQuestionsRepository = markedQuestionsRepository,
         )
     }
 
@@ -78,6 +85,7 @@ interface AppGraph {
         return QuizViewModel(
             settingsRepository = settingsRepository,
             textHighlightsRepository = textHighlightsRepository,
+            markedQuestionsRepository = markedQuestionsRepository,
             sessionRepository = sessionRepository,
             savedStateHandle = savedStateHandle,
             activeDatabaseHolder = activeDatabaseHolder,
