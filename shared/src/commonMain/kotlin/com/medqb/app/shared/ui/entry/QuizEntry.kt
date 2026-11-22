@@ -25,11 +25,11 @@ fun QuizEntry(
         factory = viewModelFactory {
             initializer {
                 val handle = createSavedStateHandle()
-                if (route.sessionId.isNotBlank()) handle["sessionId"] = route.sessionId
-                if (route.entryName.isNotBlank()) handle["entryName"] = route.entryName
-                handle["currentQuestionIndex"] = route.initialQuestionIndex
-                route.isLoggingEnabled?.let { handle["isLoggingEnabled"] = it }
-                route.submissionMode?.let { handle["submissionMode"] = it }
+                if (route.sessionId.isNotBlank() && !handle.contains("sessionId")) handle["sessionId"] = route.sessionId
+                if (route.entryName.isNotBlank() && !handle.contains("entryName")) handle["entryName"] = route.entryName
+                if (!handle.contains("currentQuestionIndex")) handle["currentQuestionIndex"] = route.initialQuestionIndex
+                if (!handle.contains("isLoggingEnabled")) route.isLoggingEnabled?.let { handle["isLoggingEnabled"] = it }
+                if (!handle.contains("submissionMode")) route.submissionMode?.let { handle["submissionMode"] = it }
                 graph.createQuizViewModel(handle)
             }
         }

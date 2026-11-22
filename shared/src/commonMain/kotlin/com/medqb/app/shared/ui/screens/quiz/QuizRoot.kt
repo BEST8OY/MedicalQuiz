@@ -12,6 +12,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +51,10 @@ fun QuizRoot(
 
     // Dialog states - these are overlays within the quiz screen
     var showJumpToDialog by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(state.questionIds.isEmpty()) {
+        if (state.questionIds.isEmpty()) showJumpToDialog = false
+    }
 
     CompositionLocalProvider(LocalActiveSharedElementKey provides mediaHandler.activeSharedElementKey) {
         Box(modifier = modifier.fillMaxSize()) {
@@ -94,31 +99,33 @@ fun QuizRoot(
             }
 
             // Floating toolbar - overlays content
-            QuizFloatingToolbar(
-                uiState = QuizBottomToolbarUiState(
-                    currentQuestionIndex = state.currentQuestionIndex,
-                    totalQuestions = state.questionIds.size,
-                    hasPreviousQuestion = state.hasPreviousQuestion,
-                    hasNextQuestion = state.hasNextQuestion,
-                    showSubmitButton = !state.answerSubmitted && state.submissionMode == SubmissionMode.MANUAL,
-                    canSubmit = state.selectedAnswerId != null,
-                    isCurrentQuestionMarked = state.isCurrentQuestionMarked,
-                ),
-                onPrevious = { viewModel.loadPrevious() },
-                onNext = { viewModel.loadNext() },
-                onJumpTo = { showJumpToDialog = true },
-                onSubmit = { viewModel.submitAnswer(timeTaken = 0L) },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = bottomPadding + 16.dp)
-                    .zIndex(1f)
-            )
+            if (state.questionIds.isNotEmpty()) {
+                QuizFloatingToolbar(
+                    uiState = QuizBottomToolbarUiState(
+                        currentQuestionIndex = state.currentQuestionIndex,
+                        totalQuestions = state.totalQuestions,
+                        hasPreviousQuestion = state.hasPreviousQuestion,
+                        hasNextQuestion = state.hasNextQuestion,
+                        showSubmitButton = !state.answerSubmitted && state.submissionMode == SubmissionMode.MANUAL,
+                        canSubmit = state.selectedAnswerId != null,
+                        isCurrentQuestionMarked = state.isCurrentQuestionMarked,
+                    ),
+                    onPrevious = { viewModel.loadPrevious() },
+                    onNext = { viewModel.loadNext() },
+                    onJumpTo = { showJumpToDialog = true },
+                    onSubmit = { viewModel.submitAnswer(timeTaken = 0L) },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = bottomPadding + 16.dp)
+                        .zIndex(1f)
+                )
+            }
         }
 
         // Dialogs - rendered as overlays
-        if (showJumpToDialog) {
+        if (showJumpToDialog && state.questionIds.isNotEmpty()) {
             JumpToDialog(
-                totalQuestions = state.questionIds.size,
+                totalQuestions = state.totalQuestions,
                 currentIndex = state.currentQuestionIndex,
                 markedIndices = markedIndices,
                 onJumpTo = { index ->

@@ -33,13 +33,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.rememberSliderState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -72,7 +72,10 @@ fun JumpToDialog(
     onJumpTo: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    if (totalQuestions <= 0) return
+    if (totalQuestions <= 0) {
+        LaunchedEffect(Unit) { onDismiss() }
+        return
+    }
 
     val sortedMarkedIndices = remember(markedIndices, totalQuestions) {
         markedIndices.filter { it in 0 until totalQuestions }.sorted()
@@ -82,8 +85,14 @@ fun JumpToDialog(
     var inputValue by rememberSaveable(totalQuestions, currentIndex) {
         mutableStateOf(clampedCurrent.toString())
     }
-    var sliderValue by rememberSaveable(totalQuestions, currentIndex) {
-        mutableFloatStateOf(clampedCurrent.toFloat())
+    val sliderState = key(totalQuestions, currentIndex) {
+        if (totalQuestions > 1) {
+            rememberSliderState(
+                value = (inputValue.toIntOrNull()?.coerceIn(1, totalQuestions) ?: clampedCurrent).toFloat(),
+                steps = if (totalQuestions > 50) 0 else (totalQuestions - 2).coerceAtLeast(0),
+                trackRange = 1f..totalQuestions.toFloat()
+            )
+        } else null
     }
 
     val focusManager = LocalFocusManager.current
@@ -91,12 +100,6 @@ fun JumpToDialog(
     val typedNumber = inputValue.toIntOrNull()
     val isValid = typedNumber != null && typedNumber in 1..totalQuestions
     val isTargetMarked = typedNumber != null && (typedNumber - 1) in markedIndices
-
-    LaunchedEffect(typedNumber, totalQuestions) {
-        if (typedNumber != null && typedNumber in 1..totalQuestions) {
-            sliderValue = typedNumber.toFloat()
-        }
-    }
 
     DialogShell(onDismiss = onDismiss) {
         DialogHeader(
@@ -127,8 +130,9 @@ fun JumpToDialog(
                     FilledTonalIconButton(
                         onClick = {
                             val current = inputValue.toIntOrNull() ?: clampedCurrent
-                            val newValue = (current - 1).coerceAtLeast(1)
+                            val newValue = if (current > totalQuestions) totalQuestions else (current - 1).coerceIn(1, totalQuestions)
                             inputValue = newValue.toString()
+                            sliderState?.value = newValue.toFloat()
                         },
                         enabled = (inputValue.toIntOrNull() ?: clampedCurrent) > 1,
                         modifier = Modifier.size(48.dp)
@@ -140,7 +144,13 @@ fun JumpToDialog(
                     OutlinedTextField(
                         value = inputValue,
                         onValueChange = { value ->
-                            inputValue = value.filter { it.isDigit() }.take(maxDigits)
+                            val digitsOnly = value.filter { it.isDigit() }.take(maxDigits)
+                            inputValue = digitsOnly
+                            digitsOnly.toIntOrNull()?.let { num ->
+                                if (num in 1..totalQuestions) {
+                                    sliderState?.value = num.toFloat()
+                                }
+                            }
                         },
                         modifier = Modifier
                             .width(120.dp)
@@ -173,8 +183,9 @@ fun JumpToDialog(
                     FilledTonalIconButton(
                         onClick = {
                             val current = inputValue.toIntOrNull() ?: clampedCurrent
-                            val newValue = (current + 1).coerceAtMost(totalQuestions)
+                            val newValue = if (current < 1) 1 else (current + 1).coerceIn(1, totalQuestions)
                             inputValue = newValue.toString()
+                            sliderState?.value = newValue.toFloat()
                         },
                         enabled = (inputValue.toIntOrNull() ?: clampedCurrent) < totalQuestions,
                         modifier = Modifier.size(48.dp)
@@ -218,23 +229,16 @@ fun JumpToDialog(
             }
 
             // Slider for quick navigation
-            if (totalQuestions > 1) {
+            if (sliderState != null) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val sliderSteps = if (totalQuestions > 50) 0 else (totalQuestions - 2).coerceAtLeast(0)
-                    val sliderState = rememberSliderState(
-                        value = sliderValue,
-                        steps = sliderSteps,
-                        trackRange = 1f..totalQuestions.toFloat()
-                    )
-                    LaunchedEffect(sliderValue) {
-                        sliderState.value = sliderValue
-                    }
                     Slider(
                         state = sliderState,
                         onValueChange = { newValue ->
-                            sliderValue = newValue
+                            sliderState.value = newValue
                             val snapped = newValue.roundToInt().coerceIn(1, totalQuestions)
-                            inputValue = snapped.toString()
+                            if (snapped.toString() != inputValue) {
+                                inputValue = snapped.toString()
+                            }
                         },
                         colors = SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.primary,

@@ -131,8 +131,8 @@ private fun QuestionContent(
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
                         .widthIn(max = 840.dp)
+                        .fillMaxSize()
                 ) {
                     QuizQuestionCard(
                         state = state,

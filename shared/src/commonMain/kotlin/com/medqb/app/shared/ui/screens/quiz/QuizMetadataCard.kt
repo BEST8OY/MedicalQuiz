@@ -23,6 +23,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.models.Question
 
@@ -38,7 +39,7 @@ internal fun computeMetadataSections(question: Question?): List<MetadataSection>
 
     currentQuestion.difficultyTier?.let { tier ->
         val label = if (currentQuestion.pplTaken != null && currentQuestion.pplTaken > 0 && currentQuestion.corrTaken != null) {
-            val rate = ((currentQuestion.corrTaken / currentQuestion.pplTaken) * 100).toInt()
+            val rate = ((currentQuestion.corrTaken / currentQuestion.pplTaken) * 100).roundToInt().coerceIn(0, 100)
             "${tier.displayName} ($rate% correct)"
         } else {
             tier.displayName

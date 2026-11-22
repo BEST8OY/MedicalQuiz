@@ -27,6 +27,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -837,6 +838,118 @@ class QuizViewModelTest {
         assertFalse(viewModel.state.value.isCurrentQuestionMarked)
         // Session markedQuestionIds still retains 1L
         assertEquals(setOf(1L), viewModel.state.value.markedQuestionIds)
+    }
+
+    @Test
+    fun explicitRouteSettingsAreNotOverwrittenByObserveSettings() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val settings = FakeSettingsRepository(
+            isLoggingEnabled = true,
+            submissionMode = SubmissionMode.INSTANT
+        )
+        val handle = SavedStateHandle(
+            mapOf(
+                "isLoggingEnabled" to false,
+                "submissionMode" to SubmissionMode.MANUAL.name
+            )
+        )
+        val viewModel = QuizViewModel(
+            settingsRepository = settings,
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            sessionRepository = FakeQuizSessionRepository(),
+            savedStateHandle = handle,
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isLoggingEnabled)
+        assertEquals(SubmissionMode.MANUAL, viewModel.state.value.submissionMode)
+    }
+
+    @Test
+    fun emptyFilterResultsCleansUpAllStaleState() = runQuizTest {
+        val provider1 = FakeDatabaseProvider(dbName = "bank1")
+        val holder = ActiveDatabaseHolder()
+        val highlights = FakeTextHighlightsRepository().apply {
+            seedHighlights(
+                "bank1", 1L, listOf(
+                    TextHighlight(1, "bank1", 1L, HighlightSection.QUESTION, 0, 5, "Hello", HighlightColor.YELLOW, 0),
+                    TextHighlight(2, "bank1", 1L, HighlightSection.EXPLANATION, 0, 4, "Expl", HighlightColor.GREEN, 0)
+                )
+            )
+        }
+        val viewModel = QuizViewModel(
+            settingsRepository = FakeSettingsRepository(isLoggingEnabled = true),
+            textHighlightsRepository = highlights,
+            sessionRepository = FakeQuizSessionRepository(),
+            savedStateHandle = SavedStateHandle(),
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(highlights, FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        provider1.installInto(holder)
+        advanceUntilIdle()
+
+        // Verify question 1 was fully loaded with answers, highlights, and performance
+        assertEquals(1L, viewModel.state.value.currentQuestion?.id)
+        assertEquals(101, viewModel.state.value.correctAnswerId)
+        assertEquals(1, viewModel.state.value.questionHighlights.size)
+        assertEquals(1, viewModel.state.value.explanationHighlights.size)
+
+        viewModel.onAnswerSelected(101L)
+        viewModel.submitAnswer(0L)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.answerSubmitted)
+        assertNotNull(viewModel.state.value.currentPerformance)
+
+        // Now switch to a database that returns 0 questions
+        val provider2 = FakeDatabaseProvider(dbName = "bank2")
+        provider2.questionIdsProvider = { _, _, _, _, _, _ -> emptyList() }
+        provider2.installInto(holder)
+        advanceUntilIdle()
+
+        // Assert all stale state was wiped clean
+        assertEquals(-1, viewModel.state.value.currentQuestionIndex)
+        assertNull(viewModel.state.value.currentQuestion)
+        assertNull(viewModel.state.value.correctAnswerId)
+        assertNull(viewModel.state.value.selectedAnswerId)
+        assertNull(viewModel.state.value.currentPerformance)
+        assertFalse(viewModel.state.value.answerSubmitted)
+        assertTrue(viewModel.state.value.questionHighlights.isEmpty())
+        assertTrue(viewModel.state.value.explanationHighlights.isEmpty())
+        assertFalse(viewModel.state.value.isLoading)
+    }
+
+    @Test
+    fun initialNullActiveDatabaseDoesNotWipeRestoredQuestionIndex() = runQuizTest {
+        val holder = ActiveDatabaseHolder()
+        val handle = SavedStateHandle(mapOf("currentQuestionIndex" to 42))
+        val viewModel = QuizViewModel(
+            settingsRepository = FakeSettingsRepository(),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            sessionRepository = FakeQuizSessionRepository(),
+            savedStateHandle = handle,
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        advanceUntilIdle()
+
+        assertEquals(42, viewModel.state.value.currentQuestionIndex)
     }
 }
 

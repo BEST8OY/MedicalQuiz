@@ -26,6 +26,9 @@ class MediaHandler(
     fun handleMediaLink(url: String): Boolean {
         val trimmed = url.trim()
         if (trimmed.isEmpty()) return false
+        if (trimmed.startsWith("http://", ignoreCase = true) || trimmed.startsWith("https://", ignoreCase = true)) {
+            return false
+        }
 
         // Prefer a consistent filename extraction (drops query/fragment, trims whitespace).
         fun extractedFileName(raw: String): String? {

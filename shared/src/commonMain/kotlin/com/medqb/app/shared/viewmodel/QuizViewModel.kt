@@ -70,6 +70,8 @@ class QuizViewModel(
     }
 
     private val isSessionRestored = savedStateHandle.get<String>(KEY_SESSION_ID)?.isNotBlank() == true
+    private val hasExplicitLoggingSetting = savedStateHandle.contains(KEY_IS_LOGGING_ENABLED)
+    private val hasExplicitSubmissionMode = savedStateHandle.contains(KEY_SUBMISSION_MODE)
     private val _state = MutableStateFlow(restoreInitialState())
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
 
@@ -99,10 +101,40 @@ class QuizViewModel(
 
         viewModelScope.launch {
             activeDatabaseHolder.activeDatabase.collect { active ->
-                val dbName = active?.name ?: return@collect
+                if (active == null) {
+                    if (loadedForDbName != null) {
+                        loadQuestionJob?.cancel()
+                        loadQuestionJob = null
+                        filteredIdsJob?.cancel()
+                        filteredIdsJob = null
+                        loadedForDbName = null
+                        _state.update {
+                            it.copy(
+                                databaseName = "",
+                                questionIds = emptyList(),
+                                currentQuestionIndex = -1,
+                                currentQuestion = null,
+                                currentAnswers = emptyList(),
+                                selectedAnswerId = null,
+                                correctAnswerId = null,
+                                questionHighlights = emptyList(),
+                                explanationHighlights = emptyList(),
+                                currentPerformance = null,
+                                answerSubmitted = false,
+                                isLoading = false,
+                                isCurrentQuestionMarked = false,
+                                markedQuestionIds = emptySet(),
+                            )
+                        }
+                    }
+                    return@collect
+                }
+                val dbName = active.name
 
                 val isFirstLoad = loadedForDbName == null
                 if (dbName != loadedForDbName) {
+                    loadQuestionJob?.cancel()
+                    loadQuestionJob = null
                     loadedForDbName = dbName
                     _state.update {
                         it.copy(
@@ -304,7 +336,7 @@ class QuizViewModel(
                 _state.update { it.copy(errorMessage = msg) }
                 emitSnackbar("Failed to load question: $msg")
             } finally {
-                if (isActive) {
+                if (isActive && activeDatabaseHolder.activeDatabase.value === active) {
                     _state.update { it.copy(isLoading = false) }
                 }
             }
@@ -387,7 +419,15 @@ class QuizViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.update { it.copy(answerSubmitted = false) }
+                if (activeDatabaseHolder.activeDatabase.value === active) {
+                    _state.update { current ->
+                        if (current.currentQuestion?.id == question.id) {
+                            current.copy(answerSubmitted = false)
+                        } else {
+                            current
+                        }
+                    }
+                }
                 emitSnackbar("Error saving answer: ${e.message}")
             }
         }
@@ -443,6 +483,8 @@ class QuizViewModel(
         updatePreviewCount: Boolean = true,
         startFromBeginning: Boolean = false,
     ) {
+        loadQuestionJob?.cancel()
+        loadQuestionJob = null
         filteredIdsJob?.cancel()
         filteredIdsJob = viewModelScope.launch(ioDispatcher) {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
@@ -480,10 +522,14 @@ class QuizViewModel(
                     _state.update {
                         it.copy(
                             questionIds = emptyList(),
-                            currentQuestionIndex = 0,
+                            currentQuestionIndex = -1,
                             currentQuestion = null,
                             currentAnswers = emptyList(),
                             selectedAnswerId = null,
+                            correctAnswerId = null,
+                            questionHighlights = emptyList(),
+                            explanationHighlights = emptyList(),
+                            currentPerformance = null,
                             answerSubmitted = false,
                             previewQuestionCount = if (updatePreviewCount) 0 else it.previewQuestionCount,
                             isLoading = false,
@@ -651,8 +697,8 @@ class QuizViewModel(
                     it.copy(
                         showMetadata = settings.metadata,
                         fontScalePreference = settings.fontScale,
-                        isLoggingEnabled = if (isSessionRestored) it.isLoggingEnabled else settings.isLoggingEnabled,
-                        submissionMode = if (isSessionRestored) it.submissionMode else settings.submissionMode,
+                        isLoggingEnabled = if (hasExplicitLoggingSetting || isSessionRestored) it.isLoggingEnabled else settings.isLoggingEnabled,
+                        submissionMode = if (hasExplicitSubmissionMode || isSessionRestored) it.submissionMode else settings.submissionMode,
                     )
                 }
             }

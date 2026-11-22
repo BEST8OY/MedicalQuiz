@@ -141,7 +141,7 @@ private fun AnswerListItem(
 
     val trailingTextColor = when {
         showResult && isCorrect -> MaterialTheme.colorScheme.onSecondaryContainer
-        showResult -> MaterialTheme.colorScheme.onErrorContainer
+        showResult && isSelected && !isCorrect -> MaterialTheme.colorScheme.onErrorContainer
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
@@ -171,9 +171,9 @@ private fun AnswerListItem(
     }
 
     val stateDescription = when {
+        showResult && isSelected && isCorrect -> "Your choice, correct"
         showResult && isCorrect -> "Correct answer"
         showResult && isSelected && !isCorrect -> "Your choice, incorrect"
-        showResult && isSelected -> "Your choice, correct"
         isSelected -> "Selected"
         else -> "Not selected"
     }
