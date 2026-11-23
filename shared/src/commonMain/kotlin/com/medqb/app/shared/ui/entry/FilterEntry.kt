@@ -70,8 +70,8 @@ fun FilterEntry(
         viewModel = filterVM,
         onStartQuiz = onStartQuiz,
         onHistorySelected = onHistorySelected,
-        onLoggingToggle = { graph.settingsRepository.setLoggingEnabled(it) },
-        onSubmissionModeToggle = { graph.settingsRepository.setSubmissionMode(it) },
+        onLoggingToggle = { filterVM.setLoggingEnabled(it) },
+        onSubmissionModeToggle = { filterVM.setSubmissionMode(it) },
         onShowSnackbar = { message -> graph.snackbarDispatcher.emitSnackbar(message) },
         onDismissSnackbar = { snackbarHostState.currentSnackbarData?.dismiss() },
     )

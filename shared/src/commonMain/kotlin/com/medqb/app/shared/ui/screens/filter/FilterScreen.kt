@@ -4,9 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -63,7 +63,9 @@ internal fun FilterScreen(
         selectedDifficultyTiers.isNotEmpty() &&
         selectedDifficultyTiers.size < DifficultyTier.entries.size
     val hasFilters = subjectCount > 0 ||
+        excludedSubjectCount > 0 ||
         systemCount > 0 ||
+        excludedSystemCount > 0 ||
         !statusFilter.isAll ||
         isDifficultyActive
 
@@ -102,112 +104,52 @@ internal fun FilterScreen(
                                     .height(IntrinsicSize.Max),
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                Column(
+                                SubjectSystemFilterGroup(
+                                    subjectCount = subjectCount,
+                                    excludedSubjectCount = excludedSubjectCount,
+                                    systemCount = systemCount,
+                                    excludedSystemCount = excludedSystemCount,
+                                    onSelectSubjects = onSelectSubjects,
+                                    onSelectSystems = onSelectSystems,
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxHeight(),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    FilterSelectionSegmentedItem(
-                                        title = "Subjects",
-                                        subtitle = formatSelectionSubtitle(subjectCount, excludedSubjectCount, "subject", "subjects"),
-                                        icon = Icons.Filled.Category,
-                                        index = 0,
-                                        count = 2,
-                                        isActive = subjectCount > 0 || excludedSubjectCount > 0,
-                                        onClick = onSelectSubjects,
-                                    )
+                                )
 
-                                    FilterSelectionSegmentedItem(
-                                        title = "Systems",
-                                        subtitle = formatSelectionSubtitle(systemCount, excludedSystemCount, "system", "systems"),
-                                        icon = Icons.Filled.Layers,
-                                        index = 1,
-                                        count = 2,
-                                        isActive = systemCount > 0 || excludedSystemCount > 0,
-                                        onClick = onSelectSystems,
-                                    )
-                                }
-
-                                Column(
+                                StatusDifficultyFilterGroup(
+                                    statusFilter = statusFilter,
+                                    statusLabel = statusLabel,
+                                    difficultyLabel = difficultyLabel,
+                                    isDifficultyAvailable = isDifficultyAvailable,
+                                    isDifficultyActive = isDifficultyActive,
+                                    onSelectStatus = onSelectStatus,
+                                    onSelectDifficulty = onSelectDifficulty,
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxHeight(),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    FilterSelectionSegmentedItem(
-                                        title = "Status",
-                                        subtitle = statusLabel,
-                                        icon = Icons.AutoMirrored.Filled.TrendingUp,
-                                        index = 0,
-                                        count = 2,
-                                        isActive = !statusFilter.isAll,
-                                        onClick = onSelectStatus,
-                                    )
-
-                                    FilterSelectionSegmentedItem(
-                                        title = "Difficulty",
-                                        subtitle = if (!isDifficultyAvailable) "Not available for this bank" else difficultyLabel,
-                                        icon = Icons.Filled.FitnessCenter,
-                                        index = 1,
-                                        count = 2,
-                                        isActive = isDifficultyActive,
-                                        enabled = isDifficultyAvailable,
-                                        onClick = onSelectDifficulty,
-                                    )
-                                }
+                                )
                             }
                         } else {
-                            Column(
+                            SubjectSystemFilterGroup(
+                                subjectCount = subjectCount,
+                                excludedSubjectCount = excludedSubjectCount,
+                                systemCount = systemCount,
+                                excludedSystemCount = excludedSystemCount,
+                                onSelectSubjects = onSelectSubjects,
+                                onSelectSystems = onSelectSystems,
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                FilterSelectionSegmentedItem(
-                                    title = "Subjects",
-                                    subtitle = formatSelectionSubtitle(subjectCount, excludedSubjectCount, "subject", "subjects"),
-                                    icon = Icons.Filled.Category,
-                                    index = 0,
-                                    count = 2,
-                                    isActive = subjectCount > 0 || excludedSubjectCount > 0,
-                                    onClick = onSelectSubjects,
-                                )
+                            )
 
-                                FilterSelectionSegmentedItem(
-                                    title = "Systems",
-                                    subtitle = formatSelectionSubtitle(systemCount, excludedSystemCount, "system", "systems"),
-                                    icon = Icons.Filled.Layers,
-                                    index = 1,
-                                    count = 2,
-                                    isActive = systemCount > 0 || excludedSystemCount > 0,
-                                    onClick = onSelectSystems,
-                                )
-                            }
-
-                            Column(
+                            StatusDifficultyFilterGroup(
+                                statusFilter = statusFilter,
+                                statusLabel = statusLabel,
+                                difficultyLabel = difficultyLabel,
+                                isDifficultyAvailable = isDifficultyAvailable,
+                                isDifficultyActive = isDifficultyActive,
+                                onSelectStatus = onSelectStatus,
+                                onSelectDifficulty = onSelectDifficulty,
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                FilterSelectionSegmentedItem(
-                                    title = "Status",
-                                    subtitle = statusLabel,
-                                    icon = Icons.AutoMirrored.Filled.TrendingUp,
-                                    index = 0,
-                                    count = 2,
-                                    isActive = !statusFilter.isAll,
-                                    onClick = onSelectStatus,
-                                )
-
-                                FilterSelectionSegmentedItem(
-                                    title = "Difficulty",
-                                    subtitle = if (!isDifficultyAvailable) "Not available for this bank" else difficultyLabel,
-                                    icon = Icons.Filled.FitnessCenter,
-                                    index = 1,
-                                    count = 2,
-                                    isActive = isDifficultyActive,
-                                    enabled = isDifficultyAvailable,
-                                    onClick = onSelectDifficulty,
-                                )
-                            }
+                            )
                         }
 
                         Column(
@@ -252,29 +194,76 @@ internal fun FilterScreen(
     }
 }
 
-internal fun formatDifficultyLabel(selectedTiers: Set<DifficultyTier>): String {
-    return when {
-        selectedTiers.isEmpty() || selectedTiers.size == DifficultyTier.entries.size -> "All Difficulties"
-        selectedTiers.size == 1 -> selectedTiers.first().displayName
-        selectedTiers.size == 2 -> selectedTiers.sortedBy { it.ordinal }.joinToString(", ") { it.displayName }
-        else -> "${selectedTiers.size} selected"
+@Composable
+private fun SubjectSystemFilterGroup(
+    subjectCount: Int,
+    excludedSubjectCount: Int,
+    systemCount: Int,
+    excludedSystemCount: Int,
+    onSelectSubjects: () -> Unit,
+    onSelectSystems: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        FilterSelectionSegmentedItem(
+            title = "Subjects",
+            subtitle = formatSelectionSubtitle(subjectCount, excludedSubjectCount, "subject", "subjects"),
+            icon = Icons.Filled.Category,
+            index = 0,
+            count = 2,
+            isActive = subjectCount > 0 || excludedSubjectCount > 0,
+            onClick = onSelectSubjects,
+        )
+
+        FilterSelectionSegmentedItem(
+            title = "Systems",
+            subtitle = formatSelectionSubtitle(systemCount, excludedSystemCount, "system", "systems"),
+            icon = Icons.Filled.Layers,
+            index = 1,
+            count = 2,
+            isActive = systemCount > 0 || excludedSystemCount > 0,
+            onClick = onSelectSystems,
+        )
     }
 }
 
-internal fun formatSelectionSubtitle(
-    includedCount: Int,
-    excludedCount: Int,
-    singular: String,
-    plural: String,
-): String {
-    return when {
-        includedCount == 0 && excludedCount == 0 -> "All $plural"
-        includedCount > 0 && excludedCount == 0 -> {
-            if (includedCount == 1) "1 $singular selected" else "$includedCount selected"
-        }
-        includedCount == 0 && excludedCount > 0 -> {
-            if (excludedCount == 1) "All except 1 $singular" else "All except $excludedCount"
-        }
-        else -> "$includedCount selected • $excludedCount excluded"
+@Composable
+private fun StatusDifficultyFilterGroup(
+    statusFilter: StatusFilter,
+    statusLabel: String,
+    difficultyLabel: String,
+    isDifficultyAvailable: Boolean,
+    isDifficultyActive: Boolean,
+    onSelectStatus: () -> Unit,
+    onSelectDifficulty: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        FilterSelectionSegmentedItem(
+            title = "Status",
+            subtitle = statusLabel,
+            icon = Icons.AutoMirrored.Filled.TrendingUp,
+            index = 0,
+            count = 2,
+            isActive = !statusFilter.isAll,
+            onClick = onSelectStatus,
+        )
+
+        FilterSelectionSegmentedItem(
+            title = "Difficulty",
+            subtitle = if (!isDifficultyAvailable) "Not available for this bank" else difficultyLabel,
+            icon = Icons.Filled.FitnessCenter,
+            index = 1,
+            count = 2,
+            isActive = isDifficultyActive,
+            enabled = isDifficultyAvailable,
+            onClick = onSelectDifficulty,
+        )
     }
 }

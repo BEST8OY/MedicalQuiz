@@ -9,6 +9,7 @@ import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Shared filter state holder scoped to the app graph.
@@ -17,8 +18,6 @@ import kotlinx.coroutines.flow.asStateFlow
 @Inject
 @SingleIn(AppScope::class)
 class FilterStateHolder {
-    private val lock = Any()
-
     private val _filter = MutableStateFlow(QuestionFilter.EMPTY)
     val filter: StateFlow<QuestionFilter> = _filter.asStateFlow()
 
@@ -40,56 +39,70 @@ class FilterStateHolder {
     private val _selectedDifficultyTiers = MutableStateFlow<Set<DifficultyTier>>(emptySet())
     val selectedDifficultyTiers: StateFlow<Set<DifficultyTier>> = _selectedDifficultyTiers.asStateFlow()
 
-    private fun updateUnderLock(transform: (QuestionFilter) -> QuestionFilter) {
-        synchronized(lock) {
-            val next = transform(_filter.value).sanitized()
-            _filter.value = next
-            _selectedSubjectIds.value = next.selectedSubjectIds
-            _excludedSubjectIds.value = next.excludedSubjectIds
-            _selectedSystemIds.value = next.selectedSystemIds
-            _excludedSystemIds.value = next.excludedSystemIds
-            _statusFilter.value = next.statusFilter
-            _selectedDifficultyTiers.value = next.selectedDifficultyTiers
-        }
+    private fun updateFilterInternal(transform: (QuestionFilter) -> QuestionFilter) {
+        _filter.update { transform(it).sanitized() }
+        val latest = _filter.value
+        _selectedSubjectIds.value = latest.selectedSubjectIds
+        _excludedSubjectIds.value = latest.excludedSubjectIds
+        _selectedSystemIds.value = latest.selectedSystemIds
+        _excludedSystemIds.value = latest.excludedSystemIds
+        _statusFilter.value = latest.statusFilter
+        _selectedDifficultyTiers.value = latest.selectedDifficultyTiers
     }
 
     fun updateSubjectIds(ids: Set<Long>) {
-        updateUnderLock { it.copy(selectedSubjectIds = ids, excludedSubjectIds = it.excludedSubjectIds - ids) }
+        updateFilterInternal { it.copy(selectedSubjectIds = ids, excludedSubjectIds = it.excludedSubjectIds - ids) }
     }
 
     fun updateExcludedSubjectIds(ids: Set<Long>) {
-        updateUnderLock { it.copy(excludedSubjectIds = ids, selectedSubjectIds = it.selectedSubjectIds - ids) }
+        updateFilterInternal { it.copy(excludedSubjectIds = ids, selectedSubjectIds = it.selectedSubjectIds - ids) }
     }
 
     fun setSubjects(included: Set<Long>, excluded: Set<Long>) {
-        updateUnderLock { it.copy(selectedSubjectIds = included, excludedSubjectIds = excluded - included) }
+        updateFilterInternal { it.copy(selectedSubjectIds = included, excludedSubjectIds = excluded - included) }
     }
 
     fun updateSystemIds(ids: Set<Long>) {
-        updateUnderLock { it.copy(selectedSystemIds = ids, excludedSystemIds = it.excludedSystemIds - ids) }
+        updateFilterInternal { it.copy(selectedSystemIds = ids, excludedSystemIds = it.excludedSystemIds - ids) }
     }
 
     fun updateExcludedSystemIds(ids: Set<Long>) {
-        updateUnderLock { it.copy(excludedSystemIds = ids, selectedSystemIds = it.selectedSystemIds - ids) }
+        updateFilterInternal { it.copy(excludedSystemIds = ids, selectedSystemIds = it.selectedSystemIds - ids) }
     }
 
     fun setSystems(included: Set<Long>, excluded: Set<Long>) {
-        updateUnderLock { it.copy(selectedSystemIds = included, excludedSystemIds = excluded - included) }
+        updateFilterInternal { it.copy(selectedSystemIds = included, excludedSystemIds = excluded - included) }
+    }
+
+    fun setSubjectsAndSystems(
+        selectedSubjects: Set<Long>,
+        excludedSubjects: Set<Long>,
+        selectedSystems: Set<Long>,
+        excludedSystems: Set<Long>,
+    ) {
+        updateFilterInternal {
+            it.copy(
+                selectedSubjectIds = selectedSubjects,
+                excludedSubjectIds = excludedSubjects - selectedSubjects,
+                selectedSystemIds = selectedSystems,
+                excludedSystemIds = excludedSystems - selectedSystems,
+            )
+        }
     }
 
     fun updateStatusFilter(filter: StatusFilter) {
-        updateUnderLock { it.copy(statusFilter = filter) }
+        updateFilterInternal { it.copy(statusFilter = filter) }
     }
 
     fun updateDifficultyTiers(tiers: Set<DifficultyTier>) {
-        updateUnderLock { it.copy(selectedDifficultyTiers = tiers) }
+        updateFilterInternal { it.copy(selectedDifficultyTiers = tiers) }
     }
 
     fun updateFilter(filter: QuestionFilter) {
-        updateUnderLock { filter }
+        updateFilterInternal { filter }
     }
 
     fun reset() {
-        updateUnderLock { QuestionFilter.EMPTY }
+        updateFilterInternal { QuestionFilter.EMPTY }
     }
 }

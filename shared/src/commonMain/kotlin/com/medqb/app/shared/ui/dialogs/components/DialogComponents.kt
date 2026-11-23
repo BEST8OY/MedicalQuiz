@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -202,14 +203,19 @@ fun DialogActions(
         TextButton(
             onClick = onPrimary,
             enabled = primaryEnabled,
-        ) {
-            Text(
-                text = primaryText,
-                color = if (destructive) MaterialTheme.colorScheme.error
-                else MaterialTheme.colorScheme.primary.copy(
-                    alpha = if (primaryEnabled) 1f else 0.38f
+            colors = if (destructive) {
+                ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                    disabledContentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.38f)
                 )
-            )
+            } else {
+                ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    disabledContentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+                )
+            }
+        ) {
+            Text(text = primaryText)
         }
     }
 }

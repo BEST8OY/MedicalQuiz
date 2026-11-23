@@ -1,10 +1,15 @@
 package com.medqb.app.shared.ui.screens.filter
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.QuestionStatus
 import com.medqb.app.shared.data.database.StatusFilter
@@ -12,6 +17,7 @@ import com.medqb.app.shared.data.database.StatusScope
 import com.medqb.app.shared.data.models.SubmissionMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
@@ -180,5 +186,98 @@ class FilterScreenUiTest {
         onNodeWithText("Incorrect").assertIsDisplayed()
         onNodeWithText("Easy, Intermediate").assertIsDisplayed()
         onNodeWithText("25 questions available").assertIsDisplayed()
+    }
+
+    @Test
+    fun displaysResetButtonWhenOnlyExclusionsAreActive() = runComposeUiTest {
+        var resetClicked = false
+
+        setContent {
+            FilterScreen(
+                databaseName = "Surgery Bank",
+                subjectCount = 0,
+                excludedSubjectCount = 2,
+                systemCount = 0,
+                excludedSystemCount = 0,
+                statusFilter = StatusFilter.DEFAULT,
+                statusLabel = "All Questions",
+                previewCount = 25,
+                isLoggingEnabled = true,
+                onLoggingToggle = {},
+                submissionMode = SubmissionMode.INSTANT,
+                onSubmissionModeToggle = {},
+                onSelectSubjects = {},
+                onSelectSystems = {},
+                onSelectStatus = {},
+                onStart = {},
+                onClearFilters = { resetClicked = true },
+            )
+        }
+
+        onNodeWithText("Reset").assertIsDisplayed()
+        onNodeWithText("Reset").performClick()
+        assertTrue(resetClicked, "Reset button should be clickable and trigger callback when only exclusions are active")
+    }
+
+    @Test
+    fun disablesStartQuizWhenPreviewCountIsZero() = runComposeUiTest {
+        var startClicked = false
+
+        setContent {
+            FilterScreen(
+                databaseName = "Empty Match Bank",
+                subjectCount = 1,
+                systemCount = 1,
+                statusFilter = StatusFilter.DEFAULT,
+                statusLabel = "All Questions",
+                previewCount = 0,
+                isLoggingEnabled = true,
+                onLoggingToggle = {},
+                submissionMode = SubmissionMode.INSTANT,
+                onSubmissionModeToggle = {},
+                onSelectSubjects = {},
+                onSelectSystems = {},
+                onSelectStatus = {},
+                onStart = { startClicked = true },
+                onClearFilters = {},
+            )
+        }
+
+        onNodeWithText("No matches")
+            .assertIsDisplayed()
+            .assertIsNotEnabled()
+        onNodeWithText("No matches").performClick()
+        assertFalse(startClicked, "onStart should not be invoked when previewCount is zero")
+    }
+
+    @Test
+    fun rendersWideScreenLayoutProperly() = runComposeUiTest {
+        setContent {
+            Box(modifier = Modifier.requiredSize(800.dp, 600.dp)) {
+                FilterScreen(
+                    databaseName = "USMLE Step 1",
+                    subjectCount = 2,
+                    systemCount = 3,
+                    statusFilter = StatusFilter.DEFAULT,
+                    statusLabel = "All Questions",
+                    previewCount = 120,
+                    isLoggingEnabled = true,
+                    onLoggingToggle = {},
+                    submissionMode = SubmissionMode.INSTANT,
+                    onSubmissionModeToggle = {},
+                    onSelectSubjects = {},
+                    onSelectSystems = {},
+                    onSelectStatus = {},
+                    onStart = {},
+                    onClearFilters = {},
+                )
+            }
+        }
+
+        onNodeWithText("USMLE Step 1").assertIsDisplayed()
+        onNodeWithText("120 questions available").assertIsDisplayed()
+        onNodeWithText("Subjects").assertIsDisplayed()
+        onNodeWithText("Systems").assertIsDisplayed()
+        onNodeWithText("Status").assertIsDisplayed()
     }
 }

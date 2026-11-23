@@ -1,15 +1,12 @@
 package com.medqb.app.shared.ui.dialogs
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -17,26 +14,23 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.toggleableState
-import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.database.DifficultyTier
+import com.medqb.app.shared.ui.dialogs.components.BottomSheetActions
+import com.medqb.app.shared.ui.dialogs.components.BottomSheetHeader
+import com.medqb.app.shared.ui.dialogs.components.FilterModalBottomSheet
 
 /**
  * Material 3 multi-select bottom sheet for choosing question difficulty tiers using segmented list items.
@@ -50,38 +44,23 @@ fun DifficultyFilterBottomSheet(
     onDismiss: () -> Unit,
 ) {
     val tiers = DifficultyTier.entries
-    var currentSelection by remember(selectedTiers) {
+    var currentSelection by rememberSaveable(
+        selectedTiers,
+        stateSaver = listSaver(
+            save = { it.map { tier -> tier.name } },
+            restore = { names -> names.mapNotNull { runCatching { DifficultyTier.valueOf(it) }.getOrNull() }.toSet() }
+        )
+    ) {
         mutableStateOf(selectedTiers)
     }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
+    FilterModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        sheetMaxWidth = BottomSheetDefaults.SheetMaxWidth,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = {
-            BottomSheetDefaults.DragHandle(
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
-        },
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp)
-        ) {
-            Text(
-                text = "Filter by difficulty",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = "Select one or more difficulty tiers",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        BottomSheetHeader(
+            title = "Filter by difficulty",
+            subtitle = "Select one or more difficulty tiers",
+        )
 
         Row(
             modifier = Modifier
@@ -133,29 +112,13 @@ fun DifficultyFilterBottomSheet(
             }
         }
 
-        // Actions Row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(
-                onClick = onDismiss,
-            ) {
-                Text("Cancel")
-            }
-            Button(
-                onClick = { onApply(currentSelection) },
-                modifier = Modifier.padding(start = 8.dp),
-            ) {
-                Text(
-                    text = "Apply",
-                    style = MaterialTheme.typography.labelLargeEmphasized,
-                )
-            }
-        }
+        BottomSheetActions(
+            onCancel = onDismiss,
+            onApply = {
+                val normalized = if (currentSelection.size == tiers.size) emptySet() else currentSelection
+                onApply(normalized)
+            },
+        )
     }
 }
 
@@ -175,15 +138,10 @@ private fun DifficultyFilterItem(
     }
 
     SegmentedListItem(
-        selected = isSelected,
-        onClick = onToggle,
+        checked = isSelected,
+        onCheckedChange = { onToggle() },
         shapes = shapes,
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics {
-                role = Role.Checkbox
-                toggleableState = if (isSelected) ToggleableState.On else ToggleableState.Off
-            },
+        modifier = Modifier.fillMaxWidth(),
         colors = ListItemDefaults.segmentedColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,

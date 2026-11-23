@@ -66,11 +66,11 @@ import kotlinx.coroutines.launch
 internal fun HistoryPane(
     historyEntries: List<QuizSessionRepository.QuizSession>,
     onHistorySelected: (QuizSessionRepository.QuizSession) -> Unit,
-    onDeleteHistoryEntries: suspend (Set<String>) -> Unit,
+    onDeleteHistoryEntries: (Set<String>) -> Unit,
     onRenameHistoryEntry: (String, String) -> Unit,
     onCopyAllQids: (List<QuizSessionRepository.QuizSession>, (String) -> Unit) -> Unit,
     onSelectionModeChanged: (Boolean) -> Unit,
-    onUndoDelete: suspend (QuizSessionRepository.QuizSession) -> Unit = {},
+    onUndoDelete: (List<QuizSessionRepository.QuizSession>) -> Unit = {},
     onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
     onDismissSnackbar: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -78,7 +78,6 @@ internal fun HistoryPane(
     val clipboard = LocalClipboard.current
     var selectedHistoryEntryIds by rememberSaveable { mutableStateOf(setOf<String>()) }
     var isFabMenuExpanded by rememberSaveable { mutableStateOf(false) }
-    var lastCopiedText by rememberSaveable { mutableStateOf("") }
     var renameTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var renameText by rememberSaveable { mutableStateOf("") }
     val allHistoryEntryIds = remember(historyEntries) { historyEntries.map { it.id }.toSet() }
@@ -100,8 +99,8 @@ internal fun HistoryPane(
             isFabMenuExpanded = false
         }
 
+        onDeleteHistoryEntries(deletedEntryIds)
         scope.launch {
-            onDeleteHistoryEntries(deletedEntryIds)
             onShowSnackbar(
                 SnackbarMessage.Action(
                     message = if (deletedEntryIds.size == 1) {
@@ -111,15 +110,12 @@ internal fun HistoryPane(
                     },
                     actionLabel = "Undo",
                     onActionPerformed = {
-                        entriesToDelete.forEach { entry ->
-                            onUndoDelete(entry)
-                        }
+                        onUndoDelete(entriesToDelete)
                         restoredEntryVersions = restoredEntryVersions.withIncrementedVersions(deletedEntryIds)
                         pendingDeleteIds = pendingDeleteIds - deletedEntryIds
                     },
                 )
             )
-            pendingDeleteIds = pendingDeleteIds - deletedEntryIds
         }
     }
 
@@ -136,6 +132,7 @@ internal fun HistoryPane(
 
     LaunchedEffect(allHistoryEntryIds) {
         selectedHistoryEntryIds = selectedHistoryEntryIds.intersect(allHistoryEntryIds)
+        pendingDeleteIds = pendingDeleteIds.intersect(allHistoryEntryIds)
         if (selectedHistoryEntryIds.isEmpty()) {
             isFabMenuExpanded = false
         }
@@ -143,14 +140,6 @@ internal fun HistoryPane(
 
     LaunchedEffect(selectedHistoryEntryIds) {
         onSelectionModeChanged(selectedHistoryEntryIds.isNotEmpty())
-    }
-
-    LaunchedEffect(lastCopiedText) {
-        if (lastCopiedText.isNotBlank()) {
-            clipboard.setPlainText(AnnotatedString(lastCopiedText))
-            onShowSnackbar(SnackbarMessage.Simple("Copied QIDs to clipboard"))
-            lastCopiedText = ""
-        }
     }
 
     DisposableEffect(Unit) {
@@ -301,7 +290,12 @@ internal fun HistoryPane(
                             val selectedEntries = historyEntries
                                 .filter { it.id in selectedHistoryEntryIds }
                             onCopyAllQids(selectedEntries) { qidsText ->
-                                lastCopiedText = qidsText
+                                if (qidsText.isNotBlank()) {
+                                    scope.launch {
+                                        clipboard.setPlainText(AnnotatedString(qidsText))
+                                        onShowSnackbar(SnackbarMessage.Simple("Copied QIDs to clipboard"))
+                                    }
+                                }
                             }
                             isFabMenuExpanded = false
                         },

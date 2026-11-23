@@ -69,6 +69,24 @@ class ApplyFiltersUseCaseTest {
     }
 
     @Test
+    fun normalizeSelectedSystemsPairOverloadNormalizesBothSelectedAndExcluded() = runTest {
+        val db = FakeDatabaseProvider().apply {
+            seededSystems = listOf(
+                System(id = 101, name = "GI", count = 12),
+                System(id = 103, name = "Renal", count = 8),
+            )
+        }
+        val (selected, excluded) = useCase.normalizeSelectedSystems(
+            db = db,
+            selectedSubjectIds = setOf(2L),
+            selectedSystems = setOf(101L, 102L),
+            excludedSystems = setOf(103L, 104L),
+        )
+        assertEquals(setOf(101L), selected)
+        assertEquals(setOf(103L), excluded)
+    }
+
+    @Test
     fun normalizeSelectedSystemsWithNullDbReturnsEmptySet() = runTest {
         val normalized = useCase.normalizeSelectedSystems(
             db = null,
@@ -141,8 +159,20 @@ class ApplyFiltersUseCaseTest {
     }
 
     @Test
-    fun subjectsForSystemsFetchReturnsListOrNullWhenEmpty() {
-        assertEquals(listOf(1L, 2L), useCase.subjectsForSystemsFetch(setOf(1L, 2L)))
-        assertEquals(null, useCase.subjectsForSystemsFetch(emptySet()))
+    fun pruneSystemsForSubjectsPrunesBothIncludedAndExcludedSimultaneously() = runTest {
+        val db = FakeDatabaseProvider().apply {
+            seededSystems = listOf(
+                System(id = 10, name = "Cardio", count = 5),
+                System(id = 30, name = "Renal", count = 3),
+            )
+        }
+        val (selected, excluded) = useCase.pruneSystemsForSubjects(
+            db = db,
+            newSubjectIds = setOf(1L),
+            selectedSystems = setOf(10L, 20L),
+            excludedSystems = setOf(30L, 40L),
+        )
+        assertEquals(setOf(10L), selected)
+        assertEquals(setOf(30L), excluded)
     }
 }

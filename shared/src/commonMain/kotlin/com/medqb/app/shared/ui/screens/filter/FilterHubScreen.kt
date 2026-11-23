@@ -21,13 +21,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.DifficultyTier
-import com.medqb.app.shared.data.database.QuestionStatus
 import com.medqb.app.shared.data.database.StatusFilter
-import com.medqb.app.shared.data.database.StatusScope
-import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.ui.dialogs.DifficultyFilterBottomSheet
@@ -36,8 +34,9 @@ import com.medqb.app.shared.ui.dialogs.SubjectFilterBottomSheet
 import com.medqb.app.shared.ui.dialogs.SystemFilterBottomSheet
 import com.medqb.app.shared.ui.screens.history.HistoryPane
 import com.medqb.app.shared.viewmodel.FilterHubViewModel
-
 import com.medqb.app.shared.ui.state.FilterUiState
+
+private enum class ActiveFilterSheet { Subjects, Systems, Status, Difficulty }
 
 @Composable
 internal fun FilterHubScreen(
@@ -68,7 +67,7 @@ internal fun FilterHubScreen(
         onDeleteHistoryEntries = { viewModel.deleteHistoryEntries(it) },
         onRenameHistoryEntry = { id, name -> viewModel.renameHistoryEntry(id, name) },
         onCopyAllQids = { entries, onCopied -> viewModel.copyQuestionIdsForHistoryEntries(entries, onCopied) },
-        onUndoDelete = { viewModel.undoHistoryEntry(it) },
+        onUndoDelete = { viewModel.undoHistoryEntries(it) },
         onFetchSubjects = { viewModel.fetchSubjects() },
         onApplySelectedSubjects = { inc, excl -> viewModel.applySelectedSubjects(inc, excl) },
         onFetchSystems = { viewModel.fetchSystems() },
@@ -90,10 +89,10 @@ internal fun FilterHubContent(
     onSubmissionModeToggle: (SubmissionMode) -> Unit,
     onPaneSelected: (FilterPane) -> Unit,
     onClearFilters: () -> Unit,
-    onDeleteHistoryEntries: suspend (Set<String>) -> Unit,
+    onDeleteHistoryEntries: (Set<String>) -> Unit,
     onRenameHistoryEntry: (String, String) -> Unit,
     onCopyAllQids: (List<QuizSessionRepository.QuizSession>, (String) -> Unit) -> Unit,
-    onUndoDelete: suspend (QuizSessionRepository.QuizSession) -> Unit,
+    onUndoDelete: (List<QuizSessionRepository.QuizSession>) -> Unit,
     onFetchSubjects: () -> Unit,
     onApplySelectedSubjects: (Set<Long>, Set<Long>) -> Unit,
     onFetchSystems: () -> Unit,
@@ -107,11 +106,7 @@ internal fun FilterHubContent(
     val statusLabel = formatStatusFilterLabel(state.statusFilter)
     val difficultyLabel = formatDifficultyLabel(state.selectedDifficultyTiers)
 
-    var showSubjectSheet by rememberSaveable { mutableStateOf(false) }
-    var showSystemSheet by rememberSaveable { mutableStateOf(false) }
-    var showStatusSheet by rememberSaveable { mutableStateOf(false) }
-    var showDifficultySheet by rememberSaveable { mutableStateOf(false) }
-
+    var activeSheet by rememberSaveable { mutableStateOf<ActiveFilterSheet?>(null) }
     var historySelectionMode by rememberSaveable { mutableStateOf(false) }
 
     FilterPaneScaffold(
@@ -130,7 +125,7 @@ internal fun FilterHubContent(
                 targetState = state.activePane,
                 transitionSpec = {
                     val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
-                    ((slideInHorizontally(animationSpec = motionScheme.defaultSpatialSpec()) { (it * 0.20f * direction).roundToInt() } +
+                    (slideInHorizontally(animationSpec = motionScheme.defaultSpatialSpec()) { (it * 0.20f * direction).roundToInt() } +
                         fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
                         (slideOutHorizontally(
                             animationSpec = spring(
@@ -138,9 +133,7 @@ internal fun FilterHubContent(
                                 stiffness = Spring.StiffnessMediumLow
                             )
                         ) { (-it * 0.20f * direction).roundToInt() } +
-                            fadeOut(animationSpec = motionScheme.fastEffectsSpec()))).apply {
-                        targetContentZIndex = 0f
-                    }
+                            fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
                 },
                 label = "filter_pane_content",
             ) { activePane ->
@@ -163,10 +156,10 @@ internal fun FilterHubContent(
                             submissionMode = state.submissionMode,
                             onSubmissionModeToggle = onSubmissionModeToggle,
                             bottomContentPadding = bottomContentPadding,
-                            onSelectSubjects = { showSubjectSheet = true },
-                            onSelectSystems = { showSystemSheet = true },
-                            onSelectStatus = { showStatusSheet = true },
-                            onSelectDifficulty = { showDifficultySheet = true },
+                            onSelectSubjects = { activeSheet = ActiveFilterSheet.Subjects },
+                            onSelectSystems = { activeSheet = ActiveFilterSheet.Systems },
+                            onSelectStatus = { activeSheet = ActiveFilterSheet.Status },
+                            onSelectDifficulty = { activeSheet = ActiveFilterSheet.Difficulty },
                             onStart = {
                                 onDismissSnackbar()
                                 onStartQuiz()
@@ -195,96 +188,55 @@ internal fun FilterHubContent(
         }
     }
 
-    if (showSubjectSheet) {
-        SubjectFilterBottomSheet(
-            resource = state.subjectsResource,
-            selectedIds = state.selectedSubjectIds,
-            excludedIds = state.excludedSubjectIds,
-            onRetry = onFetchSubjects,
-            onApply = { included, excluded ->
-                onApplySelectedSubjects(included, excluded)
-                showSubjectSheet = false
-            },
-            onDismiss = { showSubjectSheet = false }
-        )
-    }
-
-    if (showSystemSheet) {
-        SystemFilterBottomSheet(
-            resource = state.systemsResource,
-            selectedIds = state.selectedSystemIds,
-            excludedIds = state.excludedSystemIds,
-            onRetry = onFetchSystems,
-            onApply = { included, excluded ->
-                onApplySelectedSystems(included, excluded)
-                showSystemSheet = false
-            },
-            onDismiss = { showSystemSheet = false }
-        )
-    }
-
-    if (showStatusSheet) {
-        StatusFilterBottomSheet(
-            current = state.statusFilter,
-            markedCount = state.markedQuestionCount,
-            onSelect = { filter ->
-                onSelectStatusFilter(filter)
-                showStatusSheet = false
-            },
-            onDismiss = { showStatusSheet = false }
-        )
-    }
-
-    if (showDifficultySheet) {
-        DifficultyFilterBottomSheet(
-            selectedTiers = state.selectedDifficultyTiers,
-            counts = state.difficultyCounts,
-            onApply = { selected ->
-                onSelectDifficultyFilters(selected)
-                showDifficultySheet = false
-            },
-            onDismiss = { showDifficultySheet = false }
-        )
+    when (activeSheet) {
+        ActiveFilterSheet.Subjects -> {
+            SubjectFilterBottomSheet(
+                resource = state.subjectsResource,
+                selectedIds = state.selectedSubjectIds,
+                excludedIds = state.excludedSubjectIds,
+                onRetry = onFetchSubjects,
+                onApply = { included, excluded ->
+                    onApplySelectedSubjects(included, excluded)
+                    activeSheet = null
+                },
+                onDismiss = { activeSheet = null }
+            )
+        }
+        ActiveFilterSheet.Systems -> {
+            SystemFilterBottomSheet(
+                resource = state.systemsResource,
+                selectedIds = state.selectedSystemIds,
+                excludedIds = state.excludedSystemIds,
+                onRetry = onFetchSystems,
+                onApply = { included, excluded ->
+                    onApplySelectedSystems(included, excluded)
+                    activeSheet = null
+                },
+                onDismiss = { activeSheet = null }
+            )
+        }
+        ActiveFilterSheet.Status -> {
+            StatusFilterBottomSheet(
+                current = state.statusFilter,
+                markedCount = state.markedQuestionCount,
+                onSelect = { filter ->
+                    onSelectStatusFilter(filter)
+                    activeSheet = null
+                },
+                onDismiss = { activeSheet = null }
+            )
+        }
+        ActiveFilterSheet.Difficulty -> {
+            DifficultyFilterBottomSheet(
+                selectedTiers = state.selectedDifficultyTiers,
+                counts = state.difficultyCounts,
+                onApply = { selected ->
+                    onSelectDifficultyFilters(selected)
+                    activeSheet = null
+                },
+                onDismiss = { activeSheet = null }
+            )
+        }
+        null -> Unit
     }
 }
-
-private fun formatStatusFilterLabel(filter: StatusFilter): String {
-    if (filter.isAll) return "All Questions"
-
-    if (filter.statuses.size == 1) {
-        val single = filter.statuses.first()
-        return when (single) {
-            QuestionStatus.NOT_YET_ANSWERED -> "Not yet answered"
-            QuestionStatus.ANSWERED_INCORRECTLY -> if (filter.scope == StatusScope.LATEST_ATTEMPT) "Last incorrect" else "Ever incorrect"
-            QuestionStatus.ANSWERED_CORRECTLY -> if (filter.scope == StatusScope.LATEST_ATTEMPT) "Last correct" else "Ever correct"
-            QuestionStatus.MARKED -> "Marked"
-        }
-    }
-
-    if (filter.statuses == setOf(QuestionStatus.NOT_YET_ANSWERED, QuestionStatus.ANSWERED_INCORRECTLY)) {
-        return if (filter.scope == StatusScope.LATEST_ATTEMPT) {
-            "Unanswered & Incorrect"
-        } else {
-            "Unanswered & Ever incorrect"
-        }
-    }
-
-    if (filter.statuses == setOf(QuestionStatus.NOT_YET_ANSWERED, QuestionStatus.MARKED)) {
-        return "Unanswered & Marked"
-    }
-
-    if (filter.statuses == setOf(QuestionStatus.ANSWERED_INCORRECTLY, QuestionStatus.MARKED)) {
-        return if (filter.scope == StatusScope.LATEST_ATTEMPT) {
-            "Incorrect & Marked"
-        } else {
-            "Ever incorrect & Marked"
-        }
-    }
-
-    return if (filter.usesAttemptScope) {
-        "${filter.statuses.size} statuses (${filter.scope.shortLabel})"
-    } else {
-        "${filter.statuses.size} statuses"
-    }
-}
-

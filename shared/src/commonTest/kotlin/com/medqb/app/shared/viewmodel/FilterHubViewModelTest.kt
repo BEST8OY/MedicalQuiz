@@ -10,7 +10,6 @@ import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.database.StatusScope
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
-import com.medqb.app.shared.ui.screens.filter.formatDifficultyLabel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -67,7 +66,7 @@ class FilterHubViewModelTest {
             historyCoordinator = AppHistoryCoordinator(
                 sessionRepository = sessionRepository,
                 localContentRepository = LocalContentRepository(),
-                activeDatabaseHolder = ActiveDatabaseHolder(),
+                activeDatabaseHolder = holder,
             ),
             sessionRepository = sessionRepository,
             markedQuestionsRepository = markedQuestionsRepository,
@@ -215,8 +214,8 @@ class FilterHubViewModelTest {
         advanceUntilIdle()
         assertEquals(setOf(1L), viewModel.state.value.selectedSubjectIds)
 
-        // Calling fetchSystemsForSubjects(listOf(99L)) should NOT mutate filterStateHolder
-        viewModel.fetchSystemsForSubjects(listOf(99L))
+        // Calling fetchSubjects() should retry without mutating selectedSubjectIds
+        viewModel.fetchSubjects()
         assertEquals(setOf(1L), filterStateHolder.selectedSubjectIds.value)
         advanceUntilIdle()
         assertEquals(setOf(1L), viewModel.state.value.selectedSubjectIds)
@@ -266,18 +265,6 @@ class FilterHubViewModelTest {
         advanceUntilIdle()
         assertEquals(emptySet(), viewModel.state.value.selectedDifficultyTiers)
         assertEquals(emptyList(), savedStateHandle.get<List<String>>("selected_difficulty_tiers"))
-    }
-
-    @Test
-    fun formatDifficultyLabelFormatsAppropriately() {
-        assertEquals("All Difficulties", formatDifficultyLabel(emptySet()))
-        assertEquals("All Difficulties", formatDifficultyLabel(DifficultyTier.entries.toSet()))
-        assertEquals("Very Easy", formatDifficultyLabel(setOf(DifficultyTier.VERY_EASY)))
-        assertEquals("Very Easy, Easy", formatDifficultyLabel(setOf(DifficultyTier.EASY, DifficultyTier.VERY_EASY)))
-        assertEquals(
-            "3 selected",
-            formatDifficultyLabel(setOf(DifficultyTier.VERY_EASY, DifficultyTier.EASY, DifficultyTier.INTERMEDIATE))
-        )
     }
 
     @Test
@@ -546,5 +533,140 @@ class FilterHubViewModelTest {
         markedRepo.seedMarked("bank", 3L)
         advanceUntilIdle()
         assertEquals(3, viewModel.state.value.previewQuestionCount)
+    }
+
+    @Test
+    fun restoresFiltersFromSavedStateHandleOnCreation() = runHubTest {
+        val provider = FakeDatabaseProvider(dbName = "bank-saved")
+        val holder = ActiveDatabaseHolder()
+        val filterStateHolder = FilterStateHolder()
+        val savedHandle = SavedStateHandle(
+            mapOf(
+                "database_name" to "bank-saved",
+                "selected_subject_ids" to listOf(1L, 2L),
+                "excluded_subject_ids" to listOf(3L),
+                "selected_system_ids" to listOf(10L),
+                "excluded_system_ids" to listOf(20L),
+                "status_filter" to "ANSWERED_INCORRECTLY:LATEST_ATTEMPT",
+                "selected_difficulty_tiers" to listOf("DIFFICULT"),
+            )
+        )
+
+        val viewModel = createViewModel(
+            provider = provider,
+            holder = holder,
+            filterStateHolder = filterStateHolder,
+            savedStateHandle = savedHandle,
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals("bank-saved", viewModel.state.value.databaseName)
+        assertEquals(setOf(1L, 2L), viewModel.state.value.selectedSubjectIds)
+        assertEquals(setOf(3L), viewModel.state.value.excludedSubjectIds)
+        assertEquals(setOf(10L), viewModel.state.value.selectedSystemIds)
+        assertEquals(setOf(20L), viewModel.state.value.excludedSystemIds)
+        assertEquals(
+            StatusFilter(setOf(QuestionStatus.ANSWERED_INCORRECTLY), StatusScope.LATEST_ATTEMPT),
+            viewModel.state.value.statusFilter
+        )
+        assertEquals(setOf(DifficultyTier.DIFFICULT), viewModel.state.value.selectedDifficultyTiers)
+    }
+
+    @Test
+    fun databaseSwitchResetsFiltersOnlyWhenDatabaseNameChanges() = runHubTest {
+        val providerA = FakeDatabaseProvider(dbName = "bank-a")
+        val providerB = FakeDatabaseProvider(dbName = "bank-b")
+        val holder = ActiveDatabaseHolder()
+        val filterStateHolder = FilterStateHolder()
+
+        val viewModel = createViewModel(
+            provider = providerA,
+            holder = holder,
+            filterStateHolder = filterStateHolder,
+        )
+        providerA.installInto(holder)
+        advanceUntilIdle()
+
+        // Set custom filters on bank-a
+        viewModel.applySelectedSubjects(setOf(1L), setOf(2L))
+        advanceUntilIdle()
+        assertEquals(setOf(1L), viewModel.state.value.selectedSubjectIds)
+        assertEquals(setOf(2L), viewModel.state.value.excludedSubjectIds)
+
+        // Reinstalling same providerA should NOT reset filters
+        providerA.installInto(holder)
+        advanceUntilIdle()
+        assertEquals(setOf(1L), viewModel.state.value.selectedSubjectIds)
+        assertEquals(setOf(2L), viewModel.state.value.excludedSubjectIds)
+
+        // Switching to providerB MUST reset filters
+        providerB.installInto(holder)
+        advanceUntilIdle()
+        assertEquals(emptySet(), viewModel.state.value.selectedSubjectIds)
+        assertEquals(emptySet(), viewModel.state.value.excludedSubjectIds)
+    }
+
+    @Test
+    fun applySelectedSubjectsPrunesBothSelectedAndExcludedSystems() = runHubTest {
+        val provider = FakeDatabaseProvider(dbName = "bank-systems")
+        provider.seededSystems = listOf(
+            System(id = 10, name = "Cardiology", count = 5),
+            System(id = 20, name = "Pulmonology", count = 5),
+        )
+        val holder = ActiveDatabaseHolder()
+        val filterStateHolder = FilterStateHolder()
+
+        val viewModel = createViewModel(
+            provider = provider,
+            holder = holder,
+            filterStateHolder = filterStateHolder,
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        // Initially select system 10 (valid) and 99 (invalid), exclude system 20 (valid) and 88 (invalid)
+        filterStateHolder.setSystems(setOf(10L, 99L), setOf(20L, 88L))
+        advanceUntilIdle()
+        assertEquals(setOf(10L, 99L), viewModel.state.value.selectedSystemIds)
+        assertEquals(setOf(20L, 88L), viewModel.state.value.excludedSystemIds)
+
+        // Applying subject 1 should prune systems: 99L and 88L must be removed
+        viewModel.applySelectedSubjects(setOf(1L))
+        advanceUntilIdle()
+
+        assertEquals(setOf(10L), viewModel.state.value.selectedSystemIds)
+        assertEquals(setOf(20L), viewModel.state.value.excludedSystemIds)
+    }
+
+    @Test
+    fun changingDifficultyTiersDoesNotRequeryDifficultyCounts() = runHubTest {
+        var difficultyQueryCount = 0
+        val provider = FakeDatabaseProvider().apply {
+            difficultyAvailable = true
+            difficultyCountsProvider = { _, _, _, _, _ ->
+                difficultyQueryCount++
+                mapOf(DifficultyTier.EASY to 10)
+            }
+        }
+
+        val filterStateHolder = FilterStateHolder()
+        val holder = ActiveDatabaseHolder()
+        val viewModel = createViewModel(provider, holder, filterStateHolder = filterStateHolder)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        val initialQueries = difficultyQueryCount
+        assertTrue(initialQueries > 0, "Difficulty counts should be queried initially")
+
+        // Change difficulty selection in ViewModel
+        viewModel.setDifficultyFilters(setOf(DifficultyTier.EASY))
+        advanceUntilIdle()
+
+        assertEquals(
+            initialQueries,
+            difficultyQueryCount,
+            "Changing difficulty tiers should not re-query difficulty counts",
+        )
     }
 }

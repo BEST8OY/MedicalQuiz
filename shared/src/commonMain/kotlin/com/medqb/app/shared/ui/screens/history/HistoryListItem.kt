@@ -393,14 +393,13 @@ private fun Modifier.drawSwipeActionPill(
 internal fun QuizSessionRepository.QuizSession.displayName(): String =
     entryName.ifBlank { databaseName }
 
-internal fun relativeTimestamp(epochMillis: Long): String {
+internal fun relativeTimestamp(epochMillis: Long, now: Instant = Clock.System.now()): String {
     if (epochMillis <= 0L) return "Unknown"
-    val now = Clock.System.now()
     val then = Instant.fromEpochMilliseconds(epochMillis)
-    val diffMs = now.minus(then).inWholeMilliseconds
-    val diffMin = diffMs / 1000 / 60
-    val diffHr = diffMin / 60
-    val diffDay = diffHr / 24
+    val duration = now - then
+    val diffMin = duration.inWholeMinutes
+    val diffHr = duration.inWholeHours
+    val diffDay = duration.inWholeDays
     return when {
         diffMin < 1 -> "Just now"
         diffMin < 60 -> "${diffMin}m ago"
@@ -409,7 +408,9 @@ internal fun relativeTimestamp(epochMillis: Long): String {
         else -> {
             val ldt = then.toLocalDateTime(TimeZone.currentSystemDefault())
             val mon = ldt.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
-            "$mon ${ldt.day}, ${ldt.hour}:${ldt.minute.toString().padStart(2, '0')}"
+            val hourStr = ldt.hour.toString().padStart(2, '0')
+            val minStr = ldt.minute.toString().padStart(2, '0')
+            "$mon ${ldt.day}, $hourStr:$minStr"
         }
     }
 }

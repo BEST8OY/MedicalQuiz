@@ -6,14 +6,17 @@ import androidx.lifecycle.viewModelScope
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.MarkedQuestionsRepository
-import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.QuizSessionRepository
+import com.medqb.app.shared.data.SettingsRepository
+import com.medqb.app.shared.data.database.DatabaseProvider
 import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.QuestionStatus
 import com.medqb.app.shared.data.database.StatusFilter
+import com.medqb.app.shared.data.models.QuestionFilter
+import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
-import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.domain.SnackbarMessage
+import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.orchestration.AppHistoryCoordinator
 import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.ui.screens.filter.FilterPane
@@ -39,7 +42,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -71,33 +73,15 @@ class FilterHubViewModel(
         const val KEY_ACTIVE_PANE = "activePane"
 
         private data class PreviewFilterParameters(
-            val subjects: Set<Long>,
-            val excludedSubjects: Set<Long>,
-            val systems: Set<Long>,
-            val excludedSystems: Set<Long>,
-            val status: StatusFilter,
-            val difficulties: Set<DifficultyTier>,
-            val db: com.medqb.app.shared.data.database.DatabaseProvider?,
+            val filter: QuestionFilter,
+            val db: DatabaseProvider?,
             val markedIdsTrigger: Set<Long> = emptySet(),
         )
 
         private data class DifficultyFilterParameters(
-            val db: com.medqb.app.shared.data.database.DatabaseProvider?,
-            val subjects: Set<Long>,
-            val excludedSubjects: Set<Long>,
-            val systems: Set<Long>,
-            val excludedSystems: Set<Long>,
-            val status: StatusFilter,
+            val db: DatabaseProvider?,
+            val filter: QuestionFilter,
             val markedIdsTrigger: Set<Long> = emptySet(),
-        )
-
-        private data class FilterSelection(
-            val subjectIds: Set<Long>,
-            val excludedSubjectIds: Set<Long>,
-            val systemIds: Set<Long>,
-            val excludedSystemIds: Set<Long>,
-            val statusFilter: StatusFilter,
-            val difficultyTiers: Set<DifficultyTier>,
         )
     }
 
@@ -107,8 +91,10 @@ class FilterHubViewModel(
     private val _subjectsRetry = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private val _systemsRetry = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
-    private val activePaneState = savedStateHandle.getMutableStateFlow<String?>(KEY_ACTIVE_PANE, null)
-    private val databaseNameState = savedStateHandle.getMutableStateFlow(KEY_DATABASE_NAME, "")
+    private var lastKnownDbName: String? = null
+    private var applySubjectsJob: Job? = null
+    private var applySystemsJob: Job? = null
+    private var restoreHistoryJob: Job? = null
 
     private val markedQuestionIdsState: StateFlow<Set<Long>> = activeDatabaseHolder.activeDatabase
         .map { it?.name.orEmpty() }
@@ -120,28 +106,21 @@ class FilterHubViewModel(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
-    private val filterSelectionFlow = combine(
-        combine(filterStateHolder.selectedSubjectIds, filterStateHolder.excludedSubjectIds) { sel, excl -> sel to excl },
-        combine(filterStateHolder.selectedSystemIds, filterStateHolder.excludedSystemIds) { sel, excl -> sel to excl },
-        filterStateHolder.statusFilter,
-        filterStateHolder.selectedDifficultyTiers,
-    ) { (subjectIds, exclSubjectIds), (systemIds, exclSystemIds), statusFilter, difficultyTiers ->
-        FilterSelection(subjectIds, exclSubjectIds, systemIds, exclSystemIds, statusFilter, difficultyTiers)
-    }.distinctUntilChanged()
-
     init {
-        val restoredDbName = databaseNameState.value
+        val restoredDbName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
         if (restoredDbName.isNotEmpty()) {
+            lastKnownDbName = restoredDbName
             _state.update { it.copy(databaseName = restoredDbName) }
         }
 
-        val restoredPaneStr = activePaneState.value.orEmpty()
+        val restoredPaneStr = savedStateHandle.get<String>(KEY_ACTIVE_PANE).orEmpty()
         if (restoredPaneStr.isNotEmpty()) {
             runCatching { FilterPane.valueOf(restoredPaneStr) }.getOrNull()?.let { pane ->
                 _state.update { it.copy(activePane = pane) }
             }
         }
 
+        restoreSavedFilters()
         setupDatabaseNameTracking()
         setupMarkedQuestionTracking()
         setupDifficultyTracking()
@@ -152,7 +131,6 @@ class FilterHubViewModel(
         setupFilterSelectionSync()
         setupHistoryEntriesFlow()
         setupFilterPersistence()
-        restoreSavedFilters()
     }
 
     private fun setupMarkedQuestionTracking() {
@@ -165,7 +143,7 @@ class FilterHubViewModel(
 
     fun setActivePane(pane: FilterPane) {
         _state.update { it.copy(activePane = pane) }
-        activePaneState.value = pane.name
+        savedStateHandle[KEY_ACTIVE_PANE] = pane.name
     }
 
     private fun setupDatabaseNameTracking() {
@@ -173,17 +151,17 @@ class FilterHubViewModel(
             .map { it?.name.orEmpty() }
             .onEach { dbName ->
                 if (dbName.isNotEmpty()) {
-                    val dbChanged = dbName != _state.value.databaseName
+                    val previous = lastKnownDbName
+                    val dbChanged = previous != null && previous != dbName
+                    lastKnownDbName = dbName
                     _state.update { it.copy(databaseName = dbName) }
-                    databaseNameState.value = dbName
+                    savedStateHandle[KEY_DATABASE_NAME] = dbName
                     if (dbChanged) {
-                        // Holder reset propagates to SavedStateHandle through the
-                        // filter-persistence collector.
                         filterStateHolder.reset()
                     }
                 } else {
                     _state.update { it.copy(databaseName = "") }
-                    databaseNameState.value = ""
+                    savedStateHandle[KEY_DATABASE_NAME] = ""
                 }
             }
             .launchIn(viewModelScope)
@@ -192,17 +170,13 @@ class FilterHubViewModel(
     private fun setupDifficultyTracking() {
         combine(
             activeDatabaseHolder.activeDatabase,
-            filterSelectionFlow,
+            filterStateHolder.filter,
             markedQuestionIdsState,
-        ) { active, selection, markedIds ->
+        ) { active, filter, markedIds ->
             DifficultyFilterParameters(
                 db = active?.provider,
-                subjects = selection.subjectIds,
-                excludedSubjects = selection.excludedSubjectIds,
-                systems = selection.systemIds,
-                excludedSystems = selection.excludedSystemIds,
-                status = selection.statusFilter,
-                markedIdsTrigger = if (QuestionStatus.MARKED in selection.statusFilter.statuses) markedIds else emptySet(),
+                filter = filter.copy(selectedDifficultyTiers = emptySet()),
+                markedIdsTrigger = if (QuestionStatus.MARKED in filter.statusFilter.statuses) markedIds else emptySet(),
             )
         }
             .distinctUntilChanged()
@@ -212,27 +186,24 @@ class FilterHubViewModel(
                     if (db == null) {
                         emit(false to emptyMap<DifficultyTier, Int>())
                     } else {
-                        val isAvail = db.isDifficultyAvailable()
-                        val counts = if (isAvail) {
-                            withContext(ioDispatcher) {
-                                try {
+                        val (isAvail, counts) = withContext(ioDispatcher) {
+                            try {
+                                val isAvail = db.isDifficultyAvailable()
+                                val counts = if (isAvail) {
                                     applyFiltersUseCase.getDifficultyCounts(
                                         db = db,
-                                        selectedSubjectIds = params.subjects,
-                                        excludedSubjectIds = params.excludedSubjects,
-                                        selectedSystemIds = params.systems,
-                                        excludedSystemIds = params.excludedSystems,
-                                        statusFilter = params.status,
+                                        filter = params.filter,
                                     )
-                                } catch (e: CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    Logger.e("FilterHubViewModel", "Error fetching difficulty counts", e)
+                                } else {
                                     emptyMap()
                                 }
+                                isAvail to counts
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                Logger.e("FilterHubViewModel", "Error fetching difficulty counts", e)
+                                false to emptyMap()
                             }
-                        } else {
-                            emptyMap()
                         }
                         emit(isAvail to counts)
                     }
@@ -277,7 +248,7 @@ class FilterHubViewModel(
     private fun setupSystemsFlow() {
         combine(
             activeDatabaseHolder.activeDatabase,
-            filterStateHolder.selectedSubjectIds,
+            filterStateHolder.filter.map { it.selectedSubjectIds }.distinctUntilChanged(),
             _systemsRetry.onStart { emit(Unit) },
         ) { active, subjectIds, _ -> (active?.provider) to subjectIds }
             .flatMapLatest { (db, subjectIds) ->
@@ -307,19 +278,14 @@ class FilterHubViewModel(
 
     private fun setupPreviewCountFlow() {
         combine(
-            filterSelectionFlow,
+            filterStateHolder.filter,
             activeDatabaseHolder.activeDatabase,
             markedQuestionIdsState,
-        ) { selection, active, markedIds ->
+        ) { filter, active, markedIds ->
             PreviewFilterParameters(
-                subjects = selection.subjectIds,
-                excludedSubjects = selection.excludedSubjectIds,
-                systems = selection.systemIds,
-                excludedSystems = selection.excludedSystemIds,
-                status = selection.statusFilter,
-                difficulties = selection.difficultyTiers,
+                filter = filter,
                 db = active?.provider,
-                markedIdsTrigger = if (QuestionStatus.MARKED in selection.statusFilter.statuses) markedIds else emptySet(),
+                markedIdsTrigger = if (QuestionStatus.MARKED in filter.statusFilter.statuses) markedIds else emptySet(),
             )
         }
             .distinctUntilChanged()
@@ -329,12 +295,7 @@ class FilterHubViewModel(
                         try {
                             applyFiltersUseCase.previewQuestionCount(
                                 db = params.db,
-                                selectedSubjectIds = params.subjects,
-                                excludedSubjectIds = params.excludedSubjects,
-                                selectedSystemIds = params.systems,
-                                excludedSystemIds = params.excludedSystems,
-                                statusFilter = params.status,
-                                difficultyFilters = params.difficulties,
+                                filter = params.filter,
                             )
                         } catch (e: CancellationException) {
                             throw e
@@ -355,16 +316,16 @@ class FilterHubViewModel(
      * instead of parallel mirrors, so partial-update interleavings are impossible.
      */
     private fun setupFilterSelectionSync() {
-        filterSelectionFlow
-            .onEach { selection ->
+        filterStateHolder.filter
+            .onEach { filter ->
                 _state.update {
                     it.copy(
-                        selectedSubjectIds = selection.subjectIds,
-                        excludedSubjectIds = selection.excludedSubjectIds,
-                        selectedSystemIds = selection.systemIds,
-                        excludedSystemIds = selection.excludedSystemIds,
-                        statusFilter = selection.statusFilter,
-                        selectedDifficultyTiers = selection.difficultyTiers,
+                        selectedSubjectIds = filter.selectedSubjectIds,
+                        excludedSubjectIds = filter.excludedSubjectIds,
+                        selectedSystemIds = filter.selectedSystemIds,
+                        excludedSystemIds = filter.excludedSystemIds,
+                        statusFilter = filter.statusFilter,
+                        selectedDifficultyTiers = filter.selectedDifficultyTiers,
                     )
                 }
             }
@@ -395,9 +356,9 @@ class FilterHubViewModel(
             val cleanDbName = active?.name.orEmpty()
             entries.filter { it.databaseName == cleanDbName }
         }
-        .distinctUntilChanged()
-        .onEach { filtered -> _state.update { it.copy(historyEntries = filtered) } }
-        .launchIn(viewModelScope)
+            .distinctUntilChanged()
+            .onEach { filtered -> _state.update { it.copy(historyEntries = filtered) } }
+            .launchIn(viewModelScope)
     }
 
     /**
@@ -405,25 +366,25 @@ class FilterHubViewModel(
      * the other direction is continuous — see [setupFilterPersistence].
      */
     private fun restoreSavedFilters() {
-        savedStateHandle.get<List<Long>>(KEY_SELECTED_SUBJECT_IDS)?.toSet()?.let {
-            filterStateHolder.updateSubjectIds(it)
-        }
-        savedStateHandle.get<List<Long>>(KEY_EXCLUDED_SUBJECT_IDS)?.toSet()?.let {
-            filterStateHolder.updateExcludedSubjectIds(it)
-        }
-        savedStateHandle.get<List<Long>>(KEY_SELECTED_SYSTEM_IDS)?.toSet()?.let {
-            filterStateHolder.updateSystemIds(it)
-        }
-        savedStateHandle.get<List<Long>>(KEY_EXCLUDED_SYSTEM_IDS)?.toSet()?.let {
-            filterStateHolder.updateExcludedSystemIds(it)
-        }
-        savedStateHandle.get<String>(KEY_STATUS_FILTER)?.let { raw ->
-            filterStateHolder.updateStatusFilter(StatusFilter.deserialize(raw))
-        }
-        savedStateHandle.get<List<String>>(KEY_SELECTED_DIFFICULTY_TIERS)?.mapNotNull { name ->
+        val subjectIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SUBJECT_IDS)?.toSet() ?: emptySet()
+        val excludedSubjectIds = savedStateHandle.get<List<Long>>(KEY_EXCLUDED_SUBJECT_IDS)?.toSet() ?: emptySet()
+        val systemIds = savedStateHandle.get<List<Long>>(KEY_SELECTED_SYSTEM_IDS)?.toSet() ?: emptySet()
+        val excludedSystemIds = savedStateHandle.get<List<Long>>(KEY_EXCLUDED_SYSTEM_IDS)?.toSet() ?: emptySet()
+        val statusFilter = savedStateHandle.get<String>(KEY_STATUS_FILTER)?.let { StatusFilter.deserialize(it) } ?: StatusFilter.ALL
+        val difficultyTiers = savedStateHandle.get<List<String>>(KEY_SELECTED_DIFFICULTY_TIERS)?.mapNotNull { name ->
             runCatching { DifficultyTier.valueOf(name) }.getOrNull()
-        }?.toSet()?.let {
-            filterStateHolder.updateDifficultyTiers(it)
+        }?.toSet() ?: emptySet()
+
+        val restoredFilter = QuestionFilter.create(
+            selectedSubjectIds = subjectIds,
+            excludedSubjectIds = excludedSubjectIds,
+            selectedSystemIds = systemIds,
+            excludedSystemIds = excludedSystemIds,
+            statusFilter = statusFilter,
+            selectedDifficultyTiers = difficultyTiers,
+        )
+        if (!restoredFilter.isDefault) {
+            filterStateHolder.updateFilter(restoredFilter)
         }
     }
 
@@ -433,14 +394,14 @@ class FilterHubViewModel(
      * persisted. External resets (e.g. a database switch) propagate automatically.
      */
     private fun setupFilterPersistence() {
-        filterSelectionFlow
-            .onEach { selection ->
-                savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = selection.subjectIds.toList()
-                savedStateHandle[KEY_EXCLUDED_SUBJECT_IDS] = selection.excludedSubjectIds.toList()
-                savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = selection.systemIds.toList()
-                savedStateHandle[KEY_EXCLUDED_SYSTEM_IDS] = selection.excludedSystemIds.toList()
-                savedStateHandle[KEY_STATUS_FILTER] = selection.statusFilter.serialize()
-                savedStateHandle[KEY_SELECTED_DIFFICULTY_TIERS] = selection.difficultyTiers.map { it.name }
+        filterStateHolder.filter
+            .onEach { filter ->
+                savedStateHandle[KEY_SELECTED_SUBJECT_IDS] = filter.selectedSubjectIds.toList()
+                savedStateHandle[KEY_EXCLUDED_SUBJECT_IDS] = filter.excludedSubjectIds.toList()
+                savedStateHandle[KEY_SELECTED_SYSTEM_IDS] = filter.selectedSystemIds.toList()
+                savedStateHandle[KEY_EXCLUDED_SYSTEM_IDS] = filter.excludedSystemIds.toList()
+                savedStateHandle[KEY_STATUS_FILTER] = filter.statusFilter.serialize()
+                savedStateHandle[KEY_SELECTED_DIFFICULTY_TIERS] = filter.selectedDifficultyTiers.map { it.name }
             }
             .launchIn(viewModelScope)
     }
@@ -453,44 +414,55 @@ class FilterHubViewModel(
         _systemsRetry.tryEmit(Unit)
     }
 
-    fun fetchSystemsForSubjects(subjectIds: List<Long>? = null) {
-        fetchSystems()
-    }
-
     fun applySelectedSubjects(newSubjectIds: Set<Long>, excludedSubjectIds: Set<Long> = emptySet()) {
-        viewModelScope.launch {
-            val previouslySelectedSystems = filterStateHolder.selectedSystemIds.value
-            val previouslyExcludedSystems = filterStateHolder.excludedSystemIds.value
-            filterStateHolder.setSubjects(newSubjectIds, excludedSubjectIds)
-            val db = activeDatabaseHolder.activeDatabase.value?.provider
-            val prunedSelectedSystems = applyFiltersUseCase.pruneSystemsForSubjects(
-                db = db,
-                newSubjectIds = newSubjectIds,
-                previouslySelectedSystems = previouslySelectedSystems,
-            )
-            val prunedExcludedSystems = applyFiltersUseCase.pruneSystemsForSubjects(
-                db = db,
-                newSubjectIds = newSubjectIds,
-                previouslySelectedSystems = previouslyExcludedSystems,
-            )
-            filterStateHolder.setSystems(prunedSelectedSystems, prunedExcludedSystems)
+        applySubjectsJob?.cancel()
+        applySystemsJob?.cancel()
+        applySubjectsJob = viewModelScope.launch {
+            try {
+                val db = activeDatabaseHolder.activeDatabase.value?.provider
+                val currentFilter = filterStateHolder.filter.value
+                val (prunedSelectedSystems, prunedExcludedSystems) = withContext(ioDispatcher) {
+                    applyFiltersUseCase.pruneSystemsForSubjects(
+                        db = db,
+                        newSubjectIds = newSubjectIds,
+                        selectedSystems = currentFilter.selectedSystemIds,
+                        excludedSystems = currentFilter.excludedSystemIds,
+                    )
+                }
+                filterStateHolder.setSubjectsAndSystems(
+                    selectedSubjects = newSubjectIds,
+                    excludedSubjects = excludedSubjectIds,
+                    selectedSystems = prunedSelectedSystems,
+                    excludedSystems = prunedExcludedSystems,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("FilterHubViewModel", "Error applying selected subjects", e)
+            }
         }
     }
 
     fun applySelectedSystems(newSystemIds: Set<Long>, excludedSystemIds: Set<Long> = emptySet()) {
-        viewModelScope.launch {
-            val db = activeDatabaseHolder.activeDatabase.value?.provider
-            val normalizedSelection = applyFiltersUseCase.normalizeSelectedSystems(
-                db = db,
-                selectedSubjectIds = filterStateHolder.selectedSubjectIds.value,
-                newSystemIds = newSystemIds,
-            )
-            val normalizedExcluded = applyFiltersUseCase.normalizeSelectedSystems(
-                db = db,
-                selectedSubjectIds = filterStateHolder.selectedSubjectIds.value,
-                newSystemIds = excludedSystemIds,
-            )
-            filterStateHolder.setSystems(normalizedSelection, normalizedExcluded)
+        applySystemsJob?.cancel()
+        applySystemsJob = viewModelScope.launch {
+            try {
+                val db = activeDatabaseHolder.activeDatabase.value?.provider
+                val selectedSubjectIds = filterStateHolder.filter.value.selectedSubjectIds
+                val (normalizedSelection, normalizedExcluded) = withContext(ioDispatcher) {
+                    applyFiltersUseCase.normalizeSelectedSystems(
+                        db = db,
+                        selectedSubjectIds = selectedSubjectIds,
+                        selectedSystems = newSystemIds,
+                        excludedSystems = excludedSystemIds,
+                    )
+                }
+                filterStateHolder.setSystems(normalizedSelection, normalizedExcluded)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("FilterHubViewModel", "Error applying selected systems", e)
+            }
         }
     }
 
@@ -506,9 +478,23 @@ class FilterHubViewModel(
         filterStateHolder.reset()
     }
 
+    fun setLoggingEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setLoggingEnabled(enabled)
+        }
+    }
+
+    fun setSubmissionMode(mode: SubmissionMode) {
+        viewModelScope.launch {
+            settingsRepository.setSubmissionMode(mode)
+        }
+    }
+
     // History Pane logic
-    suspend fun deleteHistoryEntries(entryIds: Set<String>) {
-        historyCoordinator.deleteHistoryEntries(entryIds)
+    fun deleteHistoryEntries(entryIds: Set<String>) {
+        viewModelScope.launch {
+            historyCoordinator.deleteHistoryEntries(entryIds)
+        }
     }
 
     fun renameHistoryEntry(entryId: String, newName: String) {
@@ -517,11 +503,15 @@ class FilterHubViewModel(
         }
     }
 
-    suspend fun undoHistoryEntry(entry: QuizSessionRepository.QuizSession) {
-        sessionRepository.restoreDeletedHistoryEntry(entry)
+    fun undoHistoryEntries(entries: List<QuizSessionRepository.QuizSession>) {
+        viewModelScope.launch {
+            entries.forEach { sessionRepository.restoreDeletedHistoryEntry(it) }
+        }
     }
 
-    private var restoreHistoryJob: Job? = null
+    fun undoHistoryEntry(entry: QuizSessionRepository.QuizSession) {
+        undoHistoryEntries(listOf(entry))
+    }
 
     fun restoreHistoryEntry(
         entry: QuizSessionRepository.QuizSession,

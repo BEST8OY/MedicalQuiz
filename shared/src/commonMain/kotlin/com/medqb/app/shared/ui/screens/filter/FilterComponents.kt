@@ -124,22 +124,15 @@ internal fun FilterToggleSegmentedItem(
     )
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun DatabaseHeaderCard(
     databaseName: String,
     modifier: Modifier = Modifier,
 ) {
-    val motionScheme = MaterialTheme.motionScheme
-    val containerColor by animateColorAsState(
-        targetValue = MaterialTheme.colorScheme.secondaryContainer,
-        animationSpec = motionScheme.defaultEffectsSpec()
-    )
-
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = containerColor)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
     ) {
         Row(
             modifier = Modifier
@@ -405,7 +398,7 @@ private fun FilterActionControlButtonGroup(
     onStart: () -> Unit,
     onClearFilters: () -> Unit,
 ) {
-    val groupModifier = if (showReset) Modifier.fillMaxWidth() else Modifier.widthIn(min = 176.dp).fillMaxWidth()
+    val groupModifier = Modifier.fillMaxWidth()
     val groupArrangement = if (showReset) {
         Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
     } else {

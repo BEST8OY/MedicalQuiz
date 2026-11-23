@@ -39,9 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 
@@ -63,12 +60,13 @@ internal fun FilterPaneScaffold(
 ) {
     val snackbarBottomPadding = LocalSnackbarBottomPadding.current
     DisposableEffect(showPaneToolbar) {
+        val previousPadding = snackbarBottomPadding.value
         if (showPaneToolbar) {
             snackbarBottomPadding.value = 80.dp
         }
         onDispose {
-            if (snackbarBottomPadding.value == 80.dp) {
-                snackbarBottomPadding.value = 12.dp
+            if (showPaneToolbar && snackbarBottomPadding.value == 80.dp) {
+                snackbarBottomPadding.value = previousPadding
             }
         }
     }
@@ -151,7 +149,6 @@ private fun FilterPaneItem(
             checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
             checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         ),
-        modifier = Modifier.semantics { role = Role.Tab },
     ) {
         AnimatedVisibility(
             visible = selected,

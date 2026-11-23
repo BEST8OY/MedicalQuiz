@@ -3,6 +3,8 @@ package com.medqb.app.shared.ui.dialogs
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasStateDescription
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -39,7 +41,7 @@ class SelectionBottomSheetUiTest {
         // Search bar
         val search = onNodeWithText("Search...").assertIsDisplayed()
         // Help banner
-        val help = onNodeWithText("💡 Tap row to cycle:  [✓] Include  →  [✕] Exclude  →  Clear").assertIsDisplayed()
+        val help = onNodeWithText("Tap to cycle: Include \u2192 Exclude \u2192 Reset").assertIsDisplayed()
         // Subtitle & actions
         val subtitle = onNodeWithText("All items (none excluded)").assertIsDisplayed()
         onNodeWithText("Select all").assertIsDisplayed()
@@ -88,7 +90,7 @@ class SelectionBottomSheetUiTest {
 
         // Click row once -> INCLUDED
         onNodeWithText("Aging").performClick()
-        onNodeWithText("INCLUDE").assertIsDisplayed()
+        onNode(hasText("Aging") and hasStateDescription("Included")).assertIsDisplayed()
 
         // Click Apply
         onNodeWithText("Apply").performClick()

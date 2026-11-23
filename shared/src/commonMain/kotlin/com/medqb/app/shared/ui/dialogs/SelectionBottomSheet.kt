@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -24,7 +23,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -36,18 +34,17 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -56,6 +53,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -65,6 +63,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.Subject
 import com.medqb.app.shared.data.models.System
+import com.medqb.app.shared.ui.dialogs.components.BottomSheetActions
+import com.medqb.app.shared.ui.dialogs.components.BottomSheetHeader
+import com.medqb.app.shared.ui.dialogs.components.FilterModalBottomSheet
 import com.medqb.app.shared.utils.Resource
 
 enum class ItemFilterState {
@@ -145,30 +146,10 @@ private fun <T> SelectionBottomSheet(
     onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
+    FilterModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        sheetMaxWidth = BottomSheetDefaults.SheetMaxWidth,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = {
-            BottomSheetDefaults.DragHandle(
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
-        },
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
+        BottomSheetHeader(title = title)
 
         Crossfade(
             targetState = resource,
@@ -201,7 +182,7 @@ private fun <T> SelectionBottomSheet(
                             idProvider = idProvider,
                             onApply = onApply,
                             onDismiss = onDismiss,
-                            modifier = Modifier.fillMaxWidth().fillMaxHeight()
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
@@ -325,11 +306,23 @@ private fun <T> SelectionListContent(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier.fillMaxWidth()
 ) {
-    var currentIncluded by remember(selectedIds) {
-        mutableStateOf(selectedIds.toMutableSet())
+    var currentIncluded by rememberSaveable(
+        selectedIds, excludedIds,
+        stateSaver = listSaver<Set<Long>, Long>(
+            save = { it.toList() },
+            restore = { it.toSet() }
+        )
+    ) {
+        mutableStateOf(selectedIds)
     }
-    var currentExcluded by remember(excludedIds) {
-        mutableStateOf(excludedIds.toMutableSet())
+    var currentExcluded by rememberSaveable(
+        selectedIds, excludedIds,
+        stateSaver = listSaver<Set<Long>, Long>(
+            save = { it.toList() },
+            restore = { it.toSet() }
+        )
+    ) {
+        mutableStateOf(excludedIds - selectedIds)
     }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
@@ -420,11 +413,13 @@ private fun <T> SelectionListContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "💡 Tap row to cycle:  [✓] Include  →  [✕] Exclude  →  Clear",
+                text = "Tap to cycle: Include \u2192 Exclude \u2192 Reset",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+
+        val clearLabel = if (searchQuery.isNotBlank()) "Clear visible" else "Clear"
 
         // Consolidated Row: Subtitle (Left) + Actions (Right)
         Row(
@@ -443,11 +438,11 @@ private fun <T> SelectionListContent(
                 TextButton(
                     onClick = {
                         if (searchQuery.isBlank()) {
-                            currentIncluded = effectiveSelectAllIds.toMutableSet()
-                            currentExcluded = mutableSetOf()
+                            currentIncluded = effectiveSelectAllIds
+                            currentExcluded = emptySet()
                         } else {
-                            currentIncluded = (currentIncluded + effectiveSelectAllIds).toMutableSet()
-                            currentExcluded = (currentExcluded - effectiveSelectAllIds).toMutableSet()
+                            currentIncluded = currentIncluded + effectiveSelectAllIds
+                            currentExcluded = currentExcluded - effectiveSelectAllIds
                         }
                     },
                     enabled = !isAllSelected,
@@ -458,13 +453,22 @@ private fun <T> SelectionListContent(
 
                 TextButton(
                     onClick = {
-                        currentIncluded = mutableSetOf()
-                        currentExcluded = mutableSetOf()
+                        if (searchQuery.isBlank()) {
+                            currentIncluded = emptySet()
+                            currentExcluded = emptySet()
+                        } else {
+                            currentIncluded = currentIncluded - effectiveSelectAllIds
+                            currentExcluded = currentExcluded - effectiveSelectAllIds
+                        }
                     },
-                    enabled = currentIncluded.isNotEmpty() || currentExcluded.isNotEmpty(),
+                    enabled = if (searchQuery.isBlank()) {
+                        currentIncluded.isNotEmpty() || currentExcluded.isNotEmpty()
+                    } else {
+                        effectiveSelectAllIds.any { it in currentIncluded || it in currentExcluded }
+                    },
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                 ) {
-                    Text("Clear", style = MaterialTheme.typography.labelSmall)
+                    Text(clearLabel, style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -500,24 +504,20 @@ private fun <T> SelectionListContent(
                     shapes = ListItemDefaults.segmentedShapes(index = index, count = filteredItems.size),
                     onClick = {
                         val next = state.next()
-                        val newIncluded = currentIncluded.toMutableSet()
-                        val newExcluded = currentExcluded.toMutableSet()
                         when (next) {
                             ItemFilterState.NEUTRAL -> {
-                                newIncluded.remove(itemId)
-                                newExcluded.remove(itemId)
+                                currentIncluded = currentIncluded - itemId
+                                currentExcluded = currentExcluded - itemId
                             }
                             ItemFilterState.INCLUDED -> {
-                                newIncluded.add(itemId)
-                                newExcluded.remove(itemId)
+                                currentIncluded = currentIncluded + itemId
+                                currentExcluded = currentExcluded - itemId
                             }
                             ItemFilterState.EXCLUDED -> {
-                                newIncluded.remove(itemId)
-                                newExcluded.add(itemId)
+                                currentIncluded = currentIncluded - itemId
+                                currentExcluded = currentExcluded + itemId
                             }
                         }
-                        currentIncluded = newIncluded
-                        currentExcluded = newExcluded
                     },
                     modifier = Modifier.animateItem(),
                 )
@@ -542,28 +542,10 @@ private fun <T> SelectionListContent(
         }
 
         // Actions Row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(
-                onClick = onDismiss,
-            ) {
-                Text("Cancel")
-            }
-            Button(
-                onClick = { onApply(currentIncluded.toSet(), currentExcluded.toSet()) },
-                modifier = Modifier.padding(start = 8.dp)
-            ) {
-                Text(
-                    text = "Apply",
-                    style = MaterialTheme.typography.labelLargeEmphasized
-                )
-            }
-        }
+        BottomSheetActions(
+            onCancel = onDismiss,
+            onApply = { onApply(currentIncluded, currentExcluded) },
+        )
     }
 }
 
@@ -627,13 +609,13 @@ private fun SelectionItem(
                 when (state) {
                     ItemFilterState.INCLUDED -> Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Included",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(14.dp),
                     )
                     ItemFilterState.EXCLUDED -> Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Excluded",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.onError,
                         modifier = Modifier.size(14.dp),
                     )
@@ -656,7 +638,9 @@ private fun SelectionItem(
                     Surface(
                         shape = MaterialTheme.shapes.extraSmall,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        modifier = Modifier.padding(start = 4.dp),
+                        modifier = Modifier
+                            .padding(start = 4.dp)
+                            .clearAndSetSemantics {},
                     ) {
                         Text(
                             text = "INCLUDE",
@@ -671,7 +655,9 @@ private fun SelectionItem(
                     Surface(
                         shape = MaterialTheme.shapes.extraSmall,
                         color = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
-                        modifier = Modifier.padding(start = 4.dp),
+                        modifier = Modifier
+                            .padding(start = 4.dp)
+                            .clearAndSetSemantics {},
                     ) {
                         Text(
                             text = "EXCLUDE",
