@@ -2,9 +2,11 @@ package com.medqb.app.shared.ui.screens.history
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.database.StatusFilter
@@ -88,8 +90,9 @@ class HistoryPaneUiTest {
             )
         }
 
-        // Long press through HistoryListItem onLongPress
-        onNodeWithText("Pathology Quiz").performClick() // Clicking in normal mode selects it
-        // Or verify selection mode changed notification
+        onNodeWithText("Pathology Quiz").performTouchInput { longClick() }
+        waitForIdle()
+        assertTrue(inSelectionMode)
+        onNodeWithContentDescription("More actions").assertIsDisplayed()
     }
 }

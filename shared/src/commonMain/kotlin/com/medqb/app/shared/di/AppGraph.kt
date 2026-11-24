@@ -125,6 +125,7 @@ interface AppGraph {
         return HtmlViewerViewModel(
             fileName = fileName,
             localContentRepository = localContentRepository,
+            settingsRepository = settingsRepository,
         )
     }
 

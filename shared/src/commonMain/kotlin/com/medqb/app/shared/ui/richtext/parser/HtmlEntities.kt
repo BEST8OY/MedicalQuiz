@@ -73,7 +73,7 @@ internal object HtmlEntities {
      * misused as HTML numeric entities. Browsers ignore these C1 control
      * code points and decode them to the Windows-1252 glyphs instead.
      */
-    private val windows1252Overrides = mapOf(
+    internal val windows1252Overrides = mapOf(
         0x80 to '\u20AC',  // € Euro Sign
         0x82 to '\u201A',  // ‚ Single Low-9 Quotation Mark
         0x83 to '\u0192',  // ƒ Latin Small Letter F With Hook
@@ -176,37 +176,7 @@ internal fun String.replaceWindows1252C1Controls(): String {
     if (none { it.code in 0x80..0x9F }) return this
     val sb = StringBuilder(this.length)
     for (c in this) {
-        val replacement = when (c.code) {
-            0x80 -> "\u20AC"  // € Euro Sign
-            0x82 -> "\u201A"  // ‚ Single Low-9 Quotation Mark
-            0x83 -> "\u0192"  // ƒ Latin Small Letter F With Hook
-            0x84 -> "\u201E"  // „ Double Low-9 Quotation Mark
-            0x85 -> "\u2026"  // … Horizontal Ellipsis
-            0x86 -> "\u2020"  // † Dagger
-            0x87 -> "\u2021"  // ‡ Double Dagger
-            0x88 -> "\u02C6"  // ˆ Modifier Letter Circumflex Accent
-            0x89 -> "\u2030"  // ‰ Per Mille Sign
-            0x8A -> "\u0160"  // Š Latin Capital Letter S With Caron
-            0x8B -> "\u2039"  // ‹ Single Left-Pointing Angle Quotation Mark
-            0x8C -> "\u0152"  // Œ Latin Capital Ligature OE
-            0x8E -> "\u017D"  // Ž Latin Capital Letter Z With Caron
-            0x91 -> "\u2018"  // ' Left Single Quotation Mark
-            0x92 -> "\u2019"  // ' Right Single Quotation Mark
-            0x93 -> "\u201C"  // " Left Double Quotation Mark
-            0x94 -> "\u201D"  // " Right Double Quotation Mark
-            0x95 -> "\u2022"  // • Bullet
-            0x96 -> "\u2013"  // – En Dash
-            0x97 -> "\u2014"  // — Em Dash
-            0x98 -> "\u02DC"  // ˜ Small Tilde
-            0x99 -> "\u2122"  // ™ Trade Mark Sign
-            0x9A -> "\u0161"  // š Latin Small Letter S With Caron
-            0x9B -> "\u203A"  // › Single Right-Pointing Angle Quotation Mark
-            0x9C -> "\u0153"  // œ Latin Small Ligature OE
-            0x9E -> "\u017E"  // ž Latin Small Letter Z With Caron
-            0x9F -> "\u0178"  // Ÿ Latin Capital Letter Y With Diaeresis
-            else -> null
-        }
-        if (replacement != null) sb.append(replacement) else sb.append(c)
+        sb.append(HtmlEntities.windows1252Overrides[c.code] ?: c)
     }
     return sb.toString()
 }

@@ -1,7 +1,5 @@
 package com.medqb.app.shared.ui.richtext.parser
 
-import com.medqb.app.shared.ui.richtext.matchesAnyMarker
-
 /**
  * Sealed interface representing nodes in the HTML DOM tree.
  */
@@ -48,9 +46,6 @@ internal class KsoupElement(
 
     /** Cache for ancestor class lookups. */
     private val ancestorClassCache = mutableMapOf<KsoupElement?, Set<String>>()
-
-    /** Cache for bold content checks. */
-    private val boldContentCache = mutableMapOf<Int, Boolean>()
 
     /**
      * Gets an attribute value by name.
@@ -108,28 +103,6 @@ internal class KsoupElement(
                 cursor = cursor.parent
             }
             classes
-        }
-    }
-
-    /**
-     * Checks if this element or its descendants contain bold content.
-     *
-     * @param maxDepth Maximum recursion depth to check
-     * @return True if bold content is found
-     */
-    fun containsBoldContent(maxDepth: Int = RichTextParserConfig.BOLD_CHECK_MAX_DEPTH): Boolean {
-        return boldContentCache.getOrPut(maxDepth) {
-            when {
-                maxDepth <= 0 -> false
-                tagName.equals("strong", true) || tagName.equals("b", true) -> true
-                CssParser.isBoldStyle(attr("style")) -> true
-                classNames().matchesAnyMarker(RichTextParserConfig.boldClassMarkers) -> true
-                else -> {
-                    children.any { child ->
-                        child is KsoupElement && child.containsBoldContent(maxDepth - 1)
-                    }
-                }
-            }
         }
     }
 }

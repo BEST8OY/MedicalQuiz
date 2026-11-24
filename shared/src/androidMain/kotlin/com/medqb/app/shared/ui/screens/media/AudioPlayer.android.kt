@@ -3,6 +3,7 @@ package com.medqb.app.shared.ui.screens.media
 import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -28,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -35,6 +38,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import com.medqb.app.shared.ui.components.ContentMaxWidth
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -101,85 +105,80 @@ actual fun AudioPlayer(
         0f
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.Center,
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
     ) {
-        val sliderState = rememberSliderState(
-            value = sliderProgress,
-        )
-        if (!isSeeking) {
-            sliderState.value = sliderProgress
-        }
-
-        Slider(
-            state = sliderState,
-            onValueChange = { value ->
-                if (duration <= 0L) return@Slider
-                isSeeking = true
-                seekPosition = (duration * value).toLong().coerceIn(0L, duration)
-            },
-            onValueChangeFinished = {
-                if (!isSeeking) return@Slider
-                exoPlayer.seekTo(seekPosition)
-                currentPosition = seekPosition
-                isSeeking = false
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+        Column(
+            modifier = Modifier
+                .widthIn(max = ContentMaxWidth.MediaControls)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.Center,
         ) {
-            Text(
-                text = formatTime(displayedPosition),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            val sliderState = rememberSliderState(
+                value = sliderProgress,
             )
-            Text(
-                text = formatTime(duration),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            if (!isSeeking) {
+                sliderState.value = sliderProgress
+            }
+
+            Slider(
+                state = sliderState,
+                onValueChange = { value ->
+                    if (duration <= 0L) return@Slider
+                    isSeeking = true
+                    seekPosition = (duration * value).toLong().coerceIn(0L, duration)
+                },
+                onValueChangeFinished = {
+                    if (!isSeeking) return@Slider
+                    exoPlayer.seekTo(seekPosition)
+                    currentPosition = seekPosition
+                    isSeeking = false
+                },
+                modifier = Modifier.fillMaxWidth(),
             )
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = formatMediaDuration(displayedPosition),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = formatMediaDuration(duration),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
-        Button(
-            onClick = {
-                if (isPlaying) {
-                    exoPlayer.pause()
-                    playWhenReady = false
-                } else {
-                    if (exoPlayer.playbackState == Player.STATE_ENDED) {
-                        exoPlayer.seekTo(0)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    if (isPlaying) {
+                        exoPlayer.pause()
+                        playWhenReady = false
+                    } else {
+                        if (exoPlayer.playbackState == Player.STATE_ENDED) {
+                            exoPlayer.seekTo(0)
+                        }
+                        exoPlayer.play()
+                        playWhenReady = true
                     }
-                    exoPlayer.play()
-                    playWhenReady = true
-                }
-            },
-            modifier = Modifier.align(androidx.compose.ui.Alignment.CenterHorizontally),
-        ) {
-            Icon(
-                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                contentDescription = null,
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(if (isPlaying) "Pause" else "Play")
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(if (isPlaying) "Pause" else "Play")
+            }
         }
-    }
-}
-
-private fun formatTime(millis: Long): String {
-    val seconds = (millis / 1000) % 60
-    val minutes = (millis / 1000 / 60) % 60
-    val hours = millis / 1000 / 3600
-    return if (hours > 0) {
-        "%d:%02d:%02d".format(hours, minutes, seconds)
-    } else {
-        "%d:%02d".format(minutes, seconds)
     }
 }

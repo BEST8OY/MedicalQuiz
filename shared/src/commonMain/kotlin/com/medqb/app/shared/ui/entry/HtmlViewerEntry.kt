@@ -23,12 +23,14 @@ fun HtmlViewerEntry(
         graph.createHtmlViewerViewModel(key.fileName)
     }
     val htmlDocument by viewModel.htmlDocument.collectAsStateWithLifecycle()
+    val richTextScale by viewModel.fontScalePreference.collectAsStateWithLifecycle()
 
     HtmlViewerScreen(
         fileName = key.fileName,
         htmlContent = htmlDocument?.sanitizedHtml,
         fileExists = htmlDocument?.fileExists ?: true,
         isLoading = htmlDocument == null,
+        richTextScale = richTextScale,
         onBack = dropUnlessResumed {
             navigator.navigateBack()
         },

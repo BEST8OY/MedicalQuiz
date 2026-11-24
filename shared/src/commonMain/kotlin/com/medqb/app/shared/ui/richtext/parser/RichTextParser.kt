@@ -7,7 +7,6 @@ import com.medqb.app.shared.ui.richtext.RichTextBlock
 import com.medqb.app.shared.ui.richtext.RichTextPalette
 import com.medqb.app.shared.ui.richtext.RichTextTableCell
 import com.medqb.app.shared.ui.richtext.RichTextTableRow
-import com.medqb.app.shared.ui.richtext.containsInsensitive
 import com.medqb.app.shared.ui.richtext.extractMediaRef
 import com.medqb.app.shared.ui.richtext.matchesAnyMarker
 import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlHandler
@@ -678,7 +677,6 @@ private class RichTextDomParser(
             if (isMeaningfulTitle) {
                 val rowAlignment = parseTextAlign(row)
                 val centerAligned = info.alignment == TextAlign.Center || rowAlignment == TextAlign.Center
-                val spansMultiple = info.columnSpan >= 2
                 val rowHasTitleClass = row.classNames().matchesAnyMarker(RichTextParserConfig.titleRowClassMarkers)
                 val rowHasHeaderAttrs = row.hasHeaderAttributeMarker()
                 val emphasised = info.hasHeaderTraits || rowHasTitleClass || rowHasHeaderAttrs
@@ -787,23 +785,6 @@ private class RichTextDomParser(
     }
 
     // ==================== OTHER BLOCK PARSERS ====================
-
-    private fun parseAbstractBlock(element: KsoupElement, depth: Int): RichTextBlock.AbstractBlock? {
-        val childBlocks = parse(element.children, depth = depth + 1).toMutableList()
-        if (childBlocks.isEmpty()) return null
-
-        var title: AnnotatedString? = null
-        if (childBlocks.firstOrNull() is RichTextBlock.Heading) {
-            val heading = childBlocks.removeAt(0) as RichTextBlock.Heading
-            title = heading.text
-        }
-
-        return RichTextBlock.AbstractBlock(
-            title = title,
-            blocks = childBlocks,
-            classNames = element.classNames()
-        )
-    }
 
     private fun parseMediaElement(element: KsoupElement, inheritedTextAlign: TextAlign? = null): RichTextBlock.Media? {
         val source = element.attr("src").takeIf { it.isNotBlank() } ?: return null

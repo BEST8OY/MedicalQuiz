@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -261,7 +260,7 @@ private fun HighlightableList(
             Row(modifier = Modifier.fillMaxWidth()) {
                 MaterialText(
                     text = markerProvider(index),
-                    style = MaterialTheme.typography.bodyLarge.scaledBy(richTextScale.proseScale),
+                    style = MaterialTheme.typography.bodyMedium.scaledBy(richTextScale.proseScale),
                     modifier = Modifier.padding(end = 12.dp),
                 )
                 HighlightableListItem(

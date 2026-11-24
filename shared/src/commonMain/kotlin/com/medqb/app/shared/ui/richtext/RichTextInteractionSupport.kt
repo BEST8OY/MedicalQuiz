@@ -3,11 +3,12 @@ package com.medqb.app.shared.ui.richtext
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.ui.dialogs.components.MedQBModalBottomSheet
 
 internal data class RichTextTooltipSupport(
     val onTooltipClick: (RichTextTooltipContent) -> Unit,
@@ -84,23 +86,26 @@ internal fun RichTextTooltipBottomSheet(
     onDismissRequest: () -> Unit
 ) {
     content?.let {
-        ModalBottomSheet(
+        MedQBModalBottomSheet(
             onDismissRequest = onDismissRequest,
-            dragHandle = {
-                BottomSheetDefaults.DragHandle()
-            }
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 12.dp)
+                    .navigationBarsPadding(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = it.title,
                     style = MaterialTheme.typography.titleMedium
                 )
-                Text(text = it.message)
+                Text(
+                    text = it.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

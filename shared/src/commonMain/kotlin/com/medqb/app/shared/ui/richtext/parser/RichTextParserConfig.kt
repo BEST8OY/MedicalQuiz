@@ -1,6 +1,5 @@
 package com.medqb.app.shared.ui.richtext.parser
 
-import com.medqb.app.shared.ui.richtext.matchesAnyMarker
 import com.medqb.app.shared.ui.richtext.normalizedMarkers
 
 /**
@@ -16,7 +15,6 @@ internal object RichTextParserConfig {
     // Heuristic thresholds
     const val MAX_TITLE_LENGTH = 200
     const val BOLD_FONT_WEIGHT_THRESHOLD = 600
-    const val BOLD_CHECK_MAX_DEPTH = 4
     const val ALIGNMENT_DESCENT_MAX_DEPTH = 3
 
     /**
@@ -151,20 +149,6 @@ internal object RichTextParserConfig {
         "data-caption",
         "data-title",
         "data-heading"
-    )
-
-    /**
-     * Attribute names to check for header cell markers.
-     */
-    val headerCellAttributeNames = setOf(
-        "data-cell-type",
-        "data-type",
-        "role",
-        "data-role",
-        "data-header",
-        "data-heading",
-        "headers",
-        "scope"
     )
 
     /**

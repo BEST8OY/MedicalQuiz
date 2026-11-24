@@ -26,19 +26,16 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.ui.components.ToggleSegmentedListItem
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -72,18 +69,13 @@ internal fun FilterToggleSegmentedItem(
         label = "toggleItemIconColor"
     )
 
-    SegmentedListItem(
+    ToggleSegmentedListItem(
+        title = title,
+        description = description,
         checked = checked,
         onCheckedChange = onCheckedChange,
         shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
-        colors = ListItemDefaults.segmentedColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            selectedContentColor = MaterialTheme.colorScheme.onSurface,
-            supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            selectedSupportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
+        modifier = modifier,
         leadingContent = {
             Surface(
                 shape = MaterialTheme.shapes.small,
@@ -100,27 +92,6 @@ internal fun FilterToggleSegmentedItem(
                 }
             }
         },
-        content = {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMediumEmphasized,
-            )
-        },
-        supportingContent = {
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        },
-        trailingContent = {
-            Switch(
-                checked = checked,
-                onCheckedChange = null,
-            )
-        },
-        modifier = modifier
-            .fillMaxWidth()
-            .semantics { role = Role.Switch }
     )
 }
 

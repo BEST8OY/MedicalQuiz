@@ -1,14 +1,16 @@
 package com.medqb.app.shared.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -26,11 +28,13 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.ui.components.ContentMaxWidth
 import com.medqb.app.shared.ui.components.EmptyStateMessage
 import com.medqb.app.shared.ui.components.MedQBTopBar
+import com.medqb.app.shared.ui.components.ResponsiveContentContainer
 import com.medqb.app.shared.ui.components.SettingsActionButton
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -46,6 +50,7 @@ fun DatabaseSelectionScreen(
 ) {
     Scaffold(
         modifier = modifier,
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             MedQBTopBar(
                 supportingText = "Select QBank",
@@ -58,22 +63,24 @@ fun DatabaseSelectionScreen(
             )
         },
     ) { padding ->
-        val topPadding = padding.calculateTopPadding()
+        val layoutDirection = LocalLayoutDirection.current
+        val containerPadding = PaddingValues(
+            start = padding.calculateStartPadding(layoutDirection),
+            top = padding.calculateTopPadding(),
+            end = padding.calculateEndPadding(layoutDirection),
+        )
         val bottomPadding = padding.calculateBottomPadding()
 
-        Box(
+        ResponsiveContentContainer(
+            maxWidth = ContentMaxWidth.Standard,
             modifier = Modifier
-                .fillMaxSize()
-                .padding(top = topPadding)
-                .consumeWindowInsets(PaddingValues(top = topPadding)),
-            contentAlignment = Alignment.TopCenter,
+                .padding(containerPadding)
+                .consumeWindowInsets(containerPadding),
         ) {
             PullToRefreshBox(
                 isRefreshing = isLoading,
                 onRefresh = onRefreshDatabases,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .widthIn(max = 840.dp),
+                modifier = Modifier.fillMaxSize(),
             ) {
                 LazyColumn(
                     modifier = Modifier

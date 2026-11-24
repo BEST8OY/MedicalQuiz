@@ -73,11 +73,11 @@ class DifficultyFilterBottomSheetUiTest {
             )
         }
 
-        onNodeWithText("Clear All").assertIsNotEnabled()
-        onNodeWithText("Select All").assertIsEnabled().performClick()
+        onNodeWithText("Clear").assertIsNotEnabled()
+        onNodeWithText("Select all").assertIsEnabled().performClick()
 
-        onNodeWithText("Select All").assertIsNotEnabled()
-        onNodeWithText("Clear All").assertIsEnabled()
+        onNodeWithText("Select all").assertIsNotEnabled()
+        onNodeWithText("Clear").assertIsEnabled()
 
         // Applying when all are selected normalizes to emptySet() ("All Difficulties")
         onNodeWithText("Apply").performClick()

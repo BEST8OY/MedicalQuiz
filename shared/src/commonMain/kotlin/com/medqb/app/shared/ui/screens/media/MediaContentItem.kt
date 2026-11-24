@@ -64,6 +64,7 @@ internal fun MediaContent(
     fileName: String,
     isActivePage: Boolean,
     isSharedElementPage: Boolean = false,
+    resetZoomTrigger: Int = 0,
     resolveMediaFilePath: (String) -> String,
     mediaFileExists: suspend (String) -> Boolean,
     onZoomChanged: (Boolean) -> Unit,
@@ -88,6 +89,7 @@ internal fun MediaContent(
                 fileName = fileName,
                 mediaFilePath = filePath,
                 isActivePage = isActivePage,
+                resetZoomTrigger = resetZoomTrigger,
                 onZoomChanged = onZoomChanged,
                 onSingleTap = onSingleTap,
                 overlayPath = overlayPath,
@@ -138,6 +140,7 @@ private fun ImageContent(
     fileName: String,
     mediaFilePath: String,
     isActivePage: Boolean,
+    resetZoomTrigger: Int = 0,
     onZoomChanged: (Boolean) -> Unit,
     onSingleTap: () -> Unit,
     overlayPath: String? = null,
@@ -239,6 +242,16 @@ private fun ImageContent(
     //
     PlatformBackHandler(enabled = isActivePage && isZoomed && isTransitionDone) {
         coroutineScope.launch {
+            zoomState.changeScale(
+                targetScale = MIN_SCALE,
+                position = center,
+                animationSpec = defaultSpatialFloatSpec,
+            )
+        }
+    }
+
+    LaunchedEffect(resetZoomTrigger) {
+        if (resetZoomTrigger > 0 && isActivePage && isZoomed) {
             zoomState.changeScale(
                 targetScale = MIN_SCALE,
                 position = center,

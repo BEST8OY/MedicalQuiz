@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -81,32 +80,15 @@ actual fun VideoPlayer(
 
     Box(modifier = modifier.fillMaxSize()) {
         if (errorMessage != null) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(40.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "⚠️",
-                    style = MaterialTheme.typography.displayMedium
-                )
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = errorMessage!!,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = {
-                        if (VlcDiscovery.retry()) {
-                            errorMessage = null
-                            vlcDiscovered = true
-                        }
+            VlcErrorState(
+                message = errorMessage!!,
+                onRetry = {
+                    if (VlcDiscovery.retry()) {
+                        errorMessage = null
+                        vlcDiscovered = true
                     }
-                ) {
-                    Text("Retry")
-                }
-            }
+                },
+            )
         } else if (vlcDiscovered) {
             SwingPanel(
                 modifier = Modifier.fillMaxSize().background(Color.Black),
@@ -182,60 +164,27 @@ actual fun VideoPlayer(
                     // Time display
                     if (duration > 0) {
                         Text(
-                            text = "${formatTime(currentTime)} / ${formatTime(duration)}",
+                            text = "${formatMediaDuration(currentTime)} / ${formatMediaDuration(duration)}",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
 
                     // Volume control
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.width(150.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                            contentDescription = "Volume",
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        val sliderState = rememberSliderState(
-                            value = volume.toFloat(),
-                            trackRange = 0f..100f
-                        )
-                        LaunchedEffect(volume) {
-                            sliderState.value = volume.toFloat()
-                        }
-                        Slider(
-                            state = sliderState,
-                            onValueChange = { newVolume ->
-                                volume = newVolume.toInt()
-                                mediaPlayerComponent?.mediaPlayer()?.audio()?.setVolume(volume)
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    DesktopVolumeControl(
+                        volume = volume,
+                        onVolumeChange = { newVolume ->
+                            volume = newVolume
+                            mediaPlayerComponent?.mediaPlayer()?.audio()?.setVolume(volume)
+                        },
+                        iconSize = 20.dp,
+                        modifier = Modifier.width(150.dp),
+                    )
                 }
             }
             }
         } else {
             // Loading state while VLC is being discovered
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+            VlcLoadingState()
         }
-    }
-}
-
-private fun formatTime(millis: Long): String {
-    val seconds = (millis / 1000) % 60
-    val minutes = (millis / 1000 / 60) % 60
-    val hours = millis / 1000 / 3600
-    return if (hours > 0) {
-        "%d:%02d:%02d".format(hours, minutes, seconds)
-    } else {
-        "%d:%02d".format(minutes, seconds)
     }
 }

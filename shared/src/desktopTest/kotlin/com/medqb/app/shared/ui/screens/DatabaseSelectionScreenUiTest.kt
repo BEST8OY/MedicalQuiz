@@ -2,6 +2,7 @@ package com.medqb.app.shared.ui.screens
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -70,7 +71,9 @@ class DatabaseSelectionScreenUiTest {
         }
 
         onNodeWithText("Select QBank").assertIsDisplayed()
-        // Find Settings Action Button by content description or click
-        onNodeWithText("Test.db").assertIsDisplayed()
+        onNodeWithContentDescription("Open settings")
+            .assertIsDisplayed()
+            .performClick()
+        assertTrue(settingsOpened)
     }
 }

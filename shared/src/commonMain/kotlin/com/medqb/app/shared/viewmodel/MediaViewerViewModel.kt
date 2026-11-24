@@ -26,7 +26,7 @@ class MediaViewerViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = 1f,
+            initialValue = settingsRepository.fontScalePreference.value ?: 1f,
         )
 
     init {

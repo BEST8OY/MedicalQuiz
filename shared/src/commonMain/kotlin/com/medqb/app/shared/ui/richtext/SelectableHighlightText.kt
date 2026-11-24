@@ -5,10 +5,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicText
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,6 +20,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -79,9 +79,15 @@ internal fun SelectableHighlightText(
             PlatformKind.Desktop -> DESKTOP_LONG_PRESS_DRAG_HYSTERESIS
         }
     }
-    val density = androidx.compose.ui.platform.LocalDensity.current
+    val density = LocalDensity.current
     val longPressDragHysteresisPx = remember(density) {
         with(density) { longPressDragHysteresis.toPx() }
+    }
+    val popupPaddingPx = remember(density) {
+        with(density) { 8.dp.toPx() }
+    }
+    val popupGapPx = remember(density) {
+        with(density) { 12.dp.toPx() }
     }
 
     val highlightedText = remember(text, highlights) {
@@ -174,7 +180,9 @@ internal fun SelectableHighlightText(
                     state.selectionPopupSize,
                     state.layoutResult,
                     normalizedStart,
-                    normalizedEndExclusive
+                    normalizedEndExclusive,
+                    popupPaddingPx,
+                    popupGapPx,
                 ) {
                     val layout = state.layoutResult
                     if (layout == null) {
@@ -182,7 +190,9 @@ internal fun SelectableHighlightText(
                             anchorPosition = state.selectionState.anchorPosition,
                             popupSize = state.selectionPopupSize,
                             containerSize = state.containerSize,
-                            preferAbove = true
+                            preferAbove = true,
+                            paddingPx = popupPaddingPx,
+                            gapPx = popupGapPx,
                         )
                     } else {
                         val startLine = layout.getLineForOffset(normalizedStart)
@@ -195,126 +205,129 @@ internal fun SelectableHighlightText(
                             popupSize = state.selectionPopupSize,
                             containerSize = state.containerSize,
                             selectionTop = selectionTop,
-                            selectionBottom = selectionBottom
+                            selectionBottom = selectionBottom,
+                            paddingPx = popupPaddingPx,
+                            gapPx = popupGapPx,
                         )
                     }
                 }
 
-                Popup(
-                    alignment = androidx.compose.ui.Alignment.TopStart,
-                    offset = IntOffset(
-                        x = toolbarPosition.x.roundToInt(),
-                        y = toolbarPosition.y.roundToInt()
-                    ),
-                    properties = PopupProperties(
-                        focusable = true,
-                        dismissOnBackPress = true,
-                        dismissOnClickOutside = true
-                    ),
-                    onDismissRequest = { state.selectionState = TextSelectionState() }
+                HighlightAnchoredPopup(
+                    position = toolbarPosition,
+                    onDismissRequest = { state.selectionState = TextSelectionState() },
+                    onPopupSizeChanged = { state.selectionPopupSize = it },
                 ) {
-                    val motionScheme = MaterialTheme.motionScheme
-                    // Enter animation only — exit is instant because Popup removal
-                    // tears down composition before AnimatedVisibility can animate out.
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(motionScheme.defaultEffectsSpec()) +
-                                slideInVertically(motionScheme.defaultSpatialSpec()) { -it / 4 }
-                    ) {
-                        Box(
-                            modifier = Modifier.onSizeChanged { state.selectionPopupSize = it }
-                        ) {
-                            SelectionToolbar(
-                                selectedText = state.selectionState.selectedText,
-                                onCopy = {
-                                    val copiedText = state.selectionState.selectedText
-                                    if (copiedText.isNotBlank()) {
-                                        clipboard.setPlainText(AnnotatedString(copiedText))
+                    SelectionToolbar(
+                        selectedText = state.selectionState.selectedText,
+                        onCopy = {
+                            val copiedText = state.selectionState.selectedText
+                            if (copiedText.isNotBlank()) {
+                                clipboard.setPlainText(AnnotatedString(copiedText))
+                            }
+                            state.selectionState = TextSelectionState()
+                        },
+                        onOpenExternal = {
+                            if (state.selectionState.selectedText.isNotBlank()) {
+                                val opened = TextIntentLauncher.openSelectedText(state.selectionState.selectedText)
+                                if (!opened) {
+                                    val failedText = state.selectionState.selectedText
+                                    coroutineScope.launch {
+                                        onShowSnackbar(
+                                            SnackbarMessage.Action(
+                                                message = "No compatible app found",
+                                                actionLabel = "Copy",
+                                                onActionPerformed = {
+                                                    if (failedText.isNotBlank()) {
+                                                        clipboard.setPlainText(AnnotatedString(failedText))
+                                                    }
+                                                },
+                                            )
+                                        )
                                     }
-                                    state.selectionState = TextSelectionState()
-                                },
-                                onOpenExternal = {
-                                    if (state.selectionState.selectedText.isNotBlank()) {
-                                        val opened = TextIntentLauncher.openSelectedText(state.selectionState.selectedText)
-                                        if (!opened) {
-                                            val failedText = state.selectionState.selectedText
-                                            coroutineScope.launch {
-                                                onShowSnackbar(
-                                                    SnackbarMessage.Action(
-                                                        message = "No compatible app found",
-                                                        actionLabel = "Copy",
-                                                        onActionPerformed = {
-                                                            if (failedText.isNotBlank()) {
-                                                                clipboard.setPlainText(AnnotatedString(failedText))
-                                                            }
-                                                        },
-                                                    )
-                                                )
-                                            }
-                                            return@SelectionToolbar
-                                        }
-                                    }
-                                    state.selectionState = TextSelectionState()
-                                },
-                                onHighlight = { color ->
-                                    val range = state.selectionState.selectionRange
-                                    onHighlightAdd(range.first, range.last + 1, state.selectionState.selectedText, color)
-                                    state.selectionState = TextSelectionState()
-                                },
-                            )
-                        }
-                    }
+                                    return@SelectionToolbar
+                                }
+                            }
+                            state.selectionState = TextSelectionState()
+                        },
+                        onHighlight = { color ->
+                            val range = state.selectionState.selectionRange
+                            onHighlightAdd(range.first, range.last + 1, state.selectionState.selectedText, color)
+                            state.selectionState = TextSelectionState()
+                        },
+                    )
                 }
             }
         }
 
         state.editingHighlight?.let { highlight ->
-            val popupPosition = remember(state.editPopupAnchor, state.containerSize, state.editPopupSize) {
+            val popupPosition = remember(
+                state.editPopupAnchor,
+                state.containerSize,
+                state.editPopupSize,
+                popupPaddingPx,
+                popupGapPx,
+            ) {
                 calculatePopupPosition(
                     anchorPosition = state.editPopupAnchor,
                     popupSize = state.editPopupSize,
                     containerSize = state.containerSize,
-                    preferAbove = true
+                    preferAbove = true,
+                    paddingPx = popupPaddingPx,
+                    gapPx = popupGapPx,
                 )
             }
 
-            Popup(
-                alignment = androidx.compose.ui.Alignment.TopStart,
-                offset = IntOffset(
-                    x = popupPosition.x.roundToInt(),
-                    y = popupPosition.y.roundToInt()
-                ),
-                properties = PopupProperties(
-                    focusable = true,
-                    dismissOnBackPress = true,
-                    dismissOnClickOutside = true
-                ),
-                onDismissRequest = { state.editingHighlight = null }
+            HighlightAnchoredPopup(
+                position = popupPosition,
+                onDismissRequest = { state.editingHighlight = null },
+                onPopupSizeChanged = { state.editPopupSize = it },
             ) {
-                val motionScheme = MaterialTheme.motionScheme
-                // Enter animation only — exit is instant because Popup removal
-                // tears down composition before AnimatedVisibility can animate out.
-                AnimatedVisibility(
-                    visible = true,
-                    enter = fadeIn(motionScheme.defaultEffectsSpec()) +
-                            slideInVertically(motionScheme.defaultSpatialSpec()) { -it / 4 }
-                ) {
-                    Box(
-                        modifier = Modifier.onSizeChanged { state.editPopupSize = it }
-                    ) {
-                        HighlightEditPopup(
-                            highlight = highlight,
-                            onColorChange = { color ->
-                                onHighlightColorChange(highlight.id, color)
-                                state.editingHighlight = null
-                            },
-                            onDelete = {
-                                onHighlightRemove(highlight.id)
-                                state.editingHighlight = null
-                            }
-                        )
+                HighlightEditPopup(
+                    highlight = highlight,
+                    onColorChange = { color ->
+                        onHighlightColorChange(highlight.id, color)
+                        state.editingHighlight = null
+                    },
+                    onDelete = {
+                        onHighlightRemove(highlight.id)
+                        state.editingHighlight = null
                     }
-                }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HighlightAnchoredPopup(
+    position: Offset,
+    onDismissRequest: () -> Unit,
+    onPopupSizeChanged: (IntSize) -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Popup(
+        alignment = Alignment.TopStart,
+        offset = IntOffset(
+            x = position.x.roundToInt(),
+            y = position.y.roundToInt(),
+        ),
+        properties = PopupProperties(
+            focusable = true,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true,
+        ),
+        onDismissRequest = onDismissRequest,
+    ) {
+        val motionScheme = MaterialTheme.motionScheme
+        // Enter animation only — exit is instant because Popup removal
+        // tears down composition before AnimatedVisibility can animate out.
+        AnimatedVisibility(
+            visible = true,
+            enter = fadeIn(motionScheme.defaultEffectsSpec()) +
+                slideInVertically(motionScheme.defaultSpatialSpec()) { -it / 4 },
+        ) {
+            Box(modifier = Modifier.onSizeChanged(onPopupSizeChanged)) {
+                content()
             }
         }
     }

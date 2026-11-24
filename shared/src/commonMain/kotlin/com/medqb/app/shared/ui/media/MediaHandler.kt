@@ -7,19 +7,16 @@ class MediaHandler(
     private val onOpenMedia: (List<String>, Int) -> Unit,
     private val onOpenHtml: (String) -> Unit
 ) {
-    private var currentQuestionId: Long? = null
     private var currentMediaFiles: List<String> = emptyList()
 
     val activeSharedElementKey = mutableStateOf<String?>(null)
 
     fun reset() {
-        currentQuestionId = null
         currentMediaFiles = emptyList()
         activeSharedElementKey.value = null
     }
 
-    fun updateMedia(questionId: Long, mediaFiles: List<String>) {
-        currentQuestionId = questionId
+    fun updateMedia(@Suppress("UNUSED_PARAMETER") questionId: Long, mediaFiles: List<String>) {
         currentMediaFiles = mediaFiles
     }
 
@@ -69,11 +66,6 @@ class MediaHandler(
         }
 
         if (!trimmed.contains("/") && !trimmed.startsWith("http") && !trimmed.startsWith("file://")) {
-            // Check if it's an HTML file without path
-            if (trimmed.contains(".html", ignoreCase = true) || trimmed.contains(".htm", ignoreCase = true)) {
-                onOpenHtml(trimmed)
-                return true
-            }
             val fileName = extractedFileName(trimmed) ?: trimmed
             return openMediaFromCache(fileName)
         }
@@ -81,42 +73,22 @@ class MediaHandler(
         return false
     }
 
-    fun showCurrentMediaGallery(startIndex: Int = 0): Boolean = openMediaFromCache(null, startIndex)
-
-    private fun openMediaFromCache(fileName: String?, fallbackIndex: Int = 0): Boolean {
+    private fun openMediaFromCache(fileName: String): Boolean {
         if (currentMediaFiles.isEmpty()) {
-            if (fileName != null) {
-                activeSharedElementKey.value = fileName
-                onOpenMedia(listOf(fileName), 0)
-                return true
-            }
-            return false
-        }
-
-        if (fileName != null) {
-            val matchingIndex = currentMediaFiles.indexOfFirst { it.equals(fileName, ignoreCase = true) }
-            if (matchingIndex < 0) {
-                // If requested filename is not in current cached gallery, fallback to opening single requested media
-                activeSharedElementKey.value = fileName
-                onOpenMedia(listOf(fileName), 0)
-                return true
-            }
             activeSharedElementKey.value = fileName
-            onOpenMedia(currentMediaFiles, matchingIndex)
+            onOpenMedia(listOf(fileName), 0)
             return true
         }
 
-        val startIndex = resolveStartIndex(currentMediaFiles, null, fallbackIndex)
-        onOpenMedia(currentMediaFiles, startIndex)
-        return true
-    }
-
-    private fun resolveStartIndex(mediaFiles: List<String>, fileName: String?, fallbackIndex: Int): Int {
-        if (mediaFiles.size == 1) return 0
-        val matchingIndex = fileName?.let { target ->
-            mediaFiles.indexOfFirst { it.equals(target, ignoreCase = true) }
+        val matchingIndex = currentMediaFiles.indexOfFirst { it.equals(fileName, ignoreCase = true) }
+        if (matchingIndex < 0) {
+            // If requested filename is not in current cached gallery, fallback to opening single requested media
+            activeSharedElementKey.value = fileName
+            onOpenMedia(listOf(fileName), 0)
+            return true
         }
-        return matchingIndex?.takeIf { it >= 0 }
-            ?: fallbackIndex.coerceIn(0, mediaFiles.lastIndex)
+        activeSharedElementKey.value = fileName
+        onOpenMedia(currentMediaFiles, matchingIndex)
+        return true
     }
 }

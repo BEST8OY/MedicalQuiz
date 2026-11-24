@@ -18,18 +18,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.unit.max
-import androidx.compose.ui.text.TextStyle
-import kotlin.collections.ArrayDeque
-import kotlin.collections.buildList
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -62,7 +62,9 @@ internal fun RichTextTableShell(
     val renderModel = remember(block) { block.toRenderModel() }
     if (renderModel.columnCount == 0) return
     val scrollState = rememberScrollState()
-    val minTableWidth = 120.dp * renderModel.columnCount
+    val columnMinWidth = if (renderModel.columnCount >= 5) 96.dp else 120.dp
+    val minTableWidth = columnMinWidth * renderModel.columnCount
+    val surfaceColor = MaterialTheme.colorScheme.surface
 
     // Collect rowspan anchors
     val anchors = remember(renderModel) {
@@ -88,7 +90,34 @@ internal fun RichTextTableShell(
         shape = MaterialTheme.shapes.medium,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        BoxWithConstraints {
+        BoxWithConstraints(
+            modifier = Modifier.drawWithContent {
+                drawContent()
+                val fadeWidth = 20.dp.toPx().coerceAtMost(size.width * 0.15f)
+                if (fadeWidth > 0f && scrollState.canScrollBackward) {
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(surfaceColor.copy(alpha = 0.85f), Color.Transparent),
+                            startX = 0f,
+                            endX = fadeWidth,
+                        ),
+                        topLeft = Offset.Zero,
+                        size = Size(fadeWidth, size.height),
+                    )
+                }
+                if (fadeWidth > 0f && scrollState.canScrollForward) {
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(Color.Transparent, surfaceColor.copy(alpha = 0.85f)),
+                            startX = size.width - fadeWidth,
+                            endX = size.width,
+                        ),
+                        topLeft = Offset(size.width - fadeWidth, 0f),
+                        size = Size(fadeWidth, size.height),
+                    )
+                }
+            }
+        ) {
             val tableWidth = max(minTableWidth, maxWidth)
 
             if (anchors.isEmpty()) {
@@ -146,40 +175,27 @@ internal fun RichTextTableShell(
                         currentY += height
                     }
 
+                    val tableWidthPx = tableWidth.toPx()
+                    val insetSmPx = 12.dp.toPx()
+                    val anchorBoundsList = anchors.map { anchor ->
+                        computeAnchorHorizontalBounds(
+                            row = renderModel.rows[anchor.startRow],
+                            cellIndex = anchor.cellIndex,
+                            cell = anchor.cell,
+                            tableWidthPx = tableWidthPx,
+                            insetSmPx = insetSmPx,
+                        )
+                    }
+
                     // Measure anchor overlays with calculated widths and heights
                     val anchorMeasurables = subcompose("anchors") {
-                        anchors.forEach { anchor ->
+                        anchors.forEachIndexed { i, anchor ->
                             val startRowModel = renderModel.rows[anchor.startRow]
-                            val totalWeight = startRowModel.cells.sumOf {
-                                (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
-                            }.toFloat()
-                            val startWeight = startRowModel.cells.take(anchor.cellIndex).sumOf {
-                                (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
-                            }.toFloat()
-                            val cellWeight = anchor.cell.cell.width ?: anchor.cell.columnSpan.coerceAtLeast(1).toFloat()
+                            val bounds = anchorBoundsList[i]
+                            val cellWidth = bounds.widthPx.toDp()
 
-                            val insetSmPx = 12.dp.toPx()
-                            val usableWidth = tableWidth.toPx() - insetSmPx * 2
-
-                            val isLeftEdge = startWeight == 0f
-                            val isRightEdge = (startWeight + cellWeight) == totalWeight
-
-                            val leftX = if (isLeftEdge) {
-                                0f
-                            } else {
-                                insetSmPx + usableWidth * (startWeight / totalWeight)
-                            }
-
-                            val rightX = if (isRightEdge) {
-                                tableWidth.toPx()
-                            } else {
-                                insetSmPx + usableWidth * ((startWeight + cellWeight) / totalWeight)
-                            }
-
-                            val cellWidth = (rightX - leftX).toDp()
-
-                            val paddingStart = if (isLeftEdge) 20.dp else 8.dp
-                            val paddingEnd = if (isRightEdge) 20.dp else 8.dp
+                            val paddingStart = if (bounds.isLeftEdge) 20.dp else 8.dp
+                            val paddingEnd = if (bounds.isRightEdge) 20.dp else 8.dp
 
                             val isAbstractRow = (startRowModel.classNames + block.classNames).containsInsensitive("abstract")
                             val baseBackground = when {
@@ -187,15 +203,13 @@ internal fun RichTextTableShell(
                                 isAbstractRow -> MaterialTheme.colorScheme.surfaceVariant
                                 else -> MaterialTheme.colorScheme.surface
                             }
-                            val cellBackground = when {
-                                anchor.cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.secondaryContainer
-                                anchor.cell.cell.classNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer
-                                else -> baseBackground
-                            }
+                            val cellBackground = resolveCellBackgroundColor(
+                                cellClassNames = anchor.cell.cell.classNames,
+                                defaultColor = baseBackground,
+                            )
 
                             Surface(
-                                modifier = Modifier
-                                    .width(cellWidth),
+                                modifier = Modifier.width(cellWidth),
                                 color = cellBackground,
                                 shape = MaterialTheme.shapes.extraSmall
                             ) {
@@ -218,36 +232,7 @@ internal fun RichTextTableShell(
 
                     val anchorPlacements = anchorMeasurables.mapIndexed { i, measurable ->
                         val anchor = anchors[i]
-
-                        val startRowModel = renderModel.rows[anchor.startRow]
-                        val totalWeight = startRowModel.cells.sumOf {
-                            (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
-                        }.toFloat()
-                        val startWeight = startRowModel.cells.take(anchor.cellIndex).sumOf {
-                            (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
-                        }.toFloat()
-                        val cellWeight = anchor.cell.cell.width ?: anchor.cell.columnSpan.coerceAtLeast(1).toFloat()
-
-                        val insetSmPx = 12.dp.toPx()
-                        val usableWidth = tableWidth.toPx() - insetSmPx * 2
-
-                        val isLeftEdge = startWeight == 0f
-                        val isRightEdge = (startWeight + cellWeight) == totalWeight
-
-                        val leftX = if (isLeftEdge) {
-                            0f
-                        } else {
-                            insetSmPx + usableWidth * (startWeight / totalWeight)
-                        }
-
-                        val rightX = if (isRightEdge) {
-                            tableWidth.toPx()
-                        } else {
-                            insetSmPx + usableWidth * ((startWeight + cellWeight) / totalWeight)
-                        }
-
-                        val cellWidthPx = rightX - leftX
-
+                        val cellWidthPx = anchorBoundsList[i].widthPx
                         val spanHeight = (anchor.startRow..anchor.endRow)
                             .sumOf { rowHeights.getOrElse(it) { 0 } }
                         measurable.measure(constraints.copy(
@@ -269,25 +254,7 @@ internal fun RichTextTableShell(
                         // Place anchor overlays
                         anchors.forEachIndexed { i, anchor ->
                             val startY = rowPositions[anchor.startRow]
-
-                            val startRowModel = renderModel.rows[anchor.startRow]
-                            val totalWeight = startRowModel.cells.sumOf {
-                                (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
-                            }.toFloat()
-                            val startWeight = startRowModel.cells.take(anchor.cellIndex).sumOf {
-                                (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
-                            }.toFloat()
-
-                            val insetSmPx = 12.dp.toPx()
-                            val usableWidth = tableWidth.toPx() - insetSmPx * 2
-
-                            val isLeftEdge = startWeight == 0f
-                            val leftX = if (isLeftEdge) {
-                                0f
-                            } else {
-                                insetSmPx + usableWidth * (startWeight / totalWeight)
-                            }
-
+                            val leftX = anchorBoundsList[i].leftX
                             anchorPlacements[i].place(leftX.roundToInt(), startY)
                         }
                     }
@@ -309,6 +276,43 @@ internal fun RichTextTableShell(
             }
         }
     }
+}
+
+private data class AnchorHorizontalBounds(
+    val leftX: Float,
+    val widthPx: Float,
+    val isLeftEdge: Boolean,
+    val isRightEdge: Boolean,
+)
+
+private fun computeAnchorHorizontalBounds(
+    row: TableRenderedRow,
+    cellIndex: Int,
+    cell: TableRenderedCell,
+    tableWidthPx: Float,
+    insetSmPx: Float,
+): AnchorHorizontalBounds {
+    val totalWeight = row.cells.sumOf {
+        (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
+    }.toFloat().coerceAtLeast(1f)
+    val startWeight = row.cells.take(cellIndex).sumOf {
+        (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
+    }.toFloat()
+    val cellWeight = cell.cell.width ?: cell.columnSpan.coerceAtLeast(1).toFloat()
+
+    val usableWidth = (tableWidthPx - insetSmPx * 2).coerceAtLeast(0f)
+    val isLeftEdge = startWeight == 0f
+    val isRightEdge = (startWeight + cellWeight) == totalWeight
+
+    val leftX = if (isLeftEdge) 0f else insetSmPx + usableWidth * (startWeight / totalWeight)
+    val rightX = if (isRightEdge) tableWidthPx else insetSmPx + usableWidth * ((startWeight + cellWeight) / totalWeight)
+
+    return AnchorHorizontalBounds(
+        leftX = leftX,
+        widthPx = (rightX - leftX).coerceAtLeast(0f),
+        isLeftEdge = isLeftEdge,
+        isRightEdge = isRightEdge,
+    )
 }
 
 private class RowspanAnchorInfo(
@@ -571,10 +575,7 @@ internal fun TableRowContent(
                     isAbstractRow = isAbstractRow,
                     cellClassNames = cell.cell.classNames
                 )
-                val cellBackground = when {
-                    cell.cell.classNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.secondaryContainer
-                    else -> Color.Transparent
-                }
+                val cellBackground = resolveCellBackgroundColor(cellClassNames = cell.cell.classNames)
                 Surface(
                     modifier = Modifier
                         .weight(weight)

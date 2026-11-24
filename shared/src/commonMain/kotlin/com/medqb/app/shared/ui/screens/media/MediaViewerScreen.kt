@@ -5,6 +5,7 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -18,23 +19,38 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.rememberLifecycleOwner
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import com.medqb.app.shared.data.MediaDescription
-import kotlinx.coroutines.flow.drop
 import com.medqb.app.shared.ui.LocalSharedTransitionScope
+import com.medqb.app.shared.ui.components.SnackbarBottomClearanceEffect
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -111,6 +127,7 @@ private fun MediaViewerContent(
         pageCount = { mediaFiles.size },
     )
     var isZoomed by remember { mutableStateOf(false) }
+    var resetZoomTrigger by remember { mutableIntStateOf(0) }
     var showUI by rememberSaveable { mutableStateOf(true) }
     var showExplanation by rememberSaveable { mutableStateOf(false) }
     var showOverlay by rememberSaveable { mutableStateOf(true) }
@@ -127,12 +144,28 @@ private fun MediaViewerContent(
             }
     }
 
-    val onToggleUI: () -> Unit = { showUI = !showUI }
+    val onToggleUI: () -> Unit = remember { { showUI = !showUI } }
 
     val overlayPathsByFile by produceState<Map<String, String?>>(initialValue = emptyMap(), mediaFiles) {
         value = resolveOverlayPaths(mediaFiles)
     }
     val currentOverlayPath = overlayPathsByFile[currentFileName]
+    val hasOverlay = currentOverlayPath != null
+    val hasDescription = currentDescription != null
+    val controlsLayout = remember(hasOverlay, hasDescription) {
+        resolveControlsLayout(hasOverlay = hasOverlay, hasDescription = hasDescription)
+    }
+
+    SnackbarBottomClearanceEffect(
+        clearance = 88.dp,
+        active = showUI && controlsLayout != MediaControlsLayout.None,
+    )
+
+    val scope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     val backgroundColor by animateColorAsState(
         targetValue = if (showUI) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceDim,
@@ -142,7 +175,41 @@ private fun MediaViewerContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(backgroundColor),
+            .background(backgroundColor)
+            .focusRequester(focusRequester)
+            .focusable()
+            .onPreviewKeyEvent { event ->
+                if (showExplanation || event.type != KeyEventType.KeyDown ||
+                    event.isCtrlPressed || event.isMetaPressed || event.isAltPressed
+                ) {
+                    return@onPreviewKeyEvent false
+                }
+                when (event.key) {
+                    Key.DirectionLeft -> if (!isZoomed && pagerState.currentPage > 0) {
+                        val targetPage = pagerState.currentPage - 1
+                        scope.launch { pagerState.animateScrollToPage(targetPage) }
+                        true
+                    } else {
+                        false
+                    }
+                    Key.DirectionRight -> if (!isZoomed && pagerState.currentPage < mediaFiles.lastIndex) {
+                        val targetPage = pagerState.currentPage + 1
+                        scope.launch { pagerState.animateScrollToPage(targetPage) }
+                        true
+                    } else {
+                        false
+                    }
+                    Key.Escape -> {
+                        if (isZoomed) {
+                            resetZoomTrigger++
+                        } else {
+                            onBack()
+                        }
+                        true
+                    }
+                    else -> false
+                }
+            },
     ) {
         HorizontalPager(
             state = pagerState,
@@ -172,6 +239,7 @@ private fun MediaViewerContent(
                         fileName = mediaFiles[page],
                         isActivePage = pagerState.currentPage == page,
                         isSharedElementPage = page == safeInitialPage && page == pagerState.currentPage,
+                        resetZoomTrigger = resetZoomTrigger,
                         resolveMediaFilePath = resolveMediaFilePath,
                         mediaFileExists = mediaFileExists,
                         onZoomChanged = {
@@ -200,12 +268,6 @@ private fun MediaViewerContent(
             animatedVisibilityScope = animatedVisibilityScope,
             modifier = Modifier.align(Alignment.TopCenter),
         )
-
-        val hasOverlay = currentOverlayPath != null
-        val hasDescription = currentDescription != null
-        val controlsLayout = remember(hasOverlay, hasDescription) {
-            resolveControlsLayout(hasOverlay = hasOverlay, hasDescription = hasDescription)
-        }
 
         MediaViewerBottomBar(
             showUI = showUI,

@@ -4,13 +4,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.platform.VlcDiscovery
+import com.medqb.app.shared.ui.components.ContentMaxWidth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import uk.co.caprica.vlcj.player.base.MediaPlayer
@@ -112,36 +112,20 @@ actual fun AudioPlayer(
         contentAlignment = Alignment.Center
     ) {
         if (errorMessage != null) {
-            Column(
-                modifier = Modifier.padding(40.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "⚠️",
-                    style = MaterialTheme.typography.displayMedium
-                )
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = errorMessage!!,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = {
-                        if (VlcDiscovery.retry()) {
-                            errorMessage = null
-                            vlcDiscovered = true
-                        }
+            VlcErrorState(
+                message = errorMessage!!,
+                onRetry = {
+                    if (VlcDiscovery.retry()) {
+                        errorMessage = null
+                        vlcDiscovered = true
                     }
-                ) {
-                    Text("Retry")
-                }
-            }
+                },
+            )
         } else {
             // Audio player UI
             Card(
                 modifier = Modifier
+                    .widthIn(max = ContentMaxWidth.MediaControls)
                     .fillMaxWidth()
                     .padding(40.dp),
                 colors = CardDefaults.cardColors(
@@ -169,7 +153,7 @@ actual fun AudioPlayer(
                     // Time display
                     if (duration > 0) {
                         Text(
-                            text = "${formatTime(currentTime)} / ${formatTime(duration)}",
+                            text = "${formatMediaDuration(currentTime)} / ${formatMediaDuration(duration)}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -197,46 +181,17 @@ actual fun AudioPlayer(
                         }
 
                         // Volume control
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f).padding(start = 16.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                                contentDescription = "Volume control",
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            val sliderState = rememberSliderState(
-                                value = volume.toFloat(),
-                                trackRange = 0f..100f
-                            )
-                            LaunchedEffect(volume) {
-                                sliderState.value = volume.toFloat()
-                            }
-                            Slider(
-                                state = sliderState,
-                                onValueChange = { newVolume ->
-                                    volume = newVolume.toInt()
-                                    audioPlayer?.mediaPlayer()?.audio()?.setVolume(volume)
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
+                        DesktopVolumeControl(
+                            volume = volume,
+                            onVolumeChange = { newVolume ->
+                                volume = newVolume
+                                audioPlayer?.mediaPlayer()?.audio()?.setVolume(volume)
+                            },
+                            modifier = Modifier.weight(1f).padding(start = 16.dp),
+                        )
                     }
                 }
             }
         }
-    }
-}
-
-private fun formatTime(millis: Long): String {
-    val seconds = (millis / 1000) % 60
-    val minutes = (millis / 1000 / 60) % 60
-    val hours = millis / 1000 / 3600
-    return if (hours > 0) {
-        "%d:%02d:%02d".format(hours, minutes, seconds)
-    } else {
-        "%d:%02d".format(minutes, seconds)
     }
 }

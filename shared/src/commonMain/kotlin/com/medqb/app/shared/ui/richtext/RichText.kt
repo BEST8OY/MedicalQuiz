@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.richtext.parser.RichTextParser
 
@@ -90,16 +91,18 @@ private fun rememberRichTextBlocks(
 }
 
 @Composable
-internal fun rememberRichTextPalette(): RichTextPalette {
+internal fun rememberRichTextPalette(
+    dictionaryText: Color = MaterialTheme.colorScheme.primary,
+): RichTextPalette {
     val colors = MaterialTheme.colorScheme
-    return remember(colors) {
+    return remember(colors, dictionaryText) {
         RichTextPalette(
             importantBackground = colors.tertiaryContainer,
             importantText = colors.onTertiaryContainer,
             selectedBackground = colors.primaryContainer,
             selectedText = colors.onPrimaryContainer,
             linkText = colors.primary,
-            dictionaryText = colors.primary,
+            dictionaryText = dictionaryText,
             abstractText = colors.onSurfaceVariant
         )
     }

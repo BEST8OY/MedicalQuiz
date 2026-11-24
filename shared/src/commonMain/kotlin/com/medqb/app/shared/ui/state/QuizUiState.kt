@@ -28,12 +28,10 @@ data class QuizUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     
-    val previewQuestionCount: Int = 0,
     val currentPerformance: QuestionPerformance? = null,
     val isLoggingEnabled: Boolean = false,
     val submissionMode: SubmissionMode = SubmissionMode.INSTANT,
     val showMetadata: Boolean = true,
-    val autoLoadFirstQuestion: Boolean = false,
     val fontScalePreference: Float? = null,
     val isCurrentQuestionMarked: Boolean = false,
     val markedQuestionIds: Set<Long> = emptySet(),

@@ -3,20 +3,16 @@ package com.medqb.app.shared.navigation
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.navigation3.runtime.metadata
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
+import com.medqb.app.shared.ui.theme.exitSpatialSpec as themeExitSpatialSpec
 
 /**
  * Shared non-bouncing spatial specification for spatial dismissals (slideOut, scaleOut).
- * Satisfies the Spatial Exit Non-Bouncing Guarantee in AGENTS.md.
+ * Delegates to [com.medqb.app.shared.ui.theme.exitSpatialSpec].
  */
-fun <T> exitSpatialSpec(): FiniteAnimationSpec<T> = spring(
-    dampingRatio = Spring.DampingRatioNoBouncy,
-    stiffness = Spring.StiffnessMediumLow
-)
+fun <T> exitSpatialSpec(): FiniteAnimationSpec<T> = themeExitSpatialSpec()
 
 /**
  * Helper to construct NavDisplay transition metadata for modal scenes.

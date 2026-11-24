@@ -1,14 +1,10 @@
 package com.medqb.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -36,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.ui.adaptive.LocalAdaptiveLayoutInfo
+import com.medqb.app.shared.ui.theme.exitSpatialSpec
 
 data class QuizBottomToolbarUiState(
     val currentQuestionIndex: Int,
@@ -57,139 +55,129 @@ fun QuizFloatingToolbar(
     onSubmit: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    BoxWithConstraints(modifier = modifier) {
-        val motionScheme = MaterialTheme.motionScheme
-        val isExpanded = maxWidth >= 600.dp
-        val currentQuestionNumber = uiState.currentQuestionIndex + 1
-        val questionLabel = "$currentQuestionNumber / ${uiState.totalQuestions}"
+    val motionScheme = MaterialTheme.motionScheme
+    val isExpanded = LocalAdaptiveLayoutInfo.current.isMediumOrWider
+    val currentQuestionNumber = uiState.currentQuestionIndex + 1
+    val questionLabel = "$currentQuestionNumber / ${uiState.totalQuestions}"
 
-        HorizontalFloatingToolbar(
-            expanded = true,
-            modifier = Modifier.padding(horizontal = if (isExpanded) 24.dp else 16.dp),
-            colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
-            contentPadding = FloatingToolbarDefaults.ContentPadding,
-            leadingContent = {
-                if (isExpanded) {
-                    TextButton(
-                        onClick = onPrevious,
-                        enabled = uiState.hasPreviousQuestion,
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = null,
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Prev",
-                            style = MaterialTheme.typography.labelLargeEmphasized,
-                        )
-                    }
-                } else {
-                    IconButton(
-                        onClick = onPrevious,
-                        enabled = uiState.hasPreviousQuestion,
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Previous question",
-                        )
-                    }
-                }
-            },
-            trailingContent = {
-                if (isExpanded) {
-                    TextButton(
-                        onClick = onNext,
-                        enabled = uiState.hasNextQuestion,
-                    ) {
-                        Text(
-                            text = "Next",
-                            style = MaterialTheme.typography.labelLargeEmphasized,
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                            contentDescription = null,
-                        )
-                    }
-                } else {
-                    IconButton(
-                        onClick = onNext,
-                        enabled = uiState.hasNextQuestion,
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                            contentDescription = "Next question",
-                        )
-                    }
-                }
-            },
-            content = {
-                Spacer(modifier = Modifier.width(8.dp))
-
-                AnimatedVisibility(
-                    visible = uiState.showSubmitButton,
-                    enter = expandHorizontally(animationSpec = motionScheme.defaultSpatialSpec()) +
-                            fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
-                    exit = shrinkHorizontally(
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMediumLow
-                        )
-                    ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+    HorizontalFloatingToolbar(
+        expanded = true,
+        modifier = modifier.padding(horizontal = if (isExpanded) 24.dp else 16.dp),
+        colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
+        contentPadding = FloatingToolbarDefaults.ContentPadding,
+        leadingContent = {
+            if (isExpanded) {
+                TextButton(
+                    onClick = onPrevious,
+                    enabled = uiState.hasPreviousQuestion,
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Button(
-                            onClick = onSubmit,
-                            enabled = uiState.canSubmit,
-                            modifier = Modifier.sizeIn(minHeight = 20.dp),
-                        ) {
-                            Text(text = "Submit")
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                }
-
-                FilledTonalButton(
-                    onClick = onJumpTo,
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    ),
-                    modifier = Modifier.semantics {
-                        val markSuffix = if (uiState.isCurrentQuestionMarked) ", marked" else ""
-                        contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}$markSuffix. Tap to jump."
-                    },
-                ) {
-                    AnimatedVisibility(
-                        visible = uiState.isCurrentQuestionMarked,
-                        enter = expandHorizontally(animationSpec = motionScheme.fastSpatialSpec()) +
-                                fadeIn(animationSpec = motionScheme.fastEffectsSpec()),
-                        exit = shrinkHorizontally(
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            )
-                        ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec())
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Rounded.Flag,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                        }
-                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = null,
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = questionLabel,
+                        text = "Prev",
                         style = MaterialTheme.typography.labelLargeEmphasized,
                     )
                 }
-
-                Spacer(modifier = Modifier.width(8.dp))
+            } else {
+                IconButton(
+                    onClick = onPrevious,
+                    enabled = uiState.hasPreviousQuestion,
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = "Previous question",
+                    )
+                }
             }
-        )
-    }
+        },
+        trailingContent = {
+            if (isExpanded) {
+                TextButton(
+                    onClick = onNext,
+                    enabled = uiState.hasNextQuestion,
+                ) {
+                    Text(
+                        text = "Next",
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                        contentDescription = null,
+                    )
+                }
+            } else {
+                IconButton(
+                    onClick = onNext,
+                    enabled = uiState.hasNextQuestion,
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                        contentDescription = "Next question",
+                    )
+                }
+            }
+        },
+        content = {
+            Spacer(modifier = Modifier.width(8.dp))
+
+            AnimatedVisibility(
+                visible = uiState.showSubmitButton,
+                enter = expandHorizontally(animationSpec = motionScheme.defaultSpatialSpec()) +
+                    fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
+                exit = shrinkHorizontally(animationSpec = exitSpatialSpec()) +
+                    fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Button(
+                        onClick = onSubmit,
+                        enabled = uiState.canSubmit,
+                        modifier = Modifier.sizeIn(minHeight = 20.dp),
+                    ) {
+                        Text(text = "Submit")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+            }
+
+            FilledTonalButton(
+                onClick = onJumpTo,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ),
+                modifier = Modifier.semantics {
+                    val markSuffix = if (uiState.isCurrentQuestionMarked) ", marked" else ""
+                    contentDescription = "Question $currentQuestionNumber of ${uiState.totalQuestions}$markSuffix. Tap to jump."
+                },
+            ) {
+                AnimatedVisibility(
+                    visible = uiState.isCurrentQuestionMarked,
+                    enter = expandHorizontally(animationSpec = motionScheme.fastSpatialSpec()) +
+                        fadeIn(animationSpec = motionScheme.fastEffectsSpec()),
+                    exit = shrinkHorizontally(animationSpec = exitSpatialSpec()) +
+                        fadeOut(animationSpec = motionScheme.fastEffectsSpec())
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.Flag,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                }
+                Text(
+                    text = questionLabel,
+                    style = MaterialTheme.typography.labelLargeEmphasized,
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+    )
 }

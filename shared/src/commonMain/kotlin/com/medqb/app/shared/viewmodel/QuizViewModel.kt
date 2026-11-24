@@ -149,7 +149,6 @@ class QuizViewModel(
                     // First load after process restore resumes the saved position;
                     // switching to a different QBank restarts at the first question.
                     loadFilteredQuestionIds(
-                        updatePreviewCount = true,
                         startFromBeginning = !isFirstLoad
                     )
                 }
@@ -470,21 +469,16 @@ class QuizViewModel(
         }
     }
 
-    fun resetAnswerState() {
-        _state.update { it.copy(selectedAnswerId = null, answerSubmitted = false) }
-    }
-
     fun retry() {
         val s = state.value
         if (s.questionIds.isNotEmpty()) {
             loadQuestion(s.currentQuestionIndex.coerceIn(0, s.questionIds.lastIndex))
         } else {
-            loadFilteredQuestionIds(updatePreviewCount = true, startFromBeginning = true)
+            loadFilteredQuestionIds(startFromBeginning = true)
         }
     }
 
     private fun loadFilteredQuestionIds(
-        updatePreviewCount: Boolean = true,
         startFromBeginning: Boolean = false,
     ) {
         loadQuestionJob?.cancel()
@@ -535,7 +529,6 @@ class QuizViewModel(
                             explanationHighlights = emptyList(),
                             currentPerformance = null,
                             answerSubmitted = false,
-                            previewQuestionCount = if (updatePreviewCount) 0 else it.previewQuestionCount,
                             isLoading = false,
                             errorMessage = null,
                             isCurrentQuestionMarked = false,
@@ -554,7 +547,6 @@ class QuizViewModel(
                     it.copy(
                         questionIds = ids,
                         currentQuestionIndex = newIndex,
-                        previewQuestionCount = if (updatePreviewCount) ids.size else it.previewQuestionCount,
                         markedQuestionIds = markedIds,
                     )
                 }

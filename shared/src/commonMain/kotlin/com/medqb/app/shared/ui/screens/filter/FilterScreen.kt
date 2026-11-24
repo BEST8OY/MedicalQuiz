@@ -1,8 +1,6 @@
 package com.medqb.app.shared.ui.screens.filter
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -12,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -24,13 +21,16 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.models.SubmissionMode
+import com.medqb.app.shared.ui.adaptive.LocalAdaptiveLayoutInfo
+import com.medqb.app.shared.ui.adaptive.WidthSizeClass
+import com.medqb.app.shared.ui.components.ContentMaxWidth
+import com.medqb.app.shared.ui.components.ResponsiveContentContainer
 
 @Composable
 internal fun FilterScreen(
@@ -69,67 +69,38 @@ internal fun FilterScreen(
         !statusFilter.isAll ||
         isDifficultyActive
 
+    val adaptive = LocalAdaptiveLayoutInfo.current
+    val isTwoColumnFilterGrid = adaptive.widthClass == WidthSizeClass.Medium ||
+        (adaptive.isExpandedWidth && adaptive.windowWidth >= 1200.dp)
+    val topPadding = if (adaptive.isCompactHeight) 16.dp else 32.dp
+    val sectionSpacing = if (adaptive.isCompactHeight) 20.dp else 28.dp
+
     Surface(modifier = modifier.fillMaxSize()) {
-        BoxWithConstraints(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            val isWideScreen = maxWidth >= 600.dp
-            Box(
+        ResponsiveContentContainer(maxWidth = ContentMaxWidth.Standard) {
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .widthIn(max = 840.dp)
                     .padding(
                         start = 24.dp,
-                        top = 40.dp,
+                        top = topPadding,
                         end = 24.dp,
                         bottom = 0.dp,
                     )
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(sectionSpacing)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(32.dp)
-                ) {
-                    DatabaseHeaderCard(databaseName = databaseName)
+                DatabaseHeaderCard(databaseName = databaseName)
 
-                    FilterPreviewCard(previewCount = previewCount)
+                FilterPreviewCard(previewCount = previewCount)
 
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        if (isWideScreen) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(IntrinsicSize.Max),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                SubjectSystemFilterGroup(
-                                    subjectCount = subjectCount,
-                                    excludedSubjectCount = excludedSubjectCount,
-                                    systemCount = systemCount,
-                                    excludedSystemCount = excludedSystemCount,
-                                    onSelectSubjects = onSelectSubjects,
-                                    onSelectSystems = onSelectSystems,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight(),
-                                )
-
-                                StatusDifficultyFilterGroup(
-                                    statusFilter = statusFilter,
-                                    statusLabel = statusLabel,
-                                    difficultyLabel = difficultyLabel,
-                                    isDifficultyAvailable = isDifficultyAvailable,
-                                    isDifficultyActive = isDifficultyActive,
-                                    onSelectStatus = onSelectStatus,
-                                    onSelectDifficulty = onSelectDifficulty,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight(),
-                                )
-                            }
-                        } else {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    if (isTwoColumnFilterGrid) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Max),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
                             SubjectSystemFilterGroup(
                                 subjectCount = subjectCount,
                                 excludedSubjectCount = excludedSubjectCount,
@@ -137,7 +108,9 @@ internal fun FilterScreen(
                                 excludedSystemCount = excludedSystemCount,
                                 onSelectSubjects = onSelectSubjects,
                                 onSelectSystems = onSelectSystems,
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
                             )
 
                             StatusDifficultyFilterGroup(
@@ -148,47 +121,70 @@ internal fun FilterScreen(
                                 isDifficultyActive = isDifficultyActive,
                                 onSelectStatus = onSelectStatus,
                                 onSelectDifficulty = onSelectDifficulty,
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
                             )
                         }
-
-                        Column(
+                    } else {
+                        SubjectSystemFilterGroup(
+                            subjectCount = subjectCount,
+                            excludedSubjectCount = excludedSubjectCount,
+                            systemCount = systemCount,
+                            excludedSystemCount = excludedSystemCount,
+                            onSelectSubjects = onSelectSubjects,
+                            onSelectSystems = onSelectSystems,
                             modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            FilterToggleSegmentedItem(
-                                icon = Icons.Filled.History,
-                                title = "Track Session Progress",
-                                description = "Record answer logs for historical tracking",
-                                checked = isLoggingEnabled,
-                                onCheckedChange = onLoggingToggle,
-                                index = 0,
-                                count = 2,
-                            )
+                        )
 
-                            FilterToggleSegmentedItem(
-                                icon = Icons.Filled.Edit,
-                                title = "Manual Submission",
-                                description = "Review your answer before submitting",
-                                checked = submissionMode == SubmissionMode.MANUAL,
-                                onCheckedChange = { checked ->
-                                    onSubmissionModeToggle(if (checked) SubmissionMode.MANUAL else SubmissionMode.INSTANT)
-                                },
-                                index = 1,
-                                count = 2,
-                            )
-                        }
+                        StatusDifficultyFilterGroup(
+                            statusFilter = statusFilter,
+                            statusLabel = statusLabel,
+                            difficultyLabel = difficultyLabel,
+                            isDifficultyAvailable = isDifficultyAvailable,
+                            isDifficultyActive = isDifficultyActive,
+                            onSelectStatus = onSelectStatus,
+                            onSelectDifficulty = onSelectDifficulty,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
 
-                    PrimaryActionButtonGroup(
-                        hasPreview = hasPreview,
-                        hasFilters = hasFilters,
-                        onStart = onStart,
-                        onClearFilters = onClearFilters
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        FilterToggleSegmentedItem(
+                            icon = Icons.Filled.History,
+                            title = "Track Session Progress",
+                            description = "Record answer logs for historical tracking",
+                            checked = isLoggingEnabled,
+                            onCheckedChange = onLoggingToggle,
+                            index = 0,
+                            count = 2,
+                        )
 
-                    Spacer(modifier = Modifier.height(bottomContentPadding + 16.dp))
+                        FilterToggleSegmentedItem(
+                            icon = Icons.Filled.Edit,
+                            title = "Manual Submission",
+                            description = "Review your answer before submitting",
+                            checked = submissionMode == SubmissionMode.MANUAL,
+                            onCheckedChange = { checked ->
+                                onSubmissionModeToggle(if (checked) SubmissionMode.MANUAL else SubmissionMode.INSTANT)
+                            },
+                            index = 1,
+                            count = 2,
+                        )
+                    }
                 }
+
+                PrimaryActionButtonGroup(
+                    hasPreview = hasPreview,
+                    hasFilters = hasFilters,
+                    onStart = onStart,
+                    onClearFilters = onClearFilters
+                )
+
+                Spacer(modifier = Modifier.height(bottomContentPadding + 16.dp))
             }
         }
     }

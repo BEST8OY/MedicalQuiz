@@ -44,7 +44,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -66,6 +65,7 @@ import com.medqb.app.shared.data.models.System
 import com.medqb.app.shared.ui.dialogs.components.BottomSheetActions
 import com.medqb.app.shared.ui.dialogs.components.BottomSheetHeader
 import com.medqb.app.shared.ui.dialogs.components.FilterModalBottomSheet
+import com.medqb.app.shared.ui.state.LongSetSaver
 import com.medqb.app.shared.utils.Resource
 
 enum class ItemFilterState {
@@ -308,19 +308,13 @@ private fun <T> SelectionListContent(
 ) {
     var currentIncluded by rememberSaveable(
         selectedIds, excludedIds,
-        stateSaver = listSaver<Set<Long>, Long>(
-            save = { it.toList() },
-            restore = { it.toSet() }
-        )
+        stateSaver = LongSetSaver
     ) {
         mutableStateOf(selectedIds)
     }
     var currentExcluded by rememberSaveable(
         selectedIds, excludedIds,
-        stateSaver = listSaver<Set<Long>, Long>(
-            save = { it.toList() },
-            restore = { it.toSet() }
-        )
+        stateSaver = LongSetSaver
     ) {
         mutableStateOf(excludedIds - selectedIds)
     }

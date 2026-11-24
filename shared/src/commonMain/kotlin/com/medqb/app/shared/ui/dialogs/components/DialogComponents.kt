@@ -25,7 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.medqb.app.shared.ui.adaptive.AdaptiveLayoutInfo
+import com.medqb.app.shared.ui.adaptive.LocalAdaptiveLayoutInfo
 
 /**
  * Responsive dialog layout tokens.
@@ -45,33 +47,15 @@ internal object DialogLayout {
     /** Maximum dialog container width per M3 specification (560dp) */
     val MaxWidth: Dp = 560.dp
 
-    /** Fraction of screen width for compact viewports (phones) */
-    const val CompactWidthFraction: Float = 0.92f
-
-    /** Fraction of screen width for expanded viewports (tablets/desktop) */
-    const val ExpandedWidthFraction: Float = 0.65f
-
     /** Safety margin subtracted from screen height for dialog container max height */
     val MaxHeightInset: Dp = 32.dp
 
     /** Minimum structural container height for dialog shell */
     val MinContainerHeight: Dp = 200.dp
 
-    /** Viewport height threshold for compact landscape dialog adjustments */
-    val CompactHeightThreshold: Dp = 400.dp
-
-    /** Compact vertical padding for list items in landscape mode */
-    val CompactItemPadding: Dp = 4.dp
-
-    /** Compact padding for input fields in landscape mode */
-    val CompactInputPadding: Dp = 2.dp
+    /** Fallback minimum height when IME + landscape shrinks viewport below MinContainerHeight */
+    val AbsoluteMinHeight: Dp = 120.dp
 }
-
-/**
- * Composition local providing whether the dialog is in compact height mode.
- * Set by [DialogShell] based on the available viewport height.
- */
-val LocalDialogCompactMode = compositionLocalOf { false }
 
 /**
  * Base dialog shell with consistent styling for all dialogs.
@@ -89,6 +73,7 @@ fun DialogShell(
     ),
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val parentAdaptive = LocalAdaptiveLayoutInfo.current
     Dialog(
         onDismissRequest = onDismiss,
         properties = properties
@@ -103,15 +88,25 @@ fun DialogShell(
             BoxWithConstraints(
                 contentAlignment = Alignment.Center
             ) {
-                val isCompactHeight = maxHeight < DialogLayout.CompactHeightThreshold
-                CompositionLocalProvider(LocalDialogCompactMode provides isCompactHeight) {
+                // Dialogs run in their own window whose available height shrinks when the IME opens.
+                val dialogHeightClass = remember(maxWidth, maxHeight) {
+                    AdaptiveLayoutInfo.fromDimensions(maxWidth, maxHeight).heightClass
+                }
+                val dialogAdaptive = remember(parentAdaptive, dialogHeightClass) {
+                    parentAdaptive.copy(heightClass = dialogHeightClass)
+                }
+                val availableMaxHeight = (maxHeight - DialogLayout.MaxHeightInset)
+                    .coerceAtLeast(DialogLayout.AbsoluteMinHeight)
+                val resolvedMinHeight = DialogLayout.MinContainerHeight.coerceAtMost(availableMaxHeight)
+
+                CompositionLocalProvider(LocalAdaptiveLayoutInfo provides dialogAdaptive) {
                     Surface(
                         modifier = Modifier
                             .widthIn(min = DialogLayout.MinWidth, max = DialogLayout.MaxWidth)
-                            .fillMaxWidth(if (maxWidth >= 600.dp) DialogLayout.ExpandedWidthFraction else DialogLayout.CompactWidthFraction)
+                            .fillMaxWidth(dialogAdaptive.dialogWidthFraction)
                             .heightIn(
-                                min = DialogLayout.MinContainerHeight,
-                                max = (maxHeight - DialogLayout.MaxHeightInset).coerceAtLeast(DialogLayout.MinContainerHeight)
+                                min = resolvedMinHeight,
+                                max = availableMaxHeight
                             )
                             .clip(MaterialTheme.shapes.extraLarge),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -136,10 +131,16 @@ fun DialogHeader(
     subtitle: String? = null,
     onClose: (() -> Unit)? = null
 ) {
+    val isCompactHeight = LocalAdaptiveLayoutInfo.current.isCompactHeight
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 24.dp, end = 12.dp, top = 20.dp, bottom = 12.dp),
+            .padding(
+                start = 24.dp,
+                end = 12.dp,
+                top = if (isCompactHeight) 12.dp else 20.dp,
+                bottom = if (isCompactHeight) 8.dp else 12.dp,
+            ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
     ) {
@@ -187,10 +188,11 @@ fun DialogActions(
     onSecondary: (() -> Unit)? = null,
     destructive: Boolean = false
 ) {
+    val isCompactHeight = LocalAdaptiveLayoutInfo.current.isCompactHeight
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 20.dp),
+            .padding(horizontal = 24.dp, vertical = if (isCompactHeight) 12.dp else 20.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
         verticalAlignment = Alignment.CenterVertically
     ) {

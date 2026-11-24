@@ -509,10 +509,6 @@ class FilterHubViewModel(
         }
     }
 
-    fun undoHistoryEntry(entry: QuizSessionRepository.QuizSession) {
-        undoHistoryEntries(listOf(entry))
-    }
-
     fun restoreHistoryEntry(
         entry: QuizSessionRepository.QuizSession,
         onSuccess: suspend (String) -> Unit,

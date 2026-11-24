@@ -1,8 +1,6 @@
 package com.medqb.app.shared.ui.screens.filter
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -12,11 +10,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
@@ -33,8 +33,8 @@ import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import com.medqb.app.shared.ui.LocalSnackbarBottomPadding
+import com.medqb.app.shared.ui.components.SnackbarBottomClearanceEffect
+import com.medqb.app.shared.ui.theme.exitSpatialSpec
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -58,18 +58,7 @@ internal fun FilterPaneScaffold(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val snackbarBottomPadding = LocalSnackbarBottomPadding.current
-    DisposableEffect(showPaneToolbar) {
-        val previousPadding = snackbarBottomPadding.value
-        if (showPaneToolbar) {
-            snackbarBottomPadding.value = 80.dp
-        }
-        onDispose {
-            if (showPaneToolbar && snackbarBottomPadding.value == 80.dp) {
-                snackbarBottomPadding.value = previousPadding
-            }
-        }
-    }
+    SnackbarBottomClearanceEffect(clearance = 80.dp, active = showPaneToolbar)
 
     Box(
         modifier = modifier.fillMaxSize(),
@@ -77,7 +66,7 @@ internal fun FilterPaneScaffold(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.statusBars),
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
         ) {
             content()
         }
@@ -156,10 +145,7 @@ private fun FilterPaneItem(
                 expandHorizontally(motionScheme.defaultSpatialSpec(), expandFrom = Alignment.Start),
             exit = fadeOut(motionScheme.fastEffectsSpec()) +
                 shrinkHorizontally(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
+                    animationSpec = exitSpatialSpec(),
                     shrinkTowards = Alignment.Start
                 ),
         ) {

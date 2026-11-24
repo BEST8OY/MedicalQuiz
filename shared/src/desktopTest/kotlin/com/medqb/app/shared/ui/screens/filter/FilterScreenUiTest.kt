@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.database.DifficultyTier
@@ -15,6 +16,7 @@ import com.medqb.app.shared.data.database.QuestionStatus
 import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.database.StatusScope
 import com.medqb.app.shared.data.models.SubmissionMode
+import com.medqb.app.shared.ui.adaptive.ProvideAdaptiveLayoutInfo
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -214,8 +216,10 @@ class FilterScreenUiTest {
             )
         }
 
-        onNodeWithText("Reset").assertIsDisplayed()
-        onNodeWithText("Reset").performClick()
+        onNodeWithText("Reset")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
         assertTrue(resetClicked, "Reset button should be clickable and trigger callback when only exclusions are active")
     }
 
@@ -244,6 +248,7 @@ class FilterScreenUiTest {
         }
 
         onNodeWithText("No matches")
+            .performScrollTo()
             .assertIsDisplayed()
             .assertIsNotEnabled()
         onNodeWithText("No matches").performClick()
@@ -253,7 +258,7 @@ class FilterScreenUiTest {
     @Test
     fun rendersWideScreenLayoutProperly() = runComposeUiTest {
         setContent {
-            Box(modifier = Modifier.requiredSize(800.dp, 600.dp)) {
+            ProvideAdaptiveLayoutInfo(modifier = Modifier.requiredSize(800.dp, 600.dp)) {
                 FilterScreen(
                     databaseName = "USMLE Step 1",
                     subjectCount = 2,

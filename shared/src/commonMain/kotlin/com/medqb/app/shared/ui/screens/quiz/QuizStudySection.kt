@@ -2,10 +2,8 @@ package com.medqb.app.shared.ui.screens.quiz
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -47,7 +45,8 @@ import com.medqb.app.shared.generated.resources.ic_avatar_08
 import com.medqb.app.shared.generated.resources.ic_avatar_09
 import com.medqb.app.shared.generated.resources.ic_avatar_10
 import com.medqb.app.shared.ui.richtext.RichText
-import com.medqb.app.shared.ui.richtext.RichTextPalette
+import com.medqb.app.shared.ui.richtext.rememberRichTextPalette
+import com.medqb.app.shared.ui.theme.exitSpatialSpec
 import org.jetbrains.compose.resources.painterResource
 
 private val DoctorAvatars = listOf(
@@ -182,10 +181,7 @@ fun QuizStudySection(
                     expandFrom = Alignment.Top
                 ),
             exit = shrinkVertically(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMedium
-                ),
+                animationSpec = exitSpatialSpec(stiffness = Spring.StiffnessMedium),
                 shrinkTowards = Alignment.Top
             ),
             modifier = Modifier.fillMaxWidth()
@@ -220,18 +216,9 @@ fun QuizStudySection(
                         contentScale = ContentScale.Fit
                     )
 
-                    val colors = MaterialTheme.colorScheme
-                    val hintPalette = remember(colors) {
-                        RichTextPalette(
-                            importantBackground = colors.tertiaryContainer,
-                            importantText = colors.onTertiaryContainer,
-                            selectedBackground = colors.primaryContainer,
-                            selectedText = colors.onPrimaryContainer,
-                            linkText = colors.primary,
-                            dictionaryText = colors.secondary,
-                            abstractText = colors.onSurfaceVariant
-                        )
-                    }
+                    val hintPalette = rememberRichTextPalette(
+                        dictionaryText = MaterialTheme.colorScheme.secondary,
+                    )
 
                     Box(modifier = Modifier.weight(1f)) {
                         RichText(

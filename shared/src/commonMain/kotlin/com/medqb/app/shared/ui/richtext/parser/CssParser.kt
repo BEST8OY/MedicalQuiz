@@ -9,7 +9,6 @@ import androidx.compose.ui.unit.dp
  */
 internal object CssParser {
     private const val EM_TO_DP_MULTIPLIER = 16f
-    private const val BOLD_FONT_WEIGHT_THRESHOLD = 600
 
     /**
      * Extracts a CSS property value from a style attribute string.
@@ -43,7 +42,7 @@ internal object CssParser {
         val fontWeight = extractValue(styleAttr, "font-weight")?.lowercase()?.trim() ?: return false
         if (fontWeight.startsWith("bold") || fontWeight.startsWith("bolder")) return true
         val numeric = fontWeight.filter { it.isDigit() }
-        return numeric.toIntOrNull()?.let { it >= BOLD_FONT_WEIGHT_THRESHOLD } == true
+        return numeric.toIntOrNull()?.let { it >= RichTextParserConfig.BOLD_FONT_WEIGHT_THRESHOLD } == true
     }
 
     /**

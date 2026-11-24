@@ -4,14 +4,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -19,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -56,9 +52,13 @@ import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.platform.PlatformBackHandler
+import com.medqb.app.shared.ui.adaptive.LocalAdaptiveLayoutInfo
+import com.medqb.app.shared.ui.components.ContentMaxWidth
 import com.medqb.app.shared.ui.components.EmptyStateMessage
+import com.medqb.app.shared.ui.components.ResponsiveContentContainer
 import com.medqb.app.shared.ui.dialogs.RenameDialog
 import com.medqb.app.shared.ui.richtext.setPlainText
+import com.medqb.app.shared.ui.theme.exitSpatialSpec
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -73,6 +73,7 @@ internal fun HistoryPane(
     onUndoDelete: (List<QuizSessionRepository.QuizSession>) -> Unit = {},
     onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
     onDismissSnackbar: () -> Unit = {},
+    hasFloatingToolbar: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val clipboard = LocalClipboard.current
@@ -150,187 +151,176 @@ internal fun HistoryPane(
         }
     }
 
-    BoxWithConstraints(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.TopCenter
+    val adaptive = LocalAdaptiveLayoutInfo.current
+    val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val listBottomPadding = (if (hasFloatingToolbar) 112.dp else 88.dp) + navBarBottom
+    val fabBottomPadding = 24.dp
+    val horizontalMargin = if (adaptive.isExpandedWidth) 32.dp else 24.dp
+
+    ResponsiveContentContainer(
+        maxWidth = ContentMaxWidth.Standard,
+        modifier = modifier,
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .widthIn(max = 720.dp)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                top = 24.dp,
+                end = 16.dp,
+                bottom = listBottomPadding,
+            ),
         ) {
-            val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    top = 24.dp,
-                    end = 16.dp,
-                    bottom = 112.dp + navBarBottom,
-                ),
-            ) {
-                if (visibleEntries.isEmpty()) {
-                    item {
-                        EmptyStateMessage(
-                            title = "No quiz history yet",
-                            subtitle = "Completed or in-progress sessions will show here.",
-                        )
-                    }
-                } else {
-                    itemsIndexed(
-                        items = visibleEntries,
-                        key = { _, entry -> "${entry.id}:${restoredEntryVersions[entry.id] ?: 0}" },
-                    ) { index, entry ->
-                        HistoryListItem(
-                            entry = entry,
-                            isSelected = entry.id in selectedHistoryEntryIds,
-                            selectionModeEnabled = selectedHistoryEntryIds.isNotEmpty(),
-                            shapes = ListItemDefaults.segmentedShapes(index = index, count = visibleEntries.size),
-                            onClick = {
-                                if (selectedHistoryEntryIds.isNotEmpty()) {
-                                    selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
-                                } else {
-                                    onHistorySelected(entry)
-                                }
-                            },
-                            onLongPress = {
+            if (visibleEntries.isEmpty()) {
+                item {
+                    EmptyStateMessage(
+                        title = "No quiz history yet",
+                        subtitle = "Completed or in-progress sessions will show here.",
+                    )
+                }
+            } else {
+                itemsIndexed(
+                    items = visibleEntries,
+                    key = { _, entry -> "${entry.id}:${restoredEntryVersions[entry.id] ?: 0}" },
+                ) { index, entry ->
+                    HistoryListItem(
+                        entry = entry,
+                        isSelected = entry.id in selectedHistoryEntryIds,
+                        selectionModeEnabled = selectedHistoryEntryIds.isNotEmpty(),
+                        shapes = ListItemDefaults.segmentedShapes(index = index, count = visibleEntries.size),
+                        onClick = {
+                            if (selectedHistoryEntryIds.isNotEmpty()) {
                                 selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
-                            },
-                            onSwipeDelete = {
-                                deleteHistoryEntries(listOf(entry))
-                            },
-                            onRename = {
-                                renameTargetId = entry.id
-                                renameText = entry.displayName()
-                            },
-                            modifier = Modifier.animateItem(
-                                fadeInSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMediumLow,
-                                ),
-                                placementSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMediumLow,
-                                    visibilityThreshold = IntOffset.VisibilityThreshold,
-                                ),
-                                fadeOutSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMedium,
-                                ),
+                            } else {
+                                onHistorySelected(entry)
+                            }
+                        },
+                        onLongPress = {
+                            selectedHistoryEntryIds = selectedHistoryEntryIds.toggle(entry.id)
+                        },
+                        onSwipeDelete = {
+                            deleteHistoryEntries(listOf(entry))
+                        },
+                        onRename = {
+                            renameTargetId = entry.id
+                            renameText = entry.displayName()
+                        },
+                        modifier = Modifier.animateItem(
+                            fadeInSpec = exitSpatialSpec(),
+                            placementSpec = exitSpatialSpec(
+                                visibilityThreshold = IntOffset.VisibilityThreshold,
                             ),
-                        )
-                    }
+                            fadeOutSpec = exitSpatialSpec(
+                                stiffness = Spring.StiffnessMedium,
+                            ),
+                        ),
+                    )
                 }
             }
+        }
 
-            val motionScheme = MaterialTheme.motionScheme
-            val horizontalMargin = if (this@BoxWithConstraints.maxWidth >= 840.dp) 32.dp else 24.dp
-            AnimatedVisibility(
-                visible = selectedHistoryEntryIds.isNotEmpty(),
-                enter = scaleIn(animationSpec = motionScheme.defaultSpatialSpec(), initialScale = 0.8f) +
-                    fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
-                exit = scaleOut(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
-                    targetScale = 0.8f
-                ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = horizontalMargin, bottom = 96.dp)
-                    .navigationBarsPadding(),
-            ) {
-                FloatingActionButtonMenu(
-                    expanded = isFabMenuExpanded,
-                    button = {
-                        ToggleFloatingActionButton(
-                            checked = isFabMenuExpanded,
-                            onCheckedChange = { isFabMenuExpanded = it },
-                        ) {
-                            val rotation by animateFloatAsState(
-                                targetValue = if (isFabMenuExpanded) 90f else 0f,
-                                animationSpec = motionScheme.fastSpatialSpec(),
-                            )
-                            Icon(
-                                imageVector = if (isFabMenuExpanded) Icons.Filled.Close else Icons.Filled.MoreVert,
-                                contentDescription = if (isFabMenuExpanded) "Close actions" else "More actions",
-                                modifier = Modifier.graphicsLayer { rotationZ = rotation },
-                            )
-                        }
-                    },
-                ) {
-                    if (selectedHistoryEntryIds.size == 1) {
-                        FloatingActionButtonMenuItem(
-                            onClick = {
-                                val targetEntry = historyEntries.firstOrNull { it.id in selectedHistoryEntryIds }
-                                if (targetEntry != null) {
-                                    renameTargetId = targetEntry.id
-                                    renameText = targetEntry.displayName()
-                                }
-                                isFabMenuExpanded = false
-                            },
-                            text = { Text("Rename") },
-                            icon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+        val motionScheme = MaterialTheme.motionScheme
+        AnimatedVisibility(
+            visible = selectedHistoryEntryIds.isNotEmpty(),
+            enter = scaleIn(animationSpec = motionScheme.defaultSpatialSpec(), initialScale = 0.8f) +
+                fadeIn(animationSpec = motionScheme.defaultEffectsSpec()),
+            exit = scaleOut(
+                animationSpec = exitSpatialSpec(),
+                targetScale = 0.8f
+            ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = horizontalMargin, bottom = fabBottomPadding)
+                .navigationBarsPadding(),
+        ) {
+            FloatingActionButtonMenu(
+                expanded = isFabMenuExpanded,
+                button = {
+                    ToggleFloatingActionButton(
+                        checked = isFabMenuExpanded,
+                        onCheckedChange = { isFabMenuExpanded = it },
+                    ) {
+                        val rotation by animateFloatAsState(
+                            targetValue = if (isFabMenuExpanded) 90f else 0f,
+                            animationSpec = motionScheme.fastSpatialSpec(),
+                        )
+                        Icon(
+                            imageVector = if (isFabMenuExpanded) Icons.Filled.Close else Icons.Filled.MoreVert,
+                            contentDescription = if (isFabMenuExpanded) "Close actions" else "More actions",
+                            modifier = Modifier.graphicsLayer { rotationZ = rotation },
                         )
                     }
-
+                },
+            ) {
+                if (selectedHistoryEntryIds.size == 1) {
                     FloatingActionButtonMenuItem(
                         onClick = {
-                            selectedHistoryEntryIds = allHistoryEntryIds
-                            isFabMenuExpanded = false
-                        },
-                        text = { Text("Select all") },
-                        icon = { Icon(Icons.Filled.History, contentDescription = null) },
-                    )
-
-                    FloatingActionButtonMenuItem(
-                        onClick = {
-                            val selectedEntries = historyEntries
-                                .filter { it.id in selectedHistoryEntryIds }
-                            onCopyAllQids(selectedEntries) { qidsText ->
-                                if (qidsText.isNotBlank()) {
-                                    scope.launch {
-                                        clipboard.setPlainText(AnnotatedString(qidsText))
-                                        onShowSnackbar(SnackbarMessage.Simple("Copied QIDs to clipboard"))
-                                    }
-                                }
+                            val targetEntry = historyEntries.firstOrNull { it.id in selectedHistoryEntryIds }
+                            if (targetEntry != null) {
+                                renameTargetId = targetEntry.id
+                                renameText = targetEntry.displayName()
                             }
                             isFabMenuExpanded = false
                         },
-                        text = { Text("Copy QIDs (${selectedHistoryEntryIds.size})") },
-                        icon = { Icon(Icons.Filled.ContentCopy, contentDescription = null) },
-                    )
-
-                    FloatingActionButtonMenuItem(
-                        onClick = {
-                            val entriesToDelete = historyEntries
-                                .filter { it.id in selectedHistoryEntryIds }
-                            deleteHistoryEntries(entriesToDelete)
-                        },
-                        text = { Text("Delete (${selectedHistoryEntryIds.size})") },
-                        icon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                        text = { Text("Rename") },
+                        icon = { Icon(Icons.Filled.Edit, contentDescription = null) },
                     )
                 }
-            }
 
-            if (renameTargetId != null) {
-                RenameDialog(
-                    currentName = renameText,
-                    onNameChange = { renameText = it },
-                    onConfirm = {
-                        val targetId = renameTargetId ?: return@RenameDialog
-                        onRenameHistoryEntry(targetId, renameText)
-                        renameTargetId = null
-                        renameText = ""
+                FloatingActionButtonMenuItem(
+                    onClick = {
+                        selectedHistoryEntryIds = allHistoryEntryIds
+                        isFabMenuExpanded = false
                     },
-                    onDismiss = {
-                        renameTargetId = null
-                        renameText = ""
+                    text = { Text("Select all") },
+                    icon = { Icon(Icons.Filled.History, contentDescription = null) },
+                )
+
+                FloatingActionButtonMenuItem(
+                    onClick = {
+                        val selectedEntries = historyEntries
+                            .filter { it.id in selectedHistoryEntryIds }
+                        onCopyAllQids(selectedEntries) { qidsText ->
+                            if (qidsText.isNotBlank()) {
+                                scope.launch {
+                                    clipboard.setPlainText(AnnotatedString(qidsText))
+                                    onShowSnackbar(SnackbarMessage.Simple("Copied QIDs to clipboard"))
+                                }
+                            }
+                        }
+                        isFabMenuExpanded = false
                     },
+                    text = { Text("Copy QIDs (${selectedHistoryEntryIds.size})") },
+                    icon = { Icon(Icons.Filled.ContentCopy, contentDescription = null) },
+                )
+
+                FloatingActionButtonMenuItem(
+                    onClick = {
+                        val entriesToDelete = historyEntries
+                            .filter { it.id in selectedHistoryEntryIds }
+                        deleteHistoryEntries(entriesToDelete)
+                    },
+                    text = { Text("Delete (${selectedHistoryEntryIds.size})") },
+                    icon = { Icon(Icons.Filled.Delete, contentDescription = null) },
                 )
             }
+        }
+
+        if (renameTargetId != null) {
+            RenameDialog(
+                currentName = renameText,
+                onNameChange = { renameText = it },
+                onConfirm = {
+                    val targetId = renameTargetId ?: return@RenameDialog
+                    onRenameHistoryEntry(targetId, renameText)
+                    renameTargetId = null
+                    renameText = ""
+                },
+                onDismiss = {
+                    renameTargetId = null
+                    renameText = ""
+                },
+            )
         }
     }
 }

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.BottomSheetDefaults
@@ -15,23 +16,35 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.ui.adaptive.LocalAdaptiveLayoutInfo
 
 /**
- * Shared modal bottom sheet container with consistent drag handle, colors, and non-deprecated state.
+ * Shared modal bottom sheet container with consistent drag handle, surface colors,
+ * responsive max width, and automatic partial-expansion skipping on compact-height viewports.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FilterModalBottomSheet(
+fun MedQBModalBottomSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    skipPartiallyExpanded: Boolean = LocalAdaptiveLayoutInfo.current.isCompactHeight,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    contentColor: Color = contentColorFor(containerColor),
+    scrimColor: Color = BottomSheetDefaults.ScrimColor,
     sheetState: SheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+        enabledValues = if (skipPartiallyExpanded) {
+            setOf(SheetValue.Hidden, SheetValue.Expanded)
+        } else {
+            setOf(SheetValue.Hidden, SheetValue.PartiallyExpanded, SheetValue.Expanded)
+        },
     ),
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -40,12 +53,32 @@ fun FilterModalBottomSheet(
         modifier = modifier,
         sheetState = sheetState,
         sheetMaxWidth = BottomSheetDefaults.SheetMaxWidth,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = containerColor,
+        contentColor = contentColor,
+        scrimColor = scrimColor,
         dragHandle = {
             BottomSheetDefaults.DragHandle(
                 color = MaterialTheme.colorScheme.outlineVariant
             )
         },
+        content = content,
+    )
+}
+
+/**
+ * Filter sheet wrapper over [MedQBModalBottomSheet] that always skips partial expansion.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FilterModalBottomSheet(
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    MedQBModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        modifier = modifier,
+        skipPartiallyExpanded = true,
         content = content,
     )
 }
@@ -80,7 +113,7 @@ fun BottomSheetHeader(
 }
 
 /**
- * Standard Cancel / Apply action button row for filter bottom sheets.
+ * Standard Cancel / Apply action button row for bottom sheets, with an optional [leadingContent] slot.
  */
 @Composable
 fun BottomSheetActions(
@@ -89,24 +122,37 @@ fun BottomSheetActions(
     modifier: Modifier = Modifier,
     applyEnabled: Boolean = true,
     applyText: String = "Apply",
+    cancelModifier: Modifier = Modifier,
     applyModifier: Modifier = Modifier,
+    leadingContent: (@Composable RowScope.() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.End,
+        horizontalArrangement = if (leadingContent != null) Arrangement.SpaceBetween else Arrangement.End,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TextButton(onClick = onCancel) {
-            Text("Cancel")
+        if (leadingContent != null) {
+            leadingContent()
         }
-        Button(
-            onClick = onApply,
-            enabled = applyEnabled,
-            modifier = applyModifier.padding(start = 8.dp),
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(applyText)
+            TextButton(
+                onClick = onCancel,
+                modifier = cancelModifier,
+            ) {
+                Text("Cancel")
+            }
+            Button(
+                onClick = onApply,
+                enabled = applyEnabled,
+                modifier = applyModifier,
+            ) {
+                Text(applyText)
+            }
         }
     }
 }

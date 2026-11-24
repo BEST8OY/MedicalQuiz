@@ -1,8 +1,6 @@
 package com.medqb.app.shared.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -21,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -35,13 +32,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSliderState
 import androidx.compose.material3.TopAppBarDefaults
@@ -50,15 +44,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.medqb.app.shared.data.FontScalePresets
+import com.medqb.app.shared.ui.components.ContentMaxWidth
+import com.medqb.app.shared.ui.components.ResponsiveContentContainer
+import com.medqb.app.shared.ui.components.ToggleSegmentedListItem
 import com.medqb.app.shared.ui.richtext.scaledBy
+import com.medqb.app.shared.ui.theme.exitSpatialSpec
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -104,17 +98,15 @@ fun SettingsScreen(
             )
         },
     ) { padding ->
-        Box(
+        ResponsiveContentContainer(
+            maxWidth = ContentMaxWidth.Readable,
             modifier = Modifier
-                .fillMaxSize()
                 .padding(padding)
                 .consumeWindowInsets(padding),
-            contentAlignment = Alignment.TopCenter,
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .widthIn(max = 640.dp)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -127,39 +119,11 @@ fun SettingsScreen(
                     modifier = Modifier.padding(start = 4.dp)
                 )
 
-                SegmentedListItem(
+                ToggleSegmentedListItem(
+                    title = "Show metadata",
+                    description = "Display subjects and systems after answering",
                     checked = showMetadata,
                     onCheckedChange = onShowMetadataToggle,
-                    shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
-                    content = {
-                        Text(
-                            text = "Show metadata",
-                            style = MaterialTheme.typography.titleMediumEmphasized,
-                        )
-                    },
-                    supportingContent = {
-                        Text(
-                            text = "Display subjects and systems after answering",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = showMetadata,
-                            onCheckedChange = null
-                        )
-                    },
-                    colors = ListItemDefaults.segmentedColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                        selectedContentColor = MaterialTheme.colorScheme.onSurface,
-                        supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        selectedSupportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics { role = Role.Switch }
                 )
 
                 // Section 2: Text & Accessibility
@@ -174,7 +138,9 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    SegmentedListItem(
+                    ToggleSegmentedListItem(
+                        title = "Use system font size",
+                        description = "Match the font size to your device system settings",
                         checked = useSystemSize,
                         onCheckedChange = { checked ->
                             if (checked) {
@@ -183,36 +149,6 @@ fun SettingsScreen(
                                 onFontScaleChange(FontScalePresets.DEFAULT)
                             }
                         },
-                        shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
-                        content = {
-                            Text(
-                                text = "Use system font size",
-                                style = MaterialTheme.typography.titleMediumEmphasized,
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                text = "Match the font size to your device system settings",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = useSystemSize,
-                                onCheckedChange = null
-                            )
-                        },
-                        colors = ListItemDefaults.segmentedColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                            selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                            contentColor = MaterialTheme.colorScheme.onSurface,
-                            selectedContentColor = MaterialTheme.colorScheme.onSurface,
-                            supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            selectedSupportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .semantics { role = Role.Switch }
                     )
 
                     AnimatedVisibility(
@@ -220,12 +156,7 @@ fun SettingsScreen(
                         enter = fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) +
                             expandVertically(animationSpec = motionScheme.defaultSpatialSpec()),
                         exit = fadeOut(animationSpec = motionScheme.fastEffectsSpec()) +
-                            shrinkVertically(
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                )
-                            )
+                            shrinkVertically(animationSpec = exitSpatialSpec())
                     ) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),

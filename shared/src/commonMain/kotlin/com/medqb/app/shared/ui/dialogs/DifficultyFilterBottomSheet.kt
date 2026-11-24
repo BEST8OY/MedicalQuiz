@@ -20,7 +20,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -31,6 +30,7 @@ import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.ui.dialogs.components.BottomSheetActions
 import com.medqb.app.shared.ui.dialogs.components.BottomSheetHeader
 import com.medqb.app.shared.ui.dialogs.components.FilterModalBottomSheet
+import com.medqb.app.shared.ui.state.enumSetSaver
 
 /**
  * Material 3 multi-select bottom sheet for choosing question difficulty tiers using segmented list items.
@@ -46,10 +46,7 @@ fun DifficultyFilterBottomSheet(
     val tiers = DifficultyTier.entries
     var currentSelection by rememberSaveable(
         selectedTiers,
-        stateSaver = listSaver(
-            save = { it.map { tier -> tier.name } },
-            restore = { names -> names.mapNotNull { runCatching { DifficultyTier.valueOf(it) }.getOrNull() }.toSet() }
-        )
+        stateSaver = enumSetSaver<DifficultyTier>()
     ) {
         mutableStateOf(selectedTiers)
     }
@@ -73,13 +70,13 @@ fun DifficultyFilterBottomSheet(
                 onClick = { currentSelection = tiers.toSet() },
                 enabled = currentSelection.size < tiers.size,
             ) {
-                Text("Select All")
+                Text("Select all")
             }
             TextButton(
                 onClick = { currentSelection = emptySet() },
                 enabled = currentSelection.isNotEmpty(),
             ) {
-                Text("Clear All")
+                Text("Clear")
             }
         }
 

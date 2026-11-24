@@ -41,3 +41,16 @@ internal fun resolveCellTextColor(
     cellClassNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.onTertiaryContainer
     else -> tableCellTextColor(isHeaderCell, isAbstractRow || cellClassNames.containsInsensitive("abstract"))
 }
+
+/**
+ * Resolves the background color for a table cell, handling "selected" and "wichtig" classes consistently.
+ */
+@Composable
+internal fun resolveCellBackgroundColor(
+    cellClassNames: Set<String>,
+    defaultColor: Color = Color.Transparent,
+): Color = when {
+    cellClassNames.containsInsensitive("selected") -> MaterialTheme.colorScheme.secondaryContainer
+    cellClassNames.containsInsensitive("wichtig") -> MaterialTheme.colorScheme.tertiaryContainer
+    else -> defaultColor
+}

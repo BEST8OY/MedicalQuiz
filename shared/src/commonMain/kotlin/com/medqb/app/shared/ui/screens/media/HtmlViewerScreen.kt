@@ -8,11 +8,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -36,7 +38,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.ui.components.ContentMaxWidth
+import com.medqb.app.shared.ui.components.ResponsiveContentContainer
 import com.medqb.app.shared.ui.richtext.RichText
+import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
 
 private enum class HtmlScreenState {
     FileNotFound,
@@ -54,11 +59,13 @@ fun HtmlViewerScreen(
     isLoading: Boolean,
     onBack: () -> Unit,
     onLinkClick: ((String) -> Unit)? = null,
+    richTextScale: Float = 1f,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             TopAppBar(
                 title = {
@@ -91,9 +98,9 @@ fun HtmlViewerScreen(
             else -> HtmlScreenState.Content
         }
 
-        Box(
+        ResponsiveContentContainer(
+            maxWidth = ContentMaxWidth.Standard,
             modifier = Modifier
-                .fillMaxSize()
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
         ) {
@@ -173,11 +180,13 @@ fun HtmlViewerScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
-                                    RichText(
-                                        html = htmlContent.orEmpty(),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        onLinkClick = onLinkClick,
-                                    )
+                                    RichTextScaleProvider(proseScale = richTextScale) {
+                                        RichText(
+                                            html = htmlContent.orEmpty(),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            onLinkClick = onLinkClick,
+                                        )
+                                    }
                                 }
                             }
                         }
