@@ -214,7 +214,36 @@ class QuestionDaoTest {
         assertNotNull(q1)
         assertEquals("Q1", q1.question)
         assertNotNull(q1.difficultyTier)
-        assertEquals("Cardiology, Pulmonology", q1.subName)
-        assertEquals("Cardiovascular", q1.sysName)
+        assertEquals(listOf("Cardiology", "Pulmonology"), q1.subNames)
+        assertEquals(listOf("Cardiovascular"), q1.sysNames)
+    }
+
+    @Test
+    fun lookupNamesPreservesCommasInsideSystemAndSubjectNames() = runTest {
+        connection.prepare(
+            """
+            INSERT INTO Systems (id, name) VALUES
+                (30, 'Blood, Lymphatic, and Immune Systems')
+            """.trimIndent()
+        ).use { it.step() }
+
+        connection.prepare(
+            """
+            INSERT INTO Questions (id, question, explanation, corrAns, pplTaken, corrTaken, subId, sysId)
+            VALUES (7, 'Q7', 'Exp7', 1, 100.0, 50.0, '1', '10, 30')
+            """.trimIndent()
+        ).use { it.step() }
+
+        val dao = QuestionDao(
+            getConnection = { connection },
+            mutex = mutex,
+            isStringColumn = { true },
+            getLogDao = { stubLogDao }
+        )
+
+        val q7 = dao.getQuestionById(7L)
+        assertNotNull(q7)
+        assertEquals(listOf("Cardiology"), q7.subNames)
+        assertEquals(listOf("Cardiovascular", "Blood, Lymphatic, and Immune Systems"), q7.sysNames)
     }
 }

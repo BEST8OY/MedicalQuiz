@@ -14,7 +14,7 @@ data class Question(
     val corrTaken: Double?,
     val subId: String?,
     val sysId: String?,
-    val subName: String? = null,
-    val sysName: String? = null,
+    val subNames: List<String> = emptyList(),
+    val sysNames: List<String> = emptyList(),
     val difficultyTier: DifficultyTier? = null,
 )

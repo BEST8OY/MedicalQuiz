@@ -46,30 +46,31 @@ internal fun computeMetadataSections(question: Question?): List<MetadataSection>
         sections += MetadataSection.Chips(label = "Difficulty", values = listOf(label))
     }
 
-    extractMetadataList(currentQuestion.subName)
-        .takeIf { it.isNotEmpty() }
-        ?.let { values ->
-            val label = if (values.size == 1) "Subject" else "Subjects"
-            sections += MetadataSection.Chips(label, values)
-        }
+    sections.addChipsSection(
+        singularLabel = "Subject",
+        pluralLabel = "Subjects",
+        rawValues = currentQuestion.subNames,
+    )
 
-    extractMetadataList(currentQuestion.sysName)
-        .takeIf { it.isNotEmpty() }
-        ?.let { values ->
-            val label = if (values.size == 1) "System" else "Systems"
-            sections += MetadataSection.Chips(label, values)
-        }
+    sections.addChipsSection(
+        singularLabel = "System",
+        pluralLabel = "Systems",
+        rawValues = currentQuestion.sysNames,
+    )
 
     return sections
 }
 
-private val metadataDelimiters = Regex("[,;\\n•]+")
-
-private fun extractMetadataList(raw: String?): List<String> {
-    if (raw.isNullOrBlank()) return emptyList()
-    return raw.split(metadataDelimiters)
-        .map { it.trim() }
-        .filter { it.isNotEmpty() }
+private fun MutableList<MetadataSection>.addChipsSection(
+    singularLabel: String,
+    pluralLabel: String,
+    rawValues: List<String>,
+) {
+    val values = rawValues.map { it.trim() }.filter { it.isNotEmpty() }
+    if (values.isNotEmpty()) {
+        val label = if (values.size == 1) singularLabel else pluralLabel
+        this += MetadataSection.Chips(label, values)
+    }
 }
 
 @Composable

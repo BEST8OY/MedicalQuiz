@@ -194,8 +194,8 @@ class QuestionDao(
                 val subIdStr = if (stmt.isNull(9)) null else stmt.getText(9)
                 val sysIdStr = if (stmt.isNull(10)) null else stmt.getText(10)
 
-                val subName = subIdStr?.let { lookupNamesUnderLock(it, "Subjects") }
-                val sysName = sysIdStr?.let { lookupNamesUnderLock(it, "Systems") }
+                val subNames = subIdStr?.let { lookupNamesUnderLock(it, "Subjects") }.orEmpty()
+                val sysNames = sysIdStr?.let { lookupNamesUnderLock(it, "Systems") }.orEmpty()
 
                 question = Question(
                     id = stmt.getLong(0),
@@ -209,8 +209,8 @@ class QuestionDao(
                     corrTaken = if (stmt.isNull(8)) null else stmt.getDouble(8),
                     subId = subIdStr,
                     sysId = sysIdStr,
-                    subName = subName,
-                    sysName = sysName,
+                    subNames = subNames,
+                    sysNames = sysNames,
                     difficultyTier = difficultyIndex.getTier(stmt.getLong(0))
                 )
             }
@@ -334,11 +334,11 @@ class QuestionDao(
      * Look up display names for a comma-separated id string against [table]
      * ("Subjects" or "Systems"). Uses cached lookup tables to avoid repeated SQL queries.
      */
-    private fun lookupNamesUnderLock(idsStr: String, table: String): String {
+    private fun lookupNamesUnderLock(idsStr: String, table: String): List<String> {
         val ids = idsStr.split(",").mapNotNull { it.trim().toLongOrNull() }
-        if (ids.isEmpty()) return ""
+        if (ids.isEmpty()) return emptyList()
         val namesMap = getNamesMapUnderLock(table)
-        return ids.mapNotNull { namesMap[it] }.filter { it.isNotBlank() }.joinToString(", ")
+        return ids.mapNotNull { namesMap[it]?.trim()?.takeIf(String::isNotEmpty) }.distinct()
     }
 
     private fun buildMultiValueCondition(
