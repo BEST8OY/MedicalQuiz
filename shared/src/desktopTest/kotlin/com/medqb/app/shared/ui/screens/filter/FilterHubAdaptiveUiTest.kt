@@ -95,4 +95,35 @@ class FilterHubAdaptiveUiTest {
         onNodeWithText("Filter").assertDoesNotExist()
         onNodeWithText("History").assertDoesNotExist()
     }
+
+    @Test
+    fun phoneLandscapeShowsBothPanesSimultaneouslyAndHidesToolbar() = runComposeUiTest {
+        setContent {
+            ProvideAdaptiveLayoutInfo(modifier = Modifier.requiredSize(900.dp, 410.dp)) {
+                FilterHubContent(
+                    state = sampleState(activePane = FilterPane.Filters),
+                    onStartQuiz = {},
+                    onHistorySelected = {},
+                    onLoggingToggle = {},
+                    onSubmissionModeToggle = {},
+                    onPaneSelected = {},
+                    onClearFilters = {},
+                    onDeleteHistoryEntries = {},
+                    onRenameHistoryEntry = { _, _ -> },
+                    onCopyAllQids = { _, _ -> },
+                    onUndoDelete = {},
+                    onFetchSubjects = {},
+                    onApplySelectedSubjects = { _, _ -> },
+                    onFetchSystems = {},
+                    onApplySelectedSystems = { _, _ -> },
+                    onSelectStatusFilter = {},
+                )
+            }
+        }
+
+        onNodeWithText("Subjects").assertIsDisplayed()
+        onNodeWithText("Cardiology Review").assertIsDisplayed()
+        onNodeWithText("Filter").assertDoesNotExist()
+        onNodeWithText("History").assertDoesNotExist()
+    }
 }

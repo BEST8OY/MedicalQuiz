@@ -116,7 +116,7 @@ internal fun FilterHubContent(
     FilterPaneScaffold(
         selectedPane = state.activePane,
         onPaneSelected = onPaneSelected,
-        showPaneToolbar = !adaptive.isExpandedWidth && (!historySelectionMode || state.activePane == FilterPane.Filters),
+        showPaneToolbar = !adaptive.useTwoPaneLayout && (!historySelectionMode || state.activePane == FilterPane.Filters),
         modifier = modifier,
     ) {
         val renderFiltersPane: @Composable (Dp) -> Unit = { bottomContentPadding ->
@@ -166,7 +166,7 @@ internal fun FilterHubContent(
             )
         }
 
-        if (adaptive.isExpandedWidth) {
+        if (adaptive.useTwoPaneLayout) {
             Row(modifier = Modifier.fillMaxSize()) {
                 Box(modifier = Modifier.weight(1.15f).fillMaxHeight()) {
                     renderFiltersPane(navBarBottom + 16.dp)

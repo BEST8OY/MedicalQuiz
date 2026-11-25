@@ -70,8 +70,7 @@ internal fun FilterScreen(
         isDifficultyActive
 
     val adaptive = LocalAdaptiveLayoutInfo.current
-    val isTwoColumnFilterGrid = adaptive.widthClass == WidthSizeClass.Medium ||
-        (adaptive.isExpandedWidth && adaptive.windowWidth >= 1200.dp)
+    val isTwoColumnFilterGrid = adaptive.widthClass == WidthSizeClass.Medium || adaptive.isLargeWidth
     val topPadding = if (adaptive.isCompactHeight) 16.dp else 32.dp
     val sectionSpacing = if (adaptive.isCompactHeight) 20.dp else 28.dp
 

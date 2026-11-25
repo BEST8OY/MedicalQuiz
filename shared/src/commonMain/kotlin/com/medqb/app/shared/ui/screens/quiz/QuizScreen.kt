@@ -133,7 +133,7 @@ private fun QuestionContent(
         ) {
             val adaptive = LocalAdaptiveLayoutInfo.current
             ResponsiveContentContainer(
-                maxWidth = if (adaptive.isExpandedWidth) ContentMaxWidth.TwoPane else ContentMaxWidth.Standard,
+                maxWidth = if (adaptive.useTwoPaneLayout) ContentMaxWidth.TwoPane else ContentMaxWidth.Standard,
             ) {
                 QuizQuestionCard(
                     state = state,
@@ -358,7 +358,7 @@ private fun QuizQuestionCard(
         state = highlightHostState,
         modifier = modifier.fillMaxSize(),
     ) {
-        if (adaptive.isExpandedWidth) {
+        if (adaptive.useTwoPaneLayout) {
             val leftScrollState = key(state.currentQuestionIndex) { rememberScrollState() }
             val rightScrollState = key(state.currentQuestionIndex) { rememberScrollState() }
 

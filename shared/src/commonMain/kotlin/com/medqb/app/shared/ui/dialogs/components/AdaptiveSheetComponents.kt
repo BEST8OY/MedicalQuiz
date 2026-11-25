@@ -51,7 +51,7 @@ fun MedQBModalBottomSheet(
     ),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    if (LocalAdaptiveLayoutInfo.current.isExpandedWidth) {
+    if (LocalAdaptiveLayoutInfo.current.useDialogForModalSheets) {
         DialogShell(
             onDismiss = onDismissRequest,
             modifier = modifier,
@@ -145,7 +145,7 @@ fun BottomSheetActions(
     leadingContent: (@Composable RowScope.() -> Unit)? = null,
 ) {
     val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val bottomPadding = if (!LocalAdaptiveLayoutInfo.current.isExpandedWidth && navBarBottom > 0.dp) {
+    val bottomPadding = if (!LocalAdaptiveLayoutInfo.current.useDialogForModalSheets && navBarBottom > 0.dp) {
         8.dp
     } else {
         16.dp
