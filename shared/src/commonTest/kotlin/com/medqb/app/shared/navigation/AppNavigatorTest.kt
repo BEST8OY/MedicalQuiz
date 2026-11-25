@@ -170,8 +170,10 @@ class AppNavigatorTest {
             MedQBRoutes.Filter,
             MedQBRoutes.Quiz(
                 sessionId = "123",
+                databaseName = "cardiology",
                 entryName = "Test Quiz",
                 initialQuestionIndex = 5,
+                initialQuestionId = 42L,
                 isLoggingEnabled = true,
                 submissionMode = SubmissionMode.MANUAL,
             ),

@@ -27,11 +27,13 @@ import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.domain.SnackbarSink
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class FakeSettingsRepository(
     showMetadata: Boolean = true,
@@ -145,7 +147,7 @@ class FakeMarkedQuestionsRepository : MarkedQuestionsRepository {
     var failWrites: Boolean = false
     var failReads: Boolean = false
 
-    private fun canonical(dbName: String) = dbName.trim().removeSuffix(".db").trim()
+    private fun canonical(dbName: String) = com.medqb.app.shared.data.canonicalizeDbName(dbName)
 
     fun seedMarked(dbName: String, vararg questionIds: Long) {
         val c = canonical(dbName)
@@ -209,14 +211,85 @@ class FakeMarkedQuestionsRepository : MarkedQuestionsRepository {
 class FakeQuizSessionRepository : QuizSessionRepository {
     override val historyEntries = MutableStateFlow<List<QuizSessionRepository.QuizSession>>(emptyList())
     var nextSessionId = "session-1"
+    private var generatedCounter = 0
     val appended = mutableListOf<String>()
+    val appendedCalls = mutableListOf<QuizSessionRepository.QuizSession>()
+    var appendGate: CompletableDeferred<Unit>? = null
     var lastAppendedSubjectIds: Set<Long> = emptySet()
     var lastAppendedExcludedSubjectIds: Set<Long> = emptySet()
     var lastAppendedSystemIds: Set<Long> = emptySet()
     var lastAppendedExcludedSystemIds: Set<Long> = emptySet()
+    var lastAppendedStatusFilter: StatusFilter = StatusFilter.ALL
     var lastAppendedDifficultyTiers: Set<DifficultyTier> = emptySet()
+    var lastAppendedSessionId: String = ""
+    var lastAppendedQuestionId: Long? = null
+    var lastAppendedQuestionIndex: Int = -1
+    var lastAppendedIsLoggingEnabled: Boolean = false
+    var lastAppendedSubmissionMode: SubmissionMode = SubmissionMode.INSTANT
+    val restorableEntries = mutableMapOf<String, QuizSessionRepository.QuizSession>()
+
+    override fun generateSessionId(databaseName: String): String {
+        return if (generatedCounter++ == 0) nextSessionId else "$nextSessionId-$generatedCounter"
+    }
 
     override suspend fun listHistory() = emptyList<QuizSessionRepository.QuizSession>()
+
+    var enqueueScope: CoroutineScope? = null
+
+    override fun enqueueHistoryUpdate(
+        databaseName: String,
+        selectedSubjectIds: Set<Long>,
+        excludedSubjectIds: Set<Long>,
+        selectedSystemIds: Set<Long>,
+        excludedSystemIds: Set<Long>,
+        statusFilter: StatusFilter,
+        currentQuestionIndex: Int,
+        currentQuestionId: Long?,
+        isLoggingEnabled: Boolean,
+        submissionMode: SubmissionMode,
+        currentSessionId: String,
+        entryName: String,
+        selectedDifficultyTiers: Set<DifficultyTier>,
+    ) {
+        val scope = enqueueScope
+        if (scope != null) {
+            scope.launch {
+                appendToHistory(
+                    databaseName = databaseName,
+                    selectedSubjectIds = selectedSubjectIds,
+                    excludedSubjectIds = excludedSubjectIds,
+                    selectedSystemIds = selectedSystemIds,
+                    excludedSystemIds = excludedSystemIds,
+                    statusFilter = statusFilter,
+                    currentQuestionIndex = currentQuestionIndex,
+                    currentQuestionId = currentQuestionId,
+                    isLoggingEnabled = isLoggingEnabled,
+                    submissionMode = submissionMode,
+                    currentSessionId = currentSessionId,
+                    entryName = entryName,
+                    selectedDifficultyTiers = selectedDifficultyTiers,
+                )
+            }
+        } else {
+            val canonicalDbName = com.medqb.app.shared.data.canonicalizeDbName(databaseName)
+            if (canonicalDbName.isBlank() || currentSessionId.isBlank()) return
+            recordAppend(
+                databaseName = canonicalDbName,
+                selectedSubjectIds = selectedSubjectIds,
+                excludedSubjectIds = excludedSubjectIds,
+                selectedSystemIds = selectedSystemIds,
+                excludedSystemIds = excludedSystemIds,
+                statusFilter = statusFilter,
+                currentQuestionIndex = currentQuestionIndex,
+                currentQuestionId = currentQuestionId,
+                isLoggingEnabled = isLoggingEnabled,
+                submissionMode = submissionMode,
+                resolvedId = currentSessionId,
+                entryName = entryName,
+                selectedDifficultyTiers = selectedDifficultyTiers,
+            )
+        }
+    }
 
     override suspend fun appendToHistory(
         databaseName: String,
@@ -226,19 +299,75 @@ class FakeQuizSessionRepository : QuizSessionRepository {
         excludedSystemIds: Set<Long>,
         statusFilter: StatusFilter,
         currentQuestionIndex: Int,
+        currentQuestionId: Long?,
         isLoggingEnabled: Boolean,
         submissionMode: SubmissionMode,
         currentSessionId: String,
         entryName: String,
         selectedDifficultyTiers: Set<DifficultyTier>,
     ): String {
+        appendGate?.await()
+        val resolvedId = currentSessionId.ifBlank { generateSessionId(databaseName) }
+        recordAppend(
+            databaseName = databaseName,
+            selectedSubjectIds = selectedSubjectIds,
+            excludedSubjectIds = excludedSubjectIds,
+            selectedSystemIds = selectedSystemIds,
+            excludedSystemIds = excludedSystemIds,
+            statusFilter = statusFilter,
+            currentQuestionIndex = currentQuestionIndex,
+            currentQuestionId = currentQuestionId,
+            isLoggingEnabled = isLoggingEnabled,
+            submissionMode = submissionMode,
+            resolvedId = resolvedId,
+            entryName = entryName,
+            selectedDifficultyTiers = selectedDifficultyTiers,
+        )
+        return resolvedId
+    }
+
+    private fun recordAppend(
+        databaseName: String,
+        selectedSubjectIds: Set<Long>,
+        excludedSubjectIds: Set<Long>,
+        selectedSystemIds: Set<Long>,
+        excludedSystemIds: Set<Long>,
+        statusFilter: StatusFilter,
+        currentQuestionIndex: Int,
+        currentQuestionId: Long?,
+        isLoggingEnabled: Boolean,
+        submissionMode: SubmissionMode,
+        resolvedId: String,
+        entryName: String,
+        selectedDifficultyTiers: Set<DifficultyTier>,
+    ) {
         appended += databaseName
         lastAppendedSubjectIds = selectedSubjectIds
         lastAppendedExcludedSubjectIds = excludedSubjectIds
         lastAppendedSystemIds = selectedSystemIds
         lastAppendedExcludedSystemIds = excludedSystemIds
+        lastAppendedStatusFilter = statusFilter
         lastAppendedDifficultyTiers = selectedDifficultyTiers
-        return currentSessionId.ifBlank { nextSessionId }
+        lastAppendedSessionId = resolvedId
+        lastAppendedQuestionId = currentQuestionId
+        lastAppendedQuestionIndex = currentQuestionIndex
+        lastAppendedIsLoggingEnabled = isLoggingEnabled
+        lastAppendedSubmissionMode = submissionMode
+        appendedCalls += QuizSessionRepository.QuizSession(
+            id = resolvedId,
+            databaseName = databaseName,
+            entryName = entryName,
+            selectedSubjectIds = selectedSubjectIds.toList(),
+            excludedSubjectIds = excludedSubjectIds.toList(),
+            selectedSystemIds = selectedSystemIds.toList(),
+            excludedSystemIds = excludedSystemIds.toList(),
+            statusFilter = statusFilter,
+            currentQuestionIndex = currentQuestionIndex,
+            currentQuestionId = currentQuestionId,
+            isLoggingEnabled = isLoggingEnabled,
+            submissionMode = submissionMode,
+            selectedDifficultyTiers = selectedDifficultyTiers,
+        )
     }
 
     override suspend fun deleteHistoryEntries(entryIds: Set<String>) = Unit
@@ -247,7 +376,8 @@ class FakeQuizSessionRepository : QuizSessionRepository {
 
     override suspend fun restoreDeletedHistoryEntry(entry: QuizSessionRepository.QuizSession) = Unit
 
-    override suspend fun restoreHistoryEntry(entryId: String): QuizSessionRepository.QuizSession? = null
+    override suspend fun restoreHistoryEntry(entryId: String): QuizSessionRepository.QuizSession? =
+        restorableEntries[entryId]
 }
 
 class FakeSnackbarSink : SnackbarSink {
@@ -270,6 +400,7 @@ class FakeDatabaseProvider(
         val qid: Long,
         val selectedAnswer: Int,
         val corrAnswer: Int,
+        val time: Long,
         val sessionId: String,
     )
 
@@ -315,6 +446,7 @@ class FakeDatabaseProvider(
     )
 
     val loggedAnswers = mutableListOf<LoggedAnswer>()
+    val clearedLogQids = mutableListOf<Long>()
 
     /** When set, q1 carries no answers — corrAns points nowhere, so its derived
      * correctAnswerId is null and the question becomes ungradable. */
@@ -400,10 +532,12 @@ class FakeDatabaseProvider(
     ) {
         logGate?.await()
         if (failLogAnswer) throw RuntimeException("disk boom")
-        loggedAnswers += LoggedAnswer(qid, selectedAnswer, corrAnswer, sessionId)
+        loggedAnswers += LoggedAnswer(qid, selectedAnswer, corrAnswer, time, sessionId)
     }
 
-    override suspend fun clearLogForQuestion(qid: Long) = Unit
+    override suspend fun clearLogForQuestion(qid: Long) {
+        clearedLogQids += qid
+    }
 
     override suspend fun getQuestionPerformance(qid: Long): QuestionPerformance? =
         if (qid == 2L) {
@@ -426,16 +560,26 @@ class FakeDatabaseProvider(
 }
 
 open class FakeUserDataManager(
-    private val db: UserDatabase? = null,
+    private var db: UserDatabase? = null,
 ) : UserDataManager() {
-    override suspend fun init() = Unit
+    override suspend fun init() {
+        if (db != null) setDbState(DbState.Open(nextOpenEpoch()))
+    }
+    fun swapDatabase(newDb: UserDatabase?) {
+        db = newDb
+        setDbState(if (newDb != null) DbState.Open(nextOpenEpoch()) else DbState.Closed)
+    }
     override suspend fun logDao() = db?.logDao() ?: throw IllegalStateException("No test DB")
     override suspend fun sessionHistoryDao() = db?.sessionHistoryDao() ?: throw IllegalStateException("No test DB")
     override suspend fun textHighlightDao() = db?.textHighlightDao() ?: throw IllegalStateException("No test DB")
     override suspend fun markedQuestionDao() = db?.markedQuestionDao() ?: throw IllegalStateException("No test DB")
     override suspend fun <R> withTransaction(block: suspend () -> R): R =
         db?.withWriteTransaction { block() } ?: block()
-    override suspend fun close() { db?.close() }
+    override suspend fun close() {
+        db?.close()
+        db = null
+        setDbState(DbState.Closed)
+    }
 }
 
 class FakeAppStartupCoordinator(

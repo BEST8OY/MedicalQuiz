@@ -26,8 +26,10 @@ sealed interface MedQBRoutes : NavKey {
     @Serializable
     data class Quiz(
         val sessionId: String = "",
+        val databaseName: String = "",
         val entryName: String = "",
         val initialQuestionIndex: Int = 0,
+        val initialQuestionId: Long? = null,
         val isLoggingEnabled: Boolean? = null,
         val submissionMode: SubmissionMode? = null,
     ) : MedQBRoutes

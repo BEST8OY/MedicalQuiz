@@ -98,11 +98,13 @@ fun QuizRoot(
                             false
                         }
                         Key.Enter, Key.NumPadEnter -> if (
+                            !state.isLoading &&
                             !state.answerSubmitted &&
+                            state.currentQuestion != null &&
                             state.submissionMode == SubmissionMode.MANUAL &&
                             state.selectedAnswerId != null
                         ) {
-                            viewModel.submitAnswer(timeTaken = 0L)
+                            viewModel.submitAnswer()
                             true
                         } else {
                             false
@@ -132,11 +134,16 @@ fun QuizRoot(
                                 Key.Nine -> 8
                                 else -> -1
                             }
-                            if (!state.answerSubmitted && answerIndex in state.currentAnswers.indices) {
+                            if (
+                                !state.isLoading &&
+                                !state.answerSubmitted &&
+                                state.currentQuestion != null &&
+                                answerIndex in state.currentAnswers.indices
+                            ) {
                                 val answerId = state.currentAnswers[answerIndex].answerId
                                 viewModel.onAnswerSelected(answerId)
                                 if (state.submissionMode == SubmissionMode.INSTANT) {
-                                    viewModel.submitAnswer(timeTaken = 0L)
+                                    viewModel.submitAnswer()
                                 }
                                 true
                             } else {
@@ -169,10 +176,10 @@ fun QuizRoot(
                     state = state,
                     mediaHandler = mediaHandler,
                     onAnswerSelected = { answerId ->
-                        if (!state.answerSubmitted) {
+                        if (!state.isLoading && !state.answerSubmitted && state.currentQuestion != null) {
                             viewModel.onAnswerSelected(answerId)
                             if (state.submissionMode == SubmissionMode.INSTANT) {
-                                viewModel.submitAnswer(timeTaken = 0L)
+                                viewModel.submitAnswer()
                             }
                         }
                     },
@@ -197,13 +204,13 @@ fun QuizRoot(
                         hasPreviousQuestion = state.hasPreviousQuestion,
                         hasNextQuestion = state.hasNextQuestion,
                         showSubmitButton = !state.answerSubmitted && state.submissionMode == SubmissionMode.MANUAL,
-                        canSubmit = state.selectedAnswerId != null,
+                        canSubmit = !state.isLoading && state.selectedAnswerId != null,
                         isCurrentQuestionMarked = state.isCurrentQuestionMarked,
                     ),
                     onPrevious = { viewModel.loadPrevious() },
                     onNext = { viewModel.loadNext() },
                     onJumpTo = { showJumpToDialog = true },
-                    onSubmit = { viewModel.submitAnswer(timeTaken = 0L) },
+                    onSubmit = { viewModel.submitAnswer() },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = bottomPadding + 16.dp)

@@ -72,6 +72,8 @@ data class StatusFilter(
     fun serialize(): String = "${statuses.sortedBy { it.ordinal }.joinToString(",") { it.name }}:${scope.name}"
 
     companion object {
+        const val SERIALIZED_ALL = ":ALL_ATTEMPTS"
+
         val ALL = StatusFilter(
             statuses = emptySet(),
             scope = StatusScope.ALL_ATTEMPTS

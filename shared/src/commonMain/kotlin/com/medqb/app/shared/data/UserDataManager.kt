@@ -16,6 +16,9 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -30,10 +33,28 @@ import kotlin.concurrent.Volatile
 @Inject
 @SingleIn(AppScope::class)
 open class UserDataManager {
+    sealed interface DbState {
+        data object Closed : DbState
+        data class Open(val epoch: Long) : DbState
+    }
+
     private val mutex = Mutex()
 
     @Volatile
     private var database: UserDatabase? = null
+
+    private var currentEpoch = 0L
+    private var wasClosed = false
+    private var lastOpenFailed = false
+
+    private val _dbState = MutableStateFlow<DbState>(DbState.Open(0L))
+    open val dbState: StateFlow<DbState> = _dbState.asStateFlow()
+
+    protected fun setDbState(state: DbState) {
+        _dbState.value = state
+    }
+
+    protected fun nextOpenEpoch(): Long = ++currentEpoch
 
     private val dbDir: String
         get() = StorageProvider.getContentDirectory()
@@ -53,10 +74,16 @@ open class UserDataManager {
                         .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
                         .build()
                     database = db
+                    if (wasClosed || lastOpenFailed) {
+                        wasClosed = false
+                        lastOpenFailed = false
+                        _dbState.value = DbState.Open(nextOpenEpoch())
+                    }
                     db
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    lastOpenFailed = true
                     Logger.e("UserDataManager", "Error initializing user data database", e)
                     throw e
                 }
@@ -90,6 +117,8 @@ open class UserDataManager {
         mutex.withLock {
             database?.close()
             database = null
+            wasClosed = true
+            _dbState.value = DbState.Closed
         }
     }
 }

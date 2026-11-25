@@ -3,31 +3,34 @@ package com.medqb.app.shared.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.medqb.app.shared.data.ActiveDatabase
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.FilterStateHolder
 import com.medqb.app.shared.data.MarkedQuestionsRepository
 import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
+import com.medqb.app.shared.data.canonicalizeDbName
+import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.QuestionPerformance
 import com.medqb.app.shared.data.database.StatusFilter
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
+import com.medqb.app.shared.data.models.QuestionFilter
 import com.medqb.app.shared.data.models.SubmissionMode
 import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.domain.LoadQuestionUseCase
-import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.domain.SnackbarMessage
+import com.medqb.app.shared.domain.SnackbarSink
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.ui.state.QuizUiState
 import dev.zacsweers.metro.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -41,10 +44,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @Inject
@@ -60,20 +67,53 @@ class QuizViewModel(
     private val snackbarSink: SnackbarSink,
     private val filterStateHolder: FilterStateHolder,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val timeSource: TimeSource = TimeSource.Monotonic,
 ) : ViewModel() {
 
     private companion object {
         const val KEY_DATABASE_NAME = "databaseName"
         const val KEY_ENTRY_NAME = "entryName"
         const val KEY_CURRENT_QUESTION_INDEX = "currentQuestionIndex"
+        const val KEY_CURRENT_QUESTION_ID = "currentQuestionId"
         const val KEY_IS_LOGGING_ENABLED = "isLoggingEnabled"
         const val KEY_SUBMISSION_MODE = "submissionMode"
         const val KEY_SESSION_ID = "sessionId"
+        const val KEY_LOCK_LOGGING_SETTING = "lockLoggingSetting"
+        const val KEY_LOCK_SUBMISSION_MODE = "lockSubmissionMode"
+        const val KEY_FILTER_INITIALIZED = "filterInitialized"
+        const val KEY_FILTER_SELECTED_SUBJECTS = "filterSelectedSubjects"
+        const val KEY_FILTER_EXCLUDED_SUBJECTS = "filterExcludedSubjects"
+        const val KEY_FILTER_SELECTED_SYSTEMS = "filterSelectedSystems"
+        const val KEY_FILTER_EXCLUDED_SYSTEMS = "filterExcludedSystems"
+        const val KEY_FILTER_STATUS = "filterStatus"
+        const val KEY_FILTER_DIFFICULTY_TIERS = "filterDifficultyTiers"
     }
 
-    private val isSessionRestored = (savedStateHandle.get<String>(KEY_SESSION_ID) ?: route.sessionId).isNotBlank()
-    private val hasExplicitLoggingSetting = savedStateHandle.contains(KEY_IS_LOGGING_ENABLED) || route.isLoggingEnabled != null
-    private val hasExplicitSubmissionMode = savedStateHandle.contains(KEY_SUBMISSION_MODE) || route.submissionMode != null
+    private var isLoggingSettingLocked: Boolean = resolveInitialSettingLock(
+        lockKey = KEY_LOCK_LOGGING_SETTING,
+        explicitRouteValue = route.isLoggingEnabled != null,
+        savedValuePresent = savedStateHandle.contains(KEY_IS_LOGGING_ENABLED),
+    )
+    private var isSubmissionModeLocked: Boolean = resolveInitialSettingLock(
+        lockKey = KEY_LOCK_SUBMISSION_MODE,
+        explicitRouteValue = route.submissionMode != null,
+        savedValuePresent = savedStateHandle.contains(KEY_SUBMISSION_MODE),
+    )
+
+    private val sessionIdState: MutableStateFlow<String> = savedStateHandle.getMutableStateFlow(KEY_SESSION_ID, route.sessionId)
+    private val sessionId: String
+        get() = sessionIdState.value
+
+    private var currentQuestionId: Long? = savedStateHandle.get<Long>(KEY_CURRENT_QUESTION_ID)
+        ?: route.initialQuestionId
+
+    private var expectedDatabaseName: String? = (
+        savedStateHandle.get<String>(KEY_DATABASE_NAME)?.takeIf { it.isNotBlank() }
+            ?: route.databaseName
+        ).let(::canonicalizeDbName).takeIf { it.isNotBlank() }
+
+    private var sessionFilter: QuestionFilter = restoreInitialFilter()
+
     private val _state = MutableStateFlow(restoreInitialState())
     val state: StateFlow<QuizUiState> = _state.asStateFlow()
 
@@ -82,17 +122,29 @@ class QuizViewModel(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.Eagerly, _state.value.toolbarTitle)
 
-    private val sessionIdState: MutableStateFlow<String> = savedStateHandle.getMutableStateFlow(KEY_SESSION_ID, route.sessionId)
-    private val sessionId: String
-        get() = sessionIdState.value
     private var filteredIdsJob: Job? = null
     private var loadQuestionJob: Job? = null
-    // Name of the database whose question ids were last (re)loaded. Distinguishes
-    // "first load / db switched" from "filters legitimately produced zero results".
-    private var loadedForDbName: String? = null
+    // Reference to the currently active ActiveDatabase (cleared on null emissions).
+    private var loadedForActiveDb: ActiveDatabase? = null
+    // Canonical name of the last database loaded by this ViewModel instance.
+    // Preserved across `active == null` gaps so bankA -> null -> bankB resets the session.
+    private var lastLoadedDbName: String? = null
+    private var questionDisplayedMark: TimeMark? = null
     private val markWriteMutex = Mutex()
     private var markMutationSeq = 0L
     private val latestMarkSeqByQuestion = mutableMapOf<Pair<String, Long>, Long>()
+
+    private fun resolveInitialSettingLock(
+        lockKey: String,
+        explicitRouteValue: Boolean,
+        savedValuePresent: Boolean,
+    ): Boolean {
+        savedStateHandle.get<Boolean>(lockKey)?.let { return it }
+        val isRestoredSession = (savedStateHandle.get<String>(KEY_SESSION_ID) ?: route.sessionId).isNotBlank()
+        val locked = isRestoredSession || explicitRouteValue || savedValuePresent
+        savedStateHandle[lockKey] = locked
+        return locked
+    }
 
     private fun updateSessionId(id: String) {
         sessionIdState.value = id
@@ -102,14 +154,30 @@ class QuizViewModel(
         observeSettings()
 
         viewModelScope.launch {
+            activeDatabaseHolder.openFailure.collect { failure ->
+                if (failure == null || loadedForActiveDb != null) return@collect
+                val expected = expectedDatabaseName
+                if (expected == null || failure.dbName == expected) {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = failure.message,
+                        )
+                    }
+                }
+            }
+        }
+
+        viewModelScope.launch {
             activeDatabaseHolder.activeDatabase.collect { active ->
                 if (active == null) {
-                    if (loadedForDbName != null) {
+                    if (loadedForActiveDb != null) {
                         loadQuestionJob?.cancel()
                         loadQuestionJob = null
                         filteredIdsJob?.cancel()
                         filteredIdsJob = null
-                        loadedForDbName = null
+                        loadedForActiveDb = null
+                        questionDisplayedMark = null
                         _state.update {
                             it.copy(
                                 databaseName = "",
@@ -131,33 +199,137 @@ class QuizViewModel(
                     }
                     return@collect
                 }
-                val dbName = active.name
 
-                val isFirstLoad = loadedForDbName == null
-                if (dbName != loadedForDbName) {
-                    loadQuestionJob?.cancel()
-                    loadQuestionJob = null
-                    loadedForDbName = dbName
-                    _state.update {
-                        it.copy(
-                            databaseName = dbName,
-                            questionIds = emptyList(),
-                            isCurrentQuestionMarked = false,
-                            markedQuestionIds = emptySet(),
-                        )
-                    }
-                    // First load after process restore resumes the saved position;
-                    // switching to a different QBank restarts at the first question.
-                    loadFilteredQuestionIds(
-                        startFromBeginning = !isFirstLoad
+                val canonicalDbName = canonicalizeDbName(active.name)
+                val expected = expectedDatabaseName
+                if (lastLoadedDbName == null && !expected.isNullOrBlank() && canonicalDbName != expected) {
+                    // Waiting for the target database of a restored/process-recreated session to finish opening.
+                    return@collect
+                }
+                if (active === loadedForActiveDb) {
+                    return@collect
+                }
+
+                val isDifferentDatabase = lastLoadedDbName != null && lastLoadedDbName != canonicalDbName
+
+                loadQuestionJob?.cancel()
+                loadQuestionJob = null
+                loadedForActiveDb = active
+                lastLoadedDbName = canonicalDbName
+                expectedDatabaseName = null
+                savedStateHandle[KEY_DATABASE_NAME] = canonicalDbName
+
+                if (isDifferentDatabase) {
+                    updateSessionId("")
+                    currentQuestionId = null
+                    savedStateHandle.remove<Long>(KEY_CURRENT_QUESTION_ID)
+                    sessionFilter = filterStateHolder.filter.value
+                    saveFilterToSavedState(sessionFilter)
+                    isLoggingSettingLocked = false
+                    isSubmissionModeLocked = false
+                    savedStateHandle[KEY_LOCK_LOGGING_SETTING] = false
+                    savedStateHandle[KEY_LOCK_SUBMISSION_MODE] = false
+                    savedStateHandle[KEY_ENTRY_NAME] = ""
+                    savedStateHandle[KEY_IS_LOGGING_ENABLED] = settingsRepository.isLoggingEnabled.value
+                    savedStateHandle[KEY_SUBMISSION_MODE] = settingsRepository.submissionMode.value.name
+                }
+
+                _state.update {
+                    it.copy(
+                        databaseName = canonicalDbName,
+                        entryName = if (isDifferentDatabase) "" else it.entryName,
+                        isLoggingEnabled = if (isDifferentDatabase) settingsRepository.isLoggingEnabled.value else it.isLoggingEnabled,
+                        submissionMode = if (isDifferentDatabase) settingsRepository.submissionMode.value else it.submissionMode,
+                        questionIds = emptyList(),
+                        isCurrentQuestionMarked = false,
+                        markedQuestionIds = emptySet(),
                     )
                 }
+
+                // First load / same-DB reopen resumes the saved position;
+                // switching to a different QBank starts a fresh session at index 0.
+                loadFilteredQuestionIds(
+                    active = active,
+                    startFromBeginning = isDifferentDatabase,
+                )
             }
         }
     }
 
+    private fun enqueueHistoryWrite(snapshot: QuizUiState, questionId: Long?) {
+        val activeSessionId = sessionId
+        if (activeSessionId.isBlank() || snapshot.databaseName.isBlank()) return
+        sessionRepository.enqueueHistoryUpdate(
+            databaseName = snapshot.databaseName,
+            selectedSubjectIds = sessionFilter.selectedSubjectIds,
+            excludedSubjectIds = sessionFilter.excludedSubjectIds,
+            selectedSystemIds = sessionFilter.selectedSystemIds,
+            excludedSystemIds = sessionFilter.excludedSystemIds,
+            statusFilter = sessionFilter.statusFilter,
+            currentQuestionIndex = snapshot.currentQuestionIndex,
+            currentQuestionId = questionId,
+            isLoggingEnabled = snapshot.isLoggingEnabled,
+            submissionMode = snapshot.submissionMode,
+            currentSessionId = activeSessionId,
+            entryName = snapshot.entryName,
+            selectedDifficultyTiers = sessionFilter.selectedDifficultyTiers,
+        )
+    }
+
+    private fun restoreInitialFilter(): QuestionFilter {
+        if (savedStateHandle.get<Boolean>(KEY_FILTER_INITIALIZED) == true) {
+            return readFilterFromSavedState()
+        }
+        if (sessionId.isBlank()) {
+            val snapshot = filterStateHolder.filter.value
+            saveFilterToSavedState(snapshot)
+            return snapshot
+        }
+        return filterStateHolder.filter.value
+    }
+
+    private fun readFilterFromSavedState(): QuestionFilter {
+        val selectedSubjects = savedStateHandle.get<LongArray>(KEY_FILTER_SELECTED_SUBJECTS)?.toSet().orEmpty()
+        val excludedSubjects = savedStateHandle.get<LongArray>(KEY_FILTER_EXCLUDED_SUBJECTS)?.toSet().orEmpty()
+        val selectedSystems = savedStateHandle.get<LongArray>(KEY_FILTER_SELECTED_SYSTEMS)?.toSet().orEmpty()
+        val excludedSystems = savedStateHandle.get<LongArray>(KEY_FILTER_EXCLUDED_SYSTEMS)?.toSet().orEmpty()
+        val statusFilter = savedStateHandle.get<String>(KEY_FILTER_STATUS)
+            ?.let(StatusFilter.Companion::deserialize)
+            ?: StatusFilter.ALL
+        val difficultyTiers = savedStateHandle.get<String>(KEY_FILTER_DIFFICULTY_TIERS)
+            ?.takeIf { it.isNotBlank() }
+            ?.split(",")
+            ?.mapNotNull { token ->
+                token.trim().takeIf { it.isNotEmpty() }?.let { t ->
+                    runCatching { DifficultyTier.valueOf(t) }.getOrNull()
+                }
+            }
+            ?.toSet()
+            .orEmpty()
+        return QuestionFilter.create(
+            selectedSubjectIds = selectedSubjects,
+            excludedSubjectIds = excludedSubjects,
+            selectedSystemIds = selectedSystems,
+            excludedSystemIds = excludedSystems,
+            statusFilter = statusFilter,
+            selectedDifficultyTiers = difficultyTiers,
+        )
+    }
+
+    private fun saveFilterToSavedState(filter: QuestionFilter) {
+        savedStateHandle[KEY_FILTER_SELECTED_SUBJECTS] = filter.selectedSubjectIds.toLongArray()
+        savedStateHandle[KEY_FILTER_EXCLUDED_SUBJECTS] = filter.excludedSubjectIds.toLongArray()
+        savedStateHandle[KEY_FILTER_SELECTED_SYSTEMS] = filter.selectedSystemIds.toLongArray()
+        savedStateHandle[KEY_FILTER_EXCLUDED_SYSTEMS] = filter.excludedSystemIds.toLongArray()
+        savedStateHandle[KEY_FILTER_STATUS] = filter.statusFilter.serialize()
+        savedStateHandle[KEY_FILTER_DIFFICULTY_TIERS] = filter.selectedDifficultyTiers.joinToString(",") { it.name }
+        savedStateHandle[KEY_FILTER_INITIALIZED] = true
+    }
+
     private fun restoreInitialState(): QuizUiState {
-        val savedDatabaseName = savedStateHandle.get<String>(KEY_DATABASE_NAME).orEmpty()
+        val savedDatabaseName = savedStateHandle.get<String>(KEY_DATABASE_NAME)
+            ?.let(::canonicalizeDbName)
+            .orEmpty()
         val savedEntryName = savedStateHandle.get<String>(KEY_ENTRY_NAME) ?: route.entryName
         val savedQuestionIndex = savedStateHandle.get<Int>(KEY_CURRENT_QUESTION_INDEX) ?: route.initialQuestionIndex
         val savedIsLoggingEnabled = savedStateHandle.get<Boolean>(KEY_IS_LOGGING_ENABLED)
@@ -175,6 +347,7 @@ class QuizViewModel(
             currentQuestionIndex = savedQuestionIndex.coerceAtLeast(0),
             isLoggingEnabled = savedIsLoggingEnabled,
             submissionMode = savedSubmissionMode,
+            isLoading = expectedDatabaseName != null,
         )
     }
 
@@ -233,9 +406,11 @@ class QuizViewModel(
         val dbName = snapshot.databaseName
         val questionId = snapshot.currentQuestion?.id ?: return
 
-        viewModelScope.launch(ioDispatcher) {
+        viewModelScope.launch {
             try {
-                val updated = block(dbName, questionId)
+                val updated = withContext(ioDispatcher) {
+                    block(dbName, questionId)
+                }
                 publishHighlights(dbName, questionId, updated)
             } catch (e: CancellationException) {
                 throw e
@@ -260,32 +435,6 @@ class QuizViewModel(
         }
     }
 
-    private suspend fun appendToHistory() {
-        try {
-            val newSessionId = sessionRepository.appendToHistory(
-                databaseName = state.value.databaseName,
-                selectedSubjectIds = filterStateHolder.selectedSubjectIds.value,
-                excludedSubjectIds = filterStateHolder.excludedSubjectIds.value,
-                selectedSystemIds = filterStateHolder.selectedSystemIds.value,
-                excludedSystemIds = filterStateHolder.excludedSystemIds.value,
-                statusFilter = filterStateHolder.statusFilter.value,
-                currentQuestionIndex = state.value.currentQuestionIndex,
-                isLoggingEnabled = state.value.isLoggingEnabled,
-                submissionMode = state.value.submissionMode,
-                currentSessionId = sessionId,
-                entryName = state.value.entryName,
-                selectedDifficultyTiers = filterStateHolder.selectedDifficultyTiers.value,
-            )
-            if (newSessionId.isNotBlank()) {
-                updateSessionId(newSessionId)
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Logger.e("QuizViewModel", "Error appending to history", e)
-        }
-    }
-
     fun loadQuestion(
         index: Int,
         resetAnswerState: Boolean = true,
@@ -295,29 +444,45 @@ class QuizViewModel(
         val questionId = ids.getOrNull(index) ?: return
 
         loadQuestionJob?.cancel()
-        loadQuestionJob = viewModelScope.launch(ioDispatcher) {
-            _state.update { it.copy(isLoading = true, errorMessage = null, currentPerformance = null) }
+        loadQuestionJob = viewModelScope.launch {
             val active = activeDatabaseHolder.activeDatabase.value
             val db = active?.provider
+            val activeDbName = active?.name?.let(::canonicalizeDbName).orEmpty()
+            val isLogging = state.value.isLoggingEnabled
+            _state.update { it.copy(isLoading = true, errorMessage = null, currentPerformance = null) }
             try {
-                val result = loadQuestionUseCase(
-                    db = db,
-                    dbName = state.value.databaseName,
-                    questionId = questionId,
-                    isLoggingEnabled = state.value.isLoggingEnabled,
-                )
+                val result = withContext(ioDispatcher) {
+                    loadQuestionUseCase(
+                        db = db,
+                        dbName = activeDbName,
+                        questionId = questionId,
+                        isLoggingEnabled = isLogging,
+                    )
+                }
                 ensureActive()
                 // The database was switched while this load was in flight —
                 // drop the result instead of publishing stale question state.
                 if (active != null && activeDatabaseHolder.activeDatabase.value !== active) {
                     return@launch
                 }
-                _state.update {
+                if (result.question != null) {
+                    questionDisplayedMark = timeSource.markNow()
+                    if (appendToHistory && sessionId.isBlank() && activeDbName.isNotBlank()) {
+                        updateSessionId(sessionRepository.generateSessionId(activeDbName))
+                    }
+                    currentQuestionId = result.question.id
+                    savedStateHandle[KEY_CURRENT_QUESTION_ID] = result.question.id
+                }
+                val updatedState = _state.updateAndGet {
                     val updatedMarkedIds = if (result.question != null) {
                         if (result.isMarked) it.markedQuestionIds + result.question.id
                         else it.markedQuestionIds - result.question.id
                     } else it.markedQuestionIds
-                    it.copy(currentQuestionIndex = index, markedQuestionIds = updatedMarkedIds)
+                    it.copy(
+                        currentQuestionIndex = index,
+                        markedQuestionIds = updatedMarkedIds,
+                        isLoading = false,
+                    )
                         .copyWithQuestion(
                             question = result.question,
                             answers = result.answers,
@@ -329,9 +494,11 @@ class QuizViewModel(
                         )
                         .copy(currentPerformance = result.performance)
                 }
-                persistStateSnapshot()
-                if (appendToHistory) {
-                    appendToHistory()
+                if (result.question != null) {
+                    persistStateSnapshot(updatedState)
+                    if (appendToHistory) {
+                        enqueueHistoryWrite(updatedState, questionId = result.question.id)
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -376,7 +543,7 @@ class QuizViewModel(
         _state.update { it.copy(selectedAnswerId = answerId.toInt()) }
     }
 
-    fun submitAnswer(timeTaken: Long) {
+    fun submitAnswer(timeTaken: Long? = null) {
         val currentState = state.value
         val question = currentState.currentQuestion ?: return
         val selectedAnswerId = currentState.selectedAnswerId
@@ -388,38 +555,50 @@ class QuizViewModel(
 
         if (currentState.answerSubmitted) return
 
+        val active = activeDatabaseHolder.activeDatabase.value
+        val isLoggingEnabled = currentState.isLoggingEnabled
+        val correctAnswerId = currentState.correctAnswerId
+        val targetSessionId = sessionId
+        val elapsedSeconds = timeTaken ?: (questionDisplayedMark?.elapsedNow()?.inWholeSeconds ?: 0L).coerceAtLeast(0L)
+
+        if (isLoggingEnabled && active == null) {
+            emitSnackbar("Database not available — answer not saved")
+            return
+        }
+
         val wasAlreadySubmitted = _state.getAndUpdate { it.copy(answerSubmitted = true) }.answerSubmitted
         if (wasAlreadySubmitted) return
 
-        viewModelScope.launch(ioDispatcher) {
-            val active = activeDatabaseHolder.activeDatabase.value
-            val db = active?.provider
+        if (!isLoggingEnabled) return
+
+        // A question whose answer key can't be derived (malformed bank
+        // row) must not reach the log: a corrAnswer sentinel would grade
+        // the attempt permanently incorrect in every stat query.
+        if (correctAnswerId == null) {
+            emitSnackbar("Question has no valid answer key — result not saved")
+            return
+        }
+
+        val db = active!!.provider
+        viewModelScope.launch {
             try {
-                if (state.value.isLoggingEnabled && db != null) {
-                    val correctAnswerId = currentState.correctAnswerId
-                    // A question whose answer key can't be derived (malformed bank
-                    // row) must not reach the log: a corrAnswer sentinel would grade
-                    // the attempt permanently incorrect in every stat query.
-                    if (correctAnswerId == null) {
-                        emitSnackbar("Question has no valid answer key — result not saved")
-                        return@launch
-                    }
+                withContext(ioDispatcher) {
                     db.logAnswer(
                         qid = question.id,
                         selectedAnswer = selectedAnswerId,
                         corrAnswer = correctAnswerId,
-                        time = timeTaken,
-                        sessionId = sessionId
+                        time = elapsedSeconds,
+                        sessionId = targetSessionId,
                     )
-                    // Only merge performance into the UI while the user is still on the
-                    // same question of the same database — otherwise the stats would be
-                    // attributed to whatever is now displayed.
-                    val stillOnSameQuestion =
-                        activeDatabaseHolder.activeDatabase.value === active &&
-                            state.value.currentQuestion?.id == question.id
-                    if (stillOnSameQuestion) {
-                        updatePerformanceState(question.id, correctAnswerId, selectedAnswerId)
-                    }
+                }
+                // Only merge performance into the UI while the user is still on the
+                // same question of the same database — otherwise the stats would be
+                // attributed to whatever is now displayed.
+                val stillOnSameQuestion =
+                    activeDatabaseHolder.activeDatabase.value === active &&
+                        state.value.currentQuestion?.id == question.id
+                if (stillOnSameQuestion) {
+                    updatePerformanceState(question.id, correctAnswerId, selectedAnswerId)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -476,49 +655,87 @@ class QuizViewModel(
         if (s.questionIds.isNotEmpty()) {
             loadQuestion(s.currentQuestionIndex.coerceIn(0, s.questionIds.lastIndex))
         } else {
-            loadFilteredQuestionIds(startFromBeginning = true)
+            val active = activeDatabaseHolder.activeDatabase.value
+            val expected = expectedDatabaseName
+            if (active == null || (lastLoadedDbName == null && !expected.isNullOrBlank() && canonicalizeDbName(active.name) != expected)) {
+                val failure = activeDatabaseHolder.openFailure.value
+                if (failure != null && (expected == null || failure.dbName == expected)) {
+                    _state.update { it.copy(isLoading = false, errorMessage = failure.message) }
+                }
+                return
+            }
+            loadFilteredQuestionIds(active = active, startFromBeginning = false)
         }
     }
 
     private fun loadFilteredQuestionIds(
+        active: ActiveDatabase,
         startFromBeginning: Boolean = false,
     ) {
         loadQuestionJob?.cancel()
         loadQuestionJob = null
         filteredIdsJob?.cancel()
-        filteredIdsJob = viewModelScope.launch(ioDispatcher) {
+        filteredIdsJob = viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
-            val active = activeDatabaseHolder.activeDatabase.value
-            val db = active?.provider
+            val db = active.provider
+            val canonicalDbName = canonicalizeDbName(active.name)
             try {
+                if (!startFromBeginning && sessionId.isNotBlank() && savedStateHandle.get<Boolean>(KEY_FILTER_INITIALIZED) != true) {
+                    val restoredSession = withContext(ioDispatcher) {
+                        sessionRepository.restoreHistoryEntry(sessionId)
+                    }
+                    if (activeDatabaseHolder.activeDatabase.value !== active) {
+                        return@launch
+                    }
+                    if (restoredSession != null) {
+                        sessionFilter = QuestionFilter.create(
+                            selectedSubjectIds = restoredSession.selectedSubjectIds.toSet(),
+                            excludedSubjectIds = restoredSession.excludedSubjectIds.toSet(),
+                            selectedSystemIds = restoredSession.selectedSystemIds.toSet(),
+                            excludedSystemIds = restoredSession.excludedSystemIds.toSet(),
+                            statusFilter = restoredSession.statusFilter,
+                            selectedDifficultyTiers = restoredSession.selectedDifficultyTiers,
+                        )
+                        if (currentQuestionId == null && restoredSession.currentQuestionId != null) {
+                            currentQuestionId = restoredSession.currentQuestionId
+                            savedStateHandle[KEY_CURRENT_QUESTION_ID] = restoredSession.currentQuestionId
+                        }
+                    } else {
+                        sessionFilter = filterStateHolder.filter.value
+                    }
+                    saveFilterToSavedState(sessionFilter)
+                }
+
+                val filterSnapshot = sessionFilter
                 val currentState = state.value
-                val markedIds = if (active != null) {
-                    try {
-                        markedQuestionsRepository.getMarkedQuestionIds(active.name)
+                val (markedIds, ids) = withContext(ioDispatcher) {
+                    val marks = try {
+                        markedQuestionsRepository.getMarkedQuestionIds(canonicalDbName)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
                         Logger.e("QuizViewModel", "Error loading marked question ids", e)
                         emptySet()
                     }
-                } else emptySet()
-
-                val ids = db?.getQuestionIds(
-                    subjectIds = filterStateHolder.selectedSubjectIds.value.toList(),
-                    excludedSubjectIds = filterStateHolder.excludedSubjectIds.value.toList(),
-                    systemIds = filterStateHolder.selectedSystemIds.value.toList(),
-                    excludedSystemIds = filterStateHolder.excludedSystemIds.value.toList(),
-                    statusFilter = filterStateHolder.statusFilter.value,
-                    difficultyFilters = filterStateHolder.selectedDifficultyTiers.value,
-                ) ?: emptyList()
+                    val questionIds = db.getQuestionIds(
+                        subjectIds = filterSnapshot.selectedSubjectIds.toList(),
+                        excludedSubjectIds = filterSnapshot.excludedSubjectIds.toList(),
+                        systemIds = filterSnapshot.selectedSystemIds.toList(),
+                        excludedSystemIds = filterSnapshot.excludedSystemIds.toList(),
+                        statusFilter = filterSnapshot.statusFilter,
+                        difficultyFilters = filterSnapshot.selectedDifficultyTiers,
+                    )
+                    marks to questionIds
+                }
 
                 // Database switched mid-query — a newer load for the new database is
                 // responsible for publishing state.
-                if (active != null && activeDatabaseHolder.activeDatabase.value !== active) {
+                if (activeDatabaseHolder.activeDatabase.value !== active) {
                     return@launch
                 }
 
                 if (ids.isEmpty()) {
+                    questionDisplayedMark = null
                     _state.update {
                         it.copy(
                             questionIds = emptyList(),
@@ -543,7 +760,8 @@ class QuizViewModel(
                 val newIndex = if (startFromBeginning) {
                     0
                 } else {
-                    currentState.currentQuestionIndex.coerceIn(0, ids.lastIndex)
+                    val matchedIndex = currentQuestionId?.let { targetId -> ids.indexOf(targetId) }?.takeIf { it >= 0 }
+                    matchedIndex ?: currentState.currentQuestionIndex.coerceIn(0, ids.lastIndex)
                 }
                 _state.update {
                     it.copy(
@@ -556,8 +774,10 @@ class QuizViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                val msg = e.message ?: "Failed to load questions from database"
-                _state.update { it.copy(isLoading = false, errorMessage = msg) }
+                if (activeDatabaseHolder.activeDatabase.value === active) {
+                    val msg = e.message ?: "Failed to load questions from database"
+                    _state.update { it.copy(isLoading = false, errorMessage = msg) }
+                }
                 Logger.e("QuizViewModel", "Error loading filtered questions", e)
             }
         }
@@ -565,12 +785,17 @@ class QuizViewModel(
 
     fun clearCurrentQuestionLog() {
         val questionId = _state.value.currentQuestion?.id ?: return
-        viewModelScope.launch(ioDispatcher) {
-            val active = activeDatabaseHolder.activeDatabase.value
-            val db = active?.provider
+        val active = activeDatabaseHolder.activeDatabase.value
+        if (active == null) {
+            emitSnackbar("Database not available")
+            return
+        }
+        viewModelScope.launch {
             try {
-                db?.clearLogForQuestion(questionId)
-                if (active != null && activeDatabaseHolder.activeDatabase.value !== active) {
+                withContext(ioDispatcher) {
+                    active.provider.clearLogForQuestion(questionId)
+                }
+                if (activeDatabaseHolder.activeDatabase.value !== active) {
                     return@launch
                 }
                 _state.update { current ->
@@ -691,13 +916,25 @@ class QuizViewModel(
         }
             .distinctUntilChanged()
             .onEach { settings ->
-                _state.update {
-                    it.copy(
+                var sessionSettingsChanged = false
+                val updated = _state.updateAndGet { current ->
+                    val nextLogging = if (isLoggingSettingLocked) current.isLoggingEnabled else settings.isLoggingEnabled
+                    val nextMode = if (isSubmissionModeLocked) current.submissionMode else settings.submissionMode
+                    if (nextLogging != current.isLoggingEnabled || nextMode != current.submissionMode) {
+                        sessionSettingsChanged = true
+                    }
+                    current.copy(
                         showMetadata = settings.metadata,
                         fontScalePreference = settings.fontScale,
-                        isLoggingEnabled = if (hasExplicitLoggingSetting || isSessionRestored) it.isLoggingEnabled else settings.isLoggingEnabled,
-                        submissionMode = if (hasExplicitSubmissionMode || isSessionRestored) it.submissionMode else settings.submissionMode,
+                        isLoggingEnabled = nextLogging,
+                        submissionMode = nextMode,
                     )
+                }
+                if (sessionSettingsChanged) {
+                    persistStateSnapshot(updated)
+                    if (sessionId.isNotBlank() && updated.currentQuestion != null) {
+                        enqueueHistoryWrite(updated, questionId = updated.currentQuestion.id)
+                    }
                 }
             }
             .launchIn(viewModelScope)

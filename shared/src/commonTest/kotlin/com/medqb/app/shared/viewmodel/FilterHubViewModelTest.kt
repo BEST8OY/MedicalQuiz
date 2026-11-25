@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import com.medqb.app.shared.data.models.Subject
@@ -27,6 +28,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -668,5 +670,44 @@ class FilterHubViewModelTest {
             difficultyQueryCount,
             "Changing difficulty tiers should not re-query difficulty counts",
         )
+    }
+
+    @Test
+    fun restoreHistoryEntryIgnoresDuplicateCallWhileInFlight() = runHubTest {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val holder = ActiveDatabaseHolder()
+        val vm = createViewModel(FakeDatabaseProvider(), holder)
+        val entry = com.medqb.app.shared.data.QuizSessionRepository.QuizSession(
+            id = "s1",
+            databaseName = "bank",
+            selectedSubjectIds = emptyList(),
+            selectedSystemIds = emptyList(),
+            statusFilter = StatusFilter.ALL,
+            currentQuestionIndex = 0,
+        )
+        var failureCount = 0
+        vm.restoreHistoryEntry(
+            entry = entry,
+            onSuccess = {},
+            onFailure = {
+                failureCount++
+                gate.await()
+            },
+        )
+        runCurrent()
+        assertTrue(vm.isRestoringHistory.value)
+        vm.restoreHistoryEntry(
+            entry = entry,
+            onSuccess = {},
+            onFailure = {
+                failureCount++
+            },
+        )
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(1, failureCount)
+        assertFalse(vm.isRestoringHistory.value)
     }
 }

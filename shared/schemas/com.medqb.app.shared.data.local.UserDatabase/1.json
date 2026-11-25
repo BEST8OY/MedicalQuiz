@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "281c7404baa146baf0471aff256eee8d",
+    "identityHash": "08ba871d071e57060fd73c37237d6f41",
     "entities": [
       {
         "tableName": "text_highlights",
@@ -242,7 +242,7 @@
       },
       {
         "tableName": "quiz_history",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`session_id` TEXT NOT NULL, `database_name` TEXT NOT NULL, `entry_name` TEXT NOT NULL, `selected_subject_ids` TEXT NOT NULL, `excluded_subject_ids` TEXT NOT NULL DEFAULT '', `selected_system_ids` TEXT NOT NULL, `excluded_system_ids` TEXT NOT NULL DEFAULT '', `status_filter` TEXT NOT NULL, `current_question_index` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `is_logging_enabled` INTEGER NOT NULL, `submission_mode` TEXT NOT NULL, `selected_difficulty_tiers` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`session_id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`session_id` TEXT NOT NULL, `database_name` TEXT NOT NULL, `entry_name` TEXT NOT NULL, `selected_subject_ids` TEXT NOT NULL, `excluded_subject_ids` TEXT NOT NULL DEFAULT '', `selected_system_ids` TEXT NOT NULL, `excluded_system_ids` TEXT NOT NULL DEFAULT '', `status_filter` TEXT NOT NULL, `current_question_index` INTEGER NOT NULL, `current_question_id` INTEGER, `updated_at` INTEGER NOT NULL, `is_logging_enabled` INTEGER NOT NULL, `submission_mode` TEXT NOT NULL, `selected_difficulty_tiers` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`session_id`))",
         "fields": [
           {
             "fieldPath": "sessionId",
@@ -299,6 +299,11 @@
             "columnName": "current_question_index",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "currentQuestionId",
+            "columnName": "current_question_id",
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "updatedAt",
@@ -378,7 +383,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '281c7404baa146baf0471aff256eee8d')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '08ba871d071e57060fd73c37237d6f41')"
     ]
   }
 }

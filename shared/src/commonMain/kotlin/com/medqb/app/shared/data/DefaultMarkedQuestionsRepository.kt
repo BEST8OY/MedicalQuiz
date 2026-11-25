@@ -22,7 +22,7 @@ class DefaultMarkedQuestionsRepository(
     private val mutationMutex = Mutex()
 
     private fun canonicalize(dbName: String): String =
-        dbName.trim().removeSuffix(".db").trim()
+        canonicalizeDbName(dbName)
 
     override suspend fun isMarked(dbName: String, questionId: Long): Boolean {
         val canonical = canonicalize(dbName)

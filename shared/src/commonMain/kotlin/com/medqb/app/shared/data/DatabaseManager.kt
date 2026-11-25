@@ -26,7 +26,7 @@ class DatabaseManager(
     dbName: String,
     private val userDataManager: UserDataManager,
 ) : DatabaseProvider {
-    val dbName: String = dbName.removeSuffix(".db")
+    val dbName: String = canonicalizeDbName(dbName)
     private val driver = BundledSQLiteDriver()
     private var connection: SQLiteConnection? = null
     private val mutex = Mutex()

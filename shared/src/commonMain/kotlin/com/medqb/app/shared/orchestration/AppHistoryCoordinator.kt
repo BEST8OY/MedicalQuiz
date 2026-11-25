@@ -3,6 +3,7 @@ package com.medqb.app.shared.orchestration
 import com.medqb.app.shared.data.ActiveDatabaseHolder
 import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.QuizSessionRepository
+import com.medqb.app.shared.data.canonicalizeDbName
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -16,9 +17,10 @@ class AppHistoryCoordinator(
     suspend fun restoreHistoryEntry(
         entry: QuizSessionRepository.QuizSession,
     ): String? {
+        val canonicalEntryDb = canonicalizeDbName(entry.databaseName)
         val availableDatabases = localContentRepository.listDatabases()
         val matchingDatabase = availableDatabases.firstOrNull {
-            it.removeSuffix(".db") == entry.databaseName
+            canonicalizeDbName(it) == canonicalEntryDb
         } ?: return null
 
         if (sessionRepository.restoreHistoryEntry(entry.id) == null) {
@@ -43,10 +45,10 @@ class AppHistoryCoordinator(
         // One atomic snapshot — the connection and its name always agree.
         val active = activeDatabaseHolder.activeDatabase.value
         val db = active?.provider
-        val activeDbName = active?.name.orEmpty()
+        val activeDbName = active?.name?.let(::canonicalizeDbName).orEmpty()
         buildString {
             entries.forEach { entry ->
-                if (entry.databaseName != activeDbName) return@forEach
+                if (canonicalizeDbName(entry.databaseName) != activeDbName) return@forEach
                 val questionIds = db?.getQuestionIds(
                     subjectIds = entry.selectedSubjectIds,
                     excludedSubjectIds = entry.excludedSubjectIds,

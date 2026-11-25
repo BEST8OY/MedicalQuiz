@@ -5,6 +5,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.medqb.app.shared.data.local.UserDatabase
 import com.medqb.app.shared.data.local.UserDatabaseConstructor
 import com.medqb.app.shared.data.local.entity.LogEntity
+import com.medqb.app.shared.data.local.entity.QuizHistoryEntity
 import com.medqb.app.shared.data.local.entity.QuizSessionEntity
 import com.medqb.app.shared.data.local.entity.SessionLogLinkEntity
 import kotlinx.coroutines.flow.first
@@ -30,19 +31,21 @@ class RoomSessionHistoryDaoTest {
             val dao = db.sessionHistoryDao()
 
             dao.upsertHistory(
-                sessionId = "s1",
-                databaseName = "cardiology",
-                entryName = "Cardio Quiz 1",
-                selectedSubjectIds = "1,2",
-                selectedSystemIds = "3",
-                statusFilter = "ALL",
-                currentQuestionIndex = 0,
-                updatedAt = 1000L,
-                isLoggingEnabled = true,
-                submissionMode = "INSTANT",
-                selectedDifficultyTiers = "EASY,DIFFICULT",
-                excludedSubjectIds = "5",
-                excludedSystemIds = "6",
+                QuizHistoryEntity(
+                    sessionId = "s1",
+                    databaseName = "cardiology",
+                    entryName = "Cardio Quiz 1",
+                    selectedSubjectIds = "1,2",
+                    excludedSubjectIds = "5",
+                    selectedSystemIds = "3",
+                    excludedSystemIds = "6",
+                    statusFilter = "ALL",
+                    currentQuestionIndex = 0,
+                    updatedAt = 1000L,
+                    isLoggingEnabled = true,
+                    submissionMode = "INSTANT",
+                    selectedDifficultyTiers = "EASY,DIFFICULT",
+                )
             )
 
             val created = dao.getHistory("s1")
@@ -53,25 +56,33 @@ class RoomSessionHistoryDaoTest {
             assertEquals("5", created.excludedSubjectIds)
             assertEquals("6", created.excludedSystemIds)
 
-            // Update with blank entryName -> must preserve existing name
+            // Update with blank or whitespace-only entryName -> must preserve existing name and update exclusions/questionId
             dao.upsertHistory(
-                sessionId = "s1",
-                databaseName = "cardiology",
-                entryName = "",
-                selectedSubjectIds = "1,2",
-                selectedSystemIds = "3",
-                statusFilter = "ALL",
-                currentQuestionIndex = 5,
-                updatedAt = 2000L,
-                isLoggingEnabled = true,
-                submissionMode = "INSTANT",
-                selectedDifficultyTiers = "EASY,DIFFICULT",
+                QuizHistoryEntity(
+                    sessionId = "s1",
+                    databaseName = "cardiology",
+                    entryName = "   ",
+                    selectedSubjectIds = "1,2",
+                    excludedSubjectIds = "7,8",
+                    selectedSystemIds = "3",
+                    excludedSystemIds = "9",
+                    statusFilter = "ALL",
+                    currentQuestionIndex = 5,
+                    currentQuestionId = 42L,
+                    updatedAt = 2000L,
+                    isLoggingEnabled = true,
+                    submissionMode = "INSTANT",
+                    selectedDifficultyTiers = "EASY,DIFFICULT",
+                )
             )
 
             val preserved = dao.getHistory("s1")
             assertNotNull(preserved)
             assertEquals("Cardio Quiz 1", preserved.entryName)
             assertEquals(5, preserved.currentQuestionIndex)
+            assertEquals(42L, preserved.currentQuestionId)
+            assertEquals("7,8", preserved.excludedSubjectIds)
+            assertEquals("9", preserved.excludedSystemIds)
             assertEquals(2000L, preserved.updatedAt)
 
             // Explicit rename
@@ -85,17 +96,18 @@ class RoomSessionHistoryDaoTest {
     }
 
     @Test
-    fun listHistoryOrdersByUpdatedAtDesc() = runTest {
+    fun listHistoryOrdersByUpdatedAtDescWithDeterministicTieBreaker() = runTest {
         val db = buildDb()
         try {
             val dao = db.sessionHistoryDao()
 
-            dao.upsertHistory("s1", "db", "First", "", "", "ALL", 0, 100L, true, "INSTANT", "")
-            dao.upsertHistory("s2", "db", "Second", "", "", "ALL", 0, 300L, true, "INSTANT", "")
-            dao.upsertHistory("s3", "db", "Third", "", "", "ALL", 0, 200L, true, "INSTANT", "")
+            dao.upsertHistory(QuizHistoryEntity("s1", "db", "First", updatedAt = 100L))
+            dao.upsertHistory(QuizHistoryEntity("s2", "db", "Second", updatedAt = 300L))
+            dao.upsertHistory(QuizHistoryEntity("s3", "db", "Third", updatedAt = 200L))
+            dao.upsertHistory(QuizHistoryEntity("s4", "db", "Fourth", updatedAt = 200L))
 
             val list = dao.listHistory().first()
-            assertEquals(listOf("s2", "s3", "s1"), list.map { it.sessionId })
+            assertEquals(listOf("s2", "s4", "s3", "s1"), list.map { it.sessionId })
         } finally {
             db.close()
         }
@@ -149,8 +161,8 @@ class RoomSessionHistoryDaoTest {
         try {
             val dao = db.sessionHistoryDao()
 
-            dao.upsertHistory("s1", "db", "First", "", "", "ALL", 0, 100L, true, "INSTANT", "")
-            dao.upsertHistory("s2", "db", "Second", "", "", "ALL", 0, 200L, true, "INSTANT", "")
+            dao.upsertHistory(QuizHistoryEntity("s1", "db", "First", updatedAt = 100L))
+            dao.upsertHistory(QuizHistoryEntity("s2", "db", "Second", updatedAt = 200L))
 
             dao.deleteHistory(listOf("s1"))
 

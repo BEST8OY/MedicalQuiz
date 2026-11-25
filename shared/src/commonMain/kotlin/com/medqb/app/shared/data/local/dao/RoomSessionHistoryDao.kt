@@ -23,20 +23,24 @@ interface RoomSessionHistoryDao {
         INSERT INTO quiz_history
         (session_id, database_name, entry_name, selected_subject_ids, excluded_subject_ids,
          selected_system_ids, excluded_system_ids, status_filter, current_question_index,
-         updated_at, is_logging_enabled, submission_mode, selected_difficulty_tiers)
+         current_question_id, updated_at, is_logging_enabled, submission_mode, selected_difficulty_tiers)
         VALUES
-        (:sessionId, :databaseName, :entryName, :selectedSubjectIds, :excludedSubjectIds,
+        (:sessionId, :databaseName, TRIM(:entryName), :selectedSubjectIds, :excludedSubjectIds,
          :selectedSystemIds, :excludedSystemIds, :statusFilter, :currentQuestionIndex,
-         :updatedAt, :isLoggingEnabled, :submissionMode, :selectedDifficultyTiers)
+         :currentQuestionId, :updatedAt, :isLoggingEnabled, :submissionMode, :selectedDifficultyTiers)
         ON CONFLICT(session_id) DO UPDATE SET
             database_name = excluded.database_name,
-            entry_name = CASE WHEN excluded.entry_name = '' THEN quiz_history.entry_name ELSE excluded.entry_name END,
+            entry_name = CASE
+                WHEN TRIM(excluded.entry_name) = '' THEN quiz_history.entry_name
+                ELSE TRIM(excluded.entry_name)
+            END,
             selected_subject_ids = excluded.selected_subject_ids,
             excluded_subject_ids = excluded.excluded_subject_ids,
             selected_system_ids = excluded.selected_system_ids,
             excluded_system_ids = excluded.excluded_system_ids,
             status_filter = excluded.status_filter,
             current_question_index = excluded.current_question_index,
+            current_question_id = excluded.current_question_id,
             updated_at = excluded.updated_at,
             is_logging_enabled = excluded.is_logging_enabled,
             submission_mode = excluded.submission_mode,
@@ -48,21 +52,22 @@ interface RoomSessionHistoryDao {
         databaseName: String,
         entryName: String,
         selectedSubjectIds: String,
+        excludedSubjectIds: String,
         selectedSystemIds: String,
+        excludedSystemIds: String,
         statusFilter: String,
         currentQuestionIndex: Int,
+        currentQuestionId: Long?,
         updatedAt: Long,
         isLoggingEnabled: Boolean,
         submissionMode: String,
         selectedDifficultyTiers: String,
-        excludedSubjectIds: String = "",
-        excludedSystemIds: String = "",
     )
 
-    @Query("SELECT * FROM quiz_history ORDER BY updated_at DESC")
+    @Query("SELECT * FROM quiz_history ORDER BY updated_at DESC, session_id DESC")
     fun listHistory(): Flow<List<QuizHistoryEntity>>
 
-    @Query("SELECT * FROM quiz_history ORDER BY updated_at DESC")
+    @Query("SELECT * FROM quiz_history ORDER BY updated_at DESC, session_id DESC")
     suspend fun listHistoryOnce(): List<QuizHistoryEntity>
 
     @Query("SELECT * FROM quiz_history WHERE session_id = :sessionId")
@@ -76,9 +81,13 @@ interface RoomSessionHistoryDao {
 
     @Query(
         """
-        DELETE FROM quiz_sessions 
-        WHERE session_id NOT IN (SELECT session_id FROM quiz_history)
-        AND session_id NOT IN (SELECT DISTINCT session_id FROM session_log_links)
+        DELETE FROM quiz_sessions
+        WHERE NOT EXISTS (
+            SELECT 1 FROM quiz_history h WHERE h.session_id = quiz_sessions.session_id
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM session_log_links l WHERE l.session_id = quiz_sessions.session_id
+        )
         """
     )
     suspend fun deleteOrphanedSessions()
@@ -88,6 +97,9 @@ interface RoomSessionHistoryDao {
 
     @Query("SELECT COUNT(*) > 0 FROM quiz_sessions WHERE session_id = :sessionId")
     suspend fun sessionExists(sessionId: String): Boolean
+
+    @Query("SELECT * FROM quiz_sessions WHERE session_id = :sessionId")
+    suspend fun getSession(sessionId: String): QuizSessionEntity?
 
     suspend fun upsertHistory(entity: QuizHistoryEntity) = upsertHistory(
         sessionId = entity.sessionId,
@@ -99,6 +111,7 @@ interface RoomSessionHistoryDao {
         excludedSystemIds = entity.excludedSystemIds,
         statusFilter = entity.statusFilter,
         currentQuestionIndex = entity.currentQuestionIndex,
+        currentQuestionId = entity.currentQuestionId,
         updatedAt = entity.updatedAt,
         isLoggingEnabled = entity.isLoggingEnabled,
         submissionMode = entity.submissionMode,

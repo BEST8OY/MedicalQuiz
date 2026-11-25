@@ -952,5 +952,603 @@ class QuizViewModelTest {
 
         assertEquals(42, viewModel.state.value.currentQuestionIndex)
     }
+
+    @Test
+    fun firstAnswerKeepsSessionIdAndRapidNextDoesNotDuplicateHistoryWhileNotBlockingLoading() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val sessionRepo = FakeQuizSessionRepository().apply {
+            appendGate = CompletableDeferred()
+            enqueueScope = this@runQuizTest
+        }
+        val viewModel = createViewModel(provider, holder, sessionRepository = sessionRepo)
+        provider.installInto(holder)
+        runCurrent()
+
+        // Question 0 is already visible and isLoading is cleared even while history DB write is suspended
+        assertEquals(1L, viewModel.state.value.currentQuestion?.id)
+        assertFalse(viewModel.state.value.isLoading)
+
+        // Answering immediately must link to the deterministically assigned sessionId (never "")
+        viewModel.onAnswerSelected(101L)
+        viewModel.submitAnswer()
+        runCurrent()
+
+        val logged = provider.loggedAnswers.single()
+        assertEquals("session-1", logged.sessionId)
+
+        // Rapid navigation while Question 0's history write is still suspended
+        viewModel.loadNext()
+        runCurrent()
+        assertEquals(2L, viewModel.state.value.currentQuestion?.id)
+
+        // Release the gate and drain the serialized history channel
+        sessionRepo.appendGate?.complete(Unit)
+        advanceUntilIdle()
+
+        // All history writes targeted the same sessionId — zero duplicate history rows
+        val distinctSessionIds = sessionRepo.appendedCalls.map { it.id }.distinct()
+        assertEquals(listOf("session-1"), distinctSessionIds)
+        assertEquals(2L, sessionRepo.lastAppendedQuestionId)
+        assertEquals(1, sessionRepo.lastAppendedQuestionIndex)
+    }
+
+    @Test
+    fun processDeathPreservesSessionFiltersInsteadOfOverwritingWithEmptyFilters() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val filterHolder = FilterStateHolder().apply {
+            updateSubjectIds(setOf(14L))
+            updateExcludedSubjectIds(setOf(21L))
+            updateStatusFilter(
+                com.medqb.app.shared.data.database.StatusFilter(
+                    statuses = setOf(com.medqb.app.shared.data.database.QuestionStatus.NOT_YET_ANSWERED),
+                    scope = com.medqb.app.shared.data.database.StatusScope.ALL_ATTEMPTS,
+                )
+            )
+            updateDifficultyTiers(setOf(DifficultyTier.EASY))
+        }
+        val savedStateHandle = SavedStateHandle()
+        val sessionRepo1 = FakeQuizSessionRepository()
+
+        val vm1 = QuizViewModel(
+            settingsRepository = FakeSettingsRepository(isLoggingEnabled = true),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = sessionRepo1,
+            savedStateHandle = savedStateHandle,
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = filterHolder,
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+        assertEquals(setOf(14L), sessionRepo1.lastAppendedSubjectIds)
+
+        // Simulate process death: empty FilterStateHolder, same SavedStateHandle
+        var capturedSubjects: List<Long>? = null
+        var capturedExcludedSubjects: List<Long>? = null
+        var capturedDifficulty: Set<DifficultyTier>? = null
+        val freshProvider = FakeDatabaseProvider().apply {
+            questionIdsProvider = { subjects, exclSubjects, _, _, _, difficulty ->
+                capturedSubjects = subjects
+                capturedExcludedSubjects = exclSubjects
+                capturedDifficulty = difficulty
+                listOf(1L, 2L)
+            }
+        }
+        val freshHolder = ActiveDatabaseHolder()
+        val sessionRepo2 = FakeQuizSessionRepository()
+        val vm2 = QuizViewModel(
+            settingsRepository = FakeSettingsRepository(isLoggingEnabled = true),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = sessionRepo2,
+            savedStateHandle = savedStateHandle,
+            activeDatabaseHolder = freshHolder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        freshProvider.installInto(freshHolder)
+        advanceUntilIdle()
+
+        assertEquals(listOf(14L), capturedSubjects)
+        assertEquals(listOf(21L), capturedExcludedSubjects)
+        assertEquals(setOf(DifficultyTier.EASY), capturedDifficulty)
+        assertEquals(setOf(14L), sessionRepo2.lastAppendedSubjectIds)
+        assertEquals(setOf(21L), sessionRepo2.lastAppendedExcludedSubjectIds)
+        assertEquals(setOf(DifficultyTier.EASY), sessionRepo2.lastAppendedDifficultyTiers)
+        assertEquals("session-1", sessionRepo2.lastAppendedSessionId)
+        assertNotNull(vm2.state.value.currentQuestion)
+    }
+
+    @Test
+    fun historyLaunchIgnoresMismatchedActiveDatabaseUntilTargetArrives() = runQuizTest {
+        val providerA = FakeDatabaseProvider(dbName = "bankA")
+        val providerB = FakeDatabaseProvider(dbName = "bankB")
+        val holder = ActiveDatabaseHolder()
+        providerA.installInto(holder)
+
+        val sessionRepo = FakeQuizSessionRepository()
+        val viewModel = QuizViewModel(
+            route = com.medqb.app.shared.navigation.MedQBRoutes.Quiz(
+                sessionId = "sess-B",
+                databaseName = "bankB",
+                entryName = "B Quiz",
+                initialQuestionIndex = 1,
+                initialQuestionId = 2L,
+            ),
+            settingsRepository = FakeSettingsRepository(),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = sessionRepo,
+            savedStateHandle = SavedStateHandle(),
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        advanceUntilIdle()
+
+        // bankA emission must be ignored; bankB's history row must not be overwritten
+        assertTrue(sessionRepo.appended.isEmpty())
+        assertTrue(viewModel.state.value.isLoading)
+
+        providerB.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals("bankB", viewModel.state.value.databaseName)
+        assertEquals(1, viewModel.state.value.currentQuestionIndex)
+        assertEquals(2L, viewModel.state.value.currentQuestion?.id)
+        assertEquals(listOf("bankB"), sessionRepo.appended)
+    }
+
+    @Test
+    fun switchingDatabasesResetsSessionIdAndEntryName() = runQuizTest {
+        val providerA = FakeDatabaseProvider(dbName = "bankA")
+        val providerB = FakeDatabaseProvider(dbName = "bankB")
+        val holder = ActiveDatabaseHolder()
+        val sessionRepo = FakeQuizSessionRepository()
+        val handle = SavedStateHandle(mapOf("entryName" to "Quiz A"))
+        val viewModel = QuizViewModel(
+            settingsRepository = FakeSettingsRepository(),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = sessionRepo,
+            savedStateHandle = handle,
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        providerA.installInto(holder)
+        advanceUntilIdle()
+        val firstSessionId = sessionRepo.lastAppendedSessionId
+        assertEquals("Quiz A", viewModel.state.value.entryName)
+
+        providerB.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals("bankB", viewModel.state.value.databaseName)
+        assertEquals("", viewModel.state.value.entryName)
+        assertTrue(sessionRepo.lastAppendedSessionId.isNotBlank())
+        assertTrue(sessionRepo.lastAppendedSessionId != firstSessionId)
+    }
+
+    @Test
+    fun freshQuizRuntimeSettingsUpdateHistoryAndStayUnlockedAcrossProcessDeath() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val settings = FakeSettingsRepository(
+            isLoggingEnabled = true,
+            submissionMode = SubmissionMode.INSTANT,
+        )
+        val sessionRepo = FakeQuizSessionRepository()
+        val handle = SavedStateHandle()
+        val vm1 = QuizViewModel(
+            settingsRepository = settings,
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = sessionRepo,
+            savedStateHandle = handle,
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        settings.setSubmissionMode(SubmissionMode.MANUAL)
+        advanceUntilIdle()
+        assertEquals(SubmissionMode.MANUAL, vm1.state.value.submissionMode)
+        assertEquals(SubmissionMode.MANUAL, sessionRepo.lastAppendedSubmissionMode)
+
+        // Simulate process death with the same SavedStateHandle on a fresh quiz
+        val vm2 = QuizViewModel(
+            settingsRepository = settings,
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = FakeQuizSessionRepository(),
+            savedStateHandle = handle,
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        advanceUntilIdle()
+
+        settings.setLoggingEnabled(false)
+        advanceUntilIdle()
+        assertFalse(vm2.state.value.isLoggingEnabled)
+    }
+
+    @Test
+    fun reEmittingSameDbNameWithNewInstanceClearsLoading() = runQuizTest {
+        val provider1 = FakeDatabaseProvider(dbName = "bank")
+        val provider2 = FakeDatabaseProvider(dbName = "bank")
+        val holder = ActiveDatabaseHolder()
+        val viewModel = createViewModel(provider1, holder)
+        provider1.installInto(holder)
+        advanceUntilIdle()
+
+        provider2.installInto(holder)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isLoading)
+        assertNotNull(viewModel.state.value.currentQuestion)
+    }
+
+    @Test
+    fun submitAnswerAndClearLogCaptureActiveDatabaseSynchronouslyBeforeSwitch() = runQuizTest {
+        val providerA = FakeDatabaseProvider(dbName = "bankA")
+        val providerB = FakeDatabaseProvider(dbName = "bankB")
+        val holder = ActiveDatabaseHolder()
+        val viewModel = createViewModel(providerA, holder)
+        providerA.installInto(holder)
+        advanceUntilIdle()
+
+        viewModel.onAnswerSelected(101L)
+        viewModel.submitAnswer()
+        // Switch active DB before submitAnswer's IO coroutine runs
+        providerB.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals(1, providerA.loggedAnswers.size)
+        assertTrue(providerB.loggedAnswers.isEmpty(), "Answer from bankA must never be logged to bankB")
+
+        // Now on bankB Q1, clear log and immediately switch back to bankA before IO runs
+        viewModel.clearCurrentQuestionLog()
+        providerA.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals(listOf(1L), providerB.clearedLogQids)
+        assertTrue(providerA.clearedLogQids.isEmpty(), "Clear log for bankB must never clear bankA")
+    }
+
+    @Test
+    fun resumingSessionLocatesCurrentQuestionIdDespiteDynamicFilterShift() = runQuizTest {
+        val provider = FakeDatabaseProvider().apply {
+            // Simulates Q1 dropped from NOT_YET_ANSWERED list, leaving only [2L]
+            questionIdsProvider = { _, _, _, _, _, _ -> listOf(2L) }
+        }
+        val holder = ActiveDatabaseHolder()
+        val viewModel = QuizViewModel(
+            route = com.medqb.app.shared.navigation.MedQBRoutes.Quiz(
+                sessionId = "sess-shift",
+                databaseName = "bank",
+                initialQuestionIndex = 1,
+                initialQuestionId = 2L,
+            ),
+            settingsRepository = FakeSettingsRepository(),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = FakeQuizSessionRepository(),
+            savedStateHandle = SavedStateHandle(),
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals(0, viewModel.state.value.currentQuestionIndex)
+        assertEquals(2L, viewModel.state.value.currentQuestion?.id)
+    }
+
+    @Test
+    fun loadQuestionSkipsHistoryWriteWhenQuestionIsNull() = runQuizTest {
+        val provider = FakeDatabaseProvider().apply {
+            questionIdsProvider = { _, _, _, _, _, _ -> listOf(999L) }
+        }
+        val holder = ActiveDatabaseHolder()
+        val sessionRepo = FakeQuizSessionRepository()
+        val viewModel = createViewModel(provider, holder, sessionRepository = sessionRepo)
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertNull(viewModel.state.value.currentQuestion)
+        assertTrue(sessionRepo.appended.isEmpty())
+    }
+
+    @Test
+    fun submitAnswerTracksElapsedSecondsFromQuestionDisplay() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val fakeTimeSource = kotlin.time.TestTimeSource()
+        val viewModel = QuizViewModel(
+            settingsRepository = FakeSettingsRepository(isLoggingEnabled = true),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = FakeQuizSessionRepository(),
+            savedStateHandle = SavedStateHandle(),
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+            timeSource = fakeTimeSource,
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        fakeTimeSource += kotlin.time.Duration.parse("12s")
+        viewModel.onAnswerSelected(101L)
+        viewModel.submitAnswer()
+        advanceUntilIdle()
+
+        assertEquals(12L, provider.loggedAnswers.single().time)
+    }
+
+    @Test
+    fun restoredSessionWithoutSavedFilterHydratesFromRepositoryBeforeQueryingIds() = runQuizTest {
+        var capturedSubjects: List<Long>? = null
+        val provider = FakeDatabaseProvider().apply {
+            questionIdsProvider = { subjects, _, _, _, _, _ ->
+                capturedSubjects = subjects
+                listOf(1L, 2L)
+            }
+        }
+        val holder = ActiveDatabaseHolder()
+        val sessionRepo = FakeQuizSessionRepository().apply {
+            restorableEntries["sess-repo-restore"] = com.medqb.app.shared.data.QuizSessionRepository.QuizSession(
+                id = "sess-repo-restore",
+                databaseName = "bank",
+                selectedSubjectIds = listOf(77L),
+                selectedSystemIds = emptyList(),
+                statusFilter = com.medqb.app.shared.data.database.StatusFilter.ALL,
+                currentQuestionIndex = 0,
+                currentQuestionId = 2L,
+            )
+        }
+
+        val viewModel = QuizViewModel(
+            route = com.medqb.app.shared.navigation.MedQBRoutes.Quiz(
+                sessionId = "sess-repo-restore",
+                databaseName = "bank",
+            ),
+            settingsRepository = FakeSettingsRepository(),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = sessionRepo,
+            savedStateHandle = SavedStateHandle(),
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals(listOf(77L), capturedSubjects)
+        assertEquals(2L, viewModel.state.value.currentQuestion?.id)
+        assertEquals(setOf(77L), sessionRepo.lastAppendedSubjectIds)
+    }
+
+    @Test
+    fun savedStateHandleUsesBundleSafeLongArrayAndStringForFilters() = runQuizTest {
+        val provider = FakeDatabaseProvider()
+        val holder = ActiveDatabaseHolder()
+        val filterHolder = FilterStateHolder().apply {
+            updateSubjectIds(setOf(10L, 20L))
+            updateExcludedSubjectIds(setOf(30L))
+            updateSystemIds(setOf(40L))
+            updateExcludedSystemIds(setOf(50L))
+            updateDifficultyTiers(setOf(DifficultyTier.EASY, DifficultyTier.DIFFICULT))
+        }
+        val handle = SavedStateHandle()
+        val viewModel = QuizViewModel(
+            settingsRepository = FakeSettingsRepository(),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = FakeQuizSessionRepository(),
+            savedStateHandle = handle,
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = filterHolder,
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+
+        assertTrue(handle.get<Any>("filterSelectedSubjects") is LongArray)
+        assertTrue(handle.get<Any>("filterExcludedSubjects") is LongArray)
+        assertTrue(handle.get<Any>("filterSelectedSystems") is LongArray)
+        assertTrue(handle.get<Any>("filterExcludedSystems") is LongArray)
+        assertTrue(handle.get<Any>("filterDifficultyTiers") is String)
+        assertNotNull(viewModel.state.value.currentQuestion)
+    }
+
+    @Test
+    fun bankAToNullToBankBResetsSessionEntryNameFiltersAndSettingsLocks() = runQuizTest {
+        val providerA = FakeDatabaseProvider(dbName = "bankA")
+        val providerB = FakeDatabaseProvider(dbName = "bankB")
+        val holder = ActiveDatabaseHolder()
+        val settings = FakeSettingsRepository(
+            isLoggingEnabled = true,
+            submissionMode = SubmissionMode.INSTANT,
+        )
+        val sessionRepo = FakeQuizSessionRepository()
+        val handle = SavedStateHandle()
+        val viewModel = QuizViewModel(
+            route = com.medqb.app.shared.navigation.MedQBRoutes.Quiz(
+                sessionId = "sess-A",
+                databaseName = "bankA",
+                entryName = "Restored A",
+                isLoggingEnabled = false,
+                submissionMode = SubmissionMode.MANUAL,
+            ),
+            settingsRepository = settings,
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = sessionRepo,
+            savedStateHandle = handle,
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        providerA.installInto(holder)
+        advanceUntilIdle()
+        assertEquals("sess-A", sessionRepo.lastAppendedSessionId)
+        assertFalse(viewModel.state.value.isLoggingEnabled)
+        assertEquals(SubmissionMode.MANUAL, viewModel.state.value.submissionMode)
+
+        // Transition through null (closing DB) before installing bankB
+        holder.closeDatabase()
+        advanceUntilIdle()
+        assertEquals("", viewModel.state.value.databaseName)
+
+        providerB.installInto(holder)
+        advanceUntilIdle()
+
+        assertEquals("bankB", viewModel.state.value.databaseName)
+        assertEquals("bankB", handle.get<String>("databaseName"))
+        assertEquals("", viewModel.state.value.entryName)
+        assertTrue(sessionRepo.lastAppendedSessionId != "sess-A")
+        assertTrue(sessionRepo.lastAppendedSessionId.isNotBlank())
+        // bankB must adopt global settings and remain unlocked to runtime changes
+        assertTrue(viewModel.state.value.isLoggingEnabled)
+        assertEquals(SubmissionMode.INSTANT, viewModel.state.value.submissionMode)
+        settings.setSubmissionMode(SubmissionMode.MANUAL)
+        advanceUntilIdle()
+        assertEquals(SubmissionMode.MANUAL, viewModel.state.value.submissionMode)
+    }
+
+    @Test
+    fun expectedDatabaseOpenFailureClearsLoadingAndShowsError() = runQuizTest {
+        val holder = ActiveDatabaseHolder()
+        val viewModel = QuizViewModel(
+            route = com.medqb.app.shared.navigation.MedQBRoutes.Quiz(
+                sessionId = "sess-missing",
+                databaseName = "missingBank",
+            ),
+            settingsRepository = FakeSettingsRepository(),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = FakeQuizSessionRepository(),
+            savedStateHandle = SavedStateHandle(),
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        runCurrent()
+        assertTrue(viewModel.state.value.isLoading)
+
+        holder.reportOpenFailure("missingBank.db", IllegalStateException("File not found"))
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isLoading)
+        assertEquals("File not found", viewModel.state.value.errorMessage)
+
+        holder.clearOpenFailure()
+        val retryVm = QuizViewModel(
+            route = com.medqb.app.shared.navigation.MedQBRoutes.Quiz(
+                sessionId = "sess-missing",
+                databaseName = "missingBank",
+            ),
+            settingsRepository = FakeSettingsRepository(),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = FakeQuizSessionRepository(),
+            savedStateHandle = SavedStateHandle(),
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        runCurrent()
+        assertTrue(retryVm.state.value.isLoading)
+        assertNull(retryVm.state.value.errorMessage)
+    }
+
+    @Test
+    fun retryOnRestoredSessionPreservesRestoredIndexAndHydratesFilters() = runQuizTest {
+        var shouldFail = true
+        val provider = FakeDatabaseProvider().apply {
+            questionIdsProvider = { _, _, _, _, _, _ ->
+                if (shouldFail) throw RuntimeException("transient failure")
+                listOf(1L, 2L)
+            }
+        }
+        val holder = ActiveDatabaseHolder()
+        val sessionRepo = FakeQuizSessionRepository().apply {
+            restorableEntries["sess-retry"] = com.medqb.app.shared.data.QuizSessionRepository.QuizSession(
+                id = "sess-retry",
+                databaseName = "bank",
+                selectedSubjectIds = listOf(55L),
+                selectedSystemIds = emptyList(),
+                statusFilter = com.medqb.app.shared.data.database.StatusFilter.ALL,
+                currentQuestionIndex = 1,
+                currentQuestionId = 2L,
+            )
+        }
+        val viewModel = QuizViewModel(
+            route = com.medqb.app.shared.navigation.MedQBRoutes.Quiz(
+                sessionId = "sess-retry",
+                databaseName = "bank",
+                initialQuestionIndex = 1,
+                initialQuestionId = 2L,
+            ),
+            settingsRepository = FakeSettingsRepository(),
+            textHighlightsRepository = FakeTextHighlightsRepository(),
+            markedQuestionsRepository = FakeMarkedQuestionsRepository(),
+            sessionRepository = sessionRepo,
+            savedStateHandle = SavedStateHandle(),
+            activeDatabaseHolder = holder,
+            loadQuestionUseCase = LoadQuestionUseCase(FakeTextHighlightsRepository(), FakeMarkedQuestionsRepository()),
+            snackbarSink = FakeSnackbarSink(),
+            filterStateHolder = FilterStateHolder(),
+            ioDispatcher = StandardTestDispatcher(scheduler),
+        )
+        provider.installInto(holder)
+        advanceUntilIdle()
+        assertNotNull(viewModel.state.value.errorMessage)
+
+        shouldFail = false
+        viewModel.retry()
+        advanceUntilIdle()
+
+        assertNull(viewModel.state.value.errorMessage)
+        assertEquals(1, viewModel.state.value.currentQuestionIndex)
+        assertEquals(2L, viewModel.state.value.currentQuestion?.id)
+        assertEquals(setOf(55L), sessionRepo.lastAppendedSubjectIds)
+    }
 }
 

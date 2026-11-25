@@ -34,7 +34,7 @@ class DefaultTextHighlightsRepository(
     private val mutationMutex = Mutex()
 
     private suspend fun getAllHighlights(dbName: String, questionId: Long): List<TextHighlight> {
-        val canonicalDbName = dbName.trim().removeSuffix(".db").trim()
+        val canonicalDbName = canonicalizeDbName(dbName)
         if (canonicalDbName.isBlank()) return emptyList()
         return userDataManager.textHighlightDao()
             .getAllForQuestion(canonicalDbName, questionId)
@@ -45,7 +45,7 @@ class DefaultTextHighlightsRepository(
         dbName: String,
         questionId: Long,
     ): List<TextHighlight> {
-        val canonicalDbName = dbName.trim().removeSuffix(".db").trim()
+        val canonicalDbName = canonicalizeDbName(dbName)
         if (canonicalDbName.isBlank()) return emptyList()
         return getAllHighlights(canonicalDbName, questionId)
     }
@@ -60,7 +60,7 @@ class DefaultTextHighlightsRepository(
         highlightedText: String,
         color: HighlightColor,
     ): List<TextHighlight> {
-        val canonicalDbName = dbName.trim().removeSuffix(".db").trim()
+        val canonicalDbName = canonicalizeDbName(dbName)
         if (canonicalDbName.isBlank()) return emptyList()
         val normalizedStart = minOf(startOffset, endOffset)
         val normalizedEnd = maxOf(startOffset, endOffset)
@@ -130,7 +130,7 @@ class DefaultTextHighlightsRepository(
         questionId: Long,
         highlightId: Long,
     ): List<TextHighlight> {
-        val canonicalDbName = dbName.trim().removeSuffix(".db").trim()
+        val canonicalDbName = canonicalizeDbName(dbName)
         if (canonicalDbName.isBlank()) return emptyList()
         mutationMutex.withLock {
             userDataManager.textHighlightDao().deleteById(highlightId)
@@ -144,7 +144,7 @@ class DefaultTextHighlightsRepository(
         highlightId: Long,
         color: HighlightColor,
     ): List<TextHighlight> {
-        val canonicalDbName = dbName.trim().removeSuffix(".db").trim()
+        val canonicalDbName = canonicalizeDbName(dbName)
         if (canonicalDbName.isBlank()) return emptyList()
         mutationMutex.withLock {
             userDataManager.textHighlightDao().updateColor(highlightId, color.name)

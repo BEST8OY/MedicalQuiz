@@ -4,6 +4,7 @@ import androidx.room3.ColumnInfo
 import androidx.room3.Entity
 import androidx.room3.Index
 import androidx.room3.PrimaryKey
+import com.medqb.app.shared.data.database.StatusFilter
 
 @Entity(
     tableName = "quiz_history",
@@ -26,9 +27,11 @@ data class QuizHistoryEntity(
     @ColumnInfo(name = "excluded_system_ids", defaultValue = "")
     val excludedSystemIds: String = "",
     @ColumnInfo(name = "status_filter")
-    val statusFilter: String = "ALL",
+    val statusFilter: String = StatusFilter.SERIALIZED_ALL,
     @ColumnInfo(name = "current_question_index")
     val currentQuestionIndex: Int = 0,
+    @ColumnInfo(name = "current_question_id")
+    val currentQuestionId: Long? = null,
     @ColumnInfo(name = "updated_at")
     val updatedAt: Long = 0,
     @ColumnInfo(name = "is_logging_enabled")

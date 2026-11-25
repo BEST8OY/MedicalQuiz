@@ -28,7 +28,7 @@ data class ActiveDatabase(
 ) {
     /** True when [candidateFileName] (e.g. "bank.db") refers to this database. */
     fun matchesFileName(candidateFileName: String): Boolean =
-        name == candidateFileName.removeSuffix(".db")
+        name == canonicalizeDbName(candidateFileName)
 }
 
 /**
@@ -37,21 +37,44 @@ data class ActiveDatabase(
 @Inject
 @SingleIn(AppScope::class)
 class ActiveDatabaseHolder {
+    data class DatabaseOpenFailure(
+        val dbName: String,
+        val message: String,
+    )
+
     private val mutex = Mutex()
 
     private val _activeDatabase = MutableStateFlow<ActiveDatabase?>(null)
     val activeDatabase: StateFlow<ActiveDatabase?> = _activeDatabase.asStateFlow()
 
+    private val _openFailure = MutableStateFlow<DatabaseOpenFailure?>(null)
+    val openFailure: StateFlow<DatabaseOpenFailure?> = _openFailure.asStateFlow()
+
     suspend fun setDatabase(name: String, provider: DatabaseProvider) = mutex.withLock {
         val old = _activeDatabase.value
-        _activeDatabase.value = ActiveDatabase(name.removeSuffix(".db"), provider)
+        _openFailure.value = null
+        _activeDatabase.value = ActiveDatabase(canonicalizeDbName(name), provider)
         closeQuietly(old?.provider, unlessSameAs = provider)
     }
 
     suspend fun closeDatabase() = mutex.withLock {
         val old = _activeDatabase.value
+        _openFailure.value = null
         _activeDatabase.value = null
         closeQuietly(old?.provider)
+    }
+
+    fun clearOpenFailure() {
+        _openFailure.value = null
+    }
+
+    fun reportOpenFailure(name: String, error: Throwable) {
+        val canonical = canonicalizeDbName(name)
+        val detail = error.message?.takeIf { it.isNotBlank() } ?: "Failed to open database"
+        _openFailure.value = DatabaseOpenFailure(
+            dbName = canonical,
+            message = detail,
+        )
     }
 
     private suspend fun closeQuietly(

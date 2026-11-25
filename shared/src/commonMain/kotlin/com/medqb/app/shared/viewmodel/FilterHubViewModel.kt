@@ -95,6 +95,8 @@ class FilterHubViewModel(
     private var applySubjectsJob: Job? = null
     private var applySystemsJob: Job? = null
     private var restoreHistoryJob: Job? = null
+    private val _isRestoringHistory = MutableStateFlow(false)
+    val isRestoringHistory: StateFlow<Boolean> = _isRestoringHistory.asStateFlow()
 
     private val markedQuestionIdsState: StateFlow<Set<Long>> = activeDatabaseHolder.activeDatabase
         .map { it?.name.orEmpty() }
@@ -514,7 +516,8 @@ class FilterHubViewModel(
         onSuccess: suspend (String) -> Unit,
         onFailure: suspend () -> Unit
     ) {
-        restoreHistoryJob?.cancel()
+        if (restoreHistoryJob?.isActive == true || _isRestoringHistory.value) return
+        _isRestoringHistory.value = true
         restoreHistoryJob = viewModelScope.launch {
             try {
                 val dbName = historyCoordinator.restoreHistoryEntry(entry)
@@ -527,6 +530,8 @@ class FilterHubViewModel(
                 throw e
             } catch (e: Exception) {
                 onFailure()
+            } finally {
+                _isRestoringHistory.value = false
             }
         }
     }

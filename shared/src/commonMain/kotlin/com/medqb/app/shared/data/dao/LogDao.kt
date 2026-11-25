@@ -1,6 +1,7 @@
 package com.medqb.app.shared.data.dao
 
 import com.medqb.app.shared.data.UserDataManager
+import com.medqb.app.shared.data.canonicalizeDbName
 import com.medqb.app.shared.data.local.entity.LogEntity
 import com.medqb.app.shared.data.local.entity.QuizSessionEntity
 import com.medqb.app.shared.data.local.entity.SessionLogLinkEntity
@@ -21,7 +22,7 @@ class LogDao(
         time: Long,
         sessionId: String
     ) {
-        val canonicalDbName = dbName.removeSuffix(".db")
+        val canonicalDbName = canonicalizeDbName(dbName)
         val dateString = Clock.System.now().toString()
 
         val logEntity = LogEntity(
@@ -40,14 +41,14 @@ class LogDao(
             val historyDao = userDataManager.sessionHistoryDao()
             userDataManager.withTransaction {
                 val insertedId = logDao.insert(logEntity)
-                historyDao.ensureSessionExists(QuizSessionEntity(sessionId))
+                historyDao.ensureSessionExists(QuizSessionEntity(sessionId, createdAt = dateString))
                 historyDao.insertLogLink(SessionLogLinkEntity(sessionId, insertedId))
             }
         }
     }
 
     suspend fun clearLogForQuestion(dbName: String, qid: Long) {
-        val canonicalDbName = dbName.removeSuffix(".db")
+        val canonicalDbName = canonicalizeDbName(dbName)
         userDataManager.withTransaction {
             userDataManager.logDao().clearForQuestion(canonicalDbName, qid)
             userDataManager.sessionHistoryDao().deleteOrphanedSessions()
