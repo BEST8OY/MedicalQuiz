@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.ui.adaptive.LocalAdaptiveLayoutInfo
 
@@ -60,7 +61,11 @@ fun MedQBModalBottomSheet(
             containerColor = containerColor,
             contentColor = contentColor,
         ) {
-            Column(modifier = Modifier.padding(top = 20.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(top = 20.dp)
+                    .testTag("modal_sheet_dialog"),
+            ) {
                 content()
             }
         }
@@ -75,7 +80,8 @@ fun MedQBModalBottomSheet(
             scrimColor = scrimColor,
             dragHandle = {
                 BottomSheetDefaults.DragHandle(
-                    color = MaterialTheme.colorScheme.outlineVariant
+                    modifier = Modifier.testTag("modal_sheet_drag_handle"),
+                    color = MaterialTheme.colorScheme.outlineVariant,
                 )
             },
             content = content,

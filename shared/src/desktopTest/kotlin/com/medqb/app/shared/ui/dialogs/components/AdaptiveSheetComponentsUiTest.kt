@@ -10,7 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
@@ -42,8 +42,8 @@ class AdaptiveSheetComponentsUiTest {
         }
 
         onNodeWithText("Adaptive Sheet Content").assertIsDisplayed()
-        onNodeWithContentDescription("Drag handle", substring = true, ignoreCase = true)
-            .assertIsDisplayed()
+        onNodeWithTag("modal_sheet_drag_handle", useUnmergedTree = true).assertIsDisplayed()
+        onNodeWithTag("modal_sheet_dialog").assertDoesNotExist()
     }
 
     @Test
@@ -55,7 +55,7 @@ class AdaptiveSheetComponentsUiTest {
         }
 
         onNodeWithText("Adaptive Sheet Content").assertIsDisplayed()
-        onNodeWithContentDescription("Drag handle", substring = true, ignoreCase = true)
-            .assertDoesNotExist()
+        onNodeWithTag("modal_sheet_dialog").assertIsDisplayed()
+        onNodeWithTag("modal_sheet_drag_handle", useUnmergedTree = true).assertDoesNotExist()
     }
 }
