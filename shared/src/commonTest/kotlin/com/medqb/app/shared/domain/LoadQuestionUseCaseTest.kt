@@ -44,8 +44,8 @@ class LoadQuestionUseCaseTest {
                 dbName = "bank",
                 questionId = 1L,
                 highlights = listOf(
-                    TextHighlight(1, "bank", 1L, HighlightSection.QUESTION, 0, 5, "Hello", HighlightColor.YELLOW, 0),
-                    TextHighlight(2, "bank", 1L, HighlightSection.EXPLANATION, 0, 4, "Expl", HighlightColor.GREEN, 0),
+                    TextHighlight(1, "bank", 1L, HighlightSection.QUESTION, "p:0", 0, 5, "Hello", HighlightColor.YELLOW, 0),
+                    TextHighlight(2, "bank", 1L, HighlightSection.EXPLANATION, "p:0", 0, 4, "Expl", HighlightColor.GREEN, 0),
                 )
             )
         }
@@ -76,7 +76,7 @@ class LoadQuestionUseCaseTest {
             override suspend fun getHighlightsForQuestion(dbName: String, questionId: Long): List<TextHighlight> {
                 throw RuntimeException("Database locked")
             }
-            override suspend fun addHighlight(dbName: String, questionId: Long, section: HighlightSection, startOffset: Int, endOffset: Int, highlightedText: String, color: HighlightColor) = emptyList<TextHighlight>()
+            override suspend fun addHighlight(dbName: String, questionId: Long, section: HighlightSection, blockKey: String, startOffset: Int, endOffset: Int, highlightedText: String, color: HighlightColor) = emptyList<TextHighlight>()
             override suspend fun removeHighlight(dbName: String, questionId: Long, highlightId: Long) = emptyList<TextHighlight>()
             override suspend fun updateHighlightColor(dbName: String, questionId: Long, highlightId: Long, color: HighlightColor) = emptyList<TextHighlight>()
         }

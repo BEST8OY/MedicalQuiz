@@ -29,6 +29,7 @@ class DefaultTextHighlightsRepositoryTest {
                 dbName = "bank.db",
                 questionId = 1L,
                 section = HighlightSection.QUESTION,
+                blockKey = "p:0",
                 startOffset = 5,
                 endOffset = 16,
                 highlightedText = "my question",
@@ -40,6 +41,7 @@ class DefaultTextHighlightsRepositoryTest {
             assertEquals("bank", first.dbName)
             assertEquals(1L, first.questionId)
             assertEquals(HighlightSection.QUESTION, first.section)
+            assertEquals("p:0", first.blockKey)
             assertEquals(5, first.startOffset)
             assertEquals(16, first.endOffset)
             assertEquals("my question", first.highlightedText)
@@ -59,6 +61,7 @@ class DefaultTextHighlightsRepositoryTest {
                 dbName = "bank.db",
                 questionId = 1L,
                 section = HighlightSection.QUESTION,
+                blockKey = "p:0",
                 startOffset = 0,
                 endOffset = 10,
                 highlightedText = "Diagnostic",
@@ -69,6 +72,7 @@ class DefaultTextHighlightsRepositoryTest {
                 dbName = "bank.db",
                 questionId = 1L,
                 section = HighlightSection.QUESTION,
+                blockKey = "p:0",
                 startOffset = 0,
                 endOffset = 10,
                 highlightedText = "Diagnostic",
@@ -92,17 +96,19 @@ class DefaultTextHighlightsRepositoryTest {
                 dbName = "bank.db",
                 questionId = 1L,
                 section = HighlightSection.QUESTION,
+                blockKey = "p:0",
                 startOffset = 0,
                 endOffset = 5,
                 highlightedText = "Hello",
                 color = HighlightColor.YELLOW,
             )
 
-            // Overlapping highlight [3, 11] = "lo World"
+            // Overlapping highlight [3, 11] = "lo World" in the same blockKey
             val merged = repository.addHighlight(
                 dbName = "bank.db",
                 questionId = 1L,
                 section = HighlightSection.QUESTION,
+                blockKey = "p:0",
                 startOffset = 3,
                 endOffset = 11,
                 highlightedText = "lo World",
@@ -112,9 +118,44 @@ class DefaultTextHighlightsRepositoryTest {
             // Must merge into a single highlight [0, 11] = "Hello World"
             assertEquals(1, merged.size)
             val highlight = merged.first()
+            assertEquals("p:0", highlight.blockKey)
             assertEquals(0, highlight.startOffset)
             assertEquals(11, highlight.endOffset)
             assertEquals("Hello World", highlight.highlightedText)
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun overlappingLocalOffsetsAcrossDifferentBlockKeysDoNotMerge() = runTest {
+        val db = buildDb()
+        try {
+            val repository = DefaultTextHighlightsRepository(FakeUserDataManager(db))
+
+            repository.addHighlight(
+                dbName = "bank.db",
+                questionId = 1L,
+                section = HighlightSection.QUESTION,
+                blockKey = "p:0",
+                startOffset = 0,
+                endOffset = 5,
+                highlightedText = "Alpha",
+                color = HighlightColor.YELLOW,
+            )
+            val both = repository.addHighlight(
+                dbName = "bank.db",
+                questionId = 1L,
+                section = HighlightSection.QUESTION,
+                blockKey = "p:1",
+                startOffset = 0,
+                endOffset = 5,
+                highlightedText = "Omega",
+                color = HighlightColor.BLUE,
+            )
+
+            assertEquals(2, both.size)
+            assertEquals(setOf("p:0", "p:1"), both.map { it.blockKey }.toSet())
         } finally {
             db.close()
         }
@@ -130,6 +171,7 @@ class DefaultTextHighlightsRepositoryTest {
                 dbName = "bank.db",
                 questionId = 1L,
                 section = HighlightSection.QUESTION,
+                blockKey = "p:0",
                 startOffset = 0,
                 endOffset = 4,
                 highlightedText = "Test",
@@ -157,8 +199,8 @@ class DefaultTextHighlightsRepositoryTest {
         try {
             val repository = DefaultTextHighlightsRepository(FakeUserDataManager(db))
 
-            val first = repository.addHighlight("bank.db", 1L, HighlightSection.QUESTION, 0, 4, "One ", HighlightColor.YELLOW)
-            val second = repository.addHighlight("bank.db", 1L, HighlightSection.QUESTION, 10, 14, "Two ", HighlightColor.GREEN)
+            val first = repository.addHighlight("bank.db", 1L, HighlightSection.QUESTION, "p:0", 0, 4, "One ", HighlightColor.YELLOW)
+            val second = repository.addHighlight("bank.db", 1L, HighlightSection.QUESTION, "p:0", 10, 14, "Two ", HighlightColor.GREEN)
             assertEquals(2, second.size)
 
             val remaining = repository.removeHighlight("bank.db", 1L, first.first().id)
@@ -178,7 +220,7 @@ class DefaultTextHighlightsRepositoryTest {
             val list = repository.getHighlightsForQuestion("", 1L)
             assertTrue(list.isEmpty())
 
-            val added = repository.addHighlight("", 1L, HighlightSection.QUESTION, 0, 4, "Test", HighlightColor.YELLOW)
+            val added = repository.addHighlight("", 1L, HighlightSection.QUESTION, "p:0", 0, 4, "Test", HighlightColor.YELLOW)
             assertTrue(added.isEmpty())
         } finally {
             db.close()

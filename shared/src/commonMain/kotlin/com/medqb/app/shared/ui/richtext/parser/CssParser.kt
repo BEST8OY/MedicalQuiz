@@ -19,14 +19,26 @@ internal object CssParser {
      */
     fun extractValue(styleAttr: String, property: String): String? {
         if (styleAttr.isBlank()) return null
-        styleAttr.split(";").forEach { declaration ->
-            val name = declaration.substringBefore(":").trim()
-            if (name.equals(property, ignoreCase = true)) {
-                val rawValue = declaration.substringAfter(":", "")
-                    .substringBefore("!important")
-                    .trim()
-                if (rawValue.isNotEmpty()) return rawValue
+        val len = styleAttr.length
+        var start = 0
+        while (start < len) {
+            val semiIdx = styleAttr.indexOf(';', start).let { if (it == -1) len else it }
+            val colonIdx = styleAttr.indexOf(':', start)
+            if (colonIdx != -1 && colonIdx < semiIdx) {
+                var nameStart = start
+                while (nameStart < colonIdx && styleAttr[nameStart].isWhitespace()) nameStart++
+                var nameEnd = colonIdx
+                while (nameEnd > nameStart && styleAttr[nameEnd - 1].isWhitespace()) nameEnd--
+                if (nameEnd - nameStart == property.length &&
+                    styleAttr.regionMatches(nameStart, property, 0, property.length, ignoreCase = true)
+                ) {
+                    val valueEnd = styleAttr.indexOf("!important", colonIdx + 1, ignoreCase = true)
+                        .let { if (it == -1 || it > semiIdx) semiIdx else it }
+                    val rawValue = styleAttr.substring(colonIdx + 1, valueEnd).trim()
+                    if (rawValue.isNotEmpty()) return rawValue
+                }
             }
+            start = semiIdx + 1
         }
         return null
     }

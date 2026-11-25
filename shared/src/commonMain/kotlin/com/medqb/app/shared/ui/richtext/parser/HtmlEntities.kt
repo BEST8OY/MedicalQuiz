@@ -52,6 +52,52 @@ internal object HtmlEntities {
         "sup1" to "¹",
         "sup2" to "²",
         "sup3" to "³",
+        "le" to "≤",
+        "ge" to "≥",
+        "ne" to "≠",
+        "approx" to "≈",
+        "asymp" to "≈",
+        "minus" to "−",
+        "bull" to "•",
+        "middot" to "·",
+        "prime" to "′",
+        "Prime" to "″",
+        "infin" to "∞",
+        "permil" to "‰",
+        "dagger" to "†",
+        "Dagger" to "‡",
+        // Greek letters (common in medical text)
+        "alpha" to "α",
+        "beta" to "β",
+        "gamma" to "γ",
+        "delta" to "δ",
+        "epsilon" to "ε",
+        "zeta" to "ζ",
+        "eta" to "η",
+        "theta" to "θ",
+        "iota" to "ι",
+        "kappa" to "κ",
+        "lambda" to "λ",
+        "mu" to "μ",
+        "nu" to "ν",
+        "xi" to "ξ",
+        "omicron" to "ο",
+        "pi" to "π",
+        "rho" to "ρ",
+        "sigma" to "σ",
+        "tau" to "τ",
+        "upsilon" to "υ",
+        "phi" to "φ",
+        "chi" to "χ",
+        "psi" to "ψ",
+        "omega" to "ω",
+        "Alpha" to "Α",
+        "Beta" to "Β",
+        "Gamma" to "Γ",
+        "Delta" to "Δ",
+        "Mu" to "Μ",
+        "Sigma" to "Σ",
+        "Omega" to "Ω",
         // Legal
         "copy" to "©",
         "reg" to "®",
@@ -61,6 +107,10 @@ internal object HtmlEntities {
         "rarr" to "→",
         "uarr" to "↑",
         "darr" to "↓",
+        "harr" to "↔",
+        "lArr" to "⇐",
+        "rArr" to "⇒",
+        "hArr" to "⇔",
         // Card suits
         "hearts" to "♥",
         "clubs" to "♣",
@@ -107,7 +157,7 @@ internal object HtmlEntities {
      * Regex pattern for matching HTML entities.
      * Matches: &name; &#123; &#x7B;
      */
-    private val entityPattern = Regex("&(#x?[0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);")
+    private val entityPattern = Regex("&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]+);")
 
     /**
      * Decodes HTML entities in text to their character equivalents.
@@ -152,6 +202,7 @@ internal object HtmlEntities {
      * @return The string representation or empty string if invalid
      */
     private fun codePointToString(codePoint: Int): String {
+        if (codePoint in 0xD800..0xDFFF) return ""
         if (codePoint in 1..0xFFFF) {
             return codePoint.toChar().toString()
         }

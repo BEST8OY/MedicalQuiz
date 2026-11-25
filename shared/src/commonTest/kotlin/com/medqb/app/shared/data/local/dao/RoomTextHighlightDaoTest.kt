@@ -21,6 +21,7 @@ class RoomTextHighlightDaoTest {
         dbName: String = "db",
         qid: Long = 1L,
         section: String = "QUESTION",
+        blockKey: String = "p:0",
         start: Int = 0,
         end: Int = 10,
         text: String = "sample",
@@ -30,6 +31,7 @@ class RoomTextHighlightDaoTest {
         dbName = dbName,
         questionId = qid,
         section = section,
+        blockKey = blockKey,
         startOffset = start,
         endOffset = end,
         highlightedText = text,
@@ -43,22 +45,24 @@ class RoomTextHighlightDaoTest {
         try {
             val dao = db.textHighlightDao()
 
-            val id1 = dao.insert(highlight(qid = 10L, section = "QUESTION", start = 5, end = 15, text = "first"))
-            val id2 = dao.insert(highlight(qid = 10L, section = "QUESTION", start = 0, end = 4, text = "zero"))
-            val id3 = dao.insert(highlight(qid = 10L, section = "EXPLANATION", start = 0, end = 10, text = "expl"))
-            val id4 = dao.insert(highlight(qid = 20L, section = "QUESTION", start = 0, end = 5, text = "other"))
+            val id1 = dao.insert(highlight(qid = 10L, section = "QUESTION", blockKey = "p:0", start = 5, end = 15, text = "first"))
+            val id2 = dao.insert(highlight(qid = 10L, section = "QUESTION", blockKey = "p:0", start = 0, end = 4, text = "zero"))
+            val id3 = dao.insert(highlight(qid = 10L, section = "QUESTION", blockKey = "p:1", start = 0, end = 4, text = "secondBlock"))
+            val id4 = dao.insert(highlight(qid = 10L, section = "EXPLANATION", blockKey = "p:0", start = 0, end = 10, text = "expl"))
+            val id5 = dao.insert(highlight(qid = 20L, section = "QUESTION", blockKey = "p:0", start = 0, end = 5, text = "other"))
 
-            assertTrue(id1 > 0 && id2 > 0 && id3 > 0 && id4 > 0)
+            assertTrue(id1 > 0 && id2 > 0 && id3 > 0 && id4 > 0 && id5 > 0)
 
-            // getBySection orders by start_offset ASC
+            // getBySection orders by block_key, start_offset ASC
             val questionSection = dao.getBySection("db", 10L, "QUESTION")
-            assertEquals(2, questionSection.size)
+            assertEquals(3, questionSection.size)
             assertEquals("zero", questionSection[0].highlightedText)
             assertEquals("first", questionSection[1].highlightedText)
+            assertEquals("secondBlock", questionSection[2].highlightedText)
 
-            // getAllForQuestion orders by section, start_offset
+            // getAllForQuestion orders by section, block_key, start_offset
             val allQ10 = dao.getAllForQuestion("db", 10L)
-            assertEquals(3, allQ10.size)
+            assertEquals(4, allQ10.size)
         } finally {
             db.close()
         }

@@ -27,30 +27,20 @@ sealed interface RichTextBlock {
     /** A code block with monospaced text. */
     data class CodeBlock(val text: String) : RichTextBlock
     
-    /** A table with header and body rows, supporting rowspan/colspan. */
+    /** A table with rows, supporting rowspan/colspan. */
     data class Table(
-        val headerRows: List<RichTextTableRow>,
-        val bodyRows: List<RichTextTableRow>,
+        val rows: List<RichTextTableRow>,
         val columnCount: Int,
         val classNames: Set<String> = emptySet()
     ) : RichTextBlock
-    
-    /** An abstract/summary block with optional title and nested content. */
-    data class AbstractBlock(
-        val title: AnnotatedString?,
-        val blocks: List<RichTextBlock>,
-        val classNames: Set<String> = emptySet()
-    ) : RichTextBlock
-    
+
     /** A media element (image) with source, description, and layout properties. */
     data class Media(
         val source: String,
         val mediaRef: String?,
         val description: String?,
         val width: Int?,
-        val height: Int?,
         val alignment: TextAlign,
-        val classNames: Set<String> = emptySet()
     ) : RichTextBlock
     
     /** A horizontal divider line. */

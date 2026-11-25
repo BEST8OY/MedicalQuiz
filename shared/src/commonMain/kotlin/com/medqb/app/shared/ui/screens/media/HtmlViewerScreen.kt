@@ -59,6 +59,7 @@ fun HtmlViewerScreen(
     isLoading: Boolean,
     onBack: () -> Unit,
     onLinkClick: ((String) -> Unit)? = null,
+    onMediaClick: ((String) -> Unit)? = null,
     richTextScale: Float = 1f,
     modifier: Modifier = Modifier,
 ) {
@@ -185,6 +186,7 @@ fun HtmlViewerScreen(
                                             html = htmlContent.orEmpty(),
                                             modifier = Modifier.fillMaxWidth(),
                                             onLinkClick = onLinkClick,
+                                            onMediaClick = onMediaClick,
                                         )
                                     }
                                 }

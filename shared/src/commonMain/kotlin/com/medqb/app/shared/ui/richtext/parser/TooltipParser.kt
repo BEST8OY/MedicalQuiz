@@ -1,8 +1,6 @@
 package com.medqb.app.shared.ui.richtext.parser
 
 import com.medqb.app.shared.ui.richtext.containsAnyInsensitive
-import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlHandler
-import com.mohamedrejeb.ksoup.html.parser.KsoupHtmlParser
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -81,6 +79,9 @@ internal object TooltipParser {
         return inlineText?.takeIf { it.isNotEmpty() }
     }
 
+    private val lineBreakTagPattern = Regex("""<br\s*/?>""", RegexOption.IGNORE_CASE)
+    private val htmlTagPattern = Regex("""</?[a-zA-Z][a-zA-Z0-9-]*(?:\s+[^>]*)?/?>""")
+
     /**
      * Checks if an element is a tooltip content node.
      *
@@ -91,18 +92,15 @@ internal object TooltipParser {
         if (element.classNames().containsAnyInsensitive(tooltipContentClassNames)) return true
         if (element.attr("data-role").equals("tooltip", true)) return true
         if (element.attr("data-tooltip-part").equals("content", true)) return true
-        if (element.hasAttr("data-tooltip-content") || element.hasAttr("data-tooltip-text")) return true
         if (element.attr("data-tooltip-role").equals("content", true)) return true
         if (element.attr("data-type").equals("tooltip", true)) return true
         return false
     }
 
     private fun findInlineTooltipNode(element: KsoupElement): KsoupElement? {
-        if (isTooltipContentNode(element)) return element
         for (child in element.children) {
-            if (child is KsoupElement) {
-                val found = findInlineTooltipNode(child)
-                if (found != null) return found
+            if (child is KsoupElement && isTooltipContentNode(child)) {
+                return child
             }
         }
         return null
@@ -148,15 +146,14 @@ internal object TooltipParser {
     }
 
     private fun stripHtml(html: String): String {
-        val handler = object : KsoupHtmlHandler {
-            val sb = StringBuilder()
-            override fun onText(text: String) {
-                sb.append(text.replaceWindows1252C1Controls())
-            }
+        val withoutTags = if (html.contains('<')) {
+            html.replace(lineBreakTagPattern, "\n")
+                .replace(htmlTagPattern, "")
+        } else {
+            html
         }
-        val parser = KsoupHtmlParser(handler)
-        parser.write(html)
-        parser.end()
-        return handler.sb.toString().trim()
+        return HtmlEntities.decode(withoutTags)
+            .replaceWindows1252C1Controls()
+            .trim()
     }
 }

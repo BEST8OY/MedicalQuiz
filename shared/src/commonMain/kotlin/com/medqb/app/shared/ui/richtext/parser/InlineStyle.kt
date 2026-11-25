@@ -1,14 +1,12 @@
 package com.medqb.app.shared.ui.richtext.parser
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
 import com.medqb.app.shared.ui.richtext.RichTextPalette
@@ -85,74 +83,41 @@ internal fun InlineStyle.applyClassStyles(
     return current
 }
 
-/**
- * Appends text with the specified inline style to an AnnotatedString builder.
- *
- * @param text The text to append
- * @param style The inline styling to apply
- * @param palette The color palette for styling
- */
-internal fun AnnotatedString.Builder.appendTextWithStyle(
-    text: String,
-    style: InlineStyle,
-    palette: RichTextPalette
-) {
-    if (text.isEmpty()) return
-
-    val displayText = if (style.preserveWhitespace) text.replace(' ', '\u00A0') else text
-
+internal fun InlineStyle.toSpanStyle(palette: RichTextPalette): SpanStyle {
     val textColor = when {
-        style.textColor != null -> style.textColor
-        style.highlight == InlineHighlight.IMPORTANT -> palette.importantText
-        style.highlight == InlineHighlight.SELECTED -> palette.selectedText
-        style.dictionary -> palette.dictionaryText
-        style.tooltip != null -> palette.dictionaryText
-        style.link != null -> palette.linkText
+        this.textColor != null -> this.textColor
+        highlight == InlineHighlight.IMPORTANT -> palette.importantText
+        highlight == InlineHighlight.SELECTED -> palette.selectedText
+        dictionary -> palette.dictionaryText
+        tooltip != null -> palette.dictionaryText
+        link != null -> palette.linkText
         else -> null
     }
 
-    val backgroundColor = when (style.highlight) {
+    val backgroundColor = when (highlight) {
         InlineHighlight.IMPORTANT -> palette.importantBackground
         InlineHighlight.SELECTED -> palette.selectedBackground
         null -> Color.Unspecified
     }
 
-    val needsUnderline = style.underline || style.dictionary || style.tooltip != null
+    val needsUnderline = underline || dictionary || tooltip != null
 
-    val spanStyle = SpanStyle(
-        fontWeight = if (style.bold) FontWeight.SemiBold else null,
-        fontStyle = if (style.italic) FontStyle.Italic else null,
+    return SpanStyle(
+        fontWeight = if (bold) FontWeight.SemiBold else null,
+        fontStyle = if (italic) FontStyle.Italic else null,
         textDecoration = if (needsUnderline) TextDecoration.Underline else null,
-        fontFamily = if (style.monospace) FontFamily.Monospace else FontFamily.Default,
+        fontFamily = if (monospace) FontFamily.Monospace else FontFamily.Default,
         baselineShift = when {
-            style.superscript -> BaselineShift.Superscript
-            style.subscript -> BaselineShift.Subscript
+            superscript -> BaselineShift.Superscript
+            subscript -> BaselineShift.Subscript
             else -> BaselineShift.None
         },
         background = backgroundColor,
         color = textColor ?: Color.Unspecified,
         fontSize = when {
-            style.superscript || style.subscript -> 0.75.em
-            style.smallText -> 0.85.em
+            superscript || subscript -> 0.75.em
+            smallText -> 0.85.em
             else -> TextUnit.Unspecified
         },
     )
-
-    if (style.link != null) {
-        pushStringAnnotation(tag = "URL", annotation = style.link)
-    }
-    if (style.tooltip != null) {
-        pushStringAnnotation(tag = "TOOLTIP", annotation = style.tooltip)
-    }
-
-    withStyle(spanStyle) {
-        append(displayText)
-    }
-
-    if (style.tooltip != null) {
-        pop()
-    }
-    if (style.link != null) {
-        pop()
-    }
 }

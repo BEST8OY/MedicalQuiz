@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "af06ec1f5fcf5bce5b1ec321b45db71c",
+    "identityHash": "281c7404baa146baf0471aff256eee8d",
     "entities": [
       {
         "tableName": "text_highlights",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `db_name` TEXT NOT NULL, `question_id` INTEGER NOT NULL, `section` TEXT NOT NULL, `start_offset` INTEGER NOT NULL, `end_offset` INTEGER NOT NULL, `highlighted_text` TEXT NOT NULL, `color` TEXT NOT NULL, `created_at` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `db_name` TEXT NOT NULL, `question_id` INTEGER NOT NULL, `section` TEXT NOT NULL, `block_key` TEXT NOT NULL, `start_offset` INTEGER NOT NULL, `end_offset` INTEGER NOT NULL, `highlighted_text` TEXT NOT NULL, `color` TEXT NOT NULL, `created_at` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -29,6 +29,12 @@
           {
             "fieldPath": "section",
             "columnName": "section",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "blockKey",
+            "columnName": "block_key",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -372,7 +378,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'af06ec1f5fcf5bce5b1ec321b45db71c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '281c7404baa146baf0471aff256eee8d')"
     ]
   }
 }

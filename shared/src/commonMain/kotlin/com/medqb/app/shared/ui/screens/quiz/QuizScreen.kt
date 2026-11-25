@@ -57,8 +57,14 @@ import com.medqb.app.shared.ui.adaptive.LocalAdaptiveLayoutInfo
 import com.medqb.app.shared.ui.components.ContentMaxWidth
 import com.medqb.app.shared.ui.components.ResponsiveContentContainer
 import com.medqb.app.shared.ui.media.MediaHandler
-import com.medqb.app.shared.ui.richtext.HighlightableRichText
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.key
+import com.medqb.app.shared.ui.richtext.LocalRichTextSelectionCoordinator
+import com.medqb.app.shared.ui.richtext.RichText
+import com.medqb.app.shared.ui.richtext.RichTextHighlightConfig
 import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
+import com.medqb.app.shared.ui.richtext.RichTextSelectionCoordinator
+import com.medqb.app.shared.ui.richtext.dismissSelectionOnTap
 import com.medqb.app.shared.ui.screens.quiz.labs.LabsBottomSheet
 import com.medqb.app.shared.ui.state.QuizUiState
 import com.medqb.app.shared.utils.HtmlUtils
@@ -70,7 +76,7 @@ fun QuizScreen(
     state: QuizUiState,
     mediaHandler: MediaHandler,
     onAnswerSelected: (Long) -> Unit,
-    onHighlightAdd: (HighlightSection, Int, Int, String, HighlightColor) -> Unit,
+    onHighlightAdd: (HighlightSection, String, Int, Int, String, HighlightColor) -> Unit,
     onHighlightRemove: (Long) -> Unit,
     onHighlightColorChange: (Long, HighlightColor) -> Unit,
     onShowSnackbar: suspend (SnackbarMessage) -> Unit = {},
@@ -105,7 +111,7 @@ private fun QuestionContent(
     state: QuizUiState,
     mediaHandler: MediaHandler,
     onAnswerSelected: (Long) -> Unit,
-    onHighlightAdd: (HighlightSection, Int, Int, String, HighlightColor) -> Unit,
+    onHighlightAdd: (HighlightSection, String, Int, Int, String, HighlightColor) -> Unit,
     onHighlightRemove: (Long) -> Unit,
     onHighlightColorChange: (Long, HighlightColor) -> Unit,
     onShowSnackbar: suspend (SnackbarMessage) -> Unit,
@@ -154,7 +160,7 @@ private fun QuizQuestionCard(
     state: QuizUiState,
     mediaHandler: MediaHandler,
     onAnswerSelected: (Long) -> Unit,
-    onHighlightAdd: (HighlightSection, Int, Int, String, HighlightColor) -> Unit,
+    onHighlightAdd: (HighlightSection, String, Int, Int, String, HighlightColor) -> Unit,
     onHighlightRemove: (Long) -> Unit,
     onHighlightColorChange: (Long, HighlightColor) -> Unit,
     onShowSnackbar: suspend (SnackbarMessage) -> Unit,
@@ -348,14 +354,23 @@ private fun QuizQuestionCard(
     var showLabsSheet by rememberSaveable { mutableStateOf(false) }
 
     val adaptive = LocalAdaptiveLayoutInfo.current
+    val selectionCoordinator = remember(question.id) { RichTextSelectionCoordinator() }
 
+    CompositionLocalProvider(LocalRichTextSelectionCoordinator provides selectionCoordinator) {
     if (adaptive.isExpandedWidth) {
         val leftScrollState = key(state.currentQuestionIndex) { rememberScrollState() }
         val rightScrollState = key(state.currentQuestionIndex) { rememberScrollState() }
 
+        LaunchedEffect(leftScrollState.isScrollInProgress, rightScrollState.isScrollInProgress) {
+            if (leftScrollState.isScrollInProgress || rightScrollState.isScrollInProgress) {
+                selectionCoordinator.dismissAll()
+            }
+        }
+
         Row(
             modifier = modifier
                 .fillMaxSize()
+                .dismissSelectionOnTap(selectionCoordinator)
                 .padding(horizontal = adaptive.horizontalPadding),
             horizontalArrangement = Arrangement.spacedBy(24.dp),
         ) {
@@ -367,28 +382,39 @@ private fun QuizQuestionCard(
                     .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                QuestionStemCard(
-                    questionHtml = questionHtml,
-                    highlights = state.questionHighlights,
-                    isKeyInfoActive = isKeyInfoActive,
-                    onHighlightAdd = onHighlightAdd,
-                    onHighlightRemove = onHighlightRemove,
-                    onHighlightColorChange = onHighlightColorChange,
-                    linkHandler = linkHandler,
-                    mediaClick = mediaClick,
-                    onShowSnackbar = onShowSnackbar,
-                )
+                key(question.id) {
+                    QuestionStemCard(
+                        questionHtml = questionHtml,
+                        highlights = state.questionHighlights,
+                        isKeyInfoActive = isKeyInfoActive,
+                        onHighlightAdd = onHighlightAdd,
+                        onHighlightRemove = onHighlightRemove,
+                        onHighlightColorChange = onHighlightColorChange,
+                        linkHandler = linkHandler,
+                        mediaClick = mediaClick,
+                        onShowSnackbar = onShowSnackbar,
+                    )
+                }
 
                 QuizStudySection(
                     questionId = question.id,
                     hasKeyInfo = hasKeyInfo,
                     isKeyInfoActive = isKeyInfoActive,
-                    onToggleKeyInfo = { keyInfoToggled = !isKeyInfoActive },
+                    onToggleKeyInfo = {
+                        selectionCoordinator.dismissAll()
+                        keyInfoToggled = !isKeyInfoActive
+                    },
                     hasAttendingTip = hintHtml != null,
                     isAttendingTipActive = attendingTipVisible,
-                    onToggleAttendingTip = { attendingTipVisible = !attendingTipVisible },
+                    onToggleAttendingTip = {
+                        selectionCoordinator.dismissAll()
+                        attendingTipVisible = !attendingTipVisible
+                    },
                     isLabsActive = showLabsSheet,
-                    onOpenLabs = { showLabsSheet = true },
+                    onOpenLabs = {
+                        selectionCoordinator.dismissAll()
+                        showLabsSheet = true
+                    },
                     hintHtml = hintHtml,
                     linkHandler = linkHandler,
                     mediaClick = mediaClick,
@@ -410,11 +436,101 @@ private fun QuizQuestionCard(
                     correctAnswerId = correctAnswerId,
                     answerSubmitted = state.answerSubmitted,
                     answerPercentages = answerPercentages,
-                    onAnswerSelected = onAnswerSelected,
+                    onAnswerSelected = { answerId ->
+                        selectionCoordinator.dismissAll()
+                        onAnswerSelected(answerId)
+                    },
                     onLinkClick = linkHandler,
                     onMediaClick = mediaClick,
                 )
 
+                key(question.id) {
+                    QuizExplanationAndMetadata(
+                        state = state,
+                        explanationHtml = explanationHtml,
+                        metadataSections = metadataSections,
+                        onHighlightAdd = onHighlightAdd,
+                        onHighlightRemove = onHighlightRemove,
+                        onHighlightColorChange = onHighlightColorChange,
+                        linkHandler = linkHandler,
+                        mediaClick = mediaClick,
+                        onShowSnackbar = onShowSnackbar,
+                    )
+                }
+            }
+        }
+    } else {
+        val scrollState = key(state.currentQuestionIndex) { rememberScrollState() }
+
+        LaunchedEffect(scrollState.isScrollInProgress) {
+            if (scrollState.isScrollInProgress) {
+                selectionCoordinator.dismissAll()
+            }
+        }
+
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .dismissSelectionOnTap(selectionCoordinator)
+                .verticalScroll(scrollState)
+                .padding(horizontal = adaptive.horizontalPadding)
+                .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            key(question.id) {
+                QuestionStemCard(
+                    questionHtml = questionHtml,
+                    highlights = state.questionHighlights,
+                    isKeyInfoActive = isKeyInfoActive,
+                    onHighlightAdd = onHighlightAdd,
+                    onHighlightRemove = onHighlightRemove,
+                    onHighlightColorChange = onHighlightColorChange,
+                    linkHandler = linkHandler,
+                    mediaClick = mediaClick,
+                    onShowSnackbar = onShowSnackbar,
+                )
+            }
+
+            QuizStudySection(
+                questionId = question.id,
+                hasKeyInfo = hasKeyInfo,
+                isKeyInfoActive = isKeyInfoActive,
+                onToggleKeyInfo = {
+                    selectionCoordinator.dismissAll()
+                    keyInfoToggled = !isKeyInfoActive
+                },
+                hasAttendingTip = hintHtml != null,
+                isAttendingTipActive = attendingTipVisible,
+                onToggleAttendingTip = {
+                    selectionCoordinator.dismissAll()
+                    attendingTipVisible = !attendingTipVisible
+                },
+                isLabsActive = showLabsSheet,
+                onOpenLabs = {
+                    selectionCoordinator.dismissAll()
+                    showLabsSheet = true
+                },
+                hintHtml = hintHtml,
+                linkHandler = linkHandler,
+                mediaClick = mediaClick,
+            )
+
+            AnswerOptions(
+                answers = answers,
+                sanitizedAnswers = sanitizedAnswers,
+                selectedAnswerId = state.selectedAnswerId,
+                correctAnswerId = correctAnswerId,
+                answerSubmitted = state.answerSubmitted,
+                answerPercentages = answerPercentages,
+                onAnswerSelected = { answerId ->
+                    selectionCoordinator.dismissAll()
+                    onAnswerSelected(answerId)
+                },
+                onLinkClick = linkHandler,
+                onMediaClick = mediaClick
+            )
+
+            key(question.id) {
                 QuizExplanationAndMetadata(
                     state = state,
                     explanationHtml = explanationHtml,
@@ -428,68 +544,7 @@ private fun QuizQuestionCard(
                 )
             }
         }
-    } else {
-        val scrollState = key(state.currentQuestionIndex) { rememberScrollState() }
-
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(horizontal = adaptive.horizontalPadding)
-                .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            QuestionStemCard(
-                questionHtml = questionHtml,
-                highlights = state.questionHighlights,
-                isKeyInfoActive = isKeyInfoActive,
-                onHighlightAdd = onHighlightAdd,
-                onHighlightRemove = onHighlightRemove,
-                onHighlightColorChange = onHighlightColorChange,
-                linkHandler = linkHandler,
-                mediaClick = mediaClick,
-                onShowSnackbar = onShowSnackbar,
-            )
-
-            QuizStudySection(
-                questionId = question.id,
-                hasKeyInfo = hasKeyInfo,
-                isKeyInfoActive = isKeyInfoActive,
-                onToggleKeyInfo = { keyInfoToggled = !isKeyInfoActive },
-                hasAttendingTip = hintHtml != null,
-                isAttendingTipActive = attendingTipVisible,
-                onToggleAttendingTip = { attendingTipVisible = !attendingTipVisible },
-                isLabsActive = showLabsSheet,
-                onOpenLabs = { showLabsSheet = true },
-                hintHtml = hintHtml,
-                linkHandler = linkHandler,
-                mediaClick = mediaClick,
-            )
-
-            AnswerOptions(
-                answers = answers,
-                sanitizedAnswers = sanitizedAnswers,
-                selectedAnswerId = state.selectedAnswerId,
-                correctAnswerId = correctAnswerId,
-                answerSubmitted = state.answerSubmitted,
-                answerPercentages = answerPercentages,
-                onAnswerSelected = onAnswerSelected,
-                onLinkClick = linkHandler,
-                onMediaClick = mediaClick
-            )
-
-            QuizExplanationAndMetadata(
-                state = state,
-                explanationHtml = explanationHtml,
-                metadataSections = metadataSections,
-                onHighlightAdd = onHighlightAdd,
-                onHighlightRemove = onHighlightRemove,
-                onHighlightColorChange = onHighlightColorChange,
-                linkHandler = linkHandler,
-                mediaClick = mediaClick,
-                onShowSnackbar = onShowSnackbar,
-            )
-        }
+    }
     }
 
     if (showLabsSheet) {
@@ -502,7 +557,7 @@ private fun QuestionStemCard(
     questionHtml: String,
     highlights: List<TextHighlight>,
     isKeyInfoActive: Boolean,
-    onHighlightAdd: (HighlightSection, Int, Int, String, HighlightColor) -> Unit,
+    onHighlightAdd: (HighlightSection, String, Int, Int, String, HighlightColor) -> Unit,
     onHighlightRemove: (Long) -> Unit,
     onHighlightColorChange: (Long, HighlightColor) -> Unit,
     linkHandler: (String) -> Unit,
@@ -519,17 +574,19 @@ private fun QuestionStemCard(
             defaultElevation = 1.dp
         )
     ) {
-        HighlightableRichText(
+        RichText(
             html = questionHtml,
-            section = HighlightSection.QUESTION,
-            highlights = highlights,
             showSelectedHighlight = isKeyInfoActive,
-            onHighlightAdd = onHighlightAdd,
-            onHighlightRemove = onHighlightRemove,
-            onHighlightColorChange = onHighlightColorChange,
             onLinkClick = linkHandler,
             onMediaClick = mediaClick,
-            onShowSnackbar = onShowSnackbar,
+            highlightConfig = RichTextHighlightConfig(
+                section = HighlightSection.QUESTION,
+                highlights = highlights,
+                onHighlightAdd = onHighlightAdd,
+                onHighlightRemove = onHighlightRemove,
+                onHighlightColorChange = onHighlightColorChange,
+                onShowSnackbar = onShowSnackbar,
+            ),
             modifier = Modifier.padding(16.dp)
         )
     }
@@ -541,7 +598,7 @@ private fun QuizExplanationAndMetadata(
     state: QuizUiState,
     explanationHtml: String,
     metadataSections: List<MetadataSection>,
-    onHighlightAdd: (HighlightSection, Int, Int, String, HighlightColor) -> Unit,
+    onHighlightAdd: (HighlightSection, String, Int, Int, String, HighlightColor) -> Unit,
     onHighlightRemove: (Long) -> Unit,
     onHighlightColorChange: (Long, HighlightColor) -> Unit,
     linkHandler: (String) -> Unit,
@@ -579,17 +636,19 @@ private fun QuizExplanationAndMetadata(
                     style = MaterialTheme.typography.titleMediumEmphasized,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                HighlightableRichText(
+                RichText(
                     html = explanationHtml,
-                    section = HighlightSection.EXPLANATION,
-                    highlights = state.explanationHighlights,
                     showSelectedHighlight = state.answerSubmitted,
-                    onHighlightAdd = onHighlightAdd,
-                    onHighlightRemove = onHighlightRemove,
-                    onHighlightColorChange = onHighlightColorChange,
                     onLinkClick = linkHandler,
                     onMediaClick = mediaClick,
-                    onShowSnackbar = onShowSnackbar
+                    highlightConfig = RichTextHighlightConfig(
+                        section = HighlightSection.EXPLANATION,
+                        highlights = state.explanationHighlights,
+                        onHighlightAdd = onHighlightAdd,
+                        onHighlightRemove = onHighlightRemove,
+                        onHighlightColorChange = onHighlightColorChange,
+                        onShowSnackbar = onShowSnackbar,
+                    ),
                 )
             }
         }

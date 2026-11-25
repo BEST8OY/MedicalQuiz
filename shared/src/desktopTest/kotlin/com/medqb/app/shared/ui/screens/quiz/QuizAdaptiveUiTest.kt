@@ -56,7 +56,7 @@ class QuizAdaptiveUiTest {
                     state = state,
                     mediaHandler = mediaHandler,
                     onAnswerSelected = {},
-                    onHighlightAdd = { _, _, _, _, _ -> },
+                    onHighlightAdd = { _, _, _, _, _, _ -> },
                     onHighlightRemove = {},
                     onHighlightColorChange = { _, _ -> },
                 )

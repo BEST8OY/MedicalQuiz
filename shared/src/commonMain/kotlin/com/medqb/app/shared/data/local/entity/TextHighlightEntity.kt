@@ -22,6 +22,8 @@ data class TextHighlightEntity(
     val questionId: Long,
     @ColumnInfo(name = "section")
     val section: String,
+    @ColumnInfo(name = "block_key")
+    val blockKey: String = "",
     @ColumnInfo(name = "start_offset")
     val startOffset: Int,
     @ColumnInfo(name = "end_offset")
@@ -39,6 +41,7 @@ fun TextHighlightEntity.toDomain() = TextHighlight(
     dbName = dbName,
     questionId = questionId,
     section = HighlightSection.fromName(section),
+    blockKey = blockKey,
     startOffset = startOffset,
     endOffset = endOffset,
     highlightedText = highlightedText,

@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,21 +16,24 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
+import com.medqb.app.shared.ui.richtext.parser.RichTextParserConfig
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -38,47 +42,117 @@ private const val MAX_COLUMN_ITERATIONS = 500
 
 internal sealed interface TableLayoutItem {
     data class RowItem(val rowIndex: Int, val row: TableRenderedRow) : TableLayoutItem
-    data object DividerItem : TableLayoutItem
+    data class DividerItem(val afterRowIndex: Int) : TableLayoutItem
 }
 
 /**
- * Shared layout shell for tables: a bordered [Surface] containing a horizontally
- * scrolling column of rows separated by dividers. Both [RichTextTable] and
- * [HighlightableTable] route through this so layout cannot drift between them.
- *
- * Rowspan anchor cells are rendered as overlays that span the full height of
- * their row range, with content vertically centered.
- *
- * @param block The table block to render
- * @param renderRow Renders a single row (anchor cells render as transparent placeholders)
- * @param renderAnchorContent Renders the actual content for a rowspan anchor cell
+ * Unified table renderer supporting optional per-cell highlighting and rowspan overlays.
  */
 @Composable
-internal fun RichTextTableShell(
+internal fun RichTextTable(
     block: RichTextBlock.Table,
-    renderRow: @Composable (row: TableRenderedRow, rowIndex: Int) -> Unit,
-    renderAnchorContent: (@Composable (cell: TableRenderedCell, rowIndex: Int, cellIndex: Int) -> Unit)? = null
+    blockIndex: Int = 0,
+    showSelectedHighlight: Boolean = false,
+    onLinkClick: (String) -> Unit,
+    onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
+    highlightConfig: RichTextHighlightConfig? = null,
 ) {
     val renderModel = remember(block) { block.toRenderModel() }
     if (renderModel.columnCount == 0) return
+
+    RichTextTableShell(
+        renderModel = renderModel,
+        tableClassNames = block.classNames,
+        showSelectedHighlight = showSelectedHighlight,
+        renderRow = { row, rowIndex ->
+            TableRowContent(
+                row = row,
+                tableClassNames = block.classNames,
+                columnWeights = renderModel.columnWeights,
+                showSelectedHighlight = showSelectedHighlight,
+                onLinkClick = onLinkClick,
+                onTooltipClick = onTooltipClick,
+                isRowspanOverlayEnabled = true,
+                customCellContent = if (highlightConfig != null) {
+                    { cell, textStyle, textColor, cellIndex ->
+                        HighlightableRichTextContent(
+                            text = cell.cell.text,
+                            blockKey = "td:$blockIndex:$rowIndex:$cellIndex",
+                            highlightConfig = highlightConfig,
+                            style = textStyle,
+                            color = textColor,
+                            textAlign = cell.cell.alignment,
+                            modifier = Modifier.fillMaxWidth(),
+                            onLinkClick = onLinkClick,
+                            onTooltipClick = onTooltipClick,
+                        )
+                    }
+                } else null
+            )
+        },
+        renderAnchorContent = { cell, rowIndex, cellIndex ->
+            val rowModel = renderModel.rows.getOrNull(rowIndex)
+            val isHeaderRow = rowModel?.isHeaderRow ?: false
+            val isHeaderCell = isHeaderRow || cell.cell.isHeader
+            val isAbstractRow = ((rowModel?.classNames ?: emptySet()) + block.classNames).containsInsensitive("abstract")
+            val textStyle = tableCellTextStyle(isHeaderCell, cell.cell.classNames)
+            val textColor = resolveCellTextColor(
+                isHeaderCell = isHeaderCell,
+                isAbstractRow = isAbstractRow,
+                cellClassNames = cell.cell.classNames,
+                showSelectedHighlight = showSelectedHighlight,
+            )
+            HighlightableRichTextContent(
+                text = cell.cell.text,
+                blockKey = "td:$blockIndex:$rowIndex:$cellIndex",
+                highlightConfig = highlightConfig,
+                style = textStyle,
+                color = textColor,
+                textAlign = cell.cell.alignment,
+                modifier = if (highlightConfig != null) Modifier.fillMaxWidth() else Modifier,
+                onLinkClick = onLinkClick,
+                onTooltipClick = onTooltipClick,
+                maxLines = Int.MAX_VALUE,
+                overflow = TextOverflow.Visible,
+            )
+        }
+    )
+}
+
+@Composable
+private fun RichTextTableShell(
+    renderModel: TableRenderModel,
+    tableClassNames: Set<String>,
+    showSelectedHighlight: Boolean,
+    renderRow: @Composable (row: TableRenderedRow, rowIndex: Int) -> Unit,
+    renderAnchorContent: @Composable (cell: TableRenderedCell, rowIndex: Int, cellIndex: Int) -> Unit,
+) {
+    if (renderModel.columnCount == 0) return
     val scrollState = rememberScrollState()
+    val selectionCoordinator = LocalRichTextSelectionCoordinator.current
+    LaunchedEffect(scrollState.isScrollInProgress, selectionCoordinator) {
+        if (scrollState.isScrollInProgress) {
+            selectionCoordinator?.dismissAll()
+        }
+    }
     val columnMinWidth = if (renderModel.columnCount >= 5) 96.dp else 120.dp
     val minTableWidth = columnMinWidth * renderModel.columnCount
     val surfaceColor = MaterialTheme.colorScheme.surface
 
-    // Collect rowspan anchors
     val anchors = remember(renderModel) {
         buildList {
             renderModel.rows.forEachIndexed { rowIndex, row ->
                 row.cells.forEachIndexed { cellIndex, cell ->
                     val endRow = (rowIndex + cell.rowSpan - 1).coerceAtMost(renderModel.rows.lastIndex)
                     if (cell.isVisible && cell.rowSpan > 1 && endRow > rowIndex) {
-                        add(RowspanAnchorInfo(
-                            cell = cell,
-                            cellIndex = cellIndex,
-                            startRow = rowIndex,
-                            endRow = endRow
-                        ))
+                        add(
+                            RowspanAnchorInfo(
+                                cell = cell,
+                                cellIndex = cellIndex,
+                                startRow = rowIndex,
+                                endRow = endRow
+                            )
+                        )
                     }
                 }
             }
@@ -121,7 +195,6 @@ internal fun RichTextTableShell(
             val tableWidth = max(minTableWidth, maxWidth)
 
             if (anchors.isEmpty()) {
-                // No rowspan anchors — simple Column
                 Column(
                     modifier = Modifier
                         .horizontalScroll(scrollState)
@@ -134,8 +207,7 @@ internal fun RichTextTableShell(
                         }
                     }
                 }
-            } else if (renderAnchorContent != null) {
-                // Has rowspan anchors — two-pass SubcomposeLayout
+            } else {
                 SubcomposeLayout(
                     modifier = Modifier
                         .horizontalScroll(scrollState)
@@ -145,34 +217,30 @@ internal fun RichTextTableShell(
                         renderModel.rows.forEachIndexed { index, row ->
                             add(TableLayoutItem.RowItem(index, row))
                             if (index != renderModel.rows.lastIndex) {
-                                add(TableLayoutItem.DividerItem)
+                                add(TableLayoutItem.DividerItem(index))
                             }
                         }
                     }
 
-                    // Measure all rows and dividers flat-mapped
+                    // 1. Measure rows & dividers
                     val rowMeasurables = subcompose("rows") {
                         layoutItems.forEach { item ->
                             when (item) {
                                 is TableLayoutItem.RowItem -> renderRow(item.row, item.rowIndex)
-                                TableLayoutItem.DividerItem -> HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                is TableLayoutItem.DividerItem -> HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             }
                         }
                     }
                     val rowPlacements = rowMeasurables.map { it.measure(constraints) }
-                    val totalHeight = rowPlacements.sumOf { it.height }
 
-                    // Compute per-row positions and heights
-                    val rowPositions = IntArray(renderModel.rows.size)
                     val rowHeights = IntArray(renderModel.rows.size)
-                    var currentY = 0
+                    val dividerAfterHeights = IntArray(renderModel.rows.size)
                     layoutItems.forEachIndexed { itemIndex, item ->
-                        val height = rowPlacements[itemIndex].height
-                        if (item is TableLayoutItem.RowItem) {
-                            rowPositions[item.rowIndex] = currentY
-                            rowHeights[item.rowIndex] = height
+                        val h = rowPlacements[itemIndex].height
+                        when (item) {
+                            is TableLayoutItem.RowItem -> rowHeights[item.rowIndex] = h
+                            is TableLayoutItem.DividerItem -> dividerAfterHeights[item.afterRowIndex] = h
                         }
-                        currentY += height
                     }
 
                     val tableWidthPx = tableWidth.toPx()
@@ -181,100 +249,181 @@ internal fun RichTextTableShell(
                         computeAnchorHorizontalBounds(
                             row = renderModel.rows[anchor.startRow],
                             cellIndex = anchor.cellIndex,
-                            cell = anchor.cell,
                             tableWidthPx = tableWidthPx,
                             insetSmPx = insetSmPx,
+                            columnWeights = renderModel.columnWeights,
                         )
                     }
 
-                    // Measure anchor overlays with calculated widths and heights
+                    // 2. Measure stateful anchor contents unconstrained in height so they never clip
+                    //    and never get re-subcomposed.
                     val anchorMeasurables = subcompose("anchors") {
+                        anchors.forEachIndexed { i, anchor ->
+                            val bounds = anchorBoundsList[i]
+                            val paddingStart = if (bounds.isLeftEdge) 20.dp else 8.dp
+                            val paddingEnd = if (bounds.isRightEdge) 20.dp else 8.dp
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        start = paddingStart,
+                                        end = paddingEnd,
+                                        top = 8.dp,
+                                        bottom = 8.dp
+                                    )
+                                    .padding(start = anchor.cell.cell.paddingStart),
+                                contentAlignment = when (anchor.cell.cell.alignment) {
+                                    TextAlign.Center -> Alignment.Center
+                                    TextAlign.End, TextAlign.Right -> Alignment.CenterEnd
+                                    else -> Alignment.CenterStart
+                                }
+                            ) {
+                                renderAnchorContent(anchor.cell, anchor.startRow, anchor.cellIndex)
+                            }
+                        }
+                    }
+                    val anchorPlacements = anchorMeasurables.mapIndexed { i, measurable ->
+                        val cellWidthPx = anchorBoundsList[i].widthPx.roundToInt().coerceAtLeast(0)
+                        measurable.measure(
+                            constraints.copy(
+                                minWidth = cellWidthPx,
+                                maxWidth = cellWidthPx,
+                                minHeight = 0,
+                                maxHeight = Constraints.Infinity
+                            )
+                        )
+                    }
+
+                    // 3. Expand endRow heights if any rowspan anchor is taller than its spanned rows
+                    val originalRowHeights = rowHeights.copyOf()
+                    anchors.forEachIndexed { i, anchor ->
+                        var currentSpanHeight = 0
+                        for (r in anchor.startRow..anchor.endRow) {
+                            currentSpanHeight += rowHeights[r]
+                            if (r < anchor.endRow) {
+                                currentSpanHeight += dividerAfterHeights[r]
+                            }
+                        }
+                        val needed = anchorPlacements[i].height
+                        if (needed > currentSpanHeight) {
+                            rowHeights[anchor.endRow] += (needed - currentSpanHeight)
+                        }
+                    }
+
+                    val rowPositions = IntArray(renderModel.rows.size)
+                    val dividerPositions = IntArray(renderModel.rows.size)
+                    var runningY = 0
+                    for (r in renderModel.rows.indices) {
+                        rowPositions[r] = runningY
+                        runningY += rowHeights[r]
+                        if (r < renderModel.rows.lastIndex) {
+                            dividerPositions[r] = runningY
+                            runningY += dividerAfterHeights[r]
+                        }
+                    }
+                    val totalHeight = runningY
+
+                    // 4. Fill expanded row backgrounds if any endRow grew
+                    val expandedRows = renderModel.rows.indices.filter { rowHeights[it] > originalRowHeights[it] }
+                    val fillerMeasurables = subcompose("row_fillers") {
+                        expandedRows.forEach { rowIdx ->
+                            val rowModel = renderModel.rows[rowIdx]
+                            val rowBg = resolveRowBaseBackground(
+                                row = rowModel,
+                                tableClassNames = tableClassNames
+                            )
+                            Box(modifier = Modifier.background(rowBg))
+                        }
+                    }
+                    val fillerPlacements = fillerMeasurables.mapIndexed { idx, measurable ->
+                        val rowIdx = expandedRows[idx]
+                        measurable.measure(
+                            Constraints.fixed(
+                                width = constraints.maxWidth,
+                                height = rowHeights[rowIdx]
+                            )
+                        )
+                    }
+
+                    // 5. Subcompose stateless anchor backgrounds matching exact spanHeight
+                    val anchorBackgroundMeasurables = subcompose("anchor_backgrounds") {
                         anchors.forEachIndexed { i, anchor ->
                             val startRowModel = renderModel.rows[anchor.startRow]
                             val bounds = anchorBoundsList[i]
-                            val cellWidth = bounds.widthPx.toDp()
-
-                            val paddingStart = if (bounds.isLeftEdge) 20.dp else 8.dp
-                            val paddingEnd = if (bounds.isRightEdge) 20.dp else 8.dp
-
-                            val isAbstractRow = (startRowModel.classNames + block.classNames).containsInsensitive("abstract")
-                            val baseBackground = when {
-                                startRowModel.isHeaderRow -> MaterialTheme.colorScheme.surfaceContainerHighest
-                                isAbstractRow -> MaterialTheme.colorScheme.surfaceVariant
-                                else -> MaterialTheme.colorScheme.surface
-                            }
+                            val baseBackground = resolveRowBaseBackground(
+                                row = startRowModel,
+                                tableClassNames = tableClassNames
+                            )
                             val cellBackground = resolveCellBackgroundColor(
                                 cellClassNames = anchor.cell.cell.classNames,
-                                defaultColor = baseBackground,
+                                showSelectedHighlight = showSelectedHighlight,
+                                defaultColor = Color.Transparent,
                             )
-
-                            Surface(
-                                modifier = Modifier.width(cellWidth),
-                                color = cellBackground,
-                                shape = MaterialTheme.shapes.extraSmall
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = paddingStart, end = paddingEnd)
-                                        .padding(start = anchor.cell.cell.paddingStart),
-                                    contentAlignment = when (anchor.cell.cell.alignment) {
-                                        TextAlign.Center -> Alignment.Center
-                                        TextAlign.End, TextAlign.Right -> Alignment.CenterEnd
-                                        else -> Alignment.CenterStart
-                                    }
-                                ) {
-                                    renderAnchorContent(anchor.cell, anchor.startRow, anchor.cellIndex)
+                            Box(modifier = Modifier.background(baseBackground)) {
+                                if (cellBackground != Color.Transparent) {
+                                    Surface(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .padding(
+                                                start = if (bounds.isLeftEdge) 16.dp else 4.dp,
+                                                end = if (bounds.isRightEdge) 16.dp else 4.dp,
+                                                top = 8.dp,
+                                                bottom = 8.dp
+                                            ),
+                                        color = cellBackground,
+                                        shape = MaterialTheme.shapes.extraSmall,
+                                        content = {}
+                                    )
                                 }
                             }
                         }
                     }
-
-                    val anchorPlacements = anchorMeasurables.mapIndexed { i, measurable ->
+                    val anchorBackgroundPlacements = anchorBackgroundMeasurables.mapIndexed { i, measurable ->
                         val anchor = anchors[i]
-                        val cellWidthPx = anchorBoundsList[i].widthPx
-                        val spanHeight = (anchor.startRow..anchor.endRow)
-                            .sumOf { rowHeights.getOrElse(it) { 0 } }
-                        measurable.measure(constraints.copy(
-                            minWidth = cellWidthPx.roundToInt(),
-                            maxWidth = cellWidthPx.roundToInt(),
-                            minHeight = spanHeight,
-                            maxHeight = spanHeight
-                        ))
+                        val cellWidthPx = anchorBoundsList[i].widthPx.roundToInt().coerceAtLeast(0)
+                        val spanHeight = (rowPositions[anchor.endRow] + rowHeights[anchor.endRow] - rowPositions[anchor.startRow])
+                            .coerceAtLeast(0)
+                        measurable.measure(Constraints.fixed(width = cellWidthPx, height = spanHeight))
                     }
 
-                    // Place everything
                     layout(constraints.maxWidth, totalHeight) {
-                        // Place rows and dividers
-                        var y = 0
-                        rowPlacements.forEach { placement ->
-                            placement.place(0, y)
-                            y += placement.height
+                        fillerPlacements.forEachIndexed { idx, placement ->
+                            val rowIdx = expandedRows[idx]
+                            placement.place(0, rowPositions[rowIdx])
                         }
-                        // Place anchor overlays
+                        layoutItems.forEachIndexed { itemIndex, item ->
+                            val placement = rowPlacements[itemIndex]
+                            val y = when (item) {
+                                is TableLayoutItem.RowItem -> rowPositions[item.rowIndex]
+                                is TableLayoutItem.DividerItem -> dividerPositions[item.afterRowIndex]
+                            }
+                            placement.place(0, y)
+                        }
                         anchors.forEachIndexed { i, anchor ->
                             val startY = rowPositions[anchor.startRow]
-                            val leftX = anchorBoundsList[i].leftX
-                            anchorPlacements[i].place(leftX.roundToInt(), startY)
-                        }
-                    }
-                }
-            } else {
-                // Has anchors but no renderer — simple Column (fallback)
-                Column(
-                    modifier = Modifier
-                        .horizontalScroll(scrollState)
-                        .width(tableWidth)
-                ) {
-                    renderModel.rows.forEachIndexed { index, row ->
-                        renderRow(row, index)
-                        if (index != renderModel.rows.lastIndex) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            val spanHeight = rowPositions[anchor.endRow] + rowHeights[anchor.endRow] - startY
+                            val leftX = anchorBoundsList[i].leftX.roundToInt()
+                            anchorBackgroundPlacements[i].place(leftX, startY)
+                            val centeredY = startY + ((spanHeight - anchorPlacements[i].height) / 2).coerceAtLeast(0)
+                            anchorPlacements[i].place(leftX, centeredY)
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun resolveRowBaseBackground(
+    row: TableRenderedRow,
+    tableClassNames: Set<String>,
+): Color {
+    val isAbstractRow = (row.classNames + tableClassNames).containsInsensitive("abstract")
+    return when {
+        row.isHeaderRow -> MaterialTheme.colorScheme.surfaceContainerHighest
+        isAbstractRow -> MaterialTheme.colorScheme.surfaceContainerLow
+        else -> MaterialTheme.colorScheme.surface
     }
 }
 
@@ -288,21 +437,21 @@ private data class AnchorHorizontalBounds(
 private fun computeAnchorHorizontalBounds(
     row: TableRenderedRow,
     cellIndex: Int,
-    cell: TableRenderedCell,
     tableWidthPx: Float,
     insetSmPx: Float,
+    columnWeights: List<Float>,
 ): AnchorHorizontalBounds {
-    val totalWeight = row.cells.sumOf {
-        (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
-    }.toFloat().coerceAtLeast(1f)
-    val startWeight = row.cells.take(cellIndex).sumOf {
-        (it.cell.width ?: it.columnSpan.coerceAtLeast(1).toFloat()).toDouble()
-    }.toFloat()
-    val cellWeight = cell.cell.width ?: cell.columnSpan.coerceAtLeast(1).toFloat()
+    val totalColumnCount = columnWeights.size
+    val weights = resolveRowCellWeights(row, columnWeights)
+    val rowSpanSum = row.cells.sumOf { it.columnSpan.coerceAtLeast(1) }
+    val trailingCols = (rowSpanSum until totalColumnCount).sumOf { columnWeights[it].toDouble() }.toFloat()
+    val totalWeight = (weights.sum() + trailingCols).coerceAtLeast(1f)
+    val startWeight = weights.take(cellIndex).sum()
+    val cellWeight = weights.getOrElse(cellIndex) { 1f }
 
     val usableWidth = (tableWidthPx - insetSmPx * 2).coerceAtLeast(0f)
-    val isLeftEdge = startWeight == 0f
-    val isRightEdge = (startWeight + cellWeight) == totalWeight
+    val isLeftEdge = cellIndex == 0
+    val isRightEdge = cellIndex == row.cells.lastIndex && rowSpanSum >= totalColumnCount
 
     val leftX = if (isLeftEdge) 0f else insetSmPx + usableWidth * (startWeight / totalWeight)
     val rightX = if (isRightEdge) tableWidthPx else insetSmPx + usableWidth * ((startWeight + cellWeight) / totalWeight)
@@ -315,6 +464,22 @@ private fun computeAnchorHorizontalBounds(
     )
 }
 
+private fun resolveRowCellWeights(
+    row: TableRenderedRow,
+    columnWeights: List<Float>,
+): List<Float> {
+    var col = 0
+    return row.cells.map { cell ->
+        val span = cell.columnSpan.coerceAtLeast(1)
+        var weight = 0f
+        for (i in 0 until span) {
+            weight += columnWeights.getOrElse(col + i) { 1f }
+        }
+        col += span
+        weight.coerceAtLeast(1f)
+    }
+}
+
 private class RowspanAnchorInfo(
     val cell: TableRenderedCell,
     val cellIndex: Int,
@@ -323,62 +488,12 @@ private class RowspanAnchorInfo(
 )
 
 /**
- * Renders a table with support for rowspan/colspan.
- *
- * @param block The table block containing rows and column information
- * @param onLinkClick Callback for link clicks within table cells
- * @param onTooltipClick Optional callback for tooltip interactions
- */
-@Composable
-internal fun RichTextTable(
-    block: RichTextBlock.Table,
-    onLinkClick: (String) -> Unit,
-    onTooltipClick: ((RichTextTooltipContent) -> Unit)?
-) {
-    val renderModel = remember(block) { block.toRenderModel() }
-    RichTextTableShell(
-        block = block,
-        renderRow = { row, _ ->
-            TableRowContent(
-                row = row,
-                tableClassNames = block.classNames,
-                onLinkClick = onLinkClick,
-                onTooltipClick = onTooltipClick,
-                isRowspanOverlayEnabled = true
-            )
-        },
-        renderAnchorContent = { cell, rowIndex, _ ->
-            val rowIndexModel = renderModel.rows.getOrNull(rowIndex)
-            val isHeaderRow = rowIndexModel?.isHeaderRow ?: false
-            val isHeaderCell = isHeaderRow || cell.cell.isHeader
-            val isAbstractRow = (rowIndexModel?.classNames ?: emptySet()).containsInsensitive("abstract")
-            val textStyle = tableCellTextStyle(isHeaderCell)
-            val textColor = resolveCellTextColor(
-                isHeaderCell = isHeaderCell,
-                isAbstractRow = isAbstractRow,
-                cellClassNames = cell.cell.classNames
-            )
-            InteractiveText(
-                text = cell.cell.text,
-                modifier = Modifier,
-                style = textStyle,
-                color = textColor,
-                textAlign = cell.cell.alignment,
-                onLinkClick = onLinkClick,
-                onTooltipClick = onTooltipClick,
-                maxLines = Int.MAX_VALUE,
-                overflow = TextOverflow.Visible
-            )
-        }
-    )
-}
-
-/**
  * Represents a table prepared for rendering with processed rowspan/colspan.
  */
 internal data class TableRenderModel(
     val rows: List<TableRenderedRow>,
-    val columnCount: Int
+    val columnCount: Int,
+    val columnWeights: List<Float> = List(columnCount) { 1f },
 )
 
 internal data class TableRenderedRow(
@@ -400,17 +515,44 @@ internal data class TableRenderedCell(
  */
 internal fun RichTextBlock.Table.toRenderModel(): TableRenderModel {
     val builder = TableGridBuilder()
-    val orderedRows = buildList {
-        addAll(headerRows)
-        addAll(bodyRows)
-    }
-    val totalRows = orderedRows.size
-    val renderedRows = orderedRows.mapIndexed { index, row ->
+    val totalRows = rows.size
+    val renderedRows = rows.mapIndexed { index, row ->
         val remainingRows = totalRows - index
         builder.renderRow(row, remainingRows)
     }
-    val columnCount = maxOf(columnCount, builder.columnCount)
-    return TableRenderModel(rows = renderedRows, columnCount = columnCount)
+    val resolvedColumns = maxOf(columnCount, builder.columnCount)
+        .coerceAtMost(RichTextParserConfig.MAX_TABLE_COLUMNS)
+    val columnWeights = resolveTableColumnWeights(renderedRows, resolvedColumns)
+    return TableRenderModel(
+        rows = renderedRows,
+        columnCount = resolvedColumns,
+        columnWeights = columnWeights,
+    )
+}
+
+private fun resolveTableColumnWeights(
+    renderedRows: List<TableRenderedRow>,
+    columnCount: Int,
+): List<Float> {
+    if (columnCount <= 0) return emptyList()
+    val discoveredWidths = FloatArray(columnCount)
+    for (row in renderedRows) {
+        var col = 0
+        for (cell in row.cells) {
+            val span = cell.columnSpan.coerceAtLeast(1)
+            val width = cell.cell.width
+            if (cell.isVisible && span == 1 && width != null && width > 0f && col < columnCount && discoveredWidths[col] == 0f) {
+                discoveredWidths[col] = width
+            }
+            col += span
+        }
+    }
+    val allColumnsHaveExplicitWidth = discoveredWidths.all { it > 0f }
+    return if (allColumnsHaveExplicitWidth) {
+        discoveredWidths.toList()
+    } else {
+        List(columnCount) { 1f }
+    }
 }
 
 private class TableGridBuilder {
@@ -422,10 +564,12 @@ private class TableGridBuilder {
         val pendingCells = ArrayDeque(row.cells)
         val renderedCells = mutableListOf<TableRenderedCell>()
         var columnIndex = 0
-        // Safety limit to prevent infinite loops from malformed HTML
         val maxIterations = MAX_COLUMN_ITERATIONS
         var iterations = 0
-        while ((pendingCells.isNotEmpty() || hasAnchorsFrom(columnIndex)) && iterations < maxIterations) {
+        while ((pendingCells.isNotEmpty() || hasAnchorsFrom(columnIndex)) &&
+            columnIndex < RichTextParserConfig.MAX_TABLE_COLUMNS &&
+            iterations < maxIterations
+        ) {
             iterations++
             when (val occupancy = spanSlots.getOrNull(columnIndex)) {
                 is ColumnSpan.Anchor -> {
@@ -448,15 +592,22 @@ private class TableGridBuilder {
                     columnIndex += 1
                 }
                 null -> {
-                    val rawCell = if (pendingCells.isEmpty()) {
+                    if (pendingCells.isEmpty()) {
+                        renderedCells += TableRenderedCell(
+                            cell = RichTextTableCell(text = AnnotatedString("")),
+                            columnSpan = 1,
+                            rowSpan = 1,
+                            isVisible = false,
+                            isRowspanEnd = true
+                        )
                         columnIndex += 1
                         continue
-                    } else {
-                        pendingCells.removeFirst()
                     }
+                    val rawCell = pendingCells.removeFirst()
                     val effectiveRowSpan = rawCell.rowSpan.coerceIn(1, remainingRows.coerceAtLeast(1))
                     val cell = if (effectiveRowSpan != rawCell.rowSpan) rawCell.copy(rowSpan = effectiveRowSpan) else rawCell
-                    val spanWidth = cell.columnSpan.coerceAtLeast(1)
+                    val maxRemainingCols = (RichTextParserConfig.MAX_TABLE_COLUMNS - columnIndex).coerceAtLeast(1)
+                    val spanWidth = cell.columnSpan.coerceIn(1, maxRemainingCols)
                     ensureSlots(columnIndex + spanWidth)
                     renderedCells += TableRenderedCell(
                         cell = cell,
@@ -481,7 +632,7 @@ private class TableGridBuilder {
                 }
             }
         }
-        columnCount = max(columnCount, columnIndex)
+        columnCount = max(columnCount, columnIndex).coerceAtMost(RichTextParserConfig.MAX_TABLE_COLUMNS)
         return TableRenderedRow(
             cells = renderedCells,
             isHeaderRow = row.isHeader,
@@ -526,36 +677,27 @@ private class TableGridBuilder {
 }
 
 /**
- * Renders a single table row with proper styling based on header status, classes,
- * and zebra position. Headers use the neutral surface tier so that
- * `secondaryContainer`/`tertiaryContainer` remain visually distinct when used by
- * the "selected"/"wichtig" cell classes.
- *
- * @param row The rendered row data
- * @param tableClassNames Class names from the parent table element
- * @param visibleRowIndex 0-based index among visible body rows (for zebra striping)
- * @param onLinkClick Callback for link clicks
- * @param onTooltipClick Optional callback for tooltips
- * @param customCellContent Optional slot overriding how a visible cell is drawn
+ * Renders a single table row with proper styling based on header status and classes.
  */
 @Composable
 internal fun TableRowContent(
     row: TableRenderedRow,
     tableClassNames: Set<String>,
+    columnWeights: List<Float>,
+    showSelectedHighlight: Boolean = false,
     onLinkClick: (String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
     isRowspanOverlayEnabled: Boolean = false,
-    customCellContent: (@Composable (cell: TableRenderedCell, textStyle: TextStyle, cellIndex: Int) -> Unit)? = null
+    customCellContent: (@Composable (cell: TableRenderedCell, textStyle: TextStyle, textColor: Color, cellIndex: Int) -> Unit)? = null
 ) {
+    val totalColumnCount = columnWeights.size
     val effectiveRowClasses = row.classNames + tableClassNames
     val isAbstractRow = effectiveRowClasses.containsInsensitive("abstract")
-    val isRowspanContinuation = row.cells.any { !it.isVisible }
-    val baseBackground = when {
-        isRowspanContinuation -> Color.Transparent
-        row.isHeaderRow -> MaterialTheme.colorScheme.surfaceContainerHighest
-        isAbstractRow -> MaterialTheme.colorScheme.surfaceVariant
-        else -> MaterialTheme.colorScheme.surface
-    }
+    val baseBackground = resolveRowBaseBackground(row = row, tableClassNames = tableClassNames)
+    val weights = resolveRowCellWeights(row = row, columnWeights = columnWeights)
+    val rowSpanSum = row.cells.sumOf { it.columnSpan.coerceAtLeast(1) }
+    val trailingWeight = (rowSpanSum until totalColumnCount).sumOf { columnWeights[it].toDouble() }.toFloat()
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -564,18 +706,22 @@ internal fun TableRowContent(
         verticalAlignment = Alignment.CenterVertically
     ) {
         row.cells.forEachIndexed { cellIndex, cell ->
-            val weight = cell.cell.width ?: cell.columnSpan.coerceAtLeast(1).toFloat()
+            val weight = weights[cellIndex]
             if (!cell.isVisible || (isRowspanOverlayEnabled && cell.rowSpan > 1)) {
                 Spacer(modifier = Modifier.weight(weight))
             } else {
                 val isHeaderCell = row.isHeaderRow || cell.cell.isHeader
-                val textStyle = tableCellTextStyle(isHeaderCell)
+                val textStyle = tableCellTextStyle(isHeaderCell, cell.cell.classNames)
                 val textColor = resolveCellTextColor(
                     isHeaderCell = isHeaderCell,
                     isAbstractRow = isAbstractRow,
-                    cellClassNames = cell.cell.classNames
+                    cellClassNames = cell.cell.classNames,
+                    showSelectedHighlight = showSelectedHighlight,
                 )
-                val cellBackground = resolveCellBackgroundColor(cellClassNames = cell.cell.classNames)
+                val cellBackground = resolveCellBackgroundColor(
+                    cellClassNames = cell.cell.classNames,
+                    showSelectedHighlight = showSelectedHighlight,
+                )
                 Surface(
                     modifier = Modifier
                         .weight(weight)
@@ -595,7 +741,7 @@ internal fun TableRowContent(
                         }
                     ) {
                         if (customCellContent != null) {
-                            customCellContent(cell, textStyle, cellIndex)
+                            customCellContent(cell, textStyle, textColor, cellIndex)
                         } else {
                             InteractiveText(
                                 text = cell.cell.text,
@@ -612,6 +758,9 @@ internal fun TableRowContent(
                     }
                 }
             }
+        }
+        if (trailingWeight > 0f) {
+            Spacer(modifier = Modifier.weight(trailingWeight))
         }
     }
 }

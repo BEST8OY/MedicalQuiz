@@ -13,7 +13,7 @@ interface RoomTextHighlightDao {
         """
         SELECT * FROM text_highlights 
         WHERE db_name = :dbName AND question_id = :questionId AND section = :section 
-        ORDER BY start_offset
+        ORDER BY block_key, start_offset
         """
     )
     suspend fun getBySection(dbName: String, questionId: Long, section: String): List<TextHighlightEntity>
@@ -22,7 +22,7 @@ interface RoomTextHighlightDao {
         """
         SELECT * FROM text_highlights 
         WHERE db_name = :dbName AND question_id = :questionId 
-        ORDER BY section, start_offset
+        ORDER BY section, block_key, start_offset
         """
     )
     suspend fun getAllForQuestion(dbName: String, questionId: Long): List<TextHighlightEntity>

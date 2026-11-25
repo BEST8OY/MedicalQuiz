@@ -57,7 +57,7 @@ import com.medqb.app.shared.ui.components.ContentMaxWidth
 import com.medqb.app.shared.ui.components.EmptyStateMessage
 import com.medqb.app.shared.ui.components.ResponsiveContentContainer
 import com.medqb.app.shared.ui.dialogs.RenameDialog
-import com.medqb.app.shared.ui.richtext.setPlainText
+import com.medqb.app.shared.platform.setPlainText
 import com.medqb.app.shared.ui.theme.exitSpatialSpec
 import kotlinx.coroutines.launch
 

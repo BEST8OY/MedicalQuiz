@@ -8,12 +8,10 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalFoundationApi::class)
-actual fun Modifier.platformSelectionMagnifier(
+internal actual fun Modifier.platformSelectionMagnifier(
     sourceCenter: Density.() -> Offset,
-    magnifierCenter: (Density.() -> Offset)?,
 ): Modifier = this.magnifier(
     sourceCenter = sourceCenter,
-    magnifierCenter = magnifierCenter,
     zoom = 1.5f,
     cornerRadius = 24.dp,
 )

@@ -13,6 +13,7 @@ data class TextHighlight(
     val dbName: String,
     val questionId: Long,
     val section: HighlightSection,
+    val blockKey: String = "",
     val startOffset: Int,
     val endOffset: Int,
     val highlightedText: String, // Store the actual text for validation on re-parse

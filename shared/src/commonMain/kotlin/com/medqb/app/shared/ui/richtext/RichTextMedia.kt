@@ -7,8 +7,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,14 +52,22 @@ internal fun RichMedia(
     }
 
     val clickTarget = block.mediaRef ?: extractMediaRef(block.source) ?: block.source
+    val instanceToken = remember { Any() }
+    val sharedMediaCoordinator = LocalSharedMediaCoordinator.current
+    DisposableEffect(sharedMediaCoordinator, clickTarget, instanceToken) {
+        sharedMediaCoordinator.register(clickTarget, instanceToken)
+        onDispose {
+            sharedMediaCoordinator.unregister(clickTarget, instanceToken)
+        }
+    }
     val imageSizeModifier = remember(block.width) {
         val w = block.width?.takeIf { it > 0 }
         when {
             w != null -> Modifier
                 .widthIn(max = minOf(w, MaxEmbeddedImageWidth.value.toInt()).dp)
             else -> Modifier
-                .fillMaxWidth()
                 .widthIn(max = MaxEmbeddedImageWidth)
+                .fillMaxWidth()
         }
     }
 
@@ -75,7 +87,8 @@ internal fun RichMedia(
     val sharedElementModifier = if (
         sharedTransitionScope != null &&
         navAnimatedScope != null &&
-        activeKey == clickTarget
+        activeKey == clickTarget &&
+        sharedMediaCoordinator.isOwner(clickTarget, instanceToken)
     ) {
         with(sharedTransitionScope) {
             Modifier.sharedElement(
@@ -109,7 +122,10 @@ internal fun RichMedia(
                 .graphicsLayer { clip = zoomState.scale <= 1.001f }
                 .snapBackZoomable(
                     zoomState = zoomState,
-                    onTap = { onMediaClick(clickTarget) },
+                    onTap = {
+                        sharedMediaCoordinator.prefer(clickTarget, instanceToken)
+                        onMediaClick(clickTarget)
+                    },
                 ),
         )
         block.description?.let {
@@ -125,6 +141,47 @@ internal fun RichMedia(
         }
     }
 }
+
+@Stable
+internal class SharedMediaCoordinator {
+    private val registrations = mutableStateMapOf<String, List<Any>>()
+    private val preferred = mutableStateMapOf<String, Any>()
+
+    fun register(key: String, token: Any) {
+        val current = registrations[key].orEmpty()
+        if (current.none { it === token }) {
+            registrations[key] = current + token
+        }
+    }
+
+    fun unregister(key: String, token: Any) {
+        val current = registrations[key] ?: return
+        val updated = current.filterNot { it === token }
+        if (updated.isEmpty()) {
+            registrations.remove(key)
+        } else {
+            registrations[key] = updated
+        }
+        if (preferred[key] === token) {
+            preferred.remove(key)
+        }
+    }
+
+    fun prefer(key: String, token: Any) {
+        preferred[key] = token
+    }
+
+    fun isOwner(key: String, token: Any): Boolean {
+        val list = registrations[key].orEmpty()
+        val pref = preferred[key]
+        if (pref != null && list.any { it === pref }) {
+            return pref === token
+        }
+        return list.firstOrNull() === token
+    }
+}
+
+internal val LocalSharedMediaCoordinator = compositionLocalOf { SharedMediaCoordinator() }
 
 private val MaxEmbeddedImageWidth = 512.dp
 

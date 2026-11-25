@@ -3,6 +3,8 @@ package com.medqb.app.shared.ui.richtext.parser
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
+import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.ui.richtext.RichTextBlock
 import com.medqb.app.shared.ui.richtext.RichTextPalette
 import com.medqb.app.shared.ui.richtext.RichTextTableCell
@@ -79,9 +81,24 @@ private class RichTextHandler(
         }
     }
 
+    private companion object {
+        val STRUCTURAL_BOUNDARY_TAGS = setOf(
+            "table", "thead", "tbody", "tfoot", "tr", "td", "th", "ul", "ol", "li"
+        )
+    }
+
     override fun onCloseTag(name: String, isImplied: Boolean) {
-        if (currentElement?.tagName.equals(name, ignoreCase = true)) {
-            currentElement = currentElement?.parent
+        val isStructuralClose = name.lowercase() in STRUCTURAL_BOUNDARY_TAGS
+        var cursor = currentElement
+        while (cursor != null) {
+            if (cursor.tagName.equals(name, ignoreCase = true)) {
+                currentElement = cursor.parent
+                return
+            }
+            if (!isStructuralClose && cursor.tagName.lowercase() in STRUCTURAL_BOUNDARY_TAGS) {
+                return
+            }
+            cursor = cursor.parent
         }
     }
 
@@ -117,17 +134,19 @@ private class RichTextDomParser(
 
         fun flushInlineParagraph() {
             if (inlineNodes.isEmpty()) return
-            val builder = buildAnnotatedString {
-                appendNodes(inlineNodes, InlineStyle(), palette)
-            }
+            val nestedMedia = mutableListOf<RichTextBlock.Media>()
+            inlineNodes.forEach { collectNestedMedia(it, inheritedStyles.textAlign, nestedMedia) }
+            val builder = TrackedAnnotatedBuilder()
+            builder.appendNodes(inlineNodes, InlineStyle(), palette)
             inlineNodes.clear()
-            val trimmed = builder.trim()
+            val trimmed = builder.toAnnotatedString().trim()
             if (trimmed.text.isNotBlank()) {
                 blocks += RichTextBlock.Paragraph(
                     text = trimmed,
                     textAlign = inheritedStyles.textAlign ?: TextAlign.Start
                 )
             }
+            blocks += nestedMedia
         }
 
         nodes.forEach { node ->
@@ -161,34 +180,62 @@ private class RichTextDomParser(
                                 }
                             }
                         }
-                        "ul" -> {
+                        "ul", "ol" -> {
                             flushInlineParagraph()
-                            val items = node.children
-                                .mapNotNull { child ->
-                                    if (child is KsoupElement && child.tagName.equals("li", ignoreCase = true)) {
-                                        buildAnnotatedBlock(child)
-                                    } else null
+                            val isOrdered = tag == "ol"
+                            val start = if (isOrdered) node.attr("start").toIntOrNull() ?: 1 else 1
+                            val items = mutableListOf<AnnotatedString>()
+                            val listMedia = mutableListOf<RichTextBlock.Media>()
+
+                            node.children.forEach { child ->
+                                if (child !is KsoupElement) return@forEach
+                                when (child.tagName.lowercase()) {
+                                    "li" -> {
+                                        collectNestedMedia(child, currentTextAlign, listMedia)
+                                        buildAnnotatedBlock(child, initialListDepth = 1)?.let { items += it }
+                                    }
+                                    "ul", "ol" -> {
+                                        collectNestedMedia(child, currentTextAlign, listMedia)
+                                        val nestedBuilder = TrackedAnnotatedBuilder()
+                                        val baseStyle = InlineStyle().applyClassStyles(child.classNames(), palette, showSelectedHighlight)
+                                        nestedBuilder.appendNode(child, baseStyle, palette, listDepth = 1)
+                                        val builtNested = nestedBuilder.toAnnotatedString()
+                                        val startIdx = builtNested.text.indexOfFirst { it != '\n' }
+                                        val nestedText = if (startIdx == -1) {
+                                            AnnotatedString("")
+                                        } else {
+                                            builtNested.subSequence(startIdx, builtNested.length).trimEnd()
+                                        }
+                                        if (nestedText.text.isNotBlank()) {
+                                            if (items.isNotEmpty()) {
+                                                val last = items.removeAt(items.lastIndex)
+                                                items += buildAnnotatedString {
+                                                    append(last)
+                                                    append("\n")
+                                                    append(nestedText)
+                                                }
+                                            } else {
+                                                items += nestedText
+                                            }
+                                        }
+                                    }
                                 }
-                                .filter { it.text.isNotBlank() }
-                            if (items.isNotEmpty()) blocks += RichTextBlock.BulletList(items)
-                        }
-                        "ol" -> {
-                            flushInlineParagraph()
-                            val start = node.attr("start").toIntOrNull() ?: 1
-                            val items = node.children
-                                .mapNotNull { child ->
-                                    if (child is KsoupElement && child.tagName.equals("li", ignoreCase = true)) {
-                                        buildAnnotatedBlock(child)
-                                    } else null
+                            }
+
+                            if (items.isNotEmpty()) {
+                                blocks += if (isOrdered) {
+                                    RichTextBlock.OrderedList(items, start)
+                                } else {
+                                    RichTextBlock.BulletList(items)
                                 }
-                                .filter { it.text.isNotBlank() }
-                            if (items.isNotEmpty()) blocks += RichTextBlock.OrderedList(items, start)
+                            }
+                            blocks += listMedia
                         }
                         "hr" -> {
                             flushInlineParagraph()
                             blocks += RichTextBlock.Divider
                         }
-                        "pre", "code" -> {
+                        "pre" -> {
                             flushInlineParagraph()
                             val codeText = node.text().trim()
                             if (codeText.isNotEmpty()) blocks += RichTextBlock.CodeBlock(codeText)
@@ -236,11 +283,11 @@ private class RichTextDomParser(
 
         fun flushInlineParagraph() {
             if (inlineNodes.isEmpty()) return
-            val builder = buildAnnotatedString {
-                appendNodes(inlineNodes, paragraphBaseStyle, palette)
-            }
+            inlineNodes.forEach { collectNestedMediaElements(it, mediaElements) }
+            val builder = TrackedAnnotatedBuilder()
+            builder.appendNodes(inlineNodes, paragraphBaseStyle, palette)
             inlineNodes.clear()
-            val trimmed = builder.trim()
+            val trimmed = builder.toAnnotatedString().trim()
             if (trimmed.text.isNotBlank()) {
                 blocks += RichTextBlock.Paragraph(
                     text = trimmed,
@@ -269,23 +316,105 @@ private class RichTextDomParser(
         }
     }
 
+    private fun collectNestedMedia(
+        node: KsoupNode,
+        inheritedTextAlign: TextAlign?,
+        outBlocks: MutableList<RichTextBlock.Media>
+    ) {
+        if (node !is KsoupElement) return
+        if (node.tagName.equals("img", ignoreCase = true)) {
+            parseMediaElement(node, inheritedTextAlign)?.let(outBlocks::add)
+            return
+        }
+        val nextAlign = parseTextAlign(node) ?: inheritedTextAlign
+        node.children.forEach { child ->
+            collectNestedMedia(child, nextAlign, outBlocks)
+        }
+    }
+
+    private fun collectNestedMediaElements(
+        node: KsoupNode,
+        outElements: MutableList<KsoupElement>
+    ) {
+        if (node !is KsoupElement) return
+        if (node.tagName.equals("img", ignoreCase = true)) {
+            outElements.add(node)
+            return
+        }
+        node.children.forEach { child ->
+            collectNestedMediaElements(child, outElements)
+        }
+    }
+
     private fun KsoupElement.isBlockLikeChild(): Boolean {
         val tag = tagName.lowercase()
         return RichTextParserConfig.blockLevelChildTags.contains(tag)
     }
 
-    private fun buildAnnotatedBlock(element: KsoupElement): AnnotatedString? {
+    private fun buildAnnotatedBlock(
+        element: KsoupElement,
+        initialListDepth: Int = 0
+    ): AnnotatedString? {
         val baseStyle = InlineStyle().applyClassStyles(element.classNames(), palette, showSelectedHighlight)
-        val builder = buildAnnotatedString {
-            if (element.tagName.equals("a", ignoreCase = true)) {
-                appendNode(element, baseStyle, palette)
-            } else {
-                appendNodes(element.children, baseStyle, palette)
-            }
+        val builder = TrackedAnnotatedBuilder()
+        if (element.tagName.equals("a", ignoreCase = true)) {
+            builder.appendNode(element, baseStyle, palette, initialListDepth)
+        } else {
+            builder.appendNodes(element.children, baseStyle, palette, initialListDepth)
         }
         // Trim leading/trailing whitespace while preserving annotations
-        val trimmed = builder.trim()
+        val trimmed = builder.toAnnotatedString().trim()
         return trimmed.takeIf { it.text.isNotBlank() }
+    }
+
+    private class TrackedAnnotatedBuilder(
+        val builder: AnnotatedString.Builder = AnnotatedString.Builder()
+    ) {
+        var length: Int = 0
+            private set
+        var lastChar: Char? = null
+            private set
+
+        fun append(text: String) {
+            if (text.isEmpty()) return
+            builder.append(text)
+            length += text.length
+            lastChar = text[text.length - 1]
+        }
+
+        fun endsWithNewline(): Boolean = length > 0 && lastChar == '\n'
+
+        fun endsWithCollapsibleWhitespace(): Boolean =
+            length > 0 && (lastChar?.let { it.isWhitespace() && it != '\u00A0' } == true)
+
+        fun appendStyled(
+            text: String,
+            style: InlineStyle,
+            palette: RichTextPalette
+        ) {
+            if (text.isEmpty()) return
+            val displayText = if (style.preserveWhitespace) text.replace(' ', '\u00A0') else text
+            val spanStyle = style.toSpanStyle(palette)
+            if (style.link != null) {
+                builder.pushStringAnnotation(tag = "URL", annotation = style.link)
+            }
+            if (style.tooltip != null) {
+                builder.pushStringAnnotation(tag = "TOOLTIP", annotation = style.tooltip)
+            }
+            builder.withStyle(spanStyle) {
+                builder.append(displayText)
+            }
+            if (style.tooltip != null) {
+                builder.pop()
+            }
+            if (style.link != null) {
+                builder.pop()
+            }
+            length += displayText.length
+            lastChar = displayText[displayText.length - 1]
+        }
+
+        fun toAnnotatedString(): AnnotatedString = builder.toAnnotatedString()
     }
 
     /**
@@ -300,7 +429,15 @@ private class RichTextDomParser(
         return this.subSequence(start, end)
     }
 
-    private fun AnnotatedString.Builder.appendNodes(
+    private fun AnnotatedString.trimEnd(): AnnotatedString {
+        val text = this.text
+        val end = text.indexOfLast { !it.isWhitespaceCollapsible() } + 1
+        if (end <= 0) return AnnotatedString("")
+        if (end == text.length) return this
+        return this.subSequence(0, end)
+    }
+
+    private fun TrackedAnnotatedBuilder.appendNodes(
         nodes: List<KsoupNode>,
         style: InlineStyle,
         palette: RichTextPalette,
@@ -309,7 +446,7 @@ private class RichTextDomParser(
         nodes.forEach { node -> appendNode(node, style, palette, listDepth) }
     }
 
-    private fun AnnotatedString.Builder.appendNode(
+    private fun TrackedAnnotatedBuilder.appendNode(
         node: KsoupNode,
         style: InlineStyle,
         palette: RichTextPalette,
@@ -331,13 +468,8 @@ private class RichTextDomParser(
 
                 // Check if this is a block-level element
                 val isBlockTag = (tag == "p" || RichTextParserConfig.blockLevelChildTags.contains(tag)) && tag != "li"
-                if (isBlockTag) {
-                    val built = this.toAnnotatedString()
-                    val currentLength = built.length
-                    val endsWithNewline = currentLength > 0 && built[currentLength - 1] == '\n'
-                    if (currentLength > 0 && !endsWithNewline) {
-                        append("\n")
-                    }
+                if (isBlockTag && length > 0 && !endsWithNewline()) {
+                    append("\n")
                 }
 
                 // Calculate new list depth when entering/exiting list elements
@@ -348,30 +480,25 @@ private class RichTextDomParser(
 
                 if (tag == "li") {
                     val parent = node.parent
-                    val built = this.toAnnotatedString()
-                    val currentLength = built.length
-                    val endsWithNewline = currentLength > 0 && built[currentLength - 1] == '\n'
-                    val prefix = if (currentLength == 0 || endsWithNewline) "" else "\n"
-                    
+                    val prefix = if (length == 0 || endsWithNewline()) "" else "\n"
+
                     // Add indentation for nested lists (2 spaces per level beyond the first)
                     val indent = if (listDepth > 1) "  ".repeat(listDepth - 1) else ""
-                    
+
                     // Determine bullet style based on list type and depth
                     val bullet = if (parent != null && parent.tagName.equals("ol", ignoreCase = true)) {
-                        // For ordered lists, calculate the number within this list
                         val index = parent.children
                             .filter { it is KsoupElement && it.tagName.equals("li", ignoreCase = true) }
                             .indexOf(node)
                         "${index + 1}. "
                     } else {
-                        // For unordered lists, use different bullets based on depth
                         when (listDepth) {
                             1 -> "• "
                             2 -> "◦ "  // Circle bullet for nested
                             else -> "▪ "  // Square bullet for deeper nesting
                         }
                     }
-                    
+
                     append("$prefix$indent$bullet")
                 }
 
@@ -417,16 +544,20 @@ private class RichTextDomParser(
                     nextStyle = nextStyle.copy(tooltip = tooltip)
                 }
 
-                // Pass the updated list depth when processing children
-                appendNodes(node.children, nextStyle, palette, newListDepth)
-
-                if (isBlockTag) {
-                    val built = this.toAnnotatedString()
-                    val currentLength = built.length
-                    val endsWithNewline = currentLength > 0 && built[currentLength - 1] == '\n'
-                    if (currentLength > 0 && !endsWithNewline) {
-                        append("\n")
+                // Pass the updated list depth when processing children.
+                // Skip inter-item whitespace text nodes directly inside <ul>/<ol> so they
+                // don't produce phantom blank lines before nested <li> bullets.
+                val childrenToAppend = if (tag == "ul" || tag == "ol") {
+                    node.children.filter { child ->
+                        child !is KsoupTextNode || child.text.any { !it.isWhitespaceCollapsible() }
                     }
+                } else {
+                    node.children
+                }
+                appendNodes(childrenToAppend, nextStyle, palette, newListDepth)
+
+                if (isBlockTag && length > 0 && !endsWithNewline()) {
+                    append("\n")
                 }
             }
         }
@@ -436,7 +567,7 @@ private class RichTextDomParser(
         return this.isWhitespace() && this != '\u00A0'
     }
 
-    private fun AnnotatedString.Builder.appendCollapsedText(
+    private fun TrackedAnnotatedBuilder.appendCollapsedText(
         text: String,
         style: InlineStyle,
         palette: RichTextPalette
@@ -444,12 +575,11 @@ private class RichTextDomParser(
         if (text.isEmpty()) return
 
         if (style.preserveWhitespace) {
-            appendTextWithStyle(text, style, palette)
+            appendStyled(text, style, palette)
             return
         }
 
-        val currentString = this.toAnnotatedString()
-        var builderEndsWithWhitespace = currentString.isNotEmpty() && currentString[currentString.length - 1].isWhitespaceCollapsible()
+        var builderEndsWithWhitespace = endsWithCollapsibleWhitespace()
 
         val collapsed = StringBuilder()
         for (i in text.indices) {
@@ -467,7 +597,7 @@ private class RichTextDomParser(
 
         val collapsedStr = collapsed.toString()
         if (collapsedStr.isNotEmpty()) {
-            appendTextWithStyle(collapsedStr, style, palette)
+            appendStyled(collapsedStr, style, palette)
         }
     }
 
@@ -515,8 +645,9 @@ private class RichTextDomParser(
             }
         }
 
-        val headerRows = mutableListOf<RichTextTableRow>()
+        val theadRows = mutableListOf<RichTextTableRow>()
         val bodyRows = mutableListOf<RichTextTableRow>()
+        val activeRowspans = mutableListOf<Int>()
 
         allRows.forEachIndexed { index, tr ->
             var isHeaderContext = false
@@ -530,18 +661,34 @@ private class RichTextDomParser(
             }
 
             val parsedRow = parseTableRow(tr, element, isHeaderContext, index == 0)
-            if (parsedRow.cells.isNotEmpty() && parsedRow.cells.all { it.text.text.isBlank() }) {
-                // Skip empty spacer rows
+            val isAllBlank = parsedRow.cells.isNotEmpty() && parsedRow.cells.all { it.text.text.isBlank() }
+            val hasActiveRowspanFromAbove = activeRowspans.any { it > 0 }
+            val startsRowspan = parsedRow.cells.any { it.rowSpan > 1 }
+            if (isAllBlank && !hasActiveRowspanFromAbove && !startsRowspan) {
+                // Skip empty spacer rows only when no active rowspan crosses them
                 return@forEachIndexed
             }
-            if (parsedRow.isHeader) {
-                headerRows.add(parsedRow)
+
+            for (i in activeRowspans.indices) {
+                activeRowspans[i] = activeRowspans[i] - 1
+            }
+            activeRowspans.removeAll { it <= 0 }
+            parsedRow.cells.forEach { cell ->
+                if (cell.rowSpan > 1) {
+                    activeRowspans.add(cell.rowSpan - 1)
+                }
+            }
+
+            if (isHeaderContext) {
+                theadRows.add(parsedRow)
             } else {
                 bodyRows.add(parsedRow)
             }
         }
 
-        var columnCount = (headerRows + bodyRows)
+        val orderedRows = theadRows + bodyRows
+
+        var columnCount = orderedRows
             .maxOfOrNull { row ->
                 row.cells.sumOf { cell -> cell.columnSpan.coerceAtLeast(1) }
             } ?: 0
@@ -555,8 +702,7 @@ private class RichTextDomParser(
         }
 
         return RichTextBlock.Table(
-            headerRows = headerRows,
-            bodyRows = bodyRows,
+            rows = orderedRows,
             columnCount = columnCount,
             classNames = element.classNames()
         )
@@ -755,12 +901,6 @@ private class RichTextDomParser(
         RichTextParserConfig.headerRowAttributeNames.forEach { attrName ->
             val value = attr(attrName)
             if (value.isBlank()) return@forEach
-            if (attrName.equals("scope", true)) {
-                if (value.equals("col", true) || value.equals("colgroup", true) ||
-                    value.equals("row", true) || value.equals("rowgroup", true)) {
-                    return true
-                }
-            }
             val normalizedValue = value.trim()
             val attrImpliesHeader = attrName.contains("header", true) ||
                 attrName.contains("title", true) ||
@@ -791,10 +931,6 @@ private class RichTextDomParser(
         val description = element.attr("alt").takeIf { it.isNotBlank() }
             ?: element.attr("title").takeIf { it.isNotBlank() }
         val width = CssParser.parseWidth(element.attr("width"), element.attr("style"))?.toInt()
-        val height = CssParser.parseDimension(
-            element.attr("height").takeIf { it.isNotBlank() }
-                ?: CssParser.extractValue(element.attr("style"), "height").orEmpty()
-        )?.toInt()
         val alignment = when (element.attr("align").lowercase()) {
             "center" -> TextAlign.Center
             "right" -> TextAlign.End
@@ -807,9 +943,7 @@ private class RichTextDomParser(
             mediaRef = mediaRef,
             description = description,
             width = width,
-            height = height,
-            alignment = alignment,
-            classNames = element.classNames()
+            alignment = alignment
         )
     }
 }
@@ -822,7 +956,7 @@ internal object RichTextParserLogger {
 
     fun log(message: String) {
         if (isEnabled) {
-            println("RichTextParser: $message")
+            Logger.d("RichTextParser", message)
         }
     }
 }

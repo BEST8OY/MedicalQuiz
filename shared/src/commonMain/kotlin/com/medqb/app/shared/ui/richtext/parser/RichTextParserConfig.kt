@@ -23,20 +23,15 @@ internal object RichTextParserConfig {
     val headerRowClassMarkers = normalizedMarkers(
         "header",
         "table-header",
-        "table_header",
-        "tableheader",
         "table-header-row",
-        "tableheaderrow",
         "thead",
-        "tablehead",
+        "table-head",
         "column-header-row",
-        "columnheaderrow",
         "ueberschrift",
         "titelzeile",
         "section-header",
         "subheader",
-        "table-heading",
-        "tableheading"
+        "table-heading"
     )
 
     /**
@@ -44,15 +39,10 @@ internal object RichTextParserConfig {
      */
     val titleRowClassMarkers = normalizedMarkers(
         "table-title",
-        "tabletitle",
         "table-caption",
-        "tablecaption",
         "caption-row",
-        "captionrow",
         "legend-row",
-        "legendrow",
-        "data-table-title",
-        "datatabletitle"
+        "data-table-title"
     )
 
     /**
@@ -61,35 +51,13 @@ internal object RichTextParserConfig {
     val headerCellClassMarkers = normalizedMarkers(
         "header",
         "table-header",
-        "tableheader",
         "column-header",
-        "columnheader",
         "row-header",
-        "rowheader",
         "table-head",
-        "tablehead",
         "col-header",
-        "colheader",
         "ueberschrift",
         "title-cell",
-        "titlecell",
-        "label-cell",
-        "labelcell"
-    )
-
-    /**
-     * CSS class name markers for bold text.
-     */
-    val boldClassMarkers = normalizedMarkers(
-        "bold",
-        "text-bold",
-        "fw-bold",
-        "fwbold",
-        "font-weight-bold",
-        "fontweightbold",
-        "strong",
-        "important",
-        "wichtig"
+        "label-cell"
     )
 
     /**
@@ -102,7 +70,7 @@ internal object RichTextParserConfig {
         "centered",
         "centre-text",
         "ta-center",
-        "tacentre",
+        "ta-centre",
         "center-text"
     )
 
@@ -115,9 +83,7 @@ internal object RichTextParserConfig {
         "align-right",
         "align-end",
         "ta-right",
-        "taright",
-        "text-right-align",
-        "textright"
+        "text-right-align"
     )
 
     /**

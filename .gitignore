@@ -17,8 +17,9 @@ out/
 release/
 .agents/
 
-# Gradle files
+# Gradle / Kotlin files
 .gradle/
+.kotlin/
 build/
 
 # Local configuration file (sdk path, etc)

@@ -54,6 +54,7 @@ class DefaultTextHighlightsRepository(
         dbName: String,
         questionId: Long,
         section: HighlightSection,
+        blockKey: String,
         startOffset: Int,
         endOffset: Int,
         highlightedText: String,
@@ -69,8 +70,10 @@ class DefaultTextHighlightsRepository(
 
         mutationMutex.withLock {
             val allHighlights = getAllHighlights(canonicalDbName, questionId)
-            val sectionHighlights = allHighlights.filter { it.section == section }
-            val overlappingHighlights = sectionHighlights.filter {
+            val blockHighlights = allHighlights.filter {
+                it.section == section && it.blockKey == blockKey
+            }
+            val overlappingHighlights = blockHighlights.filter {
                 it.overlaps(normalizedStart, normalizedEnd)
             }
 
@@ -106,6 +109,7 @@ class DefaultTextHighlightsRepository(
                 dbName = canonicalDbName,
                 questionId = questionId,
                 section = section.name,
+                blockKey = blockKey,
                 startOffset = mergedStart,
                 endOffset = mergedEnd,
                 highlightedText = mergedHighlightedText,

@@ -44,9 +44,6 @@ internal class KsoupElement(
         } ?: emptySet()
     }
 
-    /** Cache for ancestor class lookups. */
-    private val ancestorClassCache = mutableMapOf<KsoupElement?, Set<String>>()
-
     /**
      * Gets an attribute value by name.
      *
@@ -95,14 +92,12 @@ internal class KsoupElement(
      * @return Set of all ancestor class names
      */
     fun ancestorClasses(stopAt: KsoupElement?): Set<String> {
-        return ancestorClassCache.getOrPut(stopAt) {
-            val classes = LinkedHashSet<String>()
-            var cursor = parent
-            while (cursor != null && cursor != stopAt) {
-                cursor.classNames().forEach { if (it.isNotBlank()) classes += it }
-                cursor = cursor.parent
-            }
-            classes
+        val classes = LinkedHashSet<String>()
+        var cursor = parent
+        while (cursor != null && cursor != stopAt) {
+            cursor.classNames().forEach { if (it.isNotBlank()) classes += it }
+            cursor = cursor.parent
         }
+        return classes
     }
 }

@@ -194,6 +194,7 @@ class QuizViewModel(
      */
     fun addHighlight(
         section: HighlightSection,
+        blockKey: String,
         startOffset: Int,
         endOffset: Int,
         highlightedText: String,
@@ -204,6 +205,7 @@ class QuizViewModel(
                 dbName = dbName,
                 questionId = questionId,
                 section = section,
+                blockKey = blockKey,
                 startOffset = startOffset,
                 endOffset = endOffset,
                 highlightedText = highlightedText,

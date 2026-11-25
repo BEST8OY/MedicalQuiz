@@ -36,6 +36,9 @@ fun HtmlViewerEntry(
         },
         onLinkClick = rememberDropUnlessResumed { url ->
             mediaHandler.handleMediaLink(url)
-        }
+        },
+        onMediaClick = rememberDropUnlessResumed { ref ->
+            mediaHandler.handleMediaLink(ref)
+        },
     )
 }

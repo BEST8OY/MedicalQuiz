@@ -29,20 +29,43 @@ internal fun Set<String>.containsAnyInsensitive(targets: Set<String>): Boolean {
  */
 internal fun Set<String>.matchesAnyMarker(markers: Set<String>): Boolean {
     if (isEmpty() || markers.isEmpty()) return false
-    return any { candidate -> markers.contains(normalizeMarker(candidate)) }
+    return any { candidate -> markers.containsNormalized(candidate) }
+}
+
+private fun Set<String>.containsNormalized(candidate: String): Boolean {
+    if (candidate.isEmpty()) return contains("")
+    var needsNormalization = false
+    for (i in candidate.indices) {
+        val c = candidate[i]
+        if (c.isWhitespace() || c == '-' || c == '_' || c in 'A'..'Z') {
+            needsNormalization = true
+            break
+        }
+    }
+    return if (!needsNormalization) {
+        contains(candidate)
+    } else {
+        contains(normalizeMarker(candidate))
+    }
 }
 
 /**
  * Normalizes a class marker by removing whitespace, hyphens, and underscores,
  * then converting to lowercase.
- * 
+ *
  * @param value The raw class marker string
  * @return Normalized marker string
  */
 internal fun normalizeMarker(value: String): String {
     if (value.isEmpty()) return value
-    return value.filter { !it.isWhitespace() && it != '-' && it != '_' }
-        .lowercase()
+    val sb = StringBuilder(value.length)
+    for (i in value.indices) {
+        val c = value[i]
+        if (!c.isWhitespace() && c != '-' && c != '_') {
+            sb.append(c.lowercaseChar())
+        }
+    }
+    return sb.toString()
 }
 
 /**

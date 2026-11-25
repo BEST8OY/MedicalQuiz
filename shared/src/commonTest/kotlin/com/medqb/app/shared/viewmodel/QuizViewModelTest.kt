@@ -249,10 +249,11 @@ class QuizViewModelTest {
         provider.installInto(holder)
         advanceUntilIdle()
 
-        viewModel.addHighlight(HighlightSection.QUESTION, startOffset = 0, endOffset = 4, highlightedText = "<p>", color = HighlightColor.GREEN)
+        viewModel.addHighlight(HighlightSection.QUESTION, blockKey = "p:0", startOffset = 0, endOffset = 4, highlightedText = "<p>", color = HighlightColor.GREEN)
         advanceUntilIdle()
 
         val added = viewModel.state.value.questionHighlights.single()
+        assertEquals("p:0", added.blockKey)
         assertEquals(0, added.startOffset)
         assertEquals(4, added.endOffset)
         assertEquals(HighlightColor.GREEN, added.color)
@@ -278,7 +279,7 @@ class QuizViewModelTest {
         // Park an add for q1 on a gate — the write is in flight.
         val gate = CompletableDeferred<Unit>()
         highlights.addGate = gate
-        viewModel.addHighlight(HighlightSection.QUESTION, 0, 2, "Q1", HighlightColor.GREEN)
+        viewModel.addHighlight(HighlightSection.QUESTION, "p:0", 0, 2, "Q1", HighlightColor.GREEN)
         runCurrent()
 
         // Navigate to q2 while the write is still parked.
@@ -880,8 +881,8 @@ class QuizViewModelTest {
         val highlights = FakeTextHighlightsRepository().apply {
             seedHighlights(
                 "bank1", 1L, listOf(
-                    TextHighlight(1, "bank1", 1L, HighlightSection.QUESTION, 0, 5, "Hello", HighlightColor.YELLOW, 0),
-                    TextHighlight(2, "bank1", 1L, HighlightSection.EXPLANATION, 0, 4, "Expl", HighlightColor.GREEN, 0)
+                    TextHighlight(1, "bank1", 1L, HighlightSection.QUESTION, "p:0", 0, 5, "Hello", HighlightColor.YELLOW, 0),
+                    TextHighlight(2, "bank1", 1L, HighlightSection.EXPLANATION, "p:0", 0, 4, "Expl", HighlightColor.GREEN, 0)
                 )
             )
         }

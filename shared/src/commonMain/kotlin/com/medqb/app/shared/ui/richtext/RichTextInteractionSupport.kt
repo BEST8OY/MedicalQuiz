@@ -3,7 +3,6 @@ package com.medqb.app.shared.ui.richtext
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.ui.dialogs.components.MedQBModalBottomSheet
 
 internal data class RichTextTooltipSupport(
@@ -43,9 +43,7 @@ internal fun rememberResolvedLinkHandler(
             try {
                 uriHandler.openUri(url)
             } catch (e: Exception) {
-                println("$sourceTag: Failed to open URL '$url': ${e.message}")
-            } catch (e: Error) {
-                println("$sourceTag: Critical error opening URL '$url': ${e.message}")
+                Logger.w(sourceTag, "Failed to open URL '$url'", e)
             }
         }
     }
@@ -86,6 +84,7 @@ internal fun RichTextTooltipBottomSheet(
     onDismissRequest: () -> Unit
 ) {
     content?.let {
+        val proseScale = LocalRichTextScale.current.proseScale
         MedQBModalBottomSheet(
             onDismissRequest = onDismissRequest,
         ) {
@@ -93,17 +92,16 @@ internal fun RichTextTooltipBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp, vertical = 12.dp)
-                    .navigationBarsPadding(),
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = it.title,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium.scaledBy(proseScale)
                 )
                 Text(
                     text = it.message,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium.scaledBy(proseScale),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

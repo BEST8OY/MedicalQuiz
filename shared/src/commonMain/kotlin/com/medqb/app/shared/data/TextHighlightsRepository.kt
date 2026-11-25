@@ -18,13 +18,15 @@ interface TextHighlightsRepository {
     suspend fun getHighlightsForQuestion(dbName: String, questionId: Long): List<TextHighlight>
 
     /**
-     * Adds [highlightedText] as a highlight, merging any strictly-overlapping highlights
-     * in [section]. Returns the refreshed full highlight list for the question.
+     * Adds [highlightedText] within [blockKey] as a highlight, merging any strictly-overlapping
+     * highlights in the same `(section, blockKey)`. Returns the refreshed full highlight list for
+     * the question.
      */
     suspend fun addHighlight(
         dbName: String,
         questionId: Long,
         section: HighlightSection,
+        blockKey: String,
         startOffset: Int,
         endOffset: Int,
         highlightedText: String,
