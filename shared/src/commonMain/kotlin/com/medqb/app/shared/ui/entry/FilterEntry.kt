@@ -9,7 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.compose.dropUnlessResumed
+import androidx.lifecycle.compose.dropUnlessStarted
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.medqb.app.shared.data.QuizSessionRepository
@@ -18,7 +18,7 @@ import com.medqb.app.shared.di.AppGraph
 import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.navigation.MedQBRoutes
 import com.medqb.app.shared.orchestration.AppWorkflowHandle
-import com.medqb.app.shared.platform.rememberDropUnlessResumed
+import com.medqb.app.shared.platform.rememberDropUnlessStarted
 import com.medqb.app.shared.ui.screens.filter.FilterHubScreen
 
 @Composable
@@ -35,22 +35,28 @@ fun FilterEntry(
     val lifecycleOwner = LocalLifecycleOwner.current
     var hasNavigated by remember { mutableStateOf(false) }
 
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+    LifecycleEventEffect(Lifecycle.Event.ON_START) {
         hasNavigated = false
     }
 
-    val onStartQuiz = dropUnlessResumed {
-        snackbarHostState.currentSnackbarData?.dismiss()
-        navigator.navigateTo(MedQBRoutes.Quiz())
+    val onStartQuiz = dropUnlessStarted {
+        if (navigator.currentRoute == MedQBRoutes.Filter) {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            navigator.navigateTo(MedQBRoutes.Quiz())
+        }
     }
 
-    val onHistorySelected = rememberDropUnlessResumed<QuizSessionRepository.QuizSession> { entry ->
-        if (filterVM.isRestoringHistory.value || hasNavigated) return@rememberDropUnlessResumed
+    val onHistorySelected = rememberDropUnlessStarted<QuizSessionRepository.QuizSession> { entry ->
+        if (filterVM.isRestoringHistory.value || hasNavigated || navigator.currentRoute != MedQBRoutes.Filter) {
+            return@rememberDropUnlessStarted
+        }
         snackbarHostState.currentSnackbarData?.dismiss()
         filterVM.restoreHistoryEntry(
             entry = entry,
             onSuccess = { matchingDatabase ->
-                if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) ||
+                    navigator.currentRoute != MedQBRoutes.Filter
+                ) {
                     return@restoreHistoryEntry
                 }
                 try {

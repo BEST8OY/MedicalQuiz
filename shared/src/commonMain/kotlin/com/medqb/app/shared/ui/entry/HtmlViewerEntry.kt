@@ -3,12 +3,12 @@ package com.medqb.app.shared.ui.entry
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.dropUnlessResumed
+import androidx.lifecycle.compose.dropUnlessStarted
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.medqb.app.shared.di.AppGraph
 import com.medqb.app.shared.navigation.AppNavigator
 import com.medqb.app.shared.navigation.MedQBRoutes
-import com.medqb.app.shared.platform.rememberDropUnlessResumed
+import com.medqb.app.shared.platform.rememberDropUnlessStarted
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.screens.media.HtmlViewerScreen
 
@@ -31,14 +31,18 @@ fun HtmlViewerEntry(
         fileExists = htmlDocument?.fileExists ?: true,
         isLoading = htmlDocument == null,
         richTextScale = richTextScale,
-        onBack = dropUnlessResumed {
-            navigator.navigateBack()
+        onBack = dropUnlessStarted {
+            navigator.popIfCurrent(key)
         },
-        onLinkClick = rememberDropUnlessResumed { url ->
-            mediaHandler.handleMediaLink(url)
+        onLinkClick = rememberDropUnlessStarted { url ->
+            if (navigator.currentRoute == key) {
+                mediaHandler.handleMediaLink(url)
+            }
         },
-        onMediaClick = rememberDropUnlessResumed { ref ->
-            mediaHandler.handleMediaLink(ref)
+        onMediaClick = rememberDropUnlessStarted { ref ->
+            if (navigator.currentRoute == key) {
+                mediaHandler.handleMediaLink(ref)
+            }
         },
     )
 }

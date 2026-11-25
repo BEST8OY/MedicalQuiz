@@ -29,10 +29,27 @@ class AppNavigator(
         }
     }
 
+    /**
+     * Navigates to [destination] only if [expectedCurrent] is currently at the top of the stack.
+     */
+    fun navigateIfCurrent(expectedCurrent: MedQBRoutes, destination: MedQBRoutes): Boolean {
+        if (currentRoute != expectedCurrent || currentRoute == destination) return false
+        navigateTo(destination)
+        return true
+    }
+
     fun navigateBack(): Boolean {
         if (!canNavigateBack) return false
         backStack.removeLastOrNull()
         return true
+    }
+
+    /**
+     * Pops the top entry only if [expectedCurrent] is currently at the top of the stack.
+     */
+    fun popIfCurrent(expectedCurrent: MedQBRoutes): Boolean {
+        if (currentRoute != expectedCurrent) return false
+        return navigateBack()
     }
 
     /**

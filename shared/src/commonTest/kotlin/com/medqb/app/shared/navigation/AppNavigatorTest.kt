@@ -160,6 +160,39 @@ class AppNavigatorTest {
     }
 
     @Test
+    fun testNavigateIfCurrentPreventsStaleAndDuplicatePushes() {
+        val stack = mutableListOf<NavKey>(MedQBRoutes.DatabaseSelection)
+        val navigator = AppNavigator(stack)
+
+        assertTrue(navigator.navigateIfCurrent(MedQBRoutes.DatabaseSelection, MedQBRoutes.Filter))
+        assertEquals(listOf<NavKey>(MedQBRoutes.DatabaseSelection, MedQBRoutes.Filter), stack)
+
+        // Second tap from DatabaseSelection after Filter is already pushed must be dropped
+        assertFalse(navigator.navigateIfCurrent(MedQBRoutes.DatabaseSelection, MedQBRoutes.Settings))
+        assertEquals(listOf<NavKey>(MedQBRoutes.DatabaseSelection, MedQBRoutes.Filter), stack)
+    }
+
+    @Test
+    fun testPopIfCurrentPreventsDoublePopsAndBackgroundPops() {
+        val quizRoute = MedQBRoutes.Quiz(sessionId = "s1")
+        val stack = mutableListOf<NavKey>(
+            MedQBRoutes.DatabaseSelection,
+            MedQBRoutes.Filter,
+            quizRoute,
+        )
+        val navigator = AppNavigator(stack)
+
+        // Covered route cannot pop while Quiz is on top
+        assertFalse(navigator.popIfCurrent(MedQBRoutes.Filter))
+        assertEquals(3, stack.size)
+
+        // First pop from Quiz succeeds; second rapid pop from Quiz is ignored
+        assertTrue(navigator.popIfCurrent(quizRoute))
+        assertFalse(navigator.popIfCurrent(quizRoute))
+        assertEquals(listOf<NavKey>(MedQBRoutes.DatabaseSelection, MedQBRoutes.Filter), stack)
+    }
+
+    @Test
     fun testRoutesPolymorphicSerialization() {
         val json = Json {
             serializersModule = medQBSerializersModule
