@@ -2,6 +2,7 @@ package com.medqb.app.shared.ui.richtext
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,10 +22,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -402,11 +405,11 @@ class HighlightToolbarUiTest {
 
     @Test
     fun dismissingMidHandleDragDoesNotResurrectSelection() = runComposeUiTest {
-        lateinit var coordinator: RichTextSelectionCoordinator
+        lateinit var hostState: RichTextHighlightHostState
         setContent {
             AppTheme {
-                coordinator = remember { RichTextSelectionCoordinator() }
-                CompositionLocalProvider(LocalRichTextSelectionCoordinator provides coordinator) {
+                hostState = rememberRichTextHighlightHostState()
+                RichTextHighlightHost(state = hostState) {
                     Box(modifier = Modifier.requiredSize(400.dp, 400.dp).padding(top = 120.dp)) {
                         RichText(
                             html = "<p>Acute hyponatremia causes confusion</p>",
@@ -444,7 +447,7 @@ class HighlightToolbarUiTest {
         waitForIdle()
         onNodeWithText("Copy").assertDoesNotExist()
 
-        runOnIdle { coordinator.dismissAll() }
+        runOnIdle { hostState.dismiss() }
         waitForIdle()
         onNodeWithText("Copy").assertDoesNotExist()
         onNodeWithTag("selection_handle_start").assertDoesNotExist()
@@ -454,16 +457,17 @@ class HighlightToolbarUiTest {
     fun scrollAndOuterTapDismissToolbarAndHandles() = runComposeUiTest {
         setContent {
             AppTheme {
-                val coordinator = remember { RichTextSelectionCoordinator() }
+                val hostState = rememberRichTextHighlightHostState()
                 val scrollState = rememberScrollState()
                 LaunchedEffect(scrollState.isScrollInProgress) {
-                    if (scrollState.isScrollInProgress) coordinator.dismissAll()
+                    if (scrollState.isScrollInProgress) hostState.dismiss()
                 }
-                CompositionLocalProvider(LocalRichTextSelectionCoordinator provides coordinator) {
+                RichTextHighlightHost(
+                    state = hostState,
+                    modifier = Modifier.requiredSize(400.dp, 400.dp),
+                ) {
                     Column(
                         modifier = Modifier
-                            .requiredSize(400.dp, 400.dp)
-                            .dismissSelectionOnTap(coordinator)
                             .verticalScroll(scrollState)
                             .padding(top = 120.dp, bottom = 300.dp)
                     ) {
@@ -616,5 +620,352 @@ class HighlightToolbarUiTest {
         onNodeWithContentDescription("Delete highlight").performClick()
         waitForIdle()
         assertEquals(42L, deletedId)
+    }
+
+    @Test
+    fun tappingHighlightTwiceThenAnotherParagraphNeverDrawsTwoToolbarsAndDismissesOutside() = runComposeUiTest {
+        val h1 = TextHighlight(
+            id = 1L, dbName = "db", questionId = 1L, section = HighlightSection.QUESTION,
+            blockKey = "p:0", startOffset = 0, endOffset = 5,
+            highlightedText = "Alpha", color = HighlightColor.YELLOW, createdAt = 1L,
+        )
+        val h2 = TextHighlight(
+            id = 2L, dbName = "db", questionId = 1L, section = HighlightSection.QUESTION,
+            blockKey = "p:1", startOffset = 0, endOffset = 5,
+            highlightedText = "Gamma", color = HighlightColor.BLUE, createdAt = 2L,
+        )
+
+        setContent {
+            AppTheme {
+                val hostState = rememberRichTextHighlightHostState()
+                RichTextHighlightHost(
+                    state = hostState,
+                    modifier = Modifier.requiredSize(500.dp, 600.dp),
+                ) {
+                    Column(modifier = Modifier.padding(top = 180.dp)) {
+                        RichText(
+                            html = "<p>Alpha beta</p><p>Gamma delta</p>",
+                            highlightConfig = RichTextHighlightConfig(
+                                section = HighlightSection.QUESTION,
+                                highlights = listOf(h1, h2),
+                                onHighlightAdd = { _, _, _, _, _, _ -> },
+                                onHighlightRemove = {},
+                                onHighlightColorChange = { _, _ -> },
+                            ),
+                        )
+                        Box(modifier = Modifier.fillMaxWidth().height(80.dp).testTag("outside_area"))
+                    }
+                }
+            }
+        }
+
+        val p1 = onNodeWithText("Alpha beta").assertIsDisplayed()
+        val p1Layouts = mutableListOf<TextLayoutResult>()
+        p1.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(p1Layouts)
+        val h1Box = p1Layouts.first().getBoundingBox(2)
+
+        val p2 = onNodeWithText("Gamma delta").assertIsDisplayed()
+        val p2Layouts = mutableListOf<TextLayoutResult>()
+        p2.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(p2Layouts)
+        val h2Box = p2Layouts.first().getBoundingBox(2)
+
+        // Tap highlight 1 twice
+        p1.performTouchInput { click(Offset(h1Box.left + 2f, (h1Box.top + h1Box.bottom) / 2f)) }
+        waitForIdle()
+        p1.performTouchInput { click(Offset(h1Box.left + 2f, (h1Box.top + h1Box.bottom) / 2f)) }
+        waitForIdle()
+
+        onAllNodesWithContentDescription("Delete highlight").assertCountEquals(1)
+
+        // Tap highlight 2 in second paragraph -> must replace toolbar, never show 2
+        p2.performTouchInput { click(Offset(h2Box.left + 2f, (h2Box.top + h2Box.bottom) / 2f)) }
+        waitForIdle()
+        onAllNodesWithContentDescription("Delete highlight").assertCountEquals(1)
+        onNodeWithContentDescription("Blue highlight, selected, tap to remove").assertIsDisplayed()
+
+        // Tapping outside dismisses the single toolbar cleanly
+        onNodeWithTag("outside_area").performTouchInput { click() }
+        waitForIdle()
+        onAllNodesWithContentDescription("Delete highlight").assertCountEquals(0)
+    }
+
+    @Test
+    fun selectingTextThenTappingHighlightDismissesOutsideAndNeverAccumulatesToolbars() = runComposeUiTest {
+        val h1 = TextHighlight(
+            id = 1L, dbName = "db", questionId = 1L, section = HighlightSection.QUESTION,
+            blockKey = "p:0", startOffset = 0, endOffset = 5,
+            highlightedText = "Alpha", color = HighlightColor.YELLOW, createdAt = 1L,
+        )
+        val h2 = TextHighlight(
+            id = 2L, dbName = "db", questionId = 1L, section = HighlightSection.QUESTION,
+            blockKey = "p:1", startOffset = 0, endOffset = 5,
+            highlightedText = "Gamma", color = HighlightColor.PINK, createdAt = 2L,
+        )
+
+        setContent {
+            AppTheme {
+                val hostState = rememberRichTextHighlightHostState()
+                RichTextHighlightHost(
+                    state = hostState,
+                    modifier = Modifier.requiredSize(500.dp, 600.dp),
+                ) {
+                    Column(modifier = Modifier.padding(top = 180.dp)) {
+                        RichText(
+                            html = "<p>Alpha plainword</p><p>Gamma delta</p>",
+                            highlightConfig = RichTextHighlightConfig(
+                                section = HighlightSection.QUESTION,
+                                highlights = listOf(h1, h2),
+                                onHighlightAdd = { _, _, _, _, _, _ -> },
+                                onHighlightRemove = {},
+                                onHighlightColorChange = { _, _ -> },
+                            ),
+                        )
+                        Box(modifier = Modifier.fillMaxWidth().height(80.dp).testTag("outside_area"))
+                    }
+                }
+            }
+        }
+
+        val p1 = onNodeWithText("Alpha plainword").assertIsDisplayed()
+        val p1Layouts = mutableListOf<TextLayoutResult>()
+        p1.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(p1Layouts)
+        val plainBox = p1Layouts.first().getBoundingBox(8)
+        val h1Box = p1Layouts.first().getBoundingBox(2)
+
+        val p2 = onNodeWithText("Gamma delta").assertIsDisplayed()
+        val p2Layouts = mutableListOf<TextLayoutResult>()
+        p2.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(p2Layouts)
+        val h2Box = p2Layouts.first().getBoundingBox(2)
+
+        // 1. Long-press to select text -> Create toolbar appears
+        p1.performTouchInput { longClick(Offset(plainBox.left + 2f, (plainBox.top + plainBox.bottom) / 2f)) }
+        waitForIdle()
+        onNodeWithText("Copy").assertIsDisplayed()
+
+        // 2. Tap highlighted text in same paragraph -> switches to Edit toolbar (no handles, still 1 toolbar)
+        p1.performTouchInput { click(Offset(h1Box.left + 2f, (h1Box.top + h1Box.bottom) / 2f)) }
+        waitForIdle()
+        onNodeWithTag("selection_handle_start").assertDoesNotExist()
+        onAllNodesWithContentDescription("Delete highlight").assertCountEquals(1)
+
+        // 3. Tap another highlight in paragraph 2 -> replaces toolbar, still only 1 toolbar
+        p2.performTouchInput { click(Offset(h2Box.left + 2f, (h2Box.top + h2Box.bottom) / 2f)) }
+        waitForIdle()
+        onAllNodesWithContentDescription("Delete highlight").assertCountEquals(1)
+        onNodeWithContentDescription("Pink highlight, selected, tap to remove").assertIsDisplayed()
+
+        // 4. Tap outside -> dismisses completely
+        onNodeWithTag("outside_area").performTouchInput { click() }
+        waitForIdle()
+        onAllNodesWithContentDescription("Delete highlight").assertCountEquals(0)
+        onNodeWithText("Copy").assertDoesNotExist()
+    }
+
+    @Test
+    fun toolbarRepositionsNearParagraph2WhenSwitchingFromParagraph1() = runComposeUiTest {
+        val h1 = TextHighlight(
+            id = 1L, dbName = "db", questionId = 1L, section = HighlightSection.QUESTION,
+            blockKey = "p:0", startOffset = 0, endOffset = 5,
+            highlightedText = "Alpha", color = HighlightColor.YELLOW, createdAt = 1L,
+        )
+        val h2 = TextHighlight(
+            id = 2L, dbName = "db", questionId = 1L, section = HighlightSection.EXPLANATION,
+            blockKey = "p:0", startOffset = 0, endOffset = 5,
+            highlightedText = "Gamma", color = HighlightColor.BLUE, createdAt = 2L,
+        )
+
+        setContent {
+            AppTheme {
+                val hostState = rememberRichTextHighlightHostState()
+                RichTextHighlightHost(
+                    state = hostState,
+                    modifier = Modifier.requiredSize(500.dp, 700.dp),
+                ) {
+                    Column(modifier = Modifier.padding(top = 180.dp)) {
+                        RichText(
+                            html = "<p>Alpha beta</p>",
+                            highlightConfig = RichTextHighlightConfig(
+                                section = HighlightSection.QUESTION,
+                                highlights = listOf(h1),
+                                onHighlightAdd = { _, _, _, _, _, _ -> },
+                                onHighlightRemove = {},
+                                onHighlightColorChange = { _, _ -> },
+                            ),
+                        )
+                        Spacer(modifier = Modifier.height(160.dp))
+                        RichText(
+                            html = "<p>Gamma delta</p>",
+                            highlightConfig = RichTextHighlightConfig(
+                                section = HighlightSection.EXPLANATION,
+                                highlights = listOf(h2),
+                                onHighlightAdd = { _, _, _, _, _, _ -> },
+                                onHighlightRemove = {},
+                                onHighlightColorChange = { _, _ -> },
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+
+        val p1 = onNodeWithText("Alpha beta").assertIsDisplayed()
+        val p1Layouts = mutableListOf<TextLayoutResult>()
+        p1.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(p1Layouts)
+        val h1Box = p1Layouts.first().getBoundingBox(2)
+        val p1WindowBounds = p1.fetchSemanticsNode().boundsInWindow
+
+        val p2 = onNodeWithText("Gamma delta").assertIsDisplayed()
+        val p2Layouts = mutableListOf<TextLayoutResult>()
+        p2.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(p2Layouts)
+        val h2Box = p2Layouts.first().getBoundingBox(2)
+        val p2WindowBounds = p2.fetchSemanticsNode().boundsInWindow
+
+        // Tap highlight in Paragraph 1 -> toolbar sits above Paragraph 1
+        p1.performTouchInput { click(Offset(h1Box.left + 2f, (h1Box.top + h1Box.bottom) / 2f)) }
+        waitForIdle()
+        val toolbar1Bounds = onNodeWithContentDescription("Delete highlight").assertIsDisplayed().fetchSemanticsNode().boundsInWindow
+        assertTrue(toolbar1Bounds.bottom <= p1WindowBounds.top + 1f, "Expected toolbar1 above p1: $toolbar1Bounds vs $p1WindowBounds")
+
+        // Tap highlight in Paragraph 2 -> toolbar moves below Paragraph 1 and sits above Paragraph 2
+        p2.performTouchInput { click(Offset(h2Box.left + 2f, (h2Box.top + h2Box.bottom) / 2f)) }
+        waitForIdle()
+        val toolbar2Bounds = onNodeWithContentDescription("Delete highlight").assertIsDisplayed().fetchSemanticsNode().boundsInWindow
+        assertTrue(toolbar2Bounds.top > p1WindowBounds.bottom, "Expected toolbar2 below p1: $toolbar2Bounds vs $p1WindowBounds")
+        assertTrue(toolbar2Bounds.bottom <= p2WindowBounds.top + 1f, "Expected toolbar2 above p2: $toolbar2Bounds vs $p2WindowBounds")
+    }
+
+    @Test
+    fun scrolledContainerPlacesToolbarNearVisibleParagraphBounds() = runComposeUiTest {
+        val h = TextHighlight(
+            id = 1L, dbName = "db", questionId = 1L, section = HighlightSection.QUESTION,
+            blockKey = "p:0", startOffset = 0, endOffset = 6,
+            highlightedText = "Target", color = HighlightColor.GREEN, createdAt = 1L,
+        )
+        var viewportHeightPx = 0f
+
+        setContent {
+            viewportHeightPx = with(LocalDensity.current) { 420.dp.toPx() }
+            val scrollTargetPx = with(LocalDensity.current) { 340.dp.roundToPx() }
+            AppTheme {
+                val hostState = rememberRichTextHighlightHostState()
+                val scrollState = rememberScrollState()
+                LaunchedEffect(scrollTargetPx) {
+                    scrollState.scrollTo(scrollTargetPx)
+                }
+                RichTextHighlightHost(
+                    state = hostState,
+                    modifier = Modifier.requiredSize(500.dp, 420.dp),
+                ) {
+                    Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
+                        Spacer(modifier = Modifier.height(500.dp))
+                        RichText(
+                            html = "<p>Target highlight text</p>",
+                            highlightConfig = RichTextHighlightConfig(
+                                section = HighlightSection.QUESTION,
+                                highlights = listOf(h),
+                                onHighlightAdd = { _, _, _, _, _, _ -> },
+                                onHighlightRemove = {},
+                                onHighlightColorChange = { _, _ -> },
+                            ),
+                        )
+                        Spacer(modifier = Modifier.height(300.dp))
+                    }
+                }
+            }
+        }
+
+        waitForIdle()
+        val targetNode = onNodeWithText("Target highlight text").assertIsDisplayed()
+        val layouts = mutableListOf<TextLayoutResult>()
+        targetNode.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
+        val hBox = layouts.first().getBoundingBox(2)
+        val targetWindowBounds = targetNode.fetchSemanticsNode().boundsInWindow
+
+        targetNode.performTouchInput { click(Offset(hBox.left + 2f, (hBox.top + hBox.bottom) / 2f)) }
+        waitForIdle()
+
+        val toolbarBounds = onNodeWithContentDescription("Delete highlight").assertIsDisplayed().fetchSemanticsNode().boundsInWindow
+        assertTrue(toolbarBounds.top >= 0f && toolbarBounds.bottom <= viewportHeightPx, "Toolbar outside viewport: $toolbarBounds")
+        assertTrue(toolbarBounds.bottom <= targetWindowBounds.top + 1f, "Expected toolbar above scrolled target: $toolbarBounds vs $targetWindowBounds")
+    }
+
+    @Test
+    fun handleDragWorksInNonFirstParagraphWithIdenticalText() = runComposeUiTest {
+        var recordedAdd: Pair<String, String>? = null
+        val sentence = "Acute hyponatremia causes confusion"
+
+        setContent {
+            AppTheme {
+                val hostState = rememberRichTextHighlightHostState()
+                RichTextHighlightHost(
+                    state = hostState,
+                    modifier = Modifier.requiredSize(500.dp, 650.dp),
+                ) {
+                    Column(modifier = Modifier.padding(top = 180.dp, start = 24.dp, end = 24.dp)) {
+                        RichText(
+                            html = "<p>$sentence</p><p>$sentence</p>",
+                            highlightConfig = RichTextHighlightConfig(
+                                section = HighlightSection.QUESTION,
+                                highlights = emptyList(),
+                                onHighlightAdd = { _, blockKey, _, _, selectedText, _ ->
+                                    recordedAdd = blockKey to selectedText
+                                },
+                                onHighlightRemove = {},
+                                onHighlightColorChange = { _, _ -> },
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+
+        val p1 = onAllNodesWithText(sentence)[0].assertIsDisplayed()
+        val p1Layouts = mutableListOf<TextLayoutResult>()
+        p1.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(p1Layouts)
+        val p1WordBox = p1Layouts.first().getBoundingBox(8)
+
+        val p2 = onAllNodesWithText(sentence)[1].assertIsDisplayed()
+        val p2Layouts = mutableListOf<TextLayoutResult>()
+        p2.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(p2Layouts)
+        val p2Layout = p2Layouts.first()
+        val p2WordBox = p2Layout.getBoundingBox(8)
+        val p2WindowBounds = p2.fetchSemanticsNode().boundsInWindow
+
+        // 1. Long-press paragraph 1 first so drag handle pointerInput is initialized on the identical text
+        p1.performTouchInput {
+            longClick(Offset(p1WordBox.left + 2f, (p1WordBox.top + p1WordBox.bottom) / 2f))
+        }
+        waitForIdle()
+        onNodeWithTag("selection_handle_start").assertIsDisplayed()
+
+        // 2. Long-press paragraph 2 (identical text) and verify handles reposition onto paragraph 2
+        p2.performTouchInput {
+            longClick(Offset(p2WordBox.left + 2f, (p2WordBox.top + p2WordBox.bottom) / 2f))
+        }
+        waitForIdle()
+        val startHandleBounds = onNodeWithTag("selection_handle_start").assertIsDisplayed().fetchSemanticsNode().boundsInWindow
+        assertTrue(startHandleBounds.top >= p2WindowBounds.top, "Expected start handle on p2: $startHandleBounds vs $p2WindowBounds")
+
+        // 3. Drag paragraph 2's end handle rightward across " causes" and create highlight
+        val endHandle = onNodeWithTag("selection_handle_end").assertIsDisplayed()
+        val endTargetBox = p2Layout.getBoundingBox(24) // inside "causes"
+        val currentEndRight = p2Layout.getBoundingBox(17).right
+        val deltaRight = (endTargetBox.right - currentEndRight).coerceAtLeast(40f)
+        endHandle.performTouchInput {
+            down(center)
+            moveBy(Offset(deltaRight, 0f))
+            up()
+        }
+        waitForIdle()
+
+        onNodeWithContentDescription("Yellow highlight").assertIsDisplayed().performClick()
+        waitForIdle()
+
+        assertEquals("p:1", recordedAdd?.first)
+        val capturedText = recordedAdd?.second
+        assertTrue(
+            capturedText != null && capturedText.contains("hyponatremia") && capturedText.contains("causes"),
+            "Expected expanded selection in p:1 containing 'hyponatremia' and 'causes', got '$capturedText'"
+        )
     }
 }

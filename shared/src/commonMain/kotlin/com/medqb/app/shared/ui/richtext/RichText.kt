@@ -1,63 +1,19 @@
 package com.medqb.app.shared.ui.richtext
 
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.Stable
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.HighlightColor
 import com.medqb.app.shared.data.models.HighlightSection
 import com.medqb.app.shared.data.models.TextHighlight
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.ui.richtext.parser.RichTextParser
-
-@Stable
-internal class RichTextSelectionCoordinator {
-    private var activeOwner: Any? = null
-    private var dismissActive: (() -> Unit)? = null
-
-    fun claim(owner: Any, onDismiss: () -> Unit) {
-        if (activeOwner !== owner) {
-            dismissActive?.invoke()
-        }
-        activeOwner = owner
-        dismissActive = onDismiss
-    }
-
-    fun release(owner: Any) {
-        if (activeOwner === owner) {
-            activeOwner = null
-            dismissActive = null
-        }
-    }
-
-    fun dismissOthers(caller: Any) {
-        if (activeOwner != null && activeOwner !== caller) {
-            dismissActive?.invoke()
-            activeOwner = null
-            dismissActive = null
-        }
-    }
-
-    fun dismissAll() {
-        dismissActive?.invoke()
-        activeOwner = null
-        dismissActive = null
-    }
-}
-
-internal val LocalRichTextSelectionCoordinator = compositionLocalOf<RichTextSelectionCoordinator?> { null }
 
 @Immutable
 data class RichTextHighlightConfig(
@@ -137,20 +93,9 @@ private fun RichTextInternal(
         resetKey = tooltipResetKey,
         onTooltipClick = onTooltipClick
     )
-    val parentCoordinator = LocalRichTextSelectionCoordinator.current
-    val selectionCoordinator = remember(parentCoordinator) {
-        parentCoordinator ?: RichTextSelectionCoordinator()
-    }
-
-    val containerModifier = if (highlightConfig != null) {
-        modifier.dismissSelectionOnTap(selectionCoordinator)
-    } else {
-        modifier
-    }
-
-    CompositionLocalProvider(LocalRichTextSelectionCoordinator provides selectionCoordinator) {
+    val renderBlocks: @Composable (Modifier) -> Unit = { columnModifier ->
         Column(
-            modifier = containerModifier,
+            modifier = columnModifier,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             blocks.forEachIndexed { blockIndex, block ->
@@ -165,6 +110,18 @@ private fun RichTextInternal(
                 )
             }
         }
+    }
+
+    if (highlightConfig != null && LocalRichTextHighlightHostState.current == null) {
+        val fallbackHostState = rememberRichTextHighlightHostState()
+        RichTextHighlightHost(
+            state = fallbackHostState,
+            modifier = modifier,
+        ) {
+            renderBlocks(Modifier)
+        }
+    } else {
+        renderBlocks(modifier)
     }
 
     RichTextTooltipBottomSheet(
@@ -201,17 +158,5 @@ internal fun rememberRichTextPalette(
             dictionaryText = dictionaryText,
             abstractText = colors.onSurfaceVariant
         )
-    }
-}
-
-internal fun Modifier.dismissSelectionOnTap(
-    selectionCoordinator: RichTextSelectionCoordinator,
-): Modifier = pointerInput(selectionCoordinator) {
-    awaitEachGesture {
-        awaitFirstDown(requireUnconsumed = false)
-        val up = waitForUpOrCancellation()
-        if (up != null && !up.isConsumed) {
-            selectionCoordinator.dismissAll()
-        }
     }
 }

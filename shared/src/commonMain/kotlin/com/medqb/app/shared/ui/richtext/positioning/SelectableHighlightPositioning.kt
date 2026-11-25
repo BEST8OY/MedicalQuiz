@@ -17,6 +17,7 @@ internal class SelectionHandlePositionProvider(
     private val isStartHandle: Boolean,
     private val touchSizePx: Int,
     private val visualSizePx: Int,
+    private val anchorOffset: Offset = Offset.Zero,
 ) : PopupPositionProvider {
 
     override fun calculatePosition(
@@ -31,8 +32,8 @@ internal class SelectionHandlePositionProvider(
             (touchSizePx - visualSizePx) / 2
         }
         return IntOffset(
-            x = anchorBounds.left + anchorInText.x.roundToInt() - xOffset,
-            y = anchorBounds.top + anchorInText.y.roundToInt(),
+            x = anchorBounds.left + (anchorOffset.x + anchorInText.x).roundToInt() - xOffset,
+            y = anchorBounds.top + (anchorOffset.y + anchorInText.y).roundToInt(),
         )
     }
 }
@@ -84,6 +85,7 @@ internal class SelectionToolbarPositionProvider(
     private val bottomSafeMarginPx: Int,
     private val aboveGapPx: Int,
     private val belowGapPx: Int,
+    private val anchorOffset: Offset = Offset.Zero,
 ) : PopupPositionProvider {
 
     override fun calculatePosition(
@@ -92,9 +94,10 @@ internal class SelectionToolbarPositionProvider(
         layoutDirection: LayoutDirection,
         popupContentSize: IntSize
     ): IntOffset {
-        val selTop = anchorBounds.top + selectionRectInAnchor.top.roundToInt()
-        val selBottom = anchorBounds.top + selectionRectInAnchor.bottom.roundToInt()
-        val selCenterX = anchorBounds.left + ((selectionRectInAnchor.left + selectionRectInAnchor.right) / 2f).roundToInt()
+        val selTop = anchorBounds.top + (anchorOffset.y + selectionRectInAnchor.top).roundToInt()
+        val selBottom = anchorBounds.top + (anchorOffset.y + selectionRectInAnchor.bottom).roundToInt()
+        val selCenterX = anchorBounds.left +
+            (anchorOffset.x + (selectionRectInAnchor.left + selectionRectInAnchor.right) / 2f).roundToInt()
 
         val maxX = (windowSize.width - popupContentSize.width - edgeMarginPx).coerceAtLeast(edgeMarginPx)
         val x = (selCenterX - popupContentSize.width / 2).coerceIn(edgeMarginPx, maxX)

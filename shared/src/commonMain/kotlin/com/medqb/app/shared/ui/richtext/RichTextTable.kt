@@ -129,10 +129,10 @@ private fun RichTextTableShell(
 ) {
     if (renderModel.columnCount == 0) return
     val scrollState = rememberScrollState()
-    val selectionCoordinator = LocalRichTextSelectionCoordinator.current
-    LaunchedEffect(scrollState.isScrollInProgress, selectionCoordinator) {
+    val highlightHostState = LocalRichTextHighlightHostState.current
+    LaunchedEffect(scrollState.isScrollInProgress, highlightHostState) {
         if (scrollState.isScrollInProgress) {
-            selectionCoordinator?.dismissAll()
+            highlightHostState?.dismiss()
         }
     }
     val columnMinWidth = if (renderModel.columnCount >= 5) 96.dp else 120.dp

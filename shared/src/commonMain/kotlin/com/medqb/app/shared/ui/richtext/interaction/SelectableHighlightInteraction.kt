@@ -2,7 +2,6 @@ package com.medqb.app.shared.ui.richtext.interaction
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
@@ -10,8 +9,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerType
-import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.isOutOfBounds
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
@@ -49,14 +52,18 @@ internal fun Modifier.selectableHighlightGestures(
     setSelectionState: (TextSelectionState) -> Unit,
     setEditingHighlight: (HighlightTapResult?) -> Unit,
     setDragPosition: (Offset) -> Unit,
-    onDismissOthers: () -> Unit,
+    onDismissAll: () -> Unit,
     onLinkClick: ((String) -> Unit)?,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?
 ): Modifier {
     val currentHighlights by rememberUpdatedState(highlights)
     val currentHysteresisPx by rememberUpdatedState(longPressDragHysteresisPx)
+    val latestLayoutResult by rememberUpdatedState(currentLayoutResult)
     val latestSelectionState by rememberUpdatedState(currentSelectionState)
-    val currentOnDismissOthers by rememberUpdatedState(onDismissOthers)
+    val currentSetSelectionState by rememberUpdatedState(setSelectionState)
+    val currentSetEditingHighlight by rememberUpdatedState(setEditingHighlight)
+    val currentSetDragPosition by rememberUpdatedState(setDragPosition)
+    val currentOnDismissAll by rememberUpdatedState(onDismissAll)
     val currentOnLinkClick by rememberUpdatedState(onLinkClick)
     val currentOnTooltipClick by rememberUpdatedState(onTooltipClick)
     val haptic = LocalHapticFeedback.current
@@ -71,7 +78,7 @@ internal fun Modifier.selectableHighlightGestures(
 
             val isMouse = down.type == PointerType.Mouse
             if (isMouse) {
-                val layout = currentLayoutResult() ?: return@awaitEachGesture
+                val layout = latestLayoutResult() ?: return@awaitEachGesture
                 val downPos = down.position
                 val anchorOffset = layout.getOffsetForPosition(downPos).coerceIn(0, text.length)
                 var didDrag = false
@@ -102,9 +109,9 @@ internal fun Modifier.selectableHighlightGestures(
                                     text = text,
                                     layout = layout,
                                     highlights = currentHighlights,
-                                    setSelectionState = setSelectionState,
-                                    setEditingHighlight = setEditingHighlight,
-                                    onDismissOthers = currentOnDismissOthers,
+                                    setSelectionState = currentSetSelectionState,
+                                    setEditingHighlight = currentSetEditingHighlight,
+                                    onDismissAll = currentOnDismissAll,
                                     onLinkClick = currentOnLinkClick,
                                     onTooltipClick = currentOnTooltipClick,
                                 )
@@ -118,19 +125,19 @@ internal fun Modifier.selectableHighlightGestures(
                         val movedDist = (change.position - downPos).getDistance()
                         if (!didDrag && movedDist >= viewConfiguration.touchSlop) {
                             didDrag = true
-                            currentOnDismissOthers()
-                            setEditingHighlight(null)
+                            currentOnDismissAll()
+                            currentSetEditingHighlight(null)
                         }
                         if (didDrag) {
                             change.consume()
-                            val activeLayout = currentLayoutResult() ?: layout
+                            val activeLayout = latestLayoutResult() ?: layout
                             val focus = activeLayout.getOffsetForPosition(change.position).coerceIn(0, text.length)
                             if (focus != currentFocusOffset) {
                                 currentFocusOffset = focus
                             }
                             val start = minOf(anchorOffset, currentFocusOffset)
                             val end = maxOf(anchorOffset, currentFocusOffset)
-                            setSelectionState(
+                            currentSetSelectionState(
                                 TextSelectionState(
                                     isSelecting = start < end,
                                     isDragging = true,
@@ -146,7 +153,7 @@ internal fun Modifier.selectableHighlightGestures(
                     if (didDrag) {
                         val start = minOf(anchorOffset, currentFocusOffset)
                         val end = maxOf(anchorOffset, currentFocusOffset)
-                        setSelectionState(
+                        currentSetSelectionState(
                             if (completedNormally && latestSelectionState().isSelecting && start < end) {
                                 TextSelectionState(
                                     isSelecting = true,
@@ -165,122 +172,130 @@ internal fun Modifier.selectableHighlightGestures(
                 return@awaitEachGesture
             }
 
-            // Touch / Stylus: long-press to start word selection & drag-extend, or tap
-            val longPress = awaitLongPressOrCancellation(down.id)
-            if (longPress != null) {
-                val layout = currentLayoutResult() ?: return@awaitEachGesture
-                val clampedInitialOffset = layout.getOffsetForPosition(longPress.position)
-                    .coerceIn(0, text.text.lastIndex)
-                val wordRange = layout.getWordBoundary(clampedInitialOffset)
-                val anchorStart = wordRange.min.coerceIn(0, text.length)
-                val anchorEnd = wordRange.max.coerceIn(anchorStart, text.length)
-                if (anchorStart >= anchorEnd) return@awaitEachGesture
+            // Touch / Stylus: detect tap on PointerEventPass.Main (so up.consume() runs
+            // before parent dismissSelectionOnTap) or long-press after timeout.
+            when (val gesture = awaitTouchTapOrLongPress(down)) {
+                is TouchGestureStart.LongPress -> {
+                    val layout = latestLayoutResult() ?: return@awaitEachGesture
+                    val clampedInitialOffset = layout.getOffsetForPosition(gesture.position)
+                        .coerceIn(0, text.text.lastIndex)
+                    val wordRange = layout.getWordBoundary(clampedInitialOffset)
+                    val anchorStart = wordRange.min.coerceIn(0, text.length)
+                    val anchorEnd = wordRange.max.coerceIn(anchorStart, text.length)
+                    if (anchorStart >= anchorEnd) return@awaitEachGesture
 
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                currentOnDismissOthers()
-                setEditingHighlight(null)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    currentOnDismissAll()
+                    currentSetEditingHighlight(null)
 
-                var selStart = anchorStart
-                var selEnd = anchorEnd
-                var previousHandleOffset: Int? = null
-                setSelectionState(
-                    TextSelectionState(
-                        isSelecting = true,
-                        isDragging = true,
-                        startOffset = selStart,
-                        endOffset = selEnd,
-                        selectedText = text.text.substring(selStart, selEnd),
-                        isMouseSelection = false,
+                    var selStart = anchorStart
+                    var selEnd = anchorEnd
+                    var previousHandleOffset: Int? = null
+                    currentSetSelectionState(
+                        TextSelectionState(
+                            isSelecting = true,
+                            isDragging = true,
+                            startOffset = selStart,
+                            endOffset = selEnd,
+                            selectedText = text.text.substring(selStart, selEnd),
+                            isMouseSelection = false,
+                        )
                     )
-                )
 
-                var lastProcessedPosition = longPress.position
-                setDragPosition(longPress.position)
-                var completedNormally = false
+                    var lastProcessedPosition = gesture.position
+                    currentSetDragPosition(gesture.position)
+                    var completedNormally = false
 
-                try {
-                    do {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: event.changes.firstOrNull() ?: break
-                        val position = change.position
-                        val movementSinceLast = (position - lastProcessedPosition).getDistance()
-                        if (movementSinceLast >= currentHysteresisPx) {
-                            lastProcessedPosition = position
-                            setDragPosition(position)
-                            val activeLayout = currentLayoutResult() ?: layout
-                            val movedOffset = activeLayout.getOffsetForPosition(position).coerceIn(0, text.length)
-                            val movingBackward = movedOffset < clampedInitialOffset
-                            val fixedOffset = if (movingBackward) anchorEnd else anchorStart
-                            val snapped = snapOffsetToWordBoundary(
-                                text = text.text,
-                                movedOffset = movedOffset,
-                                fixedOffset = fixedOffset,
-                                layoutResult = activeLayout,
-                                previousOffset = previousHandleOffset
-                            )
-                            previousHandleOffset = snapped
-                            val nextStart = minOf(snapped, fixedOffset)
-                            val nextEnd = maxOf(snapped, fixedOffset)
-                            if (nextStart < nextEnd && (nextStart != selStart || nextEnd != selEnd)) {
-                                selStart = nextStart
-                                selEnd = nextEnd
-                                setSelectionState(
-                                    TextSelectionState(
-                                        isSelecting = true,
-                                        isDragging = true,
-                                        startOffset = selStart,
-                                        endOffset = selEnd,
-                                        selectedText = text.text.substring(selStart, selEnd),
-                                        isMouseSelection = false,
-                                    )
+                    try {
+                        do {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id }
+                                ?: event.changes.firstOrNull()
+                                ?: break
+                            val position = change.position
+                            val movementSinceLast = (position - lastProcessedPosition).getDistance()
+                            if (movementSinceLast >= currentHysteresisPx) {
+                                lastProcessedPosition = position
+                                currentSetDragPosition(position)
+                                val activeLayout = latestLayoutResult() ?: layout
+                                val movedOffset = activeLayout.getOffsetForPosition(position).coerceIn(0, text.length)
+                                val movingBackward = movedOffset < clampedInitialOffset
+                                val fixedOffset = if (movingBackward) anchorEnd else anchorStart
+                                val snapped = snapOffsetToWordBoundary(
+                                    text = text.text,
+                                    movedOffset = movedOffset,
+                                    fixedOffset = fixedOffset,
+                                    layoutResult = activeLayout,
+                                    previousOffset = previousHandleOffset
                                 )
+                                previousHandleOffset = snapped
+                                val nextStart = minOf(snapped, fixedOffset)
+                                val nextEnd = maxOf(snapped, fixedOffset)
+                                if (nextStart < nextEnd && (nextStart != selStart || nextEnd != selEnd)) {
+                                    selStart = nextStart
+                                    selEnd = nextEnd
+                                    currentSetSelectionState(
+                                        TextSelectionState(
+                                            isSelecting = true,
+                                            isDragging = true,
+                                            startOffset = selStart,
+                                            endOffset = selEnd,
+                                            selectedText = text.text.substring(selStart, selEnd),
+                                            isMouseSelection = false,
+                                        )
+                                    )
+                                }
                             }
-                        }
-                        event.changes.forEach { it.consume() }
-                    } while (event.changes.any { it.pressed })
-                    completedNormally = true
-                } finally {
-                    setDragPosition(Offset.Zero)
-                    setSelectionState(
-                        if (completedNormally && latestSelectionState().isSelecting && selStart < selEnd) {
-                            TextSelectionState(
-                                isSelecting = true,
-                                isDragging = false,
-                                startOffset = selStart,
-                                endOffset = selEnd,
-                                selectedText = text.text.substring(selStart, selEnd),
-                                isMouseSelection = false,
-                            )
-                        } else {
-                            TextSelectionState()
-                        }
+                            event.changes.forEach { it.consume() }
+                        } while (event.changes.any { it.pressed })
+                        completedNormally = true
+                    } finally {
+                        currentSetDragPosition(Offset.Zero)
+                        currentSetSelectionState(
+                            if (completedNormally && latestSelectionState().isSelecting && selStart < selEnd) {
+                                TextSelectionState(
+                                    isSelecting = true,
+                                    isDragging = false,
+                                    startOffset = selStart,
+                                    endOffset = selEnd,
+                                    selectedText = text.text.substring(selStart, selEnd),
+                                    isMouseSelection = false,
+                                )
+                            } else {
+                                TextSelectionState()
+                            }
+                        )
+                    }
+                }
+
+                is TouchGestureStart.Tap -> {
+                    val upChange = gesture.upChange
+                    if (upChange.isConsumed) return@awaitEachGesture
+                    val layout = latestLayoutResult() ?: return@awaitEachGesture
+                    val handled = handleTapOrMouseDoubleClick(
+                        tapPosition = upChange.position,
+                        uptimeMillis = upChange.uptimeMillis,
+                        isMouse = false,
+                        lastMouseClickTimeMs = -1L,
+                        lastMouseClickPos = Offset.Zero,
+                        doubleTapTimeoutMs = 0L,
+                        doubleTapSlopPx = 0f,
+                        updateLastClick = { _, _ -> },
+                        text = text,
+                        layout = layout,
+                        highlights = currentHighlights,
+                        setSelectionState = currentSetSelectionState,
+                        setEditingHighlight = currentSetEditingHighlight,
+                        onDismissAll = currentOnDismissAll,
+                        onLinkClick = currentOnLinkClick,
+                        onTooltipClick = currentOnTooltipClick,
                     )
+                    if (handled) {
+                        upChange.consume()
+                    }
                 }
-            } else {
-                val upChange = currentEvent.changes.firstOrNull { it.changedToUpIgnoreConsumed() } ?: return@awaitEachGesture
-                if (upChange.isConsumed) return@awaitEachGesture
-                val layout = currentLayoutResult() ?: return@awaitEachGesture
-                val handled = handleTapOrMouseDoubleClick(
-                    tapPosition = upChange.position,
-                    uptimeMillis = upChange.uptimeMillis,
-                    isMouse = false,
-                    lastMouseClickTimeMs = -1L,
-                    lastMouseClickPos = Offset.Zero,
-                    doubleTapTimeoutMs = 0L,
-                    doubleTapSlopPx = 0f,
-                    updateLastClick = { _, _ -> },
-                    text = text,
-                    layout = layout,
-                    highlights = currentHighlights,
-                    setSelectionState = setSelectionState,
-                    setEditingHighlight = setEditingHighlight,
-                    onDismissOthers = currentOnDismissOthers,
-                    onLinkClick = currentOnLinkClick,
-                    onTooltipClick = currentOnTooltipClick,
-                )
-                if (handled) {
-                    upChange.consume()
-                }
+
+                TouchGestureStart.Cancelled -> Unit
             }
         }
     }
@@ -300,14 +315,14 @@ private fun handleTapOrMouseDoubleClick(
     highlights: List<TextHighlight>,
     setSelectionState: (TextSelectionState) -> Unit,
     setEditingHighlight: (HighlightTapResult?) -> Unit,
-    onDismissOthers: () -> Unit,
+    onDismissAll: () -> Unit,
     onLinkClick: ((String) -> Unit)?,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
 ): Boolean {
     val clearSelectionAndEditing = {
         setSelectionState(TextSelectionState())
         setEditingHighlight(null)
-        onDismissOthers()
+        onDismissAll()
     }
 
     if (text.isEmpty() || !isPositionWithinTextBounds(layout, tapPosition)) {
@@ -327,7 +342,7 @@ private fun handleTapOrMouseDoubleClick(
             val start = wordRange.min.coerceIn(0, text.length)
             val end = wordRange.max.coerceIn(start, text.length)
             if (start < end) {
-                onDismissOthers()
+                onDismissAll()
                 setEditingHighlight(null)
                 setSelectionState(
                     TextSelectionState(
@@ -354,7 +369,7 @@ private fun handleTapOrMouseDoubleClick(
         allowAdjacentFallback = false,
     )
     if (exactHighlight != null) {
-        onDismissOthers()
+        onDismissAll()
         setSelectionState(TextSelectionState())
         setEditingHighlight(
             HighlightTapResult(
@@ -386,7 +401,7 @@ private fun handleTapOrMouseDoubleClick(
         allowAdjacentFallback = true,
     )
     if (nearbyHighlight != null) {
-        onDismissOthers()
+        onDismissAll()
         setSelectionState(TextSelectionState())
         setEditingHighlight(HighlightTapResult(highlight = nearbyHighlight))
         return true
@@ -476,4 +491,56 @@ internal fun snapOffsetToWordBoundary(
         else -> primary
     }
     return chosen.coerceIn(0, text.length)
+}
+
+private sealed interface TouchGestureStart {
+    data class Tap(val upChange: PointerInputChange) : TouchGestureStart
+    data class LongPress(val position: Offset) : TouchGestureStart
+    data object Cancelled : TouchGestureStart
+}
+
+private suspend fun AwaitPointerEventScope.awaitTouchTapOrLongPress(
+    down: PointerInputChange,
+): TouchGestureStart {
+    val downPos = down.position
+    val touchSlop = viewConfiguration.touchSlop
+    var lastPosition = downPos
+
+    val result = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+        var gesture: TouchGestureStart? = null
+        while (gesture == null) {
+            val event = awaitPointerEvent(PointerEventPass.Main)
+            val change = event.changes.firstOrNull { it.id == down.id }
+            if (change == null || event.changes.any { it.id != down.id && it.pressed } || change.isConsumed) {
+                gesture = TouchGestureStart.Cancelled
+            } else if (!change.pressed) {
+                gesture = if (
+                    change.changedToUp() &&
+                    !change.isOutOfBounds(size, extendedTouchPadding) &&
+                    (change.position - downPos).getDistance() <= touchSlop
+                ) {
+                    TouchGestureStart.Tap(change)
+                } else {
+                    TouchGestureStart.Cancelled
+                }
+            } else {
+                lastPosition = change.position
+                if (
+                    change.isOutOfBounds(size, extendedTouchPadding) ||
+                    (change.position - downPos).getDistance() > touchSlop
+                ) {
+                    gesture = TouchGestureStart.Cancelled
+                } else {
+                    val finalEvent = awaitPointerEvent(PointerEventPass.Final)
+                    val finalChange = finalEvent.changes.firstOrNull { it.id == down.id }
+                    if (finalChange == null || finalChange.isConsumed) {
+                        gesture = TouchGestureStart.Cancelled
+                    }
+                }
+            }
+        }
+        gesture
+    }
+
+    return result ?: TouchGestureStart.LongPress(lastPosition)
 }

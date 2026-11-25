@@ -57,14 +57,12 @@ import com.medqb.app.shared.ui.adaptive.LocalAdaptiveLayoutInfo
 import com.medqb.app.shared.ui.components.ContentMaxWidth
 import com.medqb.app.shared.ui.components.ResponsiveContentContainer
 import com.medqb.app.shared.ui.media.MediaHandler
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
-import com.medqb.app.shared.ui.richtext.LocalRichTextSelectionCoordinator
 import com.medqb.app.shared.ui.richtext.RichText
 import com.medqb.app.shared.ui.richtext.RichTextHighlightConfig
+import com.medqb.app.shared.ui.richtext.RichTextHighlightHost
 import com.medqb.app.shared.ui.richtext.RichTextScaleProvider
-import com.medqb.app.shared.ui.richtext.RichTextSelectionCoordinator
-import com.medqb.app.shared.ui.richtext.dismissSelectionOnTap
+import com.medqb.app.shared.ui.richtext.rememberRichTextHighlightHostState
 import com.medqb.app.shared.ui.screens.quiz.labs.LabsBottomSheet
 import com.medqb.app.shared.ui.state.QuizUiState
 import com.medqb.app.shared.utils.HtmlUtils
@@ -354,33 +352,129 @@ private fun QuizQuestionCard(
     var showLabsSheet by rememberSaveable { mutableStateOf(false) }
 
     val adaptive = LocalAdaptiveLayoutInfo.current
-    val selectionCoordinator = remember(question.id) { RichTextSelectionCoordinator() }
+    val highlightHostState = rememberRichTextHighlightHostState(question.id)
 
-    CompositionLocalProvider(LocalRichTextSelectionCoordinator provides selectionCoordinator) {
-    if (adaptive.isExpandedWidth) {
-        val leftScrollState = key(state.currentQuestionIndex) { rememberScrollState() }
-        val rightScrollState = key(state.currentQuestionIndex) { rememberScrollState() }
+    RichTextHighlightHost(
+        state = highlightHostState,
+        modifier = modifier.fillMaxSize(),
+    ) {
+        if (adaptive.isExpandedWidth) {
+            val leftScrollState = key(state.currentQuestionIndex) { rememberScrollState() }
+            val rightScrollState = key(state.currentQuestionIndex) { rememberScrollState() }
 
-        LaunchedEffect(leftScrollState.isScrollInProgress, rightScrollState.isScrollInProgress) {
-            if (leftScrollState.isScrollInProgress || rightScrollState.isScrollInProgress) {
-                selectionCoordinator.dismissAll()
+            LaunchedEffect(leftScrollState.isScrollInProgress, rightScrollState.isScrollInProgress) {
+                if (leftScrollState.isScrollInProgress || rightScrollState.isScrollInProgress) {
+                    highlightHostState.dismiss()
+                }
             }
-        }
 
-        Row(
-            modifier = modifier
-                .fillMaxSize()
-                .dismissSelectionOnTap(selectionCoordinator)
-                .padding(horizontal = adaptive.horizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
-        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = adaptive.horizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .verticalScroll(leftScrollState)
+                        .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    key(question.id) {
+                        QuestionStemCard(
+                            questionHtml = questionHtml,
+                            highlights = state.questionHighlights,
+                            isKeyInfoActive = isKeyInfoActive,
+                            onHighlightAdd = onHighlightAdd,
+                            onHighlightRemove = onHighlightRemove,
+                            onHighlightColorChange = onHighlightColorChange,
+                            linkHandler = linkHandler,
+                            mediaClick = mediaClick,
+                            onShowSnackbar = onShowSnackbar,
+                        )
+                    }
+
+                    QuizStudySection(
+                        questionId = question.id,
+                        hasKeyInfo = hasKeyInfo,
+                        isKeyInfoActive = isKeyInfoActive,
+                        onToggleKeyInfo = {
+                            highlightHostState.dismiss()
+                            keyInfoToggled = !isKeyInfoActive
+                        },
+                        hasAttendingTip = hintHtml != null,
+                        isAttendingTipActive = attendingTipVisible,
+                        onToggleAttendingTip = {
+                            highlightHostState.dismiss()
+                            attendingTipVisible = !attendingTipVisible
+                        },
+                        isLabsActive = showLabsSheet,
+                        onOpenLabs = {
+                            highlightHostState.dismiss()
+                            showLabsSheet = true
+                        },
+                        hintHtml = hintHtml,
+                        linkHandler = linkHandler,
+                        mediaClick = mediaClick,
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .verticalScroll(rightScrollState)
+                        .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    AnswerOptions(
+                        answers = answers,
+                        sanitizedAnswers = sanitizedAnswers,
+                        selectedAnswerId = state.selectedAnswerId,
+                        correctAnswerId = correctAnswerId,
+                        answerSubmitted = state.answerSubmitted,
+                        answerPercentages = answerPercentages,
+                        onAnswerSelected = { answerId ->
+                            highlightHostState.dismiss()
+                            onAnswerSelected(answerId)
+                        },
+                        onLinkClick = linkHandler,
+                        onMediaClick = mediaClick,
+                    )
+
+                    key(question.id) {
+                        QuizExplanationAndMetadata(
+                            state = state,
+                            explanationHtml = explanationHtml,
+                            metadataSections = metadataSections,
+                            onHighlightAdd = onHighlightAdd,
+                            onHighlightRemove = onHighlightRemove,
+                            onHighlightColorChange = onHighlightColorChange,
+                            linkHandler = linkHandler,
+                            mediaClick = mediaClick,
+                            onShowSnackbar = onShowSnackbar,
+                        )
+                    }
+                }
+            }
+        } else {
+            val scrollState = key(state.currentQuestionIndex) { rememberScrollState() }
+
+            LaunchedEffect(scrollState.isScrollInProgress) {
+                if (scrollState.isScrollInProgress) {
+                    highlightHostState.dismiss()
+                }
+            }
+
             Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .verticalScroll(leftScrollState)
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = adaptive.horizontalPadding)
                     .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 key(question.id) {
                     QuestionStemCard(
@@ -401,34 +495,25 @@ private fun QuizQuestionCard(
                     hasKeyInfo = hasKeyInfo,
                     isKeyInfoActive = isKeyInfoActive,
                     onToggleKeyInfo = {
-                        selectionCoordinator.dismissAll()
+                        highlightHostState.dismiss()
                         keyInfoToggled = !isKeyInfoActive
                     },
                     hasAttendingTip = hintHtml != null,
                     isAttendingTipActive = attendingTipVisible,
                     onToggleAttendingTip = {
-                        selectionCoordinator.dismissAll()
+                        highlightHostState.dismiss()
                         attendingTipVisible = !attendingTipVisible
                     },
                     isLabsActive = showLabsSheet,
                     onOpenLabs = {
-                        selectionCoordinator.dismissAll()
+                        highlightHostState.dismiss()
                         showLabsSheet = true
                     },
                     hintHtml = hintHtml,
                     linkHandler = linkHandler,
                     mediaClick = mediaClick,
                 )
-            }
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .verticalScroll(rightScrollState)
-                    .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
                 AnswerOptions(
                     answers = answers,
                     sanitizedAnswers = sanitizedAnswers,
@@ -437,11 +522,11 @@ private fun QuizQuestionCard(
                     answerSubmitted = state.answerSubmitted,
                     answerPercentages = answerPercentages,
                     onAnswerSelected = { answerId ->
-                        selectionCoordinator.dismissAll()
+                        highlightHostState.dismiss()
                         onAnswerSelected(answerId)
                     },
                     onLinkClick = linkHandler,
-                    onMediaClick = mediaClick,
+                    onMediaClick = mediaClick
                 )
 
                 key(question.id) {
@@ -459,92 +544,6 @@ private fun QuizQuestionCard(
                 }
             }
         }
-    } else {
-        val scrollState = key(state.currentQuestionIndex) { rememberScrollState() }
-
-        LaunchedEffect(scrollState.isScrollInProgress) {
-            if (scrollState.isScrollInProgress) {
-                selectionCoordinator.dismissAll()
-            }
-        }
-
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .dismissSelectionOnTap(selectionCoordinator)
-                .verticalScroll(scrollState)
-                .padding(horizontal = adaptive.horizontalPadding)
-                .padding(top = 12.dp, bottom = bottomClearance + 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            key(question.id) {
-                QuestionStemCard(
-                    questionHtml = questionHtml,
-                    highlights = state.questionHighlights,
-                    isKeyInfoActive = isKeyInfoActive,
-                    onHighlightAdd = onHighlightAdd,
-                    onHighlightRemove = onHighlightRemove,
-                    onHighlightColorChange = onHighlightColorChange,
-                    linkHandler = linkHandler,
-                    mediaClick = mediaClick,
-                    onShowSnackbar = onShowSnackbar,
-                )
-            }
-
-            QuizStudySection(
-                questionId = question.id,
-                hasKeyInfo = hasKeyInfo,
-                isKeyInfoActive = isKeyInfoActive,
-                onToggleKeyInfo = {
-                    selectionCoordinator.dismissAll()
-                    keyInfoToggled = !isKeyInfoActive
-                },
-                hasAttendingTip = hintHtml != null,
-                isAttendingTipActive = attendingTipVisible,
-                onToggleAttendingTip = {
-                    selectionCoordinator.dismissAll()
-                    attendingTipVisible = !attendingTipVisible
-                },
-                isLabsActive = showLabsSheet,
-                onOpenLabs = {
-                    selectionCoordinator.dismissAll()
-                    showLabsSheet = true
-                },
-                hintHtml = hintHtml,
-                linkHandler = linkHandler,
-                mediaClick = mediaClick,
-            )
-
-            AnswerOptions(
-                answers = answers,
-                sanitizedAnswers = sanitizedAnswers,
-                selectedAnswerId = state.selectedAnswerId,
-                correctAnswerId = correctAnswerId,
-                answerSubmitted = state.answerSubmitted,
-                answerPercentages = answerPercentages,
-                onAnswerSelected = { answerId ->
-                    selectionCoordinator.dismissAll()
-                    onAnswerSelected(answerId)
-                },
-                onLinkClick = linkHandler,
-                onMediaClick = mediaClick
-            )
-
-            key(question.id) {
-                QuizExplanationAndMetadata(
-                    state = state,
-                    explanationHtml = explanationHtml,
-                    metadataSections = metadataSections,
-                    onHighlightAdd = onHighlightAdd,
-                    onHighlightRemove = onHighlightRemove,
-                    onHighlightColorChange = onHighlightColorChange,
-                    linkHandler = linkHandler,
-                    mediaClick = mediaClick,
-                    onShowSnackbar = onShowSnackbar,
-                )
-            }
-        }
-    }
     }
 
     if (showLabsSheet) {
