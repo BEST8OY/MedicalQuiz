@@ -17,14 +17,6 @@ class AppIntentDispatcher : AppIntentSink {
         intentFlow.emit(intent)
     }
 
-    suspend fun emitOpenMedia(urls: List<String>, startIndex: Int) {
-        send(AppIntent.OpenMedia(urls, startIndex))
-    }
-
-    suspend fun emitOpenHtml(fileName: String) {
-        send(AppIntent.OpenHtmlFile(fileName))
-    }
-
     suspend fun emitNavigateToDatabaseSelection() {
         send(AppIntent.NavigateToDatabaseSelection)
     }

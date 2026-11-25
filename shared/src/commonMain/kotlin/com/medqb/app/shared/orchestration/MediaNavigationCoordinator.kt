@@ -38,7 +38,7 @@ class MediaNavigationCoordinator(
     suspend fun resolveMediaViewerRoute(
         files: List<String>,
         startIndex: Int,
-    ): MedQBRoutes.MediaViewer? {
+    ): MedQBRoutes.MediaViewer? = withContext(Dispatchers.IO) {
         val availableFiles = mutableListOf<String>()
         val seen = mutableSetOf<String>()
         for (fileName in files) {
@@ -55,18 +55,27 @@ class MediaNavigationCoordinator(
             }
         }
 
-        if (availableFiles.isEmpty()) return null
+        if (availableFiles.isEmpty()) return@withContext null
 
         val originalFile = files.getOrNull(startIndex)
         val safeIndex = if (originalFile != null) {
             availableFiles.indexOf(originalFile).coerceAtLeast(0)
         } else 0
 
-        return MedQBRoutes.MediaViewer(
+        MedQBRoutes.MediaViewer(
             files = availableFiles,
             startIndex = safeIndex,
         )
     }
+
+    fun resolveMediaFilePath(fileName: String): String =
+        localContentRepository.mediaFilePath(fileName)
+
+    suspend fun mediaFileExists(fileName: String): Boolean =
+        localContentRepository.mediaFileExists(fileName)
+
+    suspend fun resolveOverlayPaths(files: List<String>): Map<String, String?> =
+        localContentRepository.resolveOverlayPaths(files)
 
     /**
      * Loads media descriptions asynchronously with IO dispatcher.

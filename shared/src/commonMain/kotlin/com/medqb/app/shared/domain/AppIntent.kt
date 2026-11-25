@@ -8,8 +8,6 @@ package com.medqb.app.shared.domain
  * workflow state.
  */
 sealed interface AppIntent {
-    data class OpenMedia(val urls: List<String>, val startIndex: Int) : AppIntent
-    data class OpenHtmlFile(val fileName: String) : AppIntent
     data object NavigateToDatabaseSelection : AppIntent
 }
 

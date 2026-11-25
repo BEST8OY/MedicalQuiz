@@ -2,6 +2,7 @@ package com.medqb.app.shared.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -11,7 +12,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.navigation3.runtime.NavEntry
@@ -26,7 +26,7 @@ import com.medqb.app.shared.ui.entry.HtmlViewerEntry
 import com.medqb.app.shared.ui.entry.MediaViewerEntry
 import com.medqb.app.shared.ui.entry.QuizEntry
 import com.medqb.app.shared.ui.entry.SettingsEntry
-import com.medqb.app.shared.ui.media.MediaHandler
+import com.medqb.app.shared.ui.theme.exitSpatialSpec
 
 /**
  * Builds the Navigation 3 [entryProvider] mapping [MedQBRoutes] to their composable entries.
@@ -39,16 +39,16 @@ fun rememberMedQBNavEntries(
     graph: AppGraph,
     workflow: AppWorkflowHandle,
     navigator: AppNavigator,
-    mediaHandler: MediaHandler,
-    snackbarHostState: SnackbarHostState,
+    onOpenMedia: (files: List<String>, startIndex: Int) -> Unit,
+    onOpenHtml: (fileName: String) -> Unit,
 ): (NavKey) -> NavEntry<NavKey> {
     val motionScheme = MaterialTheme.motionScheme
     return remember(
         graph,
         workflow,
         navigator,
-        mediaHandler,
-        snackbarHostState,
+        onOpenMedia,
+        onOpenHtml,
         motionScheme,
     ) {
         val modalEnterTransition: AnimatedContentTransitionScope<Scene<*>>.() -> ContentTransform = {
@@ -67,16 +67,26 @@ fun rememberMedQBNavEntries(
 
         val modalPopTransition: AnimatedContentTransitionScope<Scene<*>>.() -> ContentTransform = {
             (scaleIn(
-                animationSpec = motionScheme.defaultSpatialSpec(),
+                animationSpec = motionScheme.fastSpatialSpec(),
                 initialScale = 0.96f
             ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec())) togetherWith
                 (slideOutVertically(
-                    animationSpec = exitSpatialSpec(),
+                    animationSpec = exitSpatialSpec(stiffness = Spring.StiffnessMedium),
                     targetOffsetY = { (it * 0.12f).toInt() }
                 ) + scaleOut(
-                    animationSpec = exitSpatialSpec(),
+                    animationSpec = exitSpatialSpec(stiffness = Spring.StiffnessMedium),
                     targetScale = 0.94f
                 ) + fadeOut(animationSpec = motionScheme.fastEffectsSpec()))
+        }
+
+        val modalPredictivePopTransition: AnimatedContentTransitionScope<Scene<*>>.(Int) -> ContentTransform = {
+            (scaleIn(animationSpec = PredictivePopFloatSpec, initialScale = 0.96f) +
+                fadeIn(animationSpec = PredictivePopFloatSpec)) togetherWith
+                (slideOutVertically(
+                    animationSpec = PredictivePopIntOffsetSpec,
+                    targetOffsetY = { (it * 0.12f).toInt() }
+                ) + scaleOut(animationSpec = PredictivePopFloatSpec, targetScale = 0.94f) +
+                    fadeOut(animationSpec = PredictivePopFloatSpec))
         }
 
         val mediaViewerFadeTransition: AnimatedContentTransitionScope<Scene<*>>.() -> ContentTransform = {
@@ -84,13 +94,20 @@ fun rememberMedQBNavEntries(
                 fadeOut(animationSpec = motionScheme.fastEffectsSpec())
         }
 
+        val mediaViewerPredictivePopTransition: AnimatedContentTransitionScope<Scene<*>>.(Int) -> ContentTransform = {
+            fadeIn(animationSpec = PredictivePopFloatSpec) togetherWith
+                fadeOut(animationSpec = PredictivePopFloatSpec)
+        }
+
         val modalMetadata = modalNavMetadata(
             enterTransition = modalEnterTransition,
             popTransition = modalPopTransition,
+            predictivePopTransition = modalPredictivePopTransition,
         )
         val mediaViewerMetadata = modalNavMetadata(
             enterTransition = mediaViewerFadeTransition,
             popTransition = mediaViewerFadeTransition,
+            predictivePopTransition = mediaViewerPredictivePopTransition,
         )
 
         entryProvider<NavKey> {
@@ -107,7 +124,6 @@ fun rememberMedQBNavEntries(
                     graph = graph,
                     workflow = workflow,
                     navigator = navigator,
-                    snackbarHostState = snackbarHostState,
                 )
             }
 
@@ -116,7 +132,8 @@ fun rememberMedQBNavEntries(
                     route = route,
                     graph = graph,
                     navigator = navigator,
-                    mediaHandler = mediaHandler,
+                    onOpenMedia = onOpenMedia,
+                    onOpenHtml = onOpenHtml,
                 )
             }
 
@@ -132,7 +149,8 @@ fun rememberMedQBNavEntries(
                     key = key,
                     graph = graph,
                     navigator = navigator,
-                    mediaHandler = mediaHandler,
+                    onOpenMedia = onOpenMedia,
+                    onOpenHtml = onOpenHtml,
                 )
             }
 
@@ -141,7 +159,8 @@ fun rememberMedQBNavEntries(
                     key = key,
                     graph = graph,
                     navigator = navigator,
-                    mediaHandler = mediaHandler,
+                    onOpenMedia = onOpenMedia,
+                    onOpenHtml = onOpenHtml,
                 )
             }
         }

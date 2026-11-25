@@ -19,6 +19,15 @@ class AppNavigator(
 
     fun navigateTo(route: MedQBRoutes) {
         if (currentRoute == route) return
+        backStack.add(route)
+    }
+
+    /**
+     * Navigates to [route], or pops back to the existing instance if [route] is already on the
+     * back stack (e.g., unwinding `HtmlViewer` <-> `MediaViewer` link loops).
+     */
+    fun navigateOrPopTo(route: MedQBRoutes) {
+        if (currentRoute == route) return
         val existingIndex = backStack.indexOf(route)
         if (existingIndex >= 0) {
             if (backStack.size > existingIndex + 1) {
@@ -29,27 +38,10 @@ class AppNavigator(
         }
     }
 
-    /**
-     * Navigates to [destination] only if [expectedCurrent] is currently at the top of the stack.
-     */
-    fun navigateIfCurrent(expectedCurrent: MedQBRoutes, destination: MedQBRoutes): Boolean {
-        if (currentRoute != expectedCurrent || currentRoute == destination) return false
-        navigateTo(destination)
-        return true
-    }
-
     fun navigateBack(): Boolean {
         if (!canNavigateBack) return false
         backStack.removeLastOrNull()
         return true
-    }
-
-    /**
-     * Pops the top entry only if [expectedCurrent] is currently at the top of the stack.
-     */
-    fun popIfCurrent(expectedCurrent: MedQBRoutes): Boolean {
-        if (currentRoute != expectedCurrent) return false
-        return navigateBack()
     }
 
     /**
@@ -65,9 +57,14 @@ class AppNavigator(
             if (backStack.size > targetIndex + 1) {
                 backStack.subList(targetIndex + 1, backStack.size).clear()
             }
-        } else {
-            backStack.clear()
+        } else if (backStack.isEmpty()) {
             backStack.add(MedQBRoutes.DatabaseSelection)
+        } else {
+            // Replace in place so NavDisplay never observes a transiently empty back stack.
+            backStack[0] = MedQBRoutes.DatabaseSelection
+            if (backStack.size > 1) {
+                backStack.subList(1, backStack.size).clear()
+            }
         }
     }
 }

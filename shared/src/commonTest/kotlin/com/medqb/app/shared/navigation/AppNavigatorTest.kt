@@ -1,7 +1,10 @@
 package com.medqb.app.shared.navigation
 
 import androidx.navigation3.runtime.NavKey
+import androidx.savedstate.serialization.decodeFromSavedState
+import androidx.savedstate.serialization.encodeToSavedState
 import com.medqb.app.shared.data.models.SubmissionMode
+import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -36,10 +39,9 @@ class AppNavigatorTest {
 
     @Test
     fun testNavigateBackFromQuizPopsToFilter() {
-        val initialFilter = MedQBRoutes.Filter
         val stack = mutableListOf<NavKey>(
             MedQBRoutes.DatabaseSelection,
-            initialFilter,
+            MedQBRoutes.Filter,
             MedQBRoutes.Quiz(sessionId = "s1"),
         )
         val navigator = AppNavigator(stack)
@@ -48,8 +50,7 @@ class AppNavigatorTest {
         val popped = navigator.navigateBack()
         assertTrue(popped)
         assertEquals(2, stack.size)
-        assertEquals(initialFilter, navigator.currentRoute)
-        assertTrue(stack[1] === initialFilter)
+        assertEquals(MedQBRoutes.Filter, navigator.currentRoute)
     }
 
     @Test
@@ -94,7 +95,7 @@ class AppNavigatorTest {
     }
 
     @Test
-    fun testNavigateToNonAdjacentExistingRoutePopsToExisting() {
+    fun testNavigateOrPopToUnwindsExistingRoute() {
         val stack = mutableListOf<NavKey>(
             MedQBRoutes.DatabaseSelection,
             MedQBRoutes.Filter,
@@ -105,13 +106,13 @@ class AppNavigatorTest {
         val navigator = AppNavigator(stack)
         assertEquals(5, stack.size)
 
-        // Navigating to existing HtmlViewer should pop MediaViewer
-        navigator.navigateTo(MedQBRoutes.HtmlViewer(fileName = "a.html"))
+        // Unwinding to existing HtmlViewer should pop MediaViewer
+        navigator.navigateOrPopTo(MedQBRoutes.HtmlViewer(fileName = "a.html"))
         assertEquals(4, stack.size)
         assertEquals(MedQBRoutes.HtmlViewer(fileName = "a.html"), navigator.currentRoute)
 
-        // Navigating to existing Filter should pop everything above Filter
-        navigator.navigateTo(MedQBRoutes.Filter)
+        // Unwinding to existing Filter should pop everything above Filter
+        navigator.navigateOrPopTo(MedQBRoutes.Filter)
         assertEquals(2, stack.size)
         assertEquals(MedQBRoutes.Filter, navigator.currentRoute)
     }
@@ -160,45 +161,12 @@ class AppNavigatorTest {
     }
 
     @Test
-    fun testNavigateIfCurrentPreventsStaleAndDuplicatePushes() {
-        val stack = mutableListOf<NavKey>(MedQBRoutes.DatabaseSelection)
-        val navigator = AppNavigator(stack)
-
-        assertTrue(navigator.navigateIfCurrent(MedQBRoutes.DatabaseSelection, MedQBRoutes.Filter))
-        assertEquals(listOf<NavKey>(MedQBRoutes.DatabaseSelection, MedQBRoutes.Filter), stack)
-
-        // Second tap from DatabaseSelection after Filter is already pushed must be dropped
-        assertFalse(navigator.navigateIfCurrent(MedQBRoutes.DatabaseSelection, MedQBRoutes.Settings))
-        assertEquals(listOf<NavKey>(MedQBRoutes.DatabaseSelection, MedQBRoutes.Filter), stack)
-    }
-
-    @Test
-    fun testPopIfCurrentPreventsDoublePopsAndBackgroundPops() {
-        val quizRoute = MedQBRoutes.Quiz(sessionId = "s1")
-        val stack = mutableListOf<NavKey>(
-            MedQBRoutes.DatabaseSelection,
-            MedQBRoutes.Filter,
-            quizRoute,
-        )
-        val navigator = AppNavigator(stack)
-
-        // Covered route cannot pop while Quiz is on top
-        assertFalse(navigator.popIfCurrent(MedQBRoutes.Filter))
-        assertEquals(3, stack.size)
-
-        // First pop from Quiz succeeds; second rapid pop from Quiz is ignored
-        assertTrue(navigator.popIfCurrent(quizRoute))
-        assertFalse(navigator.popIfCurrent(quizRoute))
-        assertEquals(listOf<NavKey>(MedQBRoutes.DatabaseSelection, MedQBRoutes.Filter), stack)
-    }
-
-    @Test
-    fun testRoutesPolymorphicSerialization() {
+    fun testRoutesPolymorphicAndSavedStateSerialization() {
         val json = Json {
             serializersModule = medQBSerializersModule
         }
 
-        val routes: List<NavKey> = listOf(
+        val routes: List<MedQBRoutes> = listOf(
             MedQBRoutes.DatabaseSelection,
             MedQBRoutes.Filter,
             MedQBRoutes.Quiz(
@@ -229,10 +197,28 @@ class AppNavigatorTest {
             MedQBRoutes.HtmlViewer(fileName = "doc.html"),
         )
 
+        // Exhaustive check ensuring every MedQBRoutes subtype has at least one test case.
+        val coveredVariants = routes.map { route ->
+            when (route) {
+                is MedQBRoutes.DatabaseSelection -> "DatabaseSelection"
+                is MedQBRoutes.Filter -> "Filter"
+                is MedQBRoutes.Quiz -> "Quiz"
+                is MedQBRoutes.Settings -> "Settings"
+                is MedQBRoutes.MediaViewer -> "MediaViewer"
+                is MedQBRoutes.HtmlViewer -> "HtmlViewer"
+            }
+        }.toSet()
+        assertEquals(6, coveredVariants.size)
+
+        val navKeySerializer = PolymorphicSerializer(NavKey::class)
         for (route in routes) {
-            val encoded = json.encodeToString(kotlinx.serialization.PolymorphicSerializer(NavKey::class), route)
-            val decoded = json.decodeFromString(kotlinx.serialization.PolymorphicSerializer(NavKey::class), encoded)
-            assertEquals(route, decoded)
+            val encodedJson = json.encodeToString(navKeySerializer, route)
+            val decodedJson = json.decodeFromString(navKeySerializer, encodedJson)
+            assertEquals(route, decodedJson)
+
+            val savedState = encodeToSavedState(navKeySerializer, route, MedQBNavConfig)
+            val decodedSavedState = decodeFromSavedState(navKeySerializer, savedState, MedQBNavConfig)
+            assertEquals(route, decodedSavedState)
         }
     }
 }

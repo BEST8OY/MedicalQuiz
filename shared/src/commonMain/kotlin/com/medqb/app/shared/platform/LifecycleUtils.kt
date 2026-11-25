@@ -9,19 +9,20 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 
 /**
  * Creates a parameterized callback that drops invocations unless the current lifecycle
- * is at least [Lifecycle.State.STARTED].
+ * is at least [Lifecycle.State.RESUMED].
  *
- * Multiplatform counterpart to [androidx.lifecycle.compose.dropUnlessStarted] supporting a single parameter.
+ * Single-parameter counterpart to [androidx.lifecycle.compose.dropUnlessResumed] (which only
+ * accepts `() -> Unit`).
  */
 @Composable
-fun <T> rememberDropUnlessStarted(
+fun <T> rememberDropUnlessResumed(
     block: (T) -> Unit,
 ): (T) -> Unit {
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentBlock by rememberUpdatedState(block)
     return remember(lifecycleOwner) {
         { param: T ->
-            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
                 currentBlock(param)
             }
         }

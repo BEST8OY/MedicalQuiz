@@ -35,6 +35,15 @@ class MediaViewerViewModel(
         }
     }
 
+    fun resolveMediaFilePath(fileName: String): String =
+        mediaNavigationCoordinator.resolveMediaFilePath(fileName)
+
+    suspend fun mediaFileExists(fileName: String): Boolean =
+        mediaNavigationCoordinator.mediaFileExists(fileName)
+
+    suspend fun resolveOverlayPaths(files: List<String>): Map<String, String?> =
+        mediaNavigationCoordinator.resolveOverlayPaths(files)
+
     fun saveMedia(fileName: String) {
         mediaNavigationCoordinator.saveMediaFileAsync(fileName)
     }
