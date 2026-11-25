@@ -59,7 +59,7 @@ fun LabsBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 32.dp)
+                .padding(bottom = 16.dp)
         ) {
             // Header Bar
             Row(

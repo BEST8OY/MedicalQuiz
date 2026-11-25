@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.ButtonDefaults
@@ -23,12 +23,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -66,6 +68,11 @@ internal object DialogLayout {
 @Composable
 fun DialogShell(
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    maxWidth: Dp = DialogLayout.MaxWidth,
+    minHeight: Dp = DialogLayout.MinContainerHeight,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    contentColor: Color = contentColorFor(containerColor),
     properties: DialogProperties = DialogProperties(
         usePlatformDefaultWidth = false,
         dismissOnBackPress = true,
@@ -97,19 +104,22 @@ fun DialogShell(
                 }
                 val availableMaxHeight = (maxHeight - DialogLayout.MaxHeightInset)
                     .coerceAtLeast(DialogLayout.AbsoluteMinHeight)
-                val resolvedMinHeight = DialogLayout.MinContainerHeight.coerceAtMost(availableMaxHeight)
+                val resolvedMinHeight = minHeight.coerceAtMost(availableMaxHeight)
+                val targetWidth = (this.maxWidth * dialogAdaptive.dialogWidthFraction)
+                    .coerceIn(DialogLayout.MinWidth, maxWidth)
+                    .coerceAtMost(this.maxWidth)
 
                 CompositionLocalProvider(LocalAdaptiveLayoutInfo provides dialogAdaptive) {
                     Surface(
-                        modifier = Modifier
-                            .widthIn(min = DialogLayout.MinWidth, max = DialogLayout.MaxWidth)
-                            .fillMaxWidth(dialogAdaptive.dialogWidthFraction)
+                        modifier = modifier
+                            .width(targetWidth)
                             .heightIn(
                                 min = resolvedMinHeight,
                                 max = availableMaxHeight
                             )
                             .clip(MaterialTheme.shapes.extraLarge),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                        color = containerColor,
+                        contentColor = contentColor,
                     ) {
                         Column {
                             content()

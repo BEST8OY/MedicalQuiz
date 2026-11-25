@@ -35,7 +35,7 @@ internal fun ExplanationBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(bottom = 16.dp),
         ) {
             Text(
                 text = description.title.ifBlank { "Explanation" },
