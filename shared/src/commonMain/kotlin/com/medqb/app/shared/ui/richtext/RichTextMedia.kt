@@ -2,6 +2,7 @@ package com.medqb.app.shared.ui.richtext
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,8 +19,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
-import coil3.compose.AsyncImage
-import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
 import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import com.medqb.app.shared.ui.LocalActiveSharedElementKey
 import com.medqb.app.shared.utils.HtmlUtils
@@ -71,6 +71,16 @@ internal fun RichMedia(
     }
 
     val zoomState = rememberZoomState()
+    // Hoist the painter above SnapBackZoomableBox so toggling the zoom overlay never disposes
+    // and reloads AsyncImagePainter (which would collapse height to 0 for a frame on release and
+    // clamp the parent ScrollState).
+    val painter = rememberAsyncImagePainter(
+        model = mediaModel,
+        contentScale = ContentScale.Fit,
+        onSuccess = { state ->
+            zoomState.setContentSize(state.painter.intrinsicSize)
+        },
+    )
 
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val navAnimatedScope = animatedVisibilityScope ?: if (sharedTransitionScope != null) {
@@ -119,16 +129,11 @@ internal fun RichMedia(
                 onMediaClick(clickTarget)
             },
         ) {
-            AsyncImage(
-                model = mediaModel,
+            Image(
+                painter = painter,
                 contentDescription = block.description,
                 contentScale = ContentScale.Fit,
                 modifier = if (hasExplicitWidth) Modifier else Modifier.fillMaxWidth(),
-                onState = { state ->
-                    if (state is AsyncImagePainter.State.Success) {
-                        zoomState.setContentSize(state.painter.intrinsicSize)
-                    }
-                },
             )
         }
         block.description?.let {

@@ -74,6 +74,10 @@ class MainActivity : ComponentActivity() {
 
         val graph = (application as MedQBApp).graph
 
+        // Initialize synchronously so config-change recreations (rotation / theme change)
+        // never re-trigger markPermissionGranted() and close an already-open UserDataManager.
+        isPermissionGranted = hasStoragePermission()
+
         setContent {
             CompositionLocalProvider(LocalAppGraph provides graph) {
                 if (isPermissionGranted) {
@@ -97,8 +101,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun checkPermissions() {
-        val nowGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    private fun hasStoragePermission(): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Environment.isExternalStorageManager()
         } else {
             ContextCompat.checkSelfPermission(
@@ -106,6 +110,9 @@ class MainActivity : ComponentActivity() {
                 Manifest.permission.READ_EXTERNAL_STORAGE
             ) == PackageManager.PERMISSION_GRANTED
         }
+
+    private fun checkPermissions() {
+        val nowGranted = hasStoragePermission()
 
         if (nowGranted) {
             if (!isPermissionGranted) {
@@ -127,6 +134,7 @@ class MainActivity : ComponentActivity() {
         val graph = (application as MedQBApp).graph
         permissionGrantJob = lifecycleScope.launch {
             graph.userDataManager.close()
+            graph.userDataManager.init()
             isPermissionGranted = true
         }
     }

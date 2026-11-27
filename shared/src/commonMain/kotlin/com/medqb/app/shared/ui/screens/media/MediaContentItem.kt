@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -40,6 +41,7 @@ import androidx.compose.ui.draw.clipToBounds
 import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -268,11 +270,13 @@ private fun ImageContent(
         }
     }
 
+    var imageAspectRatio by remember(fileName) { mutableStateOf<Float?>(null) }
+    val fittedImageModifier = imageAspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier.fillMaxSize()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .onSizeChanged { containerSize = it }
-            .then(sharedElementModifier)
             .clipToBounds()
             .zoomable(
                 zoomState = zoomState,
@@ -284,33 +288,44 @@ private fun ImageContent(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        AsyncImage(
-            model = mediaFilePath,
-            contentDescription = fileName,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Fit,
-            onState = { state ->
-                if (state is AsyncImagePainter.State.Success) {
-                    zoomState.setContentSize(state.painter.intrinsicSize)
-                }
-            },
-        )
-
-        AnimatedVisibility(
-            visible = overlayPath != null && showOverlay && !isExitingTransition && isTransitionDone,
-            enter = fadeIn(
-                animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-            ),
-            exit = fadeOut(
-                animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-            ),
+        // Scope sharedElement to the fitted image bounds rather than the full-screen viewport
+        // so returning transitions originate from the centered image instead of jumping to (0, 0).
+        Box(
+            modifier = fittedImageModifier.then(sharedElementModifier),
+            contentAlignment = Alignment.Center,
         ) {
             AsyncImage(
-                model = overlayPath,
-                contentDescription = "Overlay",
+                model = mediaFilePath,
+                contentDescription = fileName,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
+                onState = { state ->
+                    if (state is AsyncImagePainter.State.Success) {
+                        val size = state.painter.intrinsicSize
+                        zoomState.setContentSize(size)
+                        if (size.isSpecified && size.width > 0f && size.height > 0f) {
+                            imageAspectRatio = size.width / size.height
+                        }
+                    }
+                },
             )
+
+            AnimatedVisibility(
+                visible = overlayPath != null && showOverlay && !isExitingTransition && isTransitionDone,
+                enter = fadeIn(
+                    animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+                ),
+                exit = fadeOut(
+                    animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+                ),
+            ) {
+                AsyncImage(
+                    model = overlayPath,
+                    contentDescription = "Overlay",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                )
+            }
         }
     }
 }
