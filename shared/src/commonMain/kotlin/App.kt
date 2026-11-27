@@ -41,6 +41,8 @@ import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
 import androidx.navigationevent.NavigationEvent
 import coil3.compose.setSingletonImageLoaderFactory
+import net.engawapg.lib.zoomable.ExperimentalZoomableApi
+import net.engawapg.lib.zoomable.SnapBackZoomableOverlayHost
 import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.domain.AppIntent
 import com.medqb.app.shared.domain.SnackbarEvent
@@ -246,15 +248,18 @@ fun App() {
                             }
                         }
 
-                        NavDisplay(
-                            backStack = backStack,
-                            onBack = onBack,
-                            entryProvider = entryProvider,
-                            entryDecorators = entryDecorators,
-                            transitionSpec = transitionSpec,
-                            popTransitionSpec = popTransitionSpec,
-                            predictivePopTransitionSpec = predictivePopTransitionSpec,
-                        )
+                        @OptIn(ExperimentalZoomableApi::class)
+                        SnapBackZoomableOverlayHost(modifier = Modifier.fillMaxSize()) {
+                            NavDisplay(
+                                backStack = backStack,
+                                onBack = onBack,
+                                entryProvider = entryProvider,
+                                entryDecorators = entryDecorators,
+                                transitionSpec = transitionSpec,
+                                popTransitionSpec = popTransitionSpec,
+                                predictivePopTransitionSpec = predictivePopTransitionSpec,
+                            )
+                        }
                     }
                 }
 

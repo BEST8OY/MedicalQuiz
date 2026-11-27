@@ -505,7 +505,7 @@ class FakeDatabaseProvider(
     var difficultyAvailable: Boolean = false
     var difficultyCountsProvider: ((List<Long>?, List<Long>?, List<Long>?, List<Long>?, StatusFilter) -> Map<DifficultyTier, Int>)? = null
 
-    override suspend fun isDifficultyAvailable(): Boolean = difficultyAvailable
+    override fun isDifficultyAvailable(): Boolean = difficultyAvailable
 
     override suspend fun getDifficultyCounts(
         subjectIds: List<Long>?,

@@ -10,8 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -21,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import com.medqb.app.shared.ui.LocalActiveSharedElementKey
 import com.medqb.app.shared.utils.HtmlUtils
@@ -29,10 +28,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.zIndex
+import net.engawapg.lib.zoomable.ExperimentalZoomableApi
+import net.engawapg.lib.zoomable.SnapBackZoomableBox
 import net.engawapg.lib.zoomable.rememberZoomState
-import net.engawapg.lib.zoomable.snapBackZoomable
 
 /**
  * Renders a media element (image) with optional description.
@@ -40,7 +38,7 @@ import net.engawapg.lib.zoomable.snapBackZoomable
  * @param block The media block containing source, description, and layout information
  * @param onMediaClick Callback invoked when the media is clicked
  */
-@OptIn(ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalZoomableApi::class)
 @Composable
 internal fun RichMedia(
     block: RichTextBlock.Media,
@@ -60,6 +58,7 @@ internal fun RichMedia(
             sharedMediaCoordinator.unregister(clickTarget, instanceToken)
         }
     }
+    val hasExplicitWidth = block.width?.let { it > 0 } == true
     val imageSizeModifier = remember(block.width) {
         val w = block.width?.takeIf { it > 0 }
         when {
@@ -72,7 +71,6 @@ internal fun RichMedia(
     }
 
     val zoomState = rememberZoomState()
-    val isZoomed by remember { derivedStateOf { zoomState.scale > 1.001f } }
 
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val navAnimatedScope = animatedVisibilityScope ?: if (sharedTransitionScope != null) {
@@ -103,7 +101,6 @@ internal fun RichMedia(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .zIndex(if (isZoomed) 10f else 0f)
             .padding(vertical = 8.dp),
         horizontalAlignment = when (block.alignment) {
             TextAlign.End -> Alignment.End
@@ -111,23 +108,29 @@ internal fun RichMedia(
             else -> Alignment.Start
         }
     ) {
-        AsyncImage(
-            model = mediaModel,
-            contentDescription = block.description,
-            contentScale = ContentScale.Fit,
+        SnapBackZoomableBox(
             modifier = Modifier
-                .zIndex(if (isZoomed) 1f else 0f)
                 .then(imageSizeModifier)
-                .then(sharedElementModifier)
-                .graphicsLayer { clip = zoomState.scale <= 1.001f }
-                .snapBackZoomable(
-                    zoomState = zoomState,
-                    onTap = {
-                        sharedMediaCoordinator.prefer(clickTarget, instanceToken)
-                        onMediaClick(clickTarget)
-                    },
-                ),
-        )
+                .then(sharedElementModifier),
+            zoomState = zoomState,
+            scrim = MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f),
+            onTap = {
+                sharedMediaCoordinator.prefer(clickTarget, instanceToken)
+                onMediaClick(clickTarget)
+            },
+        ) {
+            AsyncImage(
+                model = mediaModel,
+                contentDescription = block.description,
+                contentScale = ContentScale.Fit,
+                modifier = if (hasExplicitWidth) Modifier else Modifier.fillMaxWidth(),
+                onState = { state ->
+                    if (state is AsyncImagePainter.State.Success) {
+                        zoomState.setContentSize(state.painter.intrinsicSize)
+                    }
+                },
+            )
+        }
         block.description?.let {
             Text(
                 text = it,

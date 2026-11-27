@@ -302,7 +302,7 @@ class FilterHubViewModelTest {
         advanceUntilIdle()
 
         // Global bank counts initially
-        assertTrue(viewModel.state.value.isDifficultyAvailable)
+        assertEquals(true, viewModel.state.value.isDifficultyAvailable)
         assertEquals(10, viewModel.state.value.difficultyCounts[DifficultyTier.VERY_DIFFICULT])
         assertEquals(20, viewModel.state.value.difficultyCounts[DifficultyTier.EASY])
 
@@ -325,6 +325,19 @@ class FilterHubViewModelTest {
         advanceUntilIdle()
         assertEquals(3, viewModel.state.value.difficultyCounts[DifficultyTier.VERY_DIFFICULT])
         assertEquals(5, viewModel.state.value.difficultyCounts[DifficultyTier.EASY])
+    }
+
+    @Test
+    fun difficultyAvailabilityStartsNullWhenNoDbAndSeedsSynchronouslyWhenDbAlreadyActive() = runHubTest {
+        val holderNoDb = ActiveDatabaseHolder()
+        val vmWithoutDb = createViewModel(FakeDatabaseProvider(), holderNoDb)
+        assertEquals(null, vmWithoutDb.state.value.isDifficultyAvailable)
+
+        val provider = FakeDatabaseProvider().apply { difficultyAvailable = true }
+        val holderWithDb = ActiveDatabaseHolder()
+        provider.installInto(holderWithDb)
+        val vmWithDb = createViewModel(provider, holderWithDb)
+        assertEquals(true, vmWithDb.state.value.isDifficultyAvailable)
     }
 
     @Test

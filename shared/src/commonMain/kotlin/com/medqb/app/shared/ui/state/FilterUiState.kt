@@ -20,7 +20,7 @@ data class FilterUiState(
     val excludedSystemIds: Set<Long> = emptySet(),
     val statusFilter: StatusFilter = StatusFilter.ALL,
     val selectedDifficultyTiers: Set<DifficultyTier> = emptySet(),
-    val isDifficultyAvailable: Boolean = false,
+    val isDifficultyAvailable: Boolean? = null,
     val difficultyCounts: Map<DifficultyTier, Int> = emptyMap(),
     val subjectsResource: Resource<List<Subject>> = Resource.Success(emptyList()),
     val systemsResource: Resource<List<System>> = Resource.Success(emptyList()),

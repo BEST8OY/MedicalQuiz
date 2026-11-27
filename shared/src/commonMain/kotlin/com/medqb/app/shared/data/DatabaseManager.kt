@@ -170,7 +170,7 @@ class DatabaseManager(
         difficultyFilters = difficultyFilters,
     )
 
-    override suspend fun isDifficultyAvailable(): Boolean = questionDao.isDifficultyAvailable()
+    override fun isDifficultyAvailable(): Boolean = questionDao.isDifficultyAvailable()
 
     override suspend fun getDifficultyCounts(
         subjectIds: List<Long>?,

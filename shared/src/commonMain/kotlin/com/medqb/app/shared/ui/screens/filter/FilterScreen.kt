@@ -43,7 +43,7 @@ internal fun FilterScreen(
     statusLabel: String,
     selectedDifficultyTiers: Set<DifficultyTier> = emptySet(),
     difficultyLabel: String = "All Difficulties",
-    isDifficultyAvailable: Boolean = false,
+    isDifficultyAvailable: Boolean? = null,
     previewCount: Int,
     isLoggingEnabled: Boolean,
     onLoggingToggle: (Boolean) -> Unit,
@@ -59,7 +59,7 @@ internal fun FilterScreen(
     modifier: Modifier = Modifier,
 ) {
     val hasPreview = previewCount > 0
-    val isDifficultyActive = isDifficultyAvailable &&
+    val isDifficultyActive = isDifficultyAvailable == true &&
         selectedDifficultyTiers.isNotEmpty() &&
         selectedDifficultyTiers.size < DifficultyTier.entries.size
     val hasFilters = subjectCount > 0 ||
@@ -230,7 +230,7 @@ private fun StatusDifficultyFilterGroup(
     statusFilter: StatusFilter,
     statusLabel: String,
     difficultyLabel: String,
-    isDifficultyAvailable: Boolean,
+    isDifficultyAvailable: Boolean?,
     isDifficultyActive: Boolean,
     onSelectStatus: () -> Unit,
     onSelectDifficulty: () -> Unit,
@@ -252,12 +252,15 @@ private fun StatusDifficultyFilterGroup(
 
         FilterSelectionSegmentedItem(
             title = "Difficulty",
-            subtitle = if (!isDifficultyAvailable) "Not available for this bank" else difficultyLabel,
+            subtitle = if (isDifficultyAvailable == false) "Not available for this bank" else difficultyLabel,
             icon = Icons.Filled.FitnessCenter,
             index = 1,
             count = 2,
             isActive = isDifficultyActive,
-            enabled = isDifficultyAvailable,
+            enabled = isDifficultyAvailable == true,
+            // While availability is unknown (null, DB still opening), keep neutral styling
+            // so available banks never flash from the dark disabled container color.
+            showDisabledStyle = isDifficultyAvailable == false,
             onClick = onSelectDifficulty,
         )
     }

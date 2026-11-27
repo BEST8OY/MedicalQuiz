@@ -1,7 +1,9 @@
 package com.medqb.app.shared.ui.entry
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.dropUnlessResumed
@@ -25,7 +27,10 @@ fun QuizEntry(
         graph.createQuizViewModel(createSavedStateHandle(), route)
     }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val mediaHandler = remember(lifecycleOwner, onOpenMedia, onOpenHtml) {
+    // Survives QuizEntry leaving composition after the forward transition completes so the
+    // returning hero sharedElement key is still active when MediaViewer pops back.
+    val activeSharedElementKey = rememberSaveable { mutableStateOf<String?>(null) }
+    val mediaHandler = remember(lifecycleOwner, onOpenMedia, onOpenHtml, activeSharedElementKey) {
         MediaHandler(
             onOpenMedia = { files, index ->
                 if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
@@ -37,6 +42,7 @@ fun QuizEntry(
                     onOpenHtml(fileName)
                 }
             },
+            activeSharedElementKey = activeSharedElementKey,
         )
     }
 

@@ -1,15 +1,15 @@
 package com.medqb.app.shared.ui.media
 
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import com.medqb.app.shared.utils.HtmlUtils
 
 class MediaHandler(
     private val onOpenMedia: (List<String>, Int) -> Unit,
-    private val onOpenHtml: (String) -> Unit
+    private val onOpenHtml: (String) -> Unit,
+    val activeSharedElementKey: MutableState<String?> = mutableStateOf(null),
 ) {
     private var currentMediaFiles: List<String> = emptyList()
-
-    val activeSharedElementKey = mutableStateOf<String?>(null)
 
     fun reset() {
         currentMediaFiles = emptyList()

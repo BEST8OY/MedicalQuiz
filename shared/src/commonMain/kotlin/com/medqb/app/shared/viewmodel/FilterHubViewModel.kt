@@ -115,6 +115,19 @@ class FilterHubViewModel(
             _state.update { it.copy(databaseName = restoredDbName) }
         }
 
+        // Seed difficulty availability synchronously if the matching database is already open so
+        // frame 0 doesn't render pending/unavailable state before collectors run.
+        activeDatabaseHolder.activeDatabase.value?.let { active ->
+            if (restoredDbName.isEmpty() || restoredDbName == active.name) {
+                _state.update {
+                    it.copy(
+                        databaseName = active.name,
+                        isDifficultyAvailable = active.provider.isDifficultyAvailable(),
+                    )
+                }
+            }
+        }
+
         val restoredPaneStr = savedStateHandle.get<String>(KEY_ACTIVE_PANE).orEmpty()
         if (restoredPaneStr.isNotEmpty()) {
             runCatching { FilterPane.valueOf(restoredPaneStr) }.getOrNull()?.let { pane ->
@@ -170,6 +183,14 @@ class FilterHubViewModel(
     }
 
     private fun setupDifficultyTracking() {
+        activeDatabaseHolder.activeDatabase
+            .map { it?.provider?.isDifficultyAvailable() }
+            .distinctUntilChanged()
+            .onEach { isAvail ->
+                _state.update { it.copy(isDifficultyAvailable = isAvail) }
+            }
+            .launchIn(viewModelScope)
+
         combine(
             activeDatabaseHolder.activeDatabase,
             filterStateHolder.filter,
@@ -185,36 +206,28 @@ class FilterHubViewModel(
             .flatMapLatest { params ->
                 flow {
                     val db = params.db
-                    if (db == null) {
-                        emit(false to emptyMap<DifficultyTier, Int>())
+                    if (db == null || !db.isDifficultyAvailable()) {
+                        emit(emptyMap())
                     } else {
-                        val (isAvail, counts) = withContext(ioDispatcher) {
+                        val counts = withContext(ioDispatcher) {
                             try {
-                                val isAvail = db.isDifficultyAvailable()
-                                val counts = if (isAvail) {
-                                    applyFiltersUseCase.getDifficultyCounts(
-                                        db = db,
-                                        filter = params.filter,
-                                    )
-                                } else {
-                                    emptyMap()
-                                }
-                                isAvail to counts
+                                applyFiltersUseCase.getDifficultyCounts(
+                                    db = db,
+                                    filter = params.filter,
+                                )
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
                                 Logger.e("FilterHubViewModel", "Error fetching difficulty counts", e)
-                                false to emptyMap()
+                                emptyMap()
                             }
                         }
-                        emit(isAvail to counts)
+                        emit(counts)
                     }
                 }
             }
-            .onEach { (isAvail, counts) ->
-                _state.update {
-                    it.copy(isDifficultyAvailable = isAvail, difficultyCounts = counts)
-                }
+            .onEach { counts ->
+                _state.update { it.copy(difficultyCounts = counts) }
             }
             .launchIn(viewModelScope)
     }

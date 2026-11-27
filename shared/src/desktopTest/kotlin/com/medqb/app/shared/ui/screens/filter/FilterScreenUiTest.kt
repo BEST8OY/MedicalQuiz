@@ -154,6 +154,41 @@ class FilterScreenUiTest {
     }
 
     @Test
+    fun displaysNeutralDifficultyWhileAvailabilityIsPending() = runComposeUiTest {
+        var difficultyClicked = false
+
+        setContent {
+            FilterScreen(
+                databaseName = "Loading Bank",
+                subjectCount = 0,
+                systemCount = 0,
+                statusFilter = StatusFilter.DEFAULT,
+                statusLabel = "All Questions",
+                difficultyLabel = "All Difficulties",
+                isDifficultyAvailable = null,
+                previewCount = 10,
+                isLoggingEnabled = true,
+                onLoggingToggle = {},
+                submissionMode = SubmissionMode.INSTANT,
+                onSubmissionModeToggle = {},
+                onSelectSubjects = {},
+                onSelectSystems = {},
+                onSelectStatus = {},
+                onSelectDifficulty = { difficultyClicked = true },
+                onStart = {},
+                onClearFilters = {},
+            )
+        }
+
+        onNodeWithText("Difficulty").assertIsDisplayed()
+        onNodeWithText("All Difficulties").assertIsDisplayed()
+        onNodeWithText("Not available for this bank").assertDoesNotExist()
+
+        onNodeWithText("Difficulty").performClick()
+        assertFalse(difficultyClicked, "Pending difficulty row should not trigger click callback")
+    }
+
+    @Test
     fun displaysActiveFilterStateAndSubtitles() = runComposeUiTest {
         setContent {
             FilterScreen(

@@ -204,37 +204,38 @@ internal fun FilterSelectionSegmentedItem(
     count: Int,
     isActive: Boolean = false,
     enabled: Boolean = true,
+    showDisabledStyle: Boolean = !enabled,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val motionScheme = MaterialTheme.motionScheme
 
     val targetContainerColor = when {
-        !enabled -> MaterialTheme.colorScheme.surfaceContainerLowest
+        showDisabledStyle -> MaterialTheme.colorScheme.surfaceContainerLowest
         isActive -> MaterialTheme.colorScheme.tertiaryContainer
         else -> MaterialTheme.colorScheme.surfaceContainerLow
     }
 
     val targetContentColor = when {
-        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        showDisabledStyle -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
         isActive -> MaterialTheme.colorScheme.onTertiaryContainer
         else -> MaterialTheme.colorScheme.onSurface
     }
 
     val targetSupportingColor = when {
-        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        showDisabledStyle -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
         isActive -> MaterialTheme.colorScheme.onTertiaryContainer
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     val targetIconContainerColor = when {
-        !enabled -> MaterialTheme.colorScheme.surfaceContainerLow
+        showDisabledStyle -> MaterialTheme.colorScheme.surfaceContainerLow
         isActive -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.surfaceContainerHighest
     }
 
     val targetIconColor = when {
-        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        showDisabledStyle -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
         isActive -> MaterialTheme.colorScheme.onTertiary
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }

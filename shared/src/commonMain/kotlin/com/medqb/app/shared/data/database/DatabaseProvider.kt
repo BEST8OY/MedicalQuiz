@@ -38,7 +38,7 @@ interface DatabaseProvider {
         difficultyFilters: Set<DifficultyTier> = emptySet(),
     ): Int
 
-    suspend fun isDifficultyAvailable(): Boolean = false
+    fun isDifficultyAvailable(): Boolean = false
     suspend fun getDifficultyCounts(
         subjectIds: List<Long>? = null,
         excludedSubjectIds: List<Long>? = null,
