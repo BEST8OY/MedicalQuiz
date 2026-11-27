@@ -592,6 +592,8 @@ class FakeAppStartupCoordinator(
 ) {
     var initializedCount = 0
     var refreshCount = 0
+    var handleSelectionCount = 0
+    var closeCount = 0
     var lastSelectedDb: String? = null
 
     override suspend fun initializeApp(): List<String> {
@@ -606,10 +608,15 @@ class FakeAppStartupCoordinator(
         return availableDatabasesResult
     }
 
+    override suspend fun closeActiveDatabase() {
+        closeCount++
+    }
+
     override suspend fun handleDatabaseSelection(
         selectedDatabase: String?,
         userDataManager: UserDataManager,
     ): DatabaseSelectionDecision? {
+        handleSelectionCount++
         lastSelectedDb = selectedDatabase
         return selectedDatabase?.let { DatabaseSelectionDecision(it) }
     }

@@ -13,7 +13,6 @@ import com.medqb.app.shared.data.QuizSessionRepository
 import com.medqb.app.shared.data.SettingsRepository
 import com.medqb.app.shared.data.TextHighlightsRepository
 import com.medqb.app.shared.data.UserDataManager
-import com.medqb.app.shared.domain.AppIntentDispatcher
 import com.medqb.app.shared.domain.ApplyFiltersUseCase
 import com.medqb.app.shared.domain.LoadQuestionUseCase
 import com.medqb.app.shared.domain.SnackbarDispatcher
@@ -49,7 +48,6 @@ interface AppGraph {
     val textHighlightsRepository: TextHighlightsRepository
     val markedQuestionsRepository: MarkedQuestionsRepository
     val filterStateHolder: FilterStateHolder
-    val appIntentDispatcher: AppIntentDispatcher
     val snackbarDispatcher: SnackbarDispatcher
     val applyFiltersUseCase: ApplyFiltersUseCase
     val loadQuestionUseCase: LoadQuestionUseCase

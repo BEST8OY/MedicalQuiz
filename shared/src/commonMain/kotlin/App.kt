@@ -44,7 +44,6 @@ import coil3.compose.setSingletonImageLoaderFactory
 import net.engawapg.lib.zoomable.ExperimentalZoomableApi
 import net.engawapg.lib.zoomable.SnapBackZoomableOverlayHost
 import com.medqb.app.shared.di.LocalAppGraph
-import com.medqb.app.shared.domain.AppIntent
 import com.medqb.app.shared.domain.SnackbarEvent
 import com.medqb.app.shared.domain.SnackbarMessage
 import com.medqb.app.shared.navigation.MedQBRoutes
@@ -123,40 +122,23 @@ fun App() {
             }
         }
 
-        LaunchedEffect(
-            graph.appIntentDispatcher,
-            graph.snackbarDispatcher,
-            navigator,
-            workflow,
-        ) {
-            launch {
-                graph.appIntentDispatcher.intents.collect { intent ->
-                    when (intent) {
-                        is AppIntent.NavigateToDatabaseSelection -> {
-                            navigator.popToDatabaseSelection()
-                            workflow.onDatabaseSelectionRequested()
+        LaunchedEffect(graph.snackbarDispatcher) {
+            graph.snackbarDispatcher.events.collectLatest { event ->
+                snackbarHostState.currentSnackbarData?.dismiss()
+                when (event) {
+                    is SnackbarEvent.Dismiss -> Unit
+                    is SnackbarEvent.Show -> when (val snackbarMessage = event.message) {
+                        is SnackbarMessage.Simple -> {
+                            snackbarHostState.showSnackbar(snackbarMessage.message)
                         }
-                    }
-                }
-            }
-            launch {
-                graph.snackbarDispatcher.events.collectLatest { event ->
-                    snackbarHostState.currentSnackbarData?.dismiss()
-                    when (event) {
-                        is SnackbarEvent.Dismiss -> Unit
-                        is SnackbarEvent.Show -> when (val snackbarMessage = event.message) {
-                            is SnackbarMessage.Simple -> {
-                                snackbarHostState.showSnackbar(snackbarMessage.message)
-                            }
-                            is SnackbarMessage.Action -> {
-                                val result = snackbarHostState.showSnackbar(
-                                    message = snackbarMessage.message,
-                                    actionLabel = snackbarMessage.actionLabel,
-                                    duration = snackbarMessage.duration,
-                                )
-                                if (result == SnackbarResult.ActionPerformed) {
-                                    snackbarMessage.onActionPerformed()
-                                }
+                        is SnackbarMessage.Action -> {
+                            val result = snackbarHostState.showSnackbar(
+                                message = snackbarMessage.message,
+                                actionLabel = snackbarMessage.actionLabel,
+                                duration = snackbarMessage.duration,
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                snackbarMessage.onActionPerformed()
                             }
                         }
                     }

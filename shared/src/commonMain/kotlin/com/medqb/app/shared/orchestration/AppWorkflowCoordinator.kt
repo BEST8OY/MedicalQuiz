@@ -44,6 +44,13 @@ class AppWorkflowCoordinator(
     }
 
     /**
+     * Closes the active database connection, if any.
+     */
+    suspend fun closeActiveDatabase() {
+        startupCoordinator.closeActiveDatabase()
+    }
+
+    /**
      * Applies a [DatabaseSelectionDecision] to the workflow state.
      */
     fun applyDatabaseSelectionDecision(

@@ -31,6 +31,10 @@ open class AppStartupCoordinator(
         return localContentRepository.listDatabases()
     }
 
+    open suspend fun closeActiveDatabase() {
+        activeDatabaseHolder.closeDatabase()
+    }
+
     open suspend fun handleDatabaseSelection(
         selectedDatabase: String?,
         userDataManager: UserDataManager,

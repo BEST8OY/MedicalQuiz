@@ -86,4 +86,10 @@ class AppWorkflowCoordinatorTest {
         assertEquals("USMLE.db", decision.initializedDatabase)
         assertEquals("USMLE.db", startupCoordinator.lastSelectedDb)
     }
+
+    @Test
+    fun closeActiveDatabaseDelegatesToStartupCoordinator() = runTest {
+        coordinator.closeActiveDatabase()
+        assertEquals(1, startupCoordinator.closeCount)
+    }
 }
