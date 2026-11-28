@@ -225,7 +225,7 @@ fun QuizStudySection(
                             html = hintHtml.orEmpty(),
                             onLinkClick = linkHandler,
                             onMediaWithOwnerClick = mediaClick,
-                            mediaOwnerPrefix = "hint",
+                            mediaOwnerPrefix = "q$questionId:hint",
                             showSelectedHighlight = isKeyInfoActive,
                             palette = hintPalette
                         )

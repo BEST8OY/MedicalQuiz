@@ -48,10 +48,6 @@ class AppStartupCoordinatorTest {
         val events = Collections.synchronizedList(mutableListOf<String>())
 
         try {
-            val initialDb = FakeManagedDatabase(
-                delegate = FakeDatabaseProvider("Cardio.db"),
-                onClose = { events += "close:start" },
-            )
             val slowCloseDelegate = object : DatabaseProvider by FakeDatabaseProvider("Cardio.db") {
                 override suspend fun closeDatabase() {
                     events += "close:await"
@@ -72,7 +68,7 @@ class AppStartupCoordinatorTest {
                 userDataManager = FakeUserDataManager(),
             ) {
                 override fun createDatabaseManager(dbPath: String, canonicalDbName: String): ManagedDatabaseProvider {
-                    return if (canonicalDbName == "Renal") nextDb else initialDb
+                    return nextDb
                 }
             }
 

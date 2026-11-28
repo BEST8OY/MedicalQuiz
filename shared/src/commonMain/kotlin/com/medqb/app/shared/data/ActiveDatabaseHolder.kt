@@ -58,10 +58,12 @@ class ActiveDatabaseHolder {
     }
 
     suspend fun closeDatabase() = mutex.withLock {
-        val old = _activeDatabase.value
-        _openFailure.value = null
-        _activeDatabase.value = null
-        closeQuietly(old?.provider)
+        withContext(NonCancellable) {
+            val old = _activeDatabase.value
+            _openFailure.value = null
+            _activeDatabase.value = null
+            closeQuietly(old?.provider)
+        }
     }
 
     fun clearOpenFailure() {

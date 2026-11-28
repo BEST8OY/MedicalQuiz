@@ -387,6 +387,7 @@ private fun QuizQuestionCard(
                 ) {
                     key(question.id) {
                         QuestionStemCard(
+                            questionId = question.id,
                             questionHtml = questionHtml,
                             highlights = state.questionHighlights,
                             isKeyInfoActive = isKeyInfoActive,
@@ -433,6 +434,7 @@ private fun QuizQuestionCard(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     AnswerOptions(
+                        questionId = question.id,
                         answers = answers,
                         sanitizedAnswers = sanitizedAnswers,
                         selectedAnswerId = state.selectedAnswerId,
@@ -481,6 +483,7 @@ private fun QuizQuestionCard(
             ) {
                 key(question.id) {
                     QuestionStemCard(
+                        questionId = question.id,
                         questionHtml = questionHtml,
                         highlights = state.questionHighlights,
                         isKeyInfoActive = isKeyInfoActive,
@@ -518,6 +521,7 @@ private fun QuizQuestionCard(
                 )
 
                 AnswerOptions(
+                    questionId = question.id,
                     answers = answers,
                     sanitizedAnswers = sanitizedAnswers,
                     selectedAnswerId = state.selectedAnswerId,
@@ -556,6 +560,7 @@ private fun QuizQuestionCard(
 
 @Composable
 private fun QuestionStemCard(
+    questionId: Long,
     questionHtml: String,
     highlights: List<TextHighlight>,
     isKeyInfoActive: Boolean,
@@ -581,7 +586,7 @@ private fun QuestionStemCard(
             showSelectedHighlight = isKeyInfoActive,
             onLinkClick = linkHandler,
             onMediaWithOwnerClick = mediaClick,
-            mediaOwnerPrefix = "stem",
+            mediaOwnerPrefix = "q$questionId:stem",
             highlightConfig = RichTextHighlightConfig(
                 section = HighlightSection.QUESTION,
                 highlights = highlights,
@@ -644,7 +649,7 @@ private fun QuizExplanationAndMetadata(
                     showSelectedHighlight = state.answerSubmitted,
                     onLinkClick = linkHandler,
                     onMediaWithOwnerClick = mediaClick,
-                    mediaOwnerPrefix = "explanation",
+                    mediaOwnerPrefix = "q${state.currentQuestion?.id ?: 0L}:explanation",
                     highlightConfig = RichTextHighlightConfig(
                         section = HighlightSection.EXPLANATION,
                         highlights = state.explanationHighlights,

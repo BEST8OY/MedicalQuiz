@@ -40,8 +40,8 @@ open class AppStartupCoordinator(
     }
 
     open suspend fun closeActiveDatabase() {
-        withContext(NonCancellable) {
-            dbLifecycleMutex.withLock {
+        dbLifecycleMutex.withLock {
+            withContext(NonCancellable) {
                 activeDatabaseHolder.closeDatabase()
             }
         }
@@ -79,7 +79,9 @@ open class AppStartupCoordinator(
         if (current != null && current.matchesFileName(dbName)) return dbName
 
         if (current != null) {
-            activeDatabaseHolder.closeDatabase()
+            withContext(NonCancellable) {
+                activeDatabaseHolder.closeDatabase()
+            }
         }
 
         val dbPath = FileSystemHelper.getDatabasePath(dbName)

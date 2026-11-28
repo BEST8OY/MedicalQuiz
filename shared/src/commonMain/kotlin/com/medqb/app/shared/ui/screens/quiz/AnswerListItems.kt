@@ -49,6 +49,7 @@ import com.medqb.app.shared.ui.richtext.RichText
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AnswerListItem(
+    questionId: Long,
     answerId: Long,
     label: String,
     html: String,
@@ -212,7 +213,7 @@ private fun AnswerListItem(
                 html = html,
                 onLinkClick = onLinkClick,
                 onMediaWithOwnerClick = onMediaClick,
-                mediaOwnerPrefix = "answer:$answerId",
+                mediaOwnerPrefix = "q$questionId:answer:$answerId",
                 showSelectedHighlight = showResult
             )
         }
@@ -295,6 +296,7 @@ fun AnswerOptions(
     onLinkClick: (String) -> Unit,
     onMediaClick: (String, String) -> Unit,
     modifier: Modifier = Modifier,
+    questionId: Long = 0L,
 ) {
     Column(
         modifier = modifier
@@ -310,6 +312,7 @@ fun AnswerOptions(
             val percentage = answerPercentages[answer.answerId]
 
             AnswerListItem(
+                questionId = questionId,
                 answerId = answer.answerId,
                 label = label,
                 html = html,

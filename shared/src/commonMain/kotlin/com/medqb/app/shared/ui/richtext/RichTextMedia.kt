@@ -189,7 +189,8 @@ private val MaxEmbeddedImageWidth = 512.dp
  * @return Coil model (file path string or URL)
  */
 internal fun mediaModelForSource(source: String, mediaRef: String?): String {
-    val filename = mediaRef ?: extractMediaRef(source)
+    val rawName = mediaRef ?: extractMediaRef(source)
+    val filename = rawName?.let { HtmlUtils.normalizeFileName(it) }?.takeIf { it.isNotBlank() }
     if (filename != null) {
         HtmlUtils.getMediaPath(filename)?.let { path ->
             // Coil 3 supports file paths as strings

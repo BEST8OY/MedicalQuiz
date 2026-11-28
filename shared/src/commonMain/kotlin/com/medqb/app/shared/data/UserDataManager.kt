@@ -16,8 +16,10 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -75,6 +77,14 @@ open class UserDataManager {
     private val dbPath: String
         get() = "$dbDir/user_data.db"
 
+    internal open fun buildDatabase(): UserDatabase {
+        StorageProvider.ensureDirectoryExists(dbDir)
+        return Room.databaseBuilder<UserDatabase>(dbPath)
+            .setDriver(BundledSQLiteDriver())
+            .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
+            .build()
+    }
+
     private suspend fun getDatabase(): UserDatabase {
         database?.let { return it }
         return withContext(Dispatchers.IO) {
@@ -87,11 +97,7 @@ open class UserDataManager {
 
     private fun openDatabaseLocked(): UserDatabase {
         try {
-            StorageProvider.ensureDirectoryExists(dbDir)
-            val db = Room.databaseBuilder<UserDatabase>(dbPath)
-                .setDriver(BundledSQLiteDriver())
-                .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
-                .build()
+            val db = buildDatabase()
             database = db
             if (wasClosed || lastOpenFailed) {
                 wasClosed = false
@@ -122,26 +128,33 @@ open class UserDataManager {
         val job = reinitGuard.withLock {
             val previous = activeReinit
             _dbState.value = DbState.Closed
-            scope.async {
-                if (previous != null) {
-                    runCatching { previous.await() }
-                }
-                mutex.withLock {
-                    database?.close()
-                    database = null
-                    wasClosed = true
-                    _dbState.value = DbState.Closed
-                    openDatabaseLocked()
-                    Unit
-                }
-            }.also { created ->
-                activeReinit = created
-                created.invokeOnCompletion {
-                    if (activeReinit === created) {
-                        activeReinit = null
+            lateinit var created: Deferred<Unit>
+            created = scope.async(start = CoroutineStart.LAZY) {
+                try {
+                    if (previous != null) {
+                        runCatching { previous.await() }
+                    }
+                    mutex.withLock {
+                        database?.close()
+                        database = null
+                        wasClosed = true
+                        _dbState.value = DbState.Closed
+                        openDatabaseLocked()
+                        Unit
+                    }
+                } finally {
+                    withContext(NonCancellable) {
+                        reinitGuard.withLock {
+                            if (activeReinit === created) {
+                                activeReinit = null
+                            }
+                        }
                     }
                 }
             }
+            activeReinit = created
+            created.start()
+            created
         }
         job.await()
     }

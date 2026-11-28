@@ -147,68 +147,72 @@ class AppWorkflowLifecycleUiTest {
         val navigator = AppNavigator(backStack)
         lateinit var workflow: AppWorkflowHandle
 
-        setContent {
-            workflow = rememberAppWorkflow(
-                workflowCoordinator = workflowCoordinator,
-                filterStateHolder = filterStateHolder,
-            )
-            NavDisplay(
-                backStack = backStack,
-                onBack = { navigator.navigateBack() },
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                popTransitionSpec = { fadeIn() togetherWith fadeOut() },
-                entryProvider = entryProvider {
-                    entry<MedQBRoutes.DatabaseSelection> {
-                        val currentWorkflow by rememberUpdatedState(workflow)
-                        LifecycleResumeEffect(Unit) {
-                            currentWorkflow.onDatabaseSelectionRequested()
-                            onPauseOrDispose { }
+        try {
+            setContent {
+                workflow = rememberAppWorkflow(
+                    workflowCoordinator = workflowCoordinator,
+                    filterStateHolder = filterStateHolder,
+                )
+                NavDisplay(
+                    backStack = backStack,
+                    onBack = { navigator.navigateBack() },
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    popTransitionSpec = { fadeIn() togetherWith fadeOut() },
+                    entryProvider = entryProvider {
+                        entry<MedQBRoutes.DatabaseSelection> {
+                            val currentWorkflow by rememberUpdatedState(workflow)
+                            LifecycleResumeEffect(Unit) {
+                                currentWorkflow.onDatabaseSelectionRequested()
+                                onPauseOrDispose { }
+                            }
+                            Box(modifier = Modifier.fillMaxSize())
                         }
-                        Box(modifier = Modifier.fillMaxSize())
-                    }
-                    entry<MedQBRoutes.Filter> {
-                        Box(modifier = Modifier.fillMaxSize())
-                    }
-                },
-            )
+                        entry<MedQBRoutes.Filter> {
+                            Box(modifier = Modifier.fillMaxSize())
+                        }
+                    },
+                )
+            }
+
+            waitForIdle()
+            runOnUiThread {
+                workflow.onDatabaseSelected("Cardio.db")
+                navigator.navigateTo(MedQBRoutes.Filter)
+            }
+            waitForIdle()
+            assertEquals("Cardio", holder.activeDatabase.value?.name)
+
+            // Pop back to DatabaseSelection, triggering slow async close of Cardio.db.
+            mainClock.autoAdvance = false
+            runOnUiThread { navigator.navigateBack() }
+            waitUntil(timeoutMillis = 5_000) {
+                mainClock.advanceTimeByFrame()
+                "close:start:Cardio" in events
+            }
+
+            // Immediately select Renal.db while Cardio.db close is still awaiting closeGate.
+            runOnUiThread {
+                workflow.onDatabaseSelected("Renal.db")
+                navigator.navigateTo(MedQBRoutes.Filter)
+            }
+            repeat(5) { mainClock.advanceTimeByFrame() }
+
+            // Renal must NOT have initialized while Cardio is still closing.
+            assertEquals(false, "init:Renal" in events, "Renal must wait for Cardio close to complete, events=$events")
+
+            // Complete the pending close and settle.
+            closeGate.complete(Unit)
+            mainClock.autoAdvance = true
+            waitForIdle()
+
+            val renalIdx = events.indexOf("init:Renal")
+            val closeDoneIdx = events.indexOf("close:done:Cardio")
+            assertNotNull(holder.activeDatabase.value)
+            assertEquals("Renal", holder.activeDatabase.value?.name)
+            assertEquals(true, closeDoneIdx in 0 until renalIdx, "Expected Cardio close to finish before Renal init, events=$events")
+        } finally {
+            closeGate.complete(Unit)
         }
-
-        waitForIdle()
-        runOnUiThread {
-            workflow.onDatabaseSelected("Cardio.db")
-            navigator.navigateTo(MedQBRoutes.Filter)
-        }
-        waitForIdle()
-        assertEquals("Cardio", holder.activeDatabase.value?.name)
-
-        // Pop back to DatabaseSelection, triggering slow async close of Cardio.db.
-        mainClock.autoAdvance = false
-        runOnUiThread { navigator.navigateBack() }
-        waitUntil(timeoutMillis = 5_000) {
-            mainClock.advanceTimeByFrame()
-            "close:start:Cardio" in events
-        }
-
-        // Immediately select Renal.db while Cardio.db close is still awaiting closeGate.
-        runOnUiThread {
-            workflow.onDatabaseSelected("Renal.db")
-            navigator.navigateTo(MedQBRoutes.Filter)
-        }
-        repeat(5) { mainClock.advanceTimeByFrame() }
-
-        // Renal must NOT have initialized while Cardio is still closing.
-        assertEquals(false, "init:Renal" in events, "Renal must wait for Cardio close to complete, events=$events")
-
-        // Complete the pending close and settle.
-        closeGate.complete(Unit)
-        mainClock.autoAdvance = true
-        waitForIdle()
-
-        val renalIdx = events.indexOf("init:Renal")
-        val closeDoneIdx = events.indexOf("close:done:Cardio")
-        assertNotNull(holder.activeDatabase.value)
-        assertEquals("Renal", holder.activeDatabase.value?.name)
-        assertEquals(true, closeDoneIdx in 0 until renalIdx, "Expected Cardio close to finish before Renal init, events=$events")
     }
 
     @Test

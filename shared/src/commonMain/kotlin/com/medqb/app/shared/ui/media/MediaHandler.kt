@@ -55,8 +55,9 @@ class MediaHandler(
         if (trimmed.contains(".html", ignoreCase = true) || trimmed.contains(".htm", ignoreCase = true)) {
             val fileName = extractedFileName(trimmed) ?: trimmed
             if (fileName.isNotBlank()) {
-                if (!canNavigate()) return false
-                onOpenHtml(fileName)
+                if (canNavigate()) {
+                    onOpenHtml(fileName)
+                }
                 return true
             }
         }
@@ -76,7 +77,7 @@ class MediaHandler(
     }
 
     private fun openMediaFromCache(fileName: String, sharedElementOwnerKey: String?): Boolean {
-        if (!canNavigate()) return false
+        if (!canNavigate()) return true
         activeSharedElementKey.value = sharedElementOwnerKey
         if (currentMediaFiles.isEmpty()) {
             onOpenMedia(listOf(fileName), 0)

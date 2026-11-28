@@ -48,30 +48,35 @@ class MediaHandlerTest {
     }
 
     @Test
-    fun textLinkClearsOwnerKeyAndBlockedNavigationDoesNotMutateSharedElementKey() {
+    fun textLinkClearsOwnerKeyAndBlockedNavigationConsumesLinkWithoutMutatingSharedElementKey() {
         var canNav = true
-        var openedCount = 0
+        var openedMediaCount = 0
+        var openedHtmlCount = 0
         val handler = MediaHandler(
-            onOpenMedia = { _, _ -> openedCount++ },
-            onOpenHtml = {},
+            onOpenMedia = { _, _ -> openedMediaCount++ },
+            onOpenHtml = { openedHtmlCount++ },
             canNavigate = { canNav },
         )
         handler.updateMedia(1L, listOf("image1.png"))
 
         assertTrue(handler.handleMediaLink("image1.png", sharedElementOwnerKey = "stem:0:image1.png"))
         assertEquals("stem:0:image1.png", handler.activeSharedElementKey.value)
-        assertEquals(1, openedCount)
+        assertEquals(1, openedMediaCount)
 
-        // When navigation is blocked (e.g., not RESUMED), activeSharedElementKey must not change.
+        // When navigation is blocked (e.g., rapid double-tap while not RESUMED), local links must
+        // still return true so callers do not fall back to external uriHandler.openUri, and
+        // activeSharedElementKey must not mutate.
         canNav = false
-        assertFalse(handler.handleMediaLink("image1.png", sharedElementOwnerKey = "stem:1:image1.png"))
+        assertTrue(handler.handleMediaLink("image1.png", sharedElementOwnerKey = "stem:1:image1.png"))
+        assertTrue(handler.handleMediaLink("guideline.html"))
         assertEquals("stem:0:image1.png", handler.activeSharedElementKey.value)
-        assertEquals(1, openedCount)
+        assertEquals(1, openedMediaCount)
+        assertEquals(0, openedHtmlCount)
 
         // Clicking a text link (no owner key) clears any prior inline thumbnail owner key.
         canNav = true
         assertTrue(handler.handleMediaLink("media://image1.png"))
         assertEquals(null, handler.activeSharedElementKey.value)
-        assertEquals(2, openedCount)
+        assertEquals(2, openedMediaCount)
     }
 }
