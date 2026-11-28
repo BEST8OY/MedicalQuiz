@@ -195,6 +195,22 @@ class FilterHubViewModelTest {
     }
 
     @Test
+    fun restoredDatabaseNamePersistsWhileInitialActiveDatabaseIsPending() = runHubTest {
+        val holder = ActiveDatabaseHolder()
+        val savedHandle = SavedStateHandle(mapOf("database_name" to "bank-restored"))
+
+        val viewModel = createViewModel(
+            provider = FakeDatabaseProvider(dbName = "bank-restored"),
+            holder = holder,
+            savedStateHandle = savedHandle,
+        )
+        advanceUntilIdle()
+
+        assertEquals("bank-restored", viewModel.state.value.databaseName)
+        assertEquals("bank-restored", savedHandle.get<String>("database_name"))
+    }
+
+    @Test
     fun fetchSystemsRetriesWithoutMutatingSelectedSubjects() = runHubTest {
         val provider = FakeDatabaseProvider(dbName = "bank-nbme")
         provider.seededSystems = listOf(System(id = 0, name = "All Systems", count = 50))

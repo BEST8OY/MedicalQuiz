@@ -51,7 +51,7 @@ class RichTextUiTest {
                     answerPercentages = mapOf(42L to null),
                     onAnswerSelected = { selectedId = it },
                     onLinkClick = {},
-                    onMediaClick = {},
+                    onMediaClick = { _, _ -> },
                 )
             }
         }

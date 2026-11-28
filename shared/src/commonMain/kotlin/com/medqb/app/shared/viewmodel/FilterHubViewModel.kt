@@ -162,10 +162,12 @@ class FilterHubViewModel(
     }
 
     private fun setupDatabaseNameTracking() {
+        var hasObservedActiveDb = activeDatabaseHolder.activeDatabase.value != null
         activeDatabaseHolder.activeDatabase
             .map { it?.name.orEmpty() }
             .onEach { dbName ->
                 if (dbName.isNotEmpty()) {
+                    hasObservedActiveDb = true
                     val previous = lastKnownDbName
                     val dbChanged = previous != null && previous != dbName
                     lastKnownDbName = dbName
@@ -174,7 +176,15 @@ class FilterHubViewModel(
                     if (dbChanged) {
                         filterStateHolder.reset()
                     }
-                } else {
+                } else if (hasObservedActiveDb) {
+                    _state.update { it.copy(databaseName = "") }
+                    savedStateHandle[KEY_DATABASE_NAME] = ""
+                }
+            }
+            .launchIn(viewModelScope)
+        activeDatabaseHolder.openFailure
+            .onEach { failure ->
+                if (failure != null && activeDatabaseHolder.activeDatabase.value == null) {
                     _state.update { it.copy(databaseName = "") }
                     savedStateHandle[KEY_DATABASE_NAME] = ""
                 }

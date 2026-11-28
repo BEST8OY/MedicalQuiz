@@ -36,6 +36,8 @@ fun RichText(
     showSelectedHighlight: Boolean = false,
     onLinkClick: ((String) -> Unit)? = null,
     onMediaClick: ((String) -> Unit)? = null,
+    onMediaWithOwnerClick: ((mediaRef: String, ownerKey: String) -> Unit)? = null,
+    mediaOwnerPrefix: String = "",
     onTooltipClick: ((String) -> Unit)? = null,
     palette: RichTextPalette = rememberRichTextPalette(),
     highlightConfig: RichTextHighlightConfig? = null,
@@ -48,6 +50,8 @@ fun RichText(
         showSelectedHighlight = showSelectedHighlight,
         onLinkClick = onLinkClick,
         onMediaClick = onMediaClick,
+        onMediaWithOwnerClick = onMediaWithOwnerClick,
+        mediaOwnerPrefix = mediaOwnerPrefix,
         onTooltipClick = onTooltipClick,
         highlightConfig = highlightConfig,
     )
@@ -60,6 +64,8 @@ fun RichText(
     showSelectedHighlight: Boolean = false,
     onLinkClick: ((String) -> Unit)? = null,
     onMediaClick: ((String) -> Unit)? = null,
+    onMediaWithOwnerClick: ((mediaRef: String, ownerKey: String) -> Unit)? = null,
+    mediaOwnerPrefix: String = "",
     onTooltipClick: ((String) -> Unit)? = null,
     highlightConfig: RichTextHighlightConfig? = null,
 ) {
@@ -70,6 +76,8 @@ fun RichText(
         showSelectedHighlight = showSelectedHighlight,
         onLinkClick = onLinkClick,
         onMediaClick = onMediaClick,
+        onMediaWithOwnerClick = onMediaWithOwnerClick,
+        mediaOwnerPrefix = mediaOwnerPrefix,
         onTooltipClick = onTooltipClick,
         highlightConfig = highlightConfig,
     )
@@ -83,13 +91,15 @@ private fun RichTextInternal(
     showSelectedHighlight: Boolean = false,
     onLinkClick: ((String) -> Unit)? = null,
     onMediaClick: ((String) -> Unit)? = null,
+    onMediaWithOwnerClick: ((mediaRef: String, ownerKey: String) -> Unit)? = null,
+    mediaOwnerPrefix: String = "",
     onTooltipClick: ((String) -> Unit)? = null,
     highlightConfig: RichTextHighlightConfig? = null,
 ) {
     if (blocks.isEmpty()) return
     val sourceTag = if (highlightConfig != null) "HighlightableRichText" else "RichText"
     val resolvedLinkHandler = rememberResolvedLinkHandler(onLinkClick, sourceTag = sourceTag)
-    val resolvedMediaHandler = rememberResolvedMediaHandler(onMediaClick)
+    val resolvedMediaHandler = rememberResolvedMediaHandler(onMediaWithOwnerClick, onMediaClick)
     val tooltipSupport = rememberRichTextTooltipSupport(
         resetKey = tooltipResetKey,
         onTooltipClick = onTooltipClick
@@ -104,6 +114,7 @@ private fun RichTextInternal(
                     RichTextBlockRenderer(
                         block = block,
                         blockIndex = blockIndex,
+                        mediaOwnerPrefix = mediaOwnerPrefix,
                         showSelectedHighlight = showSelectedHighlight,
                         onLinkClick = resolvedLinkHandler,
                         onMediaClick = resolvedMediaHandler,

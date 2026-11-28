@@ -11,10 +11,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
@@ -31,11 +29,12 @@ import coil3.annotation.DelicateCoilApi
 import coil3.decode.DataSource
 import coil3.fetch.Fetcher
 import coil3.fetch.ImageFetchResult
-import com.medqb.app.shared.ui.LocalActiveSharedElementKey
+import com.medqb.app.shared.ui.media.MediaAspectRatioCache
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @OptIn(
@@ -43,7 +42,17 @@ import kotlin.test.assertTrue
     ExperimentalMaterial3ExpressiveApi::class,
     DelicateCoilApi::class,
 )
-class RichTextMediaZoomScrollUiTest {
+class RichTextMediaInteractionUiTest {
+
+    @BeforeTest
+    fun setUp() {
+        MediaAspectRatioCache.clear()
+    }
+
+    @AfterTest
+    fun tearDown() {
+        MediaAspectRatioCache.clear()
+    }
 
     @Test
     fun verticalDragOnInlineImageScrollsParentSmoothlyWithoutTriggeringClick() = runComposeUiTest {
@@ -85,7 +94,7 @@ class RichTextMediaZoomScrollUiTest {
                                     width = null,
                                     alignment = TextAlign.Start,
                                 ),
-                                onMediaClick = { clickCount++ },
+                                onMediaClick = { _, _ -> clickCount++ },
                             )
                             Spacer(modifier = Modifier.fillMaxWidth().height(800.dp))
                         }
@@ -109,7 +118,7 @@ class RichTextMediaZoomScrollUiTest {
     }
 
     @Test
-    fun tappingInlineImagePreservesScrollAndStampsDistinctOwnerTokens() = runComposeUiTest {
+    fun tappingInlineImagePreservesScrollAndEmitsDistinctDeterministicOwnerKeys() = runComposeUiTest {
         val loader = ImageLoader.Builder(PlatformContext.INSTANCE)
             .components {
                 add(
@@ -128,37 +137,35 @@ class RichTextMediaZoomScrollUiTest {
         SingletonImageLoader.setUnsafe(loader)
         try {
             lateinit var scrollState: androidx.compose.foundation.ScrollState
-            val stampedTokens = mutableListOf<String?>()
+            val emittedOwners = mutableListOf<String>()
 
             setContent {
                 MaterialExpressiveTheme {
                     scrollState = rememberScrollState()
-                    val activeKeyState = remember { mutableStateOf<String?>(null) }
-                    CompositionLocalProvider(LocalActiveSharedElementKey provides activeKeyState) {
-                        Box(modifier = Modifier.requiredSize(400.dp, 600.dp)) {
-                            RichText(
-                                blocks = listOf(
-                                    RichTextBlock.Media(
-                                        source = "media://test.png",
-                                        mediaRef = "test.png",
-                                        description = "first_target",
-                                        width = 200,
-                                        alignment = TextAlign.Start,
-                                    ),
-                                    RichTextBlock.Media(
-                                        source = "media://test.png",
-                                        mediaRef = "test.png",
-                                        description = "second_target",
-                                        width = 200,
-                                        alignment = TextAlign.Start,
-                                    ),
+                    Box(modifier = Modifier.requiredSize(400.dp, 600.dp)) {
+                        RichText(
+                            blocks = listOf(
+                                RichTextBlock.Media(
+                                    source = "media://test.png",
+                                    mediaRef = "test.png",
+                                    description = "first_target",
+                                    width = 200,
+                                    alignment = TextAlign.Start,
                                 ),
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(scrollState),
-                                onMediaClick = { stampedTokens.add(activeKeyState.value) },
-                            )
-                        }
+                                RichTextBlock.Media(
+                                    source = "media://test.png",
+                                    mediaRef = "test.png",
+                                    description = "second_target",
+                                    width = 200,
+                                    alignment = TextAlign.Start,
+                                ),
+                            ),
+                            mediaOwnerPrefix = "stem",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(scrollState),
+                            onMediaWithOwnerClick = { _, ownerKey -> emittedOwners.add(ownerKey) },
+                        )
                     }
                 }
             }
@@ -168,15 +175,27 @@ class RichTextMediaZoomScrollUiTest {
             onNodeWithContentDescription("second_target").performClick()
             waitForIdle()
 
-            assertEquals(2, stampedTokens.size)
-            val firstToken = assertNotNull(stampedTokens[0])
-            val secondToken = assertNotNull(stampedTokens[1])
-            assertTrue(firstToken.startsWith("test.png#"))
-            assertTrue(secondToken.startsWith("test.png#"))
-            assertNotEquals(firstToken, secondToken, "Expected duplicate media blocks to produce distinct owner tokens")
+            assertEquals(2, emittedOwners.size)
+            assertEquals("stem:0:test.png", emittedOwners[0])
+            assertEquals("stem:1:test.png", emittedOwners[1])
+            assertNotEquals(emittedOwners[0], emittedOwners[1])
             assertEquals(0, scrollState.value)
         } finally {
             SingletonImageLoader.reset()
         }
+    }
+
+    @Test
+    fun aspectRatioCacheKeysByResolvedPathAndBoundedLruEvictsOldest() {
+        MediaAspectRatioCache.record("/bank_a/media/fig1.png", Size(400f, 200f))
+        MediaAspectRatioCache.record("/bank_b/media/fig1.png", Size(200f, 400f))
+
+        assertEquals(2.0f, MediaAspectRatioCache.get("/bank_a/media/fig1.png"))
+        assertEquals(0.5f, MediaAspectRatioCache.get("/bank_b/media/fig1.png"))
+
+        repeat(300) { i ->
+            MediaAspectRatioCache.record("/bank_c/media/img_$i.png", Size(100f, 100f))
+        }
+        assertEquals(null, MediaAspectRatioCache.get("/bank_a/media/fig1.png"))
     }
 }

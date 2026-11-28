@@ -50,8 +50,17 @@ internal fun rememberResolvedLinkHandler(
 }
 
 @Composable
-internal fun rememberResolvedMediaHandler(onMediaClick: ((String) -> Unit)?): (String) -> Unit {
-    return remember(onMediaClick) { onMediaClick ?: {} }
+internal fun rememberResolvedMediaHandler(
+    onMediaWithOwnerClick: ((String, String) -> Unit)?,
+    onMediaClick: ((String) -> Unit)?,
+): (String, String) -> Unit {
+    return remember(onMediaWithOwnerClick, onMediaClick) {
+        when {
+            onMediaWithOwnerClick != null -> onMediaWithOwnerClick
+            onMediaClick != null -> { mediaRef, _ -> onMediaClick(mediaRef) }
+            else -> { _, _ -> }
+        }
+    }
 }
 
 @Composable

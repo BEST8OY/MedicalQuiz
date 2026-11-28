@@ -91,7 +91,7 @@ class QuizStudySectionUiTest {
                 onOpenLabs = {},
                 hintHtml = "<p>Look closely at serum sodium and glucose.</p>",
                 linkHandler = {},
-                mediaClick = {},
+                mediaClick = { _, _ -> },
             )
         }
 

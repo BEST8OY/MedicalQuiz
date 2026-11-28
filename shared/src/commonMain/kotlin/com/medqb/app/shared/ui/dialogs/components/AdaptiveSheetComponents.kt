@@ -56,7 +56,7 @@ fun MedQBModalBottomSheet(
         DialogShell(
             onDismiss = onDismissRequest,
             modifier = modifier,
-            maxWidth = 600.dp,
+            maxDialogWidth = 600.dp,
             minHeight = 0.dp,
             containerColor = containerColor,
             contentColor = contentColor,

@@ -28,7 +28,7 @@ fun DatabaseSelectionEntry(
 
     // Defer clearing the active DB selection until DatabaseSelection is RESUMED so exiting
     // Filter/Quiz entries finish their pop animation before the database closes.
-    LifecycleResumeEffect(Unit) {
+    LifecycleResumeEffect(workflow) {
         workflow.onDatabaseSelectionRequested()
         onPauseOrDispose { }
     }

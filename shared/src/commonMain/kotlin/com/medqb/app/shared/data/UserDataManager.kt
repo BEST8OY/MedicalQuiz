@@ -15,7 +15,11 @@ import com.medqb.app.shared.platform.StorageProvider
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,10 +42,16 @@ open class UserDataManager {
         data class Open(val epoch: Long) : DbState
     }
 
+    // Process-scoped so permission-grant reinitialization survives Activity config-change recreation.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutex = Mutex()
+    private val reinitGuard = Mutex()
 
     @Volatile
     private var database: UserDatabase? = null
+
+    @Volatile
+    private var activeReinit: Deferred<Unit>? = null
 
     private var currentEpoch = 0L
     private var wasClosed = false
@@ -56,6 +66,9 @@ open class UserDataManager {
 
     protected fun nextOpenEpoch(): Long = ++currentEpoch
 
+    open fun isReinitializingOrClosed(): Boolean =
+        activeReinit?.isActive == true || _dbState.value is DbState.Closed
+
     private val dbDir: String
         get() = StorageProvider.getContentDirectory()
 
@@ -67,33 +80,81 @@ open class UserDataManager {
         return withContext(Dispatchers.IO) {
             mutex.withLock {
                 database?.let { return@withLock it }
-                try {
-                    StorageProvider.ensureDirectoryExists(dbDir)
-                    val db = Room.databaseBuilder<UserDatabase>(dbPath)
-                        .setDriver(BundledSQLiteDriver())
-                        .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
-                        .build()
-                    database = db
-                    if (wasClosed || lastOpenFailed) {
-                        wasClosed = false
-                        lastOpenFailed = false
-                        _dbState.value = DbState.Open(nextOpenEpoch())
-                    }
-                    db
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    lastOpenFailed = true
-                    Logger.e("UserDataManager", "Error initializing user data database", e)
-                    throw e
-                }
+                openDatabaseLocked()
             }
+        }
+    }
+
+    private fun openDatabaseLocked(): UserDatabase {
+        try {
+            StorageProvider.ensureDirectoryExists(dbDir)
+            val db = Room.databaseBuilder<UserDatabase>(dbPath)
+                .setDriver(BundledSQLiteDriver())
+                .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
+                .build()
+            database = db
+            if (wasClosed || lastOpenFailed) {
+                wasClosed = false
+                lastOpenFailed = false
+                _dbState.value = DbState.Open(nextOpenEpoch())
+            }
+            return db
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            lastOpenFailed = true
+            Logger.e("UserDataManager", "Error initializing user data database", e)
+            throw e
         }
     }
 
     open suspend fun init(): Unit {
         withContext(Dispatchers.IO) {
             getDatabase()
+        }
+    }
+
+    /**
+     * Closes any previously open user database and opens a fresh instance on the app scope so
+     * caller (Activity) cancellation during a config change cannot leave the singleton closed.
+     */
+    open suspend fun reinitialize() {
+        val job = reinitGuard.withLock {
+            val previous = activeReinit
+            _dbState.value = DbState.Closed
+            scope.async {
+                if (previous != null) {
+                    runCatching { previous.await() }
+                }
+                mutex.withLock {
+                    database?.close()
+                    database = null
+                    wasClosed = true
+                    _dbState.value = DbState.Closed
+                    openDatabaseLocked()
+                    Unit
+                }
+            }.also { created ->
+                activeReinit = created
+                created.invokeOnCompletion {
+                    if (activeReinit === created) {
+                        activeReinit = null
+                    }
+                }
+            }
+        }
+        job.await()
+    }
+
+    /**
+     * Awaits any in-flight [reinitialize] on the app scope and ensures the database is open.
+     */
+    open suspend fun awaitOpen() {
+        val inFlight = reinitGuard.withLock { activeReinit }
+        if (inFlight != null) {
+            inFlight.await()
+        } else if (database == null || _dbState.value is DbState.Closed) {
+            init()
         }
     }
 

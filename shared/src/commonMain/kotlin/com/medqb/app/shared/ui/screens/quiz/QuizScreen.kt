@@ -188,7 +188,9 @@ private fun QuizQuestionCard(
             }
         }
     }
-    val mediaClick: (String) -> Unit = remember(mediaHandler) { { ref -> mediaHandler.handleMediaLink(ref) } }
+    val mediaClick: (String, String) -> Unit = remember(mediaHandler) {
+        { ref, ownerKey -> mediaHandler.handleMediaLink(ref, ownerKey) }
+    }
 
     LaunchedEffect(question?.id, question != null) {
         if (question != null) {
@@ -561,7 +563,7 @@ private fun QuestionStemCard(
     onHighlightRemove: (Long) -> Unit,
     onHighlightColorChange: (Long, HighlightColor) -> Unit,
     linkHandler: (String) -> Unit,
-    mediaClick: (String) -> Unit,
+    mediaClick: (String, String) -> Unit,
     onShowSnackbar: suspend (SnackbarMessage) -> Unit,
 ) {
     ElevatedCard(
@@ -578,7 +580,8 @@ private fun QuestionStemCard(
             html = questionHtml,
             showSelectedHighlight = isKeyInfoActive,
             onLinkClick = linkHandler,
-            onMediaClick = mediaClick,
+            onMediaWithOwnerClick = mediaClick,
+            mediaOwnerPrefix = "stem",
             highlightConfig = RichTextHighlightConfig(
                 section = HighlightSection.QUESTION,
                 highlights = highlights,
@@ -602,7 +605,7 @@ private fun QuizExplanationAndMetadata(
     onHighlightRemove: (Long) -> Unit,
     onHighlightColorChange: (Long, HighlightColor) -> Unit,
     linkHandler: (String) -> Unit,
-    mediaClick: (String) -> Unit,
+    mediaClick: (String, String) -> Unit,
     onShowSnackbar: suspend (SnackbarMessage) -> Unit,
 ) {
     val defaultEffectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -640,7 +643,8 @@ private fun QuizExplanationAndMetadata(
                     html = explanationHtml,
                     showSelectedHighlight = state.answerSubmitted,
                     onLinkClick = linkHandler,
-                    onMediaClick = mediaClick,
+                    onMediaWithOwnerClick = mediaClick,
+                    mediaOwnerPrefix = "explanation",
                     highlightConfig = RichTextHighlightConfig(
                         section = HighlightSection.EXPLANATION,
                         highlights = state.explanationHighlights,

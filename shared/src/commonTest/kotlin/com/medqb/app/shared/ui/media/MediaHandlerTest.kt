@@ -46,4 +46,32 @@ class MediaHandlerTest {
         assertTrue(handler.handleMediaLink("document.html"))
         assertEquals("document.html", openedHtml)
     }
+
+    @Test
+    fun textLinkClearsOwnerKeyAndBlockedNavigationDoesNotMutateSharedElementKey() {
+        var canNav = true
+        var openedCount = 0
+        val handler = MediaHandler(
+            onOpenMedia = { _, _ -> openedCount++ },
+            onOpenHtml = {},
+            canNavigate = { canNav },
+        )
+        handler.updateMedia(1L, listOf("image1.png"))
+
+        assertTrue(handler.handleMediaLink("image1.png", sharedElementOwnerKey = "stem:0:image1.png"))
+        assertEquals("stem:0:image1.png", handler.activeSharedElementKey.value)
+        assertEquals(1, openedCount)
+
+        // When navigation is blocked (e.g., not RESUMED), activeSharedElementKey must not change.
+        canNav = false
+        assertFalse(handler.handleMediaLink("image1.png", sharedElementOwnerKey = "stem:1:image1.png"))
+        assertEquals("stem:0:image1.png", handler.activeSharedElementKey.value)
+        assertEquals(1, openedCount)
+
+        // Clicking a text link (no owner key) clears any prior inline thumbnail owner key.
+        canNav = true
+        assertTrue(handler.handleMediaLink("media://image1.png"))
+        assertEquals(null, handler.activeSharedElementKey.value)
+        assertEquals(2, openedCount)
+    }
 }

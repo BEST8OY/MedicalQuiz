@@ -68,7 +68,7 @@ internal object DialogLayout {
 fun DialogShell(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    maxWidth: Dp = DialogLayout.MaxWidth,
+    maxDialogWidth: Dp = DialogLayout.MaxWidth,
     minHeight: Dp = DialogLayout.MinContainerHeight,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     contentColor: Color = contentColorFor(containerColor),
@@ -102,10 +102,12 @@ fun DialogShell(
                 }
                 val availableMaxHeight = (maxHeight - DialogLayout.MaxHeightInset)
                     .coerceAtLeast(DialogLayout.AbsoluteMinHeight)
+                    .coerceAtMost(maxHeight)
                 val resolvedMinHeight = minHeight.coerceAtMost(availableMaxHeight)
-                val targetWidth = (this.maxWidth * dialogAdaptive.dialogWidthFraction)
-                    .coerceIn(DialogLayout.MinWidth, maxWidth)
-                    .coerceAtMost(this.maxWidth)
+                val minWidthBound = DialogLayout.MinWidth.coerceAtMost(maxDialogWidth)
+                val targetWidth = (maxWidth * dialogAdaptive.dialogWidthFraction)
+                    .coerceIn(minWidthBound, maxDialogWidth)
+                    .coerceAtMost(maxWidth)
 
                 CompositionLocalProvider(LocalAdaptiveLayoutInfo provides dialogAdaptive) {
                     Surface(

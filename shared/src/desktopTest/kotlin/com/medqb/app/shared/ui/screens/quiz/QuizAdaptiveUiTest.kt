@@ -3,11 +3,13 @@ package com.medqb.app.shared.ui.screens.quiz
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.medqb.app.shared.data.models.Answer
 import com.medqb.app.shared.data.models.Question
@@ -162,7 +164,10 @@ class QuizAdaptiveUiTest {
             onOpenHtml = {},
         )
 
+        lateinit var density: Density
+
         setContent {
+            density = LocalDensity.current
             ProvideAdaptiveLayoutInfo(modifier = Modifier.requiredSize(900.dp, 410.dp)) {
                 QuizScreen(
                     state = state,
@@ -178,14 +183,15 @@ class QuizAdaptiveUiTest {
 
         val surfaceBounds = onNodeWithTag("quiz_surface").fetchSemanticsNode().boundsInRoot
         val questionBounds = onNodeWithText("Question stem vignette").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val expectedMinLeftPx = with(density) { 48.dp.toPx() }
 
         assertTrue(
             surfaceBounds.left == 0f,
             "Expected quiz surface to extend behind left landscape cutout inset, but left was ${surfaceBounds.left}",
         )
         assertTrue(
-            questionBounds.left > 48f,
-            "Expected question content to remain inset past 48dp left padding, but left was ${questionBounds.left}",
+            questionBounds.left > expectedMinLeftPx,
+            "Expected question content to remain inset past 48dp ($expectedMinLeftPx px) left padding, but left was ${questionBounds.left}",
         )
     }
 }

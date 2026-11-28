@@ -32,17 +32,10 @@ fun QuizEntry(
     val activeSharedElementKey = rememberSaveable { mutableStateOf<String?>(null) }
     val mediaHandler = remember(lifecycleOwner, onOpenMedia, onOpenHtml, activeSharedElementKey) {
         MediaHandler(
-            onOpenMedia = { files, index ->
-                if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                    onOpenMedia(files, index)
-                }
-            },
-            onOpenHtml = { fileName ->
-                if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                    onOpenHtml(fileName)
-                }
-            },
+            onOpenMedia = onOpenMedia,
+            onOpenHtml = onOpenHtml,
             activeSharedElementKey = activeSharedElementKey,
+            canNavigate = { lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) },
         )
     }
 

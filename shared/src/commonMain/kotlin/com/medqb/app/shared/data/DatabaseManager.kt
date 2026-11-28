@@ -21,11 +21,15 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+internal interface ManagedDatabaseProvider : DatabaseProvider {
+    suspend fun init()
+}
+
 class DatabaseManager(
     private val dbPath: String,
     dbName: String,
     private val userDataManager: UserDataManager,
-) : DatabaseProvider {
+) : ManagedDatabaseProvider {
     val dbName: String = canonicalizeDbName(dbName)
     private val driver = BundledSQLiteDriver()
     private var connection: SQLiteConnection? = null
@@ -52,7 +56,7 @@ class DatabaseManager(
         logDao = LogDao(userDataManager)
     }
 
-    suspend fun init() = withContext(Dispatchers.IO) {
+    override suspend fun init() = withContext(Dispatchers.IO) {
         mutex.withLock {
             try {
                 connection?.close()

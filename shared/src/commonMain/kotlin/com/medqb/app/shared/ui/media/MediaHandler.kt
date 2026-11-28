@@ -8,6 +8,7 @@ class MediaHandler(
     private val onOpenMedia: (List<String>, Int) -> Unit,
     private val onOpenHtml: (String) -> Unit,
     val activeSharedElementKey: MutableState<String?> = mutableStateOf(null),
+    private val canNavigate: () -> Boolean = { true },
 ) {
     private var currentMediaFiles: List<String> = emptyList()
 
@@ -20,7 +21,7 @@ class MediaHandler(
         currentMediaFiles = mediaFiles
     }
 
-    fun handleMediaLink(url: String): Boolean {
+    fun handleMediaLink(url: String, sharedElementOwnerKey: String? = null): Boolean {
         val trimmed = url.trim()
         if (trimmed.isEmpty()) return false
         if (trimmed.startsWith("http://", ignoreCase = true) || trimmed.startsWith("https://", ignoreCase = true)) {
@@ -37,23 +38,24 @@ class MediaHandler(
 
         if (trimmed.startsWith("media://")) {
             val fileName = extractedFileName(trimmed.substringAfter("media://"))
-            return fileName?.let { openMediaFromCache(it) } ?: false
+            return fileName?.let { openMediaFromCache(it, sharedElementOwnerKey) } ?: false
         }
 
         if (trimmed.startsWith("file://") && trimmed.contains("/media/")) {
             val fileName = extractedFileName(trimmed)
-            return fileName?.let { openMediaFromCache(it) } ?: false
+            return fileName?.let { openMediaFromCache(it, sharedElementOwnerKey) } ?: false
         }
 
         if (trimmed.startsWith("media/", ignoreCase = true)) {
             val fileName = extractedFileName(trimmed)
-            return fileName?.let { openMediaFromCache(it) } ?: false
+            return fileName?.let { openMediaFromCache(it, sharedElementOwnerKey) } ?: false
         }
 
         // Handle HTML files separately in standalone viewer
         if (trimmed.contains(".html", ignoreCase = true) || trimmed.contains(".htm", ignoreCase = true)) {
             val fileName = extractedFileName(trimmed) ?: trimmed
             if (fileName.isNotBlank()) {
+                if (!canNavigate()) return false
                 onOpenHtml(fileName)
                 return true
             }
@@ -62,21 +64,20 @@ class MediaHandler(
         // Check if it's a media file using centralized MediaTypeUtils
         val extractedName = extractedFileName(trimmed)
         if (extractedName != null && com.medqb.app.shared.utils.MediaTypeUtils.isMediaFile(extractedName)) {
-            return openMediaFromCache(extractedName)
+            return openMediaFromCache(extractedName, sharedElementOwnerKey)
         }
 
         if (!trimmed.contains("/") && !trimmed.startsWith("http") && !trimmed.startsWith("file://")) {
             val fileName = extractedFileName(trimmed) ?: trimmed
-            return openMediaFromCache(fileName)
+            return openMediaFromCache(fileName, sharedElementOwnerKey)
         }
 
         return false
     }
 
-    private fun openMediaFromCache(fileName: String): Boolean {
-        if (activeSharedElementKey.value?.startsWith("$fileName#") != true) {
-            activeSharedElementKey.value = fileName
-        }
+    private fun openMediaFromCache(fileName: String, sharedElementOwnerKey: String?): Boolean {
+        if (!canNavigate()) return false
+        activeSharedElementKey.value = sharedElementOwnerKey
         if (currentMediaFiles.isEmpty()) {
             onOpenMedia(listOf(fileName), 0)
             return true

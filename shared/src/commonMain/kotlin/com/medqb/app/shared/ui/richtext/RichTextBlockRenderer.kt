@@ -44,9 +44,10 @@ private val OPTION_HEADING_REGEX = Regex("""^\[\s*[A-Za-z0-9]\s*\]\s*\[\s*\d+%\s
 internal fun RichTextBlockRenderer(
     block: RichTextBlock,
     blockIndex: Int = 0,
+    mediaOwnerPrefix: String = "",
     showSelectedHighlight: Boolean = false,
     onLinkClick: (String) -> Unit,
-    onMediaClick: (String) -> Unit,
+    onMediaClick: (String, String) -> Unit,
     onTooltipClick: ((RichTextTooltipContent) -> Unit)?,
     highlightConfig: RichTextHighlightConfig? = null,
 ) {
@@ -95,7 +96,12 @@ internal fun RichTextBlockRenderer(
             onTooltipClick = onTooltipClick,
             highlightConfig = highlightConfig,
         )
-        is RichTextBlock.Media -> RichMedia(block = block, onMediaClick = onMediaClick)
+        is RichTextBlock.Media -> RichMedia(
+            block = block,
+            onMediaClick = onMediaClick,
+            blockIndex = blockIndex,
+            mediaOwnerPrefix = mediaOwnerPrefix,
+        )
         RichTextBlock.Divider -> HorizontalDivider()
     }
 }

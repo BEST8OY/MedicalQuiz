@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.currentCompositeKeyHashCode
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
@@ -28,32 +31,42 @@ import com.medqb.app.shared.ui.LocalActiveSharedElementKey
 import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import com.medqb.app.shared.ui.media.MediaAspectRatioCache
 import com.medqb.app.shared.ui.media.mediaSharedElement
+import com.medqb.app.shared.ui.media.mediaSharedElementKey
 import com.medqb.app.shared.utils.HtmlUtils
 
 /**
  * Renders a media element (image) with optional description.
  *
  * Inline images are tap-to-view surfaces that participate in Navigation 3 hero transitions using a
- * deterministic structural shared element key derived from the block's composition slot.
+ * layout-independent semantic owner key derived from the block's section, index, and normalized ref.
  *
  * @param block The media block containing source, description, and layout information
- * @param onMediaClick Callback invoked when the media is clicked with `(mediaRef, sharedElementKey)`
+ * @param onMediaClick Callback invoked when the media is clicked with `(mediaRef, sharedElementOwnerKey)`
+ * @param blockIndex Structural block index within the parent [RichText]
+ * @param mediaOwnerPrefix Optional semantic prefix (e.g. `"stem"`, `"explanation"`) disambiguating sections
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun RichMedia(
     block: RichTextBlock.Media,
-    onMediaClick: (String) -> Unit,
+    onMediaClick: (mediaRef: String, sharedElementOwnerKey: String) -> Unit,
+    blockIndex: Int = 0,
+    mediaOwnerPrefix: String = "",
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val mediaModel = remember(block.source, block.mediaRef) {
         mediaModelForSource(block.source, block.mediaRef)
     }
 
-    val clickTarget = block.mediaRef ?: extractMediaRef(block.source) ?: block.source
-    val compositeKey = currentCompositeKeyHashCode
-    val ownerToken = remember(clickTarget, compositeKey) {
-        "$clickTarget#$compositeKey"
+    val clickTarget = remember(block.source, block.mediaRef) {
+        val raw = block.mediaRef ?: extractMediaRef(block.source) ?: block.source
+        HtmlUtils.normalizeFileName(raw).ifBlank { raw }
+    }
+    val ownerToken = remember(mediaOwnerPrefix, blockIndex, clickTarget) {
+        computeMediaOwnerKey(mediaOwnerPrefix, blockIndex, clickTarget)
+    }
+    val sharedElementKey = remember(clickTarget) {
+        mediaSharedElementKey(clickTarget)
     }
 
     val hasExplicitWidth = block.width?.let { it > 0 } == true
@@ -68,17 +81,24 @@ internal fun RichMedia(
         }
     }
 
+    var knownAspectRatio by remember(mediaModel) {
+        mutableStateOf(MediaAspectRatioCache.get(mediaModel))
+    }
+
     val painter = rememberAsyncImagePainter(
         model = mediaModel,
         contentScale = ContentScale.Fit,
         onSuccess = { state ->
-            MediaAspectRatioCache.record(clickTarget, state.painter.intrinsicSize)
+            val size = state.painter.intrinsicSize
+            MediaAspectRatioCache.record(mediaModel, size)
+            if (size.isSpecified && size.width > 0f && size.height > 0f) {
+                knownAspectRatio = size.width / size.height
+            }
         },
     )
 
-    val knownAspectRatio = MediaAspectRatioCache.get(clickTarget)
     val aspectModifier = if (!hasExplicitWidth && knownAspectRatio != null) {
-        Modifier.aspectRatio(knownAspectRatio)
+        Modifier.aspectRatio(knownAspectRatio!!)
     } else {
         Modifier
     }
@@ -87,15 +107,14 @@ internal fun RichMedia(
     val navAnimatedScope = animatedVisibilityScope ?: if (sharedTransitionScope != null) {
         LocalNavAnimatedContentScope.current
     } else null
-    val activeKeyState = LocalActiveSharedElementKey.current
-    val activeKey = activeKeyState?.value
+    val activeKey = LocalActiveSharedElementKey.current?.value
     val sharedElementModifier = if (
         sharedTransitionScope != null &&
         navAnimatedScope != null &&
         activeKey == ownerToken
     ) {
         Modifier.mediaSharedElement(
-            sharedElementKey = "media_$clickTarget",
+            sharedElementKey = sharedElementKey,
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = navAnimatedScope,
         )
@@ -125,10 +144,7 @@ internal fun RichMedia(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     role = Role.Image,
-                    onClick = {
-                        activeKeyState?.value = ownerToken
-                        onMediaClick(clickTarget)
-                    },
+                    onClick = { onMediaClick(clickTarget, ownerToken) },
                 ),
             propagateMinConstraints = true,
         ) {
@@ -151,6 +167,15 @@ internal fun RichMedia(
             )
         }
     }
+}
+
+internal fun computeMediaOwnerKey(
+    ownerPrefix: String,
+    blockIndex: Int,
+    mediaRef: String,
+): String {
+    val normalized = HtmlUtils.normalizeFileName(mediaRef).lowercase().ifBlank { mediaRef.trim().lowercase() }
+    return if (ownerPrefix.isNotBlank()) "$ownerPrefix:$blockIndex:$normalized" else "$blockIndex:$normalized"
 }
 
 private val MaxEmbeddedImageWidth = 512.dp

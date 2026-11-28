@@ -53,6 +53,7 @@ import com.medqb.app.shared.platform.PlatformBackHandler
 import com.medqb.app.shared.ui.media.MediaAspectRatioCache
 import com.medqb.app.shared.ui.media.MediaType
 import com.medqb.app.shared.ui.media.mediaSharedElement
+import com.medqb.app.shared.ui.media.mediaSharedElementKey
 import com.medqb.app.shared.utils.MediaTypeUtils
 import net.engawapg.lib.zoomable.rememberZoomState
 import net.engawapg.lib.zoomable.zoomable
@@ -154,7 +155,13 @@ private fun ImageContent(
     val zoomState = rememberZoomState()
     val isZoomed by remember { derivedStateOf { zoomState.scale > MIN_SCALE + 0.01f } }
 
-    var isTransitionDone by remember { mutableStateOf(animatedVisibilityScope == null) }
+    var isTransitionDone by remember(animatedVisibilityScope) {
+        mutableStateOf(
+            animatedVisibilityScope == null ||
+                (animatedVisibilityScope.transition.currentState == EnterExitState.Visible &&
+                    animatedVisibilityScope.transition.targetState == EnterExitState.Visible)
+        )
+    }
     var sharedElementResetKey by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(animatedVisibilityScope) {
@@ -186,13 +193,14 @@ private fun ImageContent(
     // When the forward entrance transition finishes, sharedElementResetKey is incremented to
     // detach the completed forward BoundsAnimation and attach a pristine, un-mutated
     // sharedElement node so that predictive back exit initiates on frame 0 of the first gesture.
+    val sharedElementKey = remember(fileName) { mediaSharedElementKey(fileName) }
     val sharedElementModifier = if (
         sharedTransitionScope != null &&
         animatedVisibilityScope != null
     ) {
         key(sharedElementResetKey) {
             Modifier.mediaSharedElement(
-                sharedElementKey = "media_$fileName",
+                sharedElementKey = sharedElementKey,
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = animatedVisibilityScope,
             )
@@ -269,8 +277,8 @@ private fun ImageContent(
         }
     }
 
-    var imageAspectRatio by remember(fileName) {
-        mutableStateOf(MediaAspectRatioCache.get(fileName))
+    var imageAspectRatio by remember(mediaFilePath) {
+        mutableStateOf(MediaAspectRatioCache.get(mediaFilePath))
     }
     val fittedImageModifier = imageAspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier.fillMaxSize()
 
@@ -306,7 +314,7 @@ private fun ImageContent(
                     if (state is AsyncImagePainter.State.Success) {
                         val size = state.painter.intrinsicSize
                         zoomState.setContentSize(size)
-                        MediaAspectRatioCache.record(fileName, size)
+                        MediaAspectRatioCache.record(mediaFilePath, size)
                         if (size.isSpecified && size.width > 0f && size.height > 0f) {
                             imageAspectRatio = size.width / size.height
                         }

@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.medqb.app.shared.data.FilterStateHolder
-import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.data.database.DifficultyTier
 import com.medqb.app.shared.data.database.StatusFilter
 
@@ -15,7 +14,6 @@ import com.medqb.app.shared.data.database.StatusFilter
 fun rememberAppWorkflow(
     workflowCoordinator: AppWorkflowCoordinator,
     filterStateHolder: FilterStateHolder,
-    userDataManager: UserDataManager,
 ): AppWorkflowHandle {
     val selectedDatabaseState = rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -24,39 +22,25 @@ fun rememberAppWorkflow(
         if (dbName == null) {
             workflowCoordinator.closeActiveDatabase()
         } else {
-            workflowCoordinator.handleDatabaseSelection(
-                AppWorkflowState(selectedDatabase = dbName),
-                userDataManager,
-            )
+            workflowCoordinator.handleDatabaseSelection(dbName)
         }
     }
 
     val onDatabaseSelected = remember(workflowCoordinator) {
         { dbName: String ->
-            val updated = workflowCoordinator.databaseSelected(
-                AppWorkflowState(selectedDatabase = selectedDatabaseState.value),
-                dbName,
-            )
-            selectedDatabaseState.value = updated.selectedDatabase
+            selectedDatabaseState.value = workflowCoordinator.onDatabaseSelected(dbName)
         }
     }
 
     val onDatabaseSelectionRequested = remember(workflowCoordinator) {
         { ->
-            val updated = workflowCoordinator.databaseSelectionRequested(
-                AppWorkflowState(selectedDatabase = selectedDatabaseState.value),
-            )
-            selectedDatabaseState.value = updated.selectedDatabase
+            selectedDatabaseState.value = workflowCoordinator.onDatabaseSelectionRequested()
         }
     }
 
     val onHistoryLaunchPrepared = remember(workflowCoordinator) {
         { matchingDatabase: String ->
-            val updated = workflowCoordinator.historyLaunchPrepared(
-                AppWorkflowState(selectedDatabase = selectedDatabaseState.value),
-                matchingDatabase,
-            )
-            selectedDatabaseState.value = updated.selectedDatabase
+            selectedDatabaseState.value = workflowCoordinator.onHistoryLaunchPrepared(matchingDatabase)
         }
     }
 

@@ -565,6 +565,13 @@ open class FakeUserDataManager(
     override suspend fun init() {
         if (db != null) setDbState(DbState.Open(nextOpenEpoch()))
     }
+    override suspend fun reinitialize() {
+        close()
+        init()
+    }
+    override suspend fun awaitOpen() {
+        init()
+    }
     fun swapDatabase(newDb: UserDatabase?) {
         db = newDb
         setDbState(if (newDb != null) DbState.Open(nextOpenEpoch()) else DbState.Closed)
@@ -614,7 +621,6 @@ class FakeAppStartupCoordinator(
 
     override suspend fun handleDatabaseSelection(
         selectedDatabase: String?,
-        userDataManager: UserDataManager,
     ): DatabaseSelectionDecision? {
         handleSelectionCount++
         lastSelectedDb = selectedDatabase

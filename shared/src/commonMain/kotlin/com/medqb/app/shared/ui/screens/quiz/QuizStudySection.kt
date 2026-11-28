@@ -88,7 +88,7 @@ fun QuizStudySection(
     onOpenLabs: () -> Unit,
     hintHtml: String? = null,
     linkHandler: (String) -> Unit = {},
-    mediaClick: (String) -> Unit = {},
+    mediaClick: (String, String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     if (!hasKeyInfo && !hasAttendingTip && !hasLabs) return
@@ -224,7 +224,8 @@ fun QuizStudySection(
                         RichText(
                             html = hintHtml.orEmpty(),
                             onLinkClick = linkHandler,
-                            onMediaClick = mediaClick,
+                            onMediaWithOwnerClick = mediaClick,
+                            mediaOwnerPrefix = "hint",
                             showSelectedHighlight = isKeyInfoActive,
                             palette = hintPalette
                         )

@@ -49,6 +49,7 @@ import com.medqb.app.shared.ui.richtext.RichText
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AnswerListItem(
+    answerId: Long,
     label: String,
     html: String,
     isSelected: Boolean,
@@ -58,7 +59,7 @@ private fun AnswerListItem(
     enabled: Boolean,
     onClick: () -> Unit,
     onLinkClick: (String) -> Unit,
-    onMediaClick: (String) -> Unit
+    onMediaClick: (String, String) -> Unit
 ) {
     val motionScheme = MaterialTheme.motionScheme
     val interactionSource = remember { MutableInteractionSource() }
@@ -210,7 +211,8 @@ private fun AnswerListItem(
             RichText(
                 html = html,
                 onLinkClick = onLinkClick,
-                onMediaClick = onMediaClick,
+                onMediaWithOwnerClick = onMediaClick,
+                mediaOwnerPrefix = "answer:$answerId",
                 showSelectedHighlight = showResult
             )
         }
@@ -291,7 +293,7 @@ fun AnswerOptions(
     answerPercentages: Map<Long, Int?>,
     onAnswerSelected: (Long) -> Unit,
     onLinkClick: (String) -> Unit,
-    onMediaClick: (String) -> Unit,
+    onMediaClick: (String, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -308,6 +310,7 @@ fun AnswerOptions(
             val percentage = answerPercentages[answer.answerId]
 
             AnswerListItem(
+                answerId = answer.answerId,
                 label = label,
                 html = html,
                 isSelected = isSelected,

@@ -34,13 +34,16 @@ import androidx.lifecycle.lifecycleScope
 import com.medqb.app.shared.App
 import com.medqb.app.shared.di.LocalAppGraph
 import com.medqb.app.shared.platform.AppContext
+import com.medqb.app.shared.platform.Logger
 import com.medqb.app.shared.ui.theme.AppTheme
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private var isPermissionGranted by mutableStateOf(false)
     private var shouldRetryPermissionCheck = false
+    private var hasRequestedInitialPermission = false
     private var permissionGrantJob: Job? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -72,11 +75,15 @@ class MainActivity : ComponentActivity() {
             window.isNavigationBarContrastEnforced = false
         }
 
+        hasRequestedInitialPermission =
+            savedInstanceState?.getBoolean(KEY_HAS_REQUESTED_PERMISSION) == true
+
         val graph = (application as MedQBApp).graph
 
         // Initialize synchronously so config-change recreations (rotation / theme change)
         // never re-trigger markPermissionGranted() and close an already-open UserDataManager.
-        isPermissionGranted = hasStoragePermission()
+        // If a prior permission-grant reinitialization is still in flight, stay gated until it opens.
+        isPermissionGranted = hasStoragePermission() && !graph.userDataManager.isReinitializingOrClosed()
 
         setContent {
             CompositionLocalProvider(LocalAppGraph provides graph) {
@@ -91,6 +98,11 @@ class MainActivity : ComponentActivity() {
         }
 
         checkPermissions()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_HAS_REQUESTED_PERMISSION, hasRequestedInitialPermission)
     }
 
     override fun onResume() {
@@ -113,19 +125,24 @@ class MainActivity : ComponentActivity() {
 
     private fun checkPermissions() {
         val nowGranted = hasStoragePermission()
+        val graph = (application as MedQBApp).graph
 
         if (nowGranted) {
             if (!isPermissionGranted) {
-                markPermissionGranted()
+                if (graph.userDataManager.isReinitializingOrClosed()) {
+                    ensureUserDataReady()
+                } else {
+                    markPermissionGranted()
+                }
             }
         } else {
             permissionGrantJob?.cancel()
             permissionGrantJob = null
             isPermissionGranted = false
-        }
-
-        if (!nowGranted && Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R && !hasRequestedInitialPermission) {
+                hasRequestedInitialPermission = true
+                requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
         }
     }
 
@@ -133,9 +150,29 @@ class MainActivity : ComponentActivity() {
         if (permissionGrantJob?.isActive == true) return
         val graph = (application as MedQBApp).graph
         permissionGrantJob = lifecycleScope.launch {
-            graph.userDataManager.close()
-            graph.userDataManager.init()
-            isPermissionGranted = true
+            try {
+                graph.userDataManager.reinitialize()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("MainActivity", "Failed to reinitialize UserDataManager after permission grant", e)
+            }
+            isPermissionGranted = hasStoragePermission()
+        }
+    }
+
+    private fun ensureUserDataReady() {
+        if (permissionGrantJob?.isActive == true) return
+        val graph = (application as MedQBApp).graph
+        permissionGrantJob = lifecycleScope.launch {
+            try {
+                graph.userDataManager.awaitOpen()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("MainActivity", "Failed to ensure UserDataManager is open", e)
+            }
+            isPermissionGranted = hasStoragePermission()
         }
     }
 
@@ -154,6 +191,10 @@ class MainActivity : ComponentActivity() {
         } else {
             requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
+    }
+
+    private companion object {
+        const val KEY_HAS_REQUESTED_PERMISSION = "has_requested_initial_permission"
     }
 }
 
