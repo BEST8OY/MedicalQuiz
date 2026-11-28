@@ -6,9 +6,11 @@ import com.medqb.app.shared.data.LocalContentRepository
 import com.medqb.app.shared.data.ManagedDatabaseProvider
 import com.medqb.app.shared.data.UserDataManager
 import com.medqb.app.shared.data.canonicalizeDbName
+import com.medqb.app.shared.di.AppScope
 import com.medqb.app.shared.platform.FileSystemHelper
 import com.medqb.app.shared.platform.Logger
 import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
@@ -19,6 +21,7 @@ import kotlinx.coroutines.withContext
  * Coordinates app startup routines: listing available DBs and serializing DB open/close lifecycle.
  */
 @Inject
+@SingleIn(AppScope::class)
 open class AppStartupCoordinator(
     private val localContentRepository: LocalContentRepository,
     private val activeDatabaseHolder: ActiveDatabaseHolder,

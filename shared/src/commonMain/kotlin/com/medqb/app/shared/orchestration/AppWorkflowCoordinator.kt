@@ -1,7 +1,9 @@
 package com.medqb.app.shared.orchestration
 
 import com.medqb.app.shared.data.FilterStateHolder
+import com.medqb.app.shared.di.AppScope
 import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 
 /**
  * Coordinates app-level database selection lifecycle and associated filter-state resets.
@@ -10,6 +12,7 @@ import dev.zacsweers.metro.Inject
  * navigation side-effects remain in the composable layer.
  */
 @Inject
+@SingleIn(AppScope::class)
 class AppWorkflowCoordinator(
     private val startupCoordinator: AppStartupCoordinator,
     private val filterStateHolder: FilterStateHolder,

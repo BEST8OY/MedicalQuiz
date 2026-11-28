@@ -2,6 +2,7 @@ package com.medqb.app.shared.ui.entry
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
@@ -28,8 +29,11 @@ fun DatabaseSelectionEntry(
 
     // Defer clearing the active DB selection until DatabaseSelection is RESUMED so exiting
     // Filter/Quiz entries finish their pop animation before the database closes.
-    LifecycleResumeEffect(workflow) {
-        workflow.onDatabaseSelectionRequested()
+    // Keep the effect keyed on Unit with rememberUpdatedState so recomposing workflow
+    // mid-transition never re-fires onDatabaseSelectionRequested() and wipes the new DB selection.
+    val currentWorkflow by rememberUpdatedState(workflow)
+    LifecycleResumeEffect(Unit) {
+        currentWorkflow.onDatabaseSelectionRequested()
         onPauseOrDispose { }
     }
 

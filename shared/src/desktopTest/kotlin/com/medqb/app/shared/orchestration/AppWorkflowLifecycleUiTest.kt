@@ -5,7 +5,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -55,8 +59,9 @@ class AppWorkflowLifecycleUiTest {
                 popTransitionSpec = { fadeIn() togetherWith fadeOut() },
                 entryProvider = entryProvider {
                     entry<MedQBRoutes.DatabaseSelection> {
-                        LifecycleResumeEffect(workflow) {
-                            workflow.onDatabaseSelectionRequested()
+                        val currentWorkflow by rememberUpdatedState(workflow)
+                        LifecycleResumeEffect(Unit) {
+                            currentWorkflow.onDatabaseSelectionRequested()
                             onPauseOrDispose { }
                         }
                         Box(modifier = Modifier.fillMaxSize())
@@ -154,8 +159,9 @@ class AppWorkflowLifecycleUiTest {
                 popTransitionSpec = { fadeIn() togetherWith fadeOut() },
                 entryProvider = entryProvider {
                     entry<MedQBRoutes.DatabaseSelection> {
-                        LifecycleResumeEffect(workflow) {
-                            workflow.onDatabaseSelectionRequested()
+                        val currentWorkflow by rememberUpdatedState(workflow)
+                        LifecycleResumeEffect(Unit) {
+                            currentWorkflow.onDatabaseSelectionRequested()
                             onPauseOrDispose { }
                         }
                         Box(modifier = Modifier.fillMaxSize())
@@ -203,5 +209,60 @@ class AppWorkflowLifecycleUiTest {
         assertNotNull(holder.activeDatabase.value)
         assertEquals("Renal", holder.activeDatabase.value?.name)
         assertEquals(true, closeDoneIdx in 0 until renalIdx, "Expected Cardio close to finish before Renal init, events=$events")
+    }
+
+    @Test
+    fun recomposingWorkflowHandleDuringNavigationDoesNotClearSelectedDatabase() = runComposeUiTest {
+        val startupCoordinator = FakeAppStartupCoordinator()
+        val filterStateHolder = FilterStateHolder()
+        val backStack = mutableStateListOf<NavKey>(MedQBRoutes.DatabaseSelection)
+        val navigator = AppNavigator(backStack)
+        var coordinatorEpoch by mutableIntStateOf(0)
+        lateinit var workflow: AppWorkflowHandle
+
+        setContent {
+            // Simulate a workflowCoordinator identity change on recomposition when navigating.
+            val workflowCoordinator = AppWorkflowCoordinator(startupCoordinator, filterStateHolder)
+            @Suppress("UNUSED_EXPRESSION")
+            coordinatorEpoch
+            workflow = rememberAppWorkflow(
+                workflowCoordinator = workflowCoordinator,
+                filterStateHolder = filterStateHolder,
+            )
+
+            NavDisplay(
+                backStack = backStack,
+                onBack = { navigator.navigateBack() },
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                popTransitionSpec = { fadeIn() togetherWith fadeOut() },
+                entryProvider = entryProvider {
+                    entry<MedQBRoutes.DatabaseSelection> {
+                        val currentWorkflow by rememberUpdatedState(workflow)
+                        LifecycleResumeEffect(Unit) {
+                            currentWorkflow.onDatabaseSelectionRequested()
+                            onPauseOrDispose { }
+                        }
+                        Box(modifier = Modifier.fillMaxSize())
+                    }
+                    entry<MedQBRoutes.Filter> {
+                        Box(modifier = Modifier.fillMaxSize())
+                    }
+                },
+            )
+        }
+
+        waitForIdle()
+        assertNull(workflow.selectedDatabase.value)
+
+        runOnUiThread {
+            workflow.onDatabaseSelected("Cardio.db")
+            coordinatorEpoch++
+            navigator.navigateTo(MedQBRoutes.Filter)
+        }
+        waitForIdle()
+
+        assertEquals("Cardio.db", workflow.selectedDatabase.value)
+        assertEquals(1, startupCoordinator.handleSelectionCount)
+        assertEquals("Cardio.db", startupCoordinator.lastSelectedDb)
     }
 }
