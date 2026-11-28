@@ -25,6 +25,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,14 +46,13 @@ import com.medqb.app.shared.ui.LocalActiveSharedElementKey
 import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import com.medqb.app.shared.ui.media.MediaHandler
 import com.medqb.app.shared.ui.richtext.RichMedia
+import com.medqb.app.shared.ui.richtext.RichText
 import com.medqb.app.shared.ui.richtext.RichTextBlock
 import kotlinx.serialization.Serializable
-import net.engawapg.lib.zoomable.ExperimentalZoomableApi
-import net.engawapg.lib.zoomable.SnapBackZoomableOverlayHost
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-@OptIn(ExperimentalTestApi::class, ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalZoomableApi::class)
+@OptIn(ExperimentalTestApi::class, ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)
 class MediaSharedElementTransitionUiTest {
 
     private sealed interface TestRoute : NavKey {
@@ -69,7 +69,6 @@ class MediaSharedElementTransitionUiTest {
         sourceContainerModifier: Modifier,
         thumbDescription: String?,
         thumbWidth: Int?,
-        onMediaHandlerReady: (MediaHandler) -> Unit,
         onScopeReady: (SharedTransitionScope) -> Unit = {},
     ) {
         MaterialExpressiveTheme {
@@ -77,63 +76,60 @@ class MediaSharedElementTransitionUiTest {
                 onScopeReady(this)
                 CompositionLocalProvider(LocalSharedTransitionScope provides this) {
                     val saveableDecorator = rememberSaveableStateHolderNavEntryDecorator<NavKey>()
-                    SnapBackZoomableOverlayHost(modifier = Modifier.fillMaxSize()) {
-                        NavDisplay(
-                            backStack = backStack,
-                            onBack = { if (backStack.size > 1) backStack.removeLast() },
-                            entryDecorators = listOf(saveableDecorator),
-                            transitionSpec = { fadeIn() togetherWith fadeOut() },
-                            popTransitionSpec = { fadeIn() togetherWith fadeOut() },
-                            entryProvider = entryProvider {
-                                entry<TestRoute.Source> {
-                                    val activeKey = rememberSaveable { mutableStateOf<String?>(null) }
-                                    val handler = remember(activeKey) {
-                                        MediaHandler(
-                                            onOpenMedia = { files, _ ->
-                                                backStack.add(TestRoute.Viewer(files.first()))
-                                            },
-                                            onOpenHtml = {},
-                                            activeSharedElementKey = activeKey,
-                                        ).apply {
-                                            updateMedia(1L, listOf("test.png"))
-                                        }
-                                    }
-                                    onMediaHandlerReady(handler)
-                                    CompositionLocalProvider(LocalActiveSharedElementKey provides handler.activeSharedElementKey) {
-                                        Box(
-                                            modifier = sourceContainerModifier,
-                                            contentAlignment = Alignment.TopStart,
-                                        ) {
-                                            RichMedia(
-                                                block = RichTextBlock.Media(
-                                                    source = "media://test.png",
-                                                    mediaRef = "test.png",
-                                                    description = thumbDescription,
-                                                    width = thumbWidth,
-                                                    alignment = TextAlign.Start,
-                                                ),
-                                                onMediaClick = { ref -> handler.handleMediaLink(ref) },
-                                            )
-                                        }
+                    NavDisplay(
+                        backStack = backStack,
+                        onBack = { if (backStack.size > 1) backStack.removeLast() },
+                        entryDecorators = listOf(saveableDecorator),
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        popTransitionSpec = { fadeIn() togetherWith fadeOut() },
+                        entryProvider = entryProvider {
+                            entry<TestRoute.Source> {
+                                val activeKey = rememberSaveable { mutableStateOf<String?>(null) }
+                                val handler = remember(activeKey) {
+                                    MediaHandler(
+                                        onOpenMedia = { files, _ ->
+                                            backStack.add(TestRoute.Viewer(files.first()))
+                                        },
+                                        onOpenHtml = {},
+                                        activeSharedElementKey = activeKey,
+                                    ).apply {
+                                        updateMedia(1L, listOf("test.png"))
                                     }
                                 }
-                                entry<TestRoute.Viewer> { key ->
-                                    MediaContent(
-                                        fileName = key.file,
-                                        isActivePage = true,
-                                        isSharedElementPage = true,
-                                        resolveMediaFilePath = { it },
-                                        mediaFileExists = { true },
-                                        onZoomChanged = {},
-                                        onSingleTap = {},
-                                        sharedTransitionScope = LocalSharedTransitionScope.current,
-                                        animatedVisibilityScope = LocalNavAnimatedContentScope.current,
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
+                                CompositionLocalProvider(LocalActiveSharedElementKey provides handler.activeSharedElementKey) {
+                                    Box(
+                                        modifier = sourceContainerModifier,
+                                        contentAlignment = Alignment.TopStart,
+                                    ) {
+                                        RichMedia(
+                                            block = RichTextBlock.Media(
+                                                source = "media://test.png",
+                                                mediaRef = "test.png",
+                                                description = thumbDescription,
+                                                width = thumbWidth,
+                                                alignment = TextAlign.Start,
+                                            ),
+                                            onMediaClick = { ref -> handler.handleMediaLink(ref) },
+                                        )
+                                    }
                                 }
-                            },
-                        )
-                    }
+                            }
+                            entry<TestRoute.Viewer> { key ->
+                                MediaContent(
+                                    fileName = key.file,
+                                    isActivePage = true,
+                                    isSharedElementPage = true,
+                                    resolveMediaFilePath = { it },
+                                    mediaFileExists = { true },
+                                    onZoomChanged = {},
+                                    onSingleTap = {},
+                                    sharedTransitionScope = LocalSharedTransitionScope.current,
+                                    animatedVisibilityScope = LocalNavAnimatedContentScope.current,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                        },
+                    )
                 }
             }
         }
@@ -142,7 +138,6 @@ class MediaSharedElementTransitionUiTest {
     @Test
     fun returningAfterEntranceSettlesStillActivatesSharedElementTransition() = runComposeUiTest {
         val backStack = mutableStateListOf<NavKey>(TestRoute.Source)
-        lateinit var mediaHandler: MediaHandler
         var scopeRef: SharedTransitionScope? = null
         var observedTransitionActiveDuringPop = false
 
@@ -150,19 +145,15 @@ class MediaSharedElementTransitionUiTest {
             TestSharedElementNavHost(
                 backStack = backStack,
                 sourceContainerModifier = Modifier.size(120.dp),
-                thumbDescription = null,
+                thumbDescription = "thumb",
                 thumbWidth = null,
-                onMediaHandlerReady = { mediaHandler = it },
                 onScopeReady = { scopeRef = it },
             )
         }
 
         waitForIdle()
+        onNodeWithContentDescription("thumb").performClick()
 
-        // Navigate to Viewer and advance past the entrance transition so Source leaves composition.
-        runOnUiThread {
-            mediaHandler.handleMediaLink("test.png")
-        }
         mainClock.autoAdvance = false
         repeat(40) {
             mainClock.advanceTimeByFrame()
@@ -208,7 +199,6 @@ class MediaSharedElementTransitionUiTest {
         SingletonImageLoader.setUnsafe(loader)
         try {
             val backStack = mutableStateListOf<NavKey>(TestRoute.Source)
-            lateinit var mediaHandler: MediaHandler
 
             setContent {
                 Box(modifier = Modifier.requiredSize(400.dp, 600.dp)) {
@@ -219,13 +209,12 @@ class MediaSharedElementTransitionUiTest {
                             .padding(top = 400.dp),
                         thumbDescription = "thumb",
                         thumbWidth = 200,
-                        onMediaHandlerReady = { mediaHandler = it },
                     )
                 }
             }
 
             waitForIdle()
-            runOnUiThread { mediaHandler.handleMediaLink("test.png") }
+            onNodeWithContentDescription("thumb").performClick()
             waitForIdle()
 
             mainClock.autoAdvance = false
@@ -250,16 +239,163 @@ class MediaSharedElementTransitionUiTest {
                 val nodes = onAllNodesWithContentDescription("thumb", useUnmergedTree = true).fetchSemanticsNodes()
                 if (nodes.isNotEmpty()) {
                     observedThumbDuringPop = true
-                    val thumbTopPx = nodes.first().boundsInRoot.top
+                    val bounds = nodes.first().boundsInRoot
+                    val thumbTopPx = bounds.top
                     val viewerTopPx = onAllNodesWithContentDescription("test.png", useUnmergedTree = true)
                         .fetchSemanticsNodes().firstOrNull()?.boundsInRoot?.top
                     assertTrue(
                         thumbTopPx > 150f,
                         "Expected returning shared element on frame $frame to stay centered/animating toward thumbnail (> 150px, viewer=$viewerTopPx), not jump to top ($thumbTopPx)",
                     )
+                    if (frame <= 1) {
+                        assertTrue(
+                            bounds.width > 300f && bounds.top < 250f,
+                            "Expected returning shared element on frame $frame to start at centered viewer bounds (~0,187.5,400,412.5), not jump to $bounds",
+                        )
+                    }
                 }
             }
             assertTrue(observedThumbDuringPop, "Expected returning thumb node to be observed during pop transition")
+        } finally {
+            SingletonImageLoader.reset()
+        }
+    }
+
+    @OptIn(DelicateCoilApi::class)
+    @Test
+    fun duplicateImagesRespectTappedOwnerOnReturnPopTransition() = runComposeUiTest {
+        val loader = ImageLoader.Builder(PlatformContext.INSTANCE)
+            .components {
+                add(
+                    Fetcher.Factory<Any> { _, _, _ ->
+                        Fetcher {
+                            ImageFetchResult(
+                                image = ColorImage(color = 0xFF336699.toInt(), width = 400, height = 225),
+                                isSampled = false,
+                                dataSource = DataSource.MEMORY,
+                            )
+                        }
+                    },
+                )
+            }
+            .build()
+        SingletonImageLoader.setUnsafe(loader)
+        try {
+            val backStack = mutableStateListOf<NavKey>(TestRoute.Source)
+            setContent {
+                Box(modifier = Modifier.requiredSize(400.dp, 600.dp)) {
+                    MaterialExpressiveTheme {
+                        SharedTransitionLayout {
+                            CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+                                val saveableDecorator = rememberSaveableStateHolderNavEntryDecorator<NavKey>()
+                                NavDisplay(
+                                    backStack = backStack,
+                                    onBack = { if (backStack.size > 1) backStack.removeLast() },
+                                    entryDecorators = listOf(saveableDecorator),
+                                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                    popTransitionSpec = { fadeIn() togetherWith fadeOut() },
+                                    entryProvider = entryProvider {
+                                        entry<TestRoute.Source> {
+                                            val activeKey = rememberSaveable { mutableStateOf<String?>(null) }
+                                            val handler = remember(activeKey) {
+                                                MediaHandler(
+                                                    onOpenMedia = { files, _ ->
+                                                        backStack.add(TestRoute.Viewer(files.first()))
+                                                    },
+                                                    onOpenHtml = {},
+                                                    activeSharedElementKey = activeKey,
+                                                ).apply {
+                                                    updateMedia(1L, listOf("test.png"))
+                                                }
+                                            }
+                                            CompositionLocalProvider(
+                                                LocalActiveSharedElementKey provides handler.activeSharedElementKey,
+                                            ) {
+                                                RichText(
+                                                    blocks = listOf(
+                                                        RichTextBlock.Media(
+                                                            source = "media://test.png",
+                                                            mediaRef = "test.png",
+                                                            description = "thumb_first",
+                                                            width = 200,
+                                                            alignment = TextAlign.Start,
+                                                        ),
+                                                        RichTextBlock.Media(
+                                                            source = "media://test.png",
+                                                            mediaRef = "test.png",
+                                                            description = "thumb_second",
+                                                            width = 200,
+                                                            alignment = TextAlign.Start,
+                                                        ),
+                                                    ),
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    onMediaClick = { ref -> handler.handleMediaLink(ref) },
+                                                )
+                                            }
+                                        }
+                                        entry<TestRoute.Viewer> { key ->
+                                            MediaContent(
+                                                fileName = key.file,
+                                                isActivePage = true,
+                                                isSharedElementPage = true,
+                                                resolveMediaFilePath = { it },
+                                                mediaFileExists = { true },
+                                                onZoomChanged = {},
+                                                onSingleTap = {},
+                                                sharedTransitionScope = LocalSharedTransitionScope.current,
+                                                animatedVisibilityScope = LocalNavAnimatedContentScope.current,
+                                                modifier = Modifier.fillMaxSize(),
+                                            )
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            waitForIdle()
+            onNodeWithContentDescription("thumb_second").performClick()
+            waitForIdle()
+
+            mainClock.autoAdvance = false
+            repeat(40) {
+                mainClock.advanceTimeByFrame()
+                waitForIdle()
+            }
+
+            runOnUiThread { backStack.removeLast() }
+            waitForIdle()
+
+            var observedSecondAtViewerStart = false
+            repeat(8) { frame ->
+                mainClock.advanceTimeByFrame()
+                waitForIdle()
+                val secondNodes = onAllNodesWithContentDescription("thumb_second", useUnmergedTree = true)
+                    .fetchSemanticsNodes()
+                val firstNodes = onAllNodesWithContentDescription("thumb_first", useUnmergedTree = true)
+                    .fetchSemanticsNodes()
+                if (secondNodes.isNotEmpty() && frame <= 1) {
+                    val secondBounds = secondNodes.first().boundsInRoot
+                    observedSecondAtViewerStart = secondBounds.width > 300f && secondBounds.top in 150f..250f
+                    assertTrue(
+                        observedSecondAtViewerStart,
+                        "Expected tapped second duplicate image to own frame $frame return bounds, got $secondBounds",
+                    )
+                    if (firstNodes.isNotEmpty()) {
+                        val firstBounds = firstNodes.first().boundsInRoot
+                        assertTrue(
+                            firstBounds.width <= 220f && firstBounds.top < 150f,
+                            "Expected first duplicate image to stay in its rest slot, got $firstBounds",
+                        )
+                    }
+                }
+            }
+            assertTrue(
+                observedSecondAtViewerStart,
+                "Expected tapped second duplicate image to start return transition from centered viewer bounds",
+            )
         } finally {
             SingletonImageLoader.reset()
         }

@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -57,7 +58,6 @@ import com.medqb.app.shared.ui.adaptive.LocalAdaptiveLayoutInfo
 import com.medqb.app.shared.ui.components.ContentMaxWidth
 import com.medqb.app.shared.ui.components.ResponsiveContentContainer
 import com.medqb.app.shared.ui.media.MediaHandler
-import androidx.compose.runtime.key
 import com.medqb.app.shared.ui.richtext.RichText
 import com.medqb.app.shared.ui.richtext.RichTextHighlightConfig
 import com.medqb.app.shared.ui.richtext.RichTextHighlightHost
@@ -119,21 +119,22 @@ private fun QuestionContent(
     contentPadding: PaddingValues = PaddingValues(0.dp),
     bottomClearance: Dp = 80.dp,
 ) {
-    Column(
+    Surface(
         modifier = modifier
             .fillMaxSize()
-            .padding(contentPadding)
-            .consumeWindowInsets(contentPadding)
+            .testTag("quiz_surface"),
+        color = MaterialTheme.colorScheme.surfaceContainerLowest
     ) {
-        Surface(
+        Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surfaceContainerLowest
+                .fillMaxSize()
+                .padding(contentPadding)
+                .consumeWindowInsets(contentPadding)
         ) {
             val adaptive = LocalAdaptiveLayoutInfo.current
             ResponsiveContentContainer(
                 maxWidth = if (adaptive.useTwoPaneLayout) ContentMaxWidth.TwoPane else ContentMaxWidth.Standard,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
             ) {
                 QuizQuestionCard(
                     state = state,

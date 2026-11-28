@@ -3,42 +3,43 @@ package com.medqb.app.shared.ui.richtext
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.Stable
-import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.currentCompositeKeyHashCode
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import coil3.compose.rememberAsyncImagePainter
-import com.medqb.app.shared.ui.LocalSharedTransitionScope
 import com.medqb.app.shared.ui.LocalActiveSharedElementKey
+import com.medqb.app.shared.ui.LocalSharedTransitionScope
+import com.medqb.app.shared.ui.media.MediaAspectRatioCache
+import com.medqb.app.shared.ui.media.mediaSharedElement
 import com.medqb.app.shared.utils.HtmlUtils
-
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.RectangleShape
-import net.engawapg.lib.zoomable.ExperimentalZoomableApi
-import net.engawapg.lib.zoomable.SnapBackZoomableBox
-import net.engawapg.lib.zoomable.rememberZoomState
 
 /**
  * Renders a media element (image) with optional description.
  *
+ * Inline images are tap-to-view surfaces that participate in Navigation 3 hero transitions using a
+ * deterministic structural shared element key derived from the block's composition slot.
+ *
  * @param block The media block containing source, description, and layout information
- * @param onMediaClick Callback invoked when the media is clicked
+ * @param onMediaClick Callback invoked when the media is clicked with `(mediaRef, sharedElementKey)`
  */
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalZoomableApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun RichMedia(
     block: RichTextBlock.Media,
@@ -50,14 +51,11 @@ internal fun RichMedia(
     }
 
     val clickTarget = block.mediaRef ?: extractMediaRef(block.source) ?: block.source
-    val instanceToken = remember { Any() }
-    val sharedMediaCoordinator = LocalSharedMediaCoordinator.current
-    DisposableEffect(sharedMediaCoordinator, clickTarget, instanceToken) {
-        sharedMediaCoordinator.register(clickTarget, instanceToken)
-        onDispose {
-            sharedMediaCoordinator.unregister(clickTarget, instanceToken)
-        }
+    val compositeKey = currentCompositeKeyHashCode
+    val ownerToken = remember(clickTarget, compositeKey) {
+        "$clickTarget#$compositeKey"
     }
+
     val hasExplicitWidth = block.width?.let { it > 0 } == true
     val imageSizeModifier = remember(block.width) {
         val w = block.width?.takeIf { it > 0 }
@@ -70,43 +68,40 @@ internal fun RichMedia(
         }
     }
 
-    val zoomState = rememberZoomState()
-    // Hoist the painter above SnapBackZoomableBox so toggling the zoom overlay never disposes
-    // and reloads AsyncImagePainter (which would collapse height to 0 for a frame on release and
-    // clamp the parent ScrollState).
     val painter = rememberAsyncImagePainter(
         model = mediaModel,
         contentScale = ContentScale.Fit,
         onSuccess = { state ->
-            zoomState.setContentSize(state.painter.intrinsicSize)
+            MediaAspectRatioCache.record(clickTarget, state.painter.intrinsicSize)
         },
     )
+
+    val knownAspectRatio = MediaAspectRatioCache.get(clickTarget)
+    val aspectModifier = if (!hasExplicitWidth && knownAspectRatio != null) {
+        Modifier.aspectRatio(knownAspectRatio)
+    } else {
+        Modifier
+    }
 
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val navAnimatedScope = animatedVisibilityScope ?: if (sharedTransitionScope != null) {
         LocalNavAnimatedContentScope.current
     } else null
-    val activeKey = LocalActiveSharedElementKey.current?.value
-    val motionScheme = MaterialTheme.motionScheme
-    val defaultSpatialSpec = motionScheme.defaultSpatialSpec<Rect>()
-
-    // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
-    // hero transition without duplicate image crossfade artifacts.
+    val activeKeyState = LocalActiveSharedElementKey.current
+    val activeKey = activeKeyState?.value
     val sharedElementModifier = if (
         sharedTransitionScope != null &&
         navAnimatedScope != null &&
-        activeKey == clickTarget &&
-        sharedMediaCoordinator.isOwner(clickTarget, instanceToken)
+        activeKey == ownerToken
     ) {
-        with(sharedTransitionScope) {
-            Modifier.sharedElement(
-                sharedContentState = rememberSharedContentState(key = "media_$clickTarget"),
-                animatedVisibilityScope = navAnimatedScope,
-                boundsTransform = { _, _ -> defaultSpatialSpec },
-                clipInOverlayDuringTransition = OverlayClip(RectangleShape),
-            )
-        }
-    } else Modifier
+        Modifier.mediaSharedElement(
+            sharedElementKey = "media_$clickTarget",
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = navAnimatedScope,
+        )
+    } else {
+        Modifier
+    }
 
     Column(
         modifier = Modifier
@@ -118,16 +113,24 @@ internal fun RichMedia(
             else -> Alignment.Start
         }
     ) {
-        SnapBackZoomableBox(
+        // Place imageSizeModifier/aspectModifier outside sharedElementModifier with
+        // propagateMinConstraints = true so settled layout obeys HTML bounds while
+        // SharedBoundsNode's fixed transition constraints reach Image unobstructed.
+        Box(
             modifier = Modifier
                 .then(imageSizeModifier)
-                .then(sharedElementModifier),
-            zoomState = zoomState,
-            scrim = MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f),
-            onTap = {
-                sharedMediaCoordinator.prefer(clickTarget, instanceToken)
-                onMediaClick(clickTarget)
-            },
+                .then(aspectModifier)
+                .then(sharedElementModifier)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    role = Role.Image,
+                    onClick = {
+                        activeKeyState?.value = ownerToken
+                        onMediaClick(clickTarget)
+                    },
+                ),
+            propagateMinConstraints = true,
         ) {
             Image(
                 painter = painter,
@@ -149,47 +152,6 @@ internal fun RichMedia(
         }
     }
 }
-
-@Stable
-internal class SharedMediaCoordinator {
-    private val registrations = mutableStateMapOf<String, List<Any>>()
-    private val preferred = mutableStateMapOf<String, Any>()
-
-    fun register(key: String, token: Any) {
-        val current = registrations[key].orEmpty()
-        if (current.none { it === token }) {
-            registrations[key] = current + token
-        }
-    }
-
-    fun unregister(key: String, token: Any) {
-        val current = registrations[key] ?: return
-        val updated = current.filterNot { it === token }
-        if (updated.isEmpty()) {
-            registrations.remove(key)
-        } else {
-            registrations[key] = updated
-        }
-        if (preferred[key] === token) {
-            preferred.remove(key)
-        }
-    }
-
-    fun prefer(key: String, token: Any) {
-        preferred[key] = token
-    }
-
-    fun isOwner(key: String, token: Any): Boolean {
-        val list = registrations[key].orEmpty()
-        val pref = preferred[key]
-        if (pref != null && list.any { it === pref }) {
-            return pref === token
-        }
-        return list.firstOrNull() === token
-    }
-}
-
-internal val LocalSharedMediaCoordinator = compositionLocalOf { SharedMediaCoordinator() }
 
 private val MaxEmbeddedImageWidth = 512.dp
 

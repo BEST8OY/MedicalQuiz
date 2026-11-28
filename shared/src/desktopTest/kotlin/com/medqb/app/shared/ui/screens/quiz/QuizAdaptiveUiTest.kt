@@ -1,9 +1,11 @@
 package com.medqb.app.shared.ui.screens.quiz
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
@@ -129,6 +131,61 @@ class QuizAdaptiveUiTest {
         assertTrue(
             answerBounds.left >= questionBounds.right,
             "Expected answer options (left=${answerBounds.left}) to sit to the right of question card (right=${questionBounds.right}) even in compact-height phone landscape"
+        )
+    }
+
+    @Test
+    fun landscapeHorizontalInsetKeepsSurfaceFullBleed() = runComposeUiTest {
+        val sampleQuestion = Question(
+            id = 101L,
+            question = "<p>Question stem vignette</p>",
+            explanation = "<p>Explanation body</p>",
+            corrAns = 1,
+            title = "Chest Pain",
+            mediaName = null,
+            otherMedias = null,
+            pplTaken = 100.0,
+            corrTaken = 75.0,
+            subId = "1",
+            sysId = "1",
+        )
+        val state = QuizUiState(
+            databaseName = "USMLE Step 1",
+            questionIds = listOf(101L),
+            currentQuestionIndex = 0,
+            currentQuestion = sampleQuestion,
+            currentAnswers = emptyList(),
+            correctAnswerId = 1,
+        )
+        val mediaHandler = MediaHandler(
+            onOpenMedia = { _, _ -> },
+            onOpenHtml = {},
+        )
+
+        setContent {
+            ProvideAdaptiveLayoutInfo(modifier = Modifier.requiredSize(900.dp, 410.dp)) {
+                QuizScreen(
+                    state = state,
+                    mediaHandler = mediaHandler,
+                    onAnswerSelected = {},
+                    onHighlightAdd = { _, _, _, _, _, _ -> },
+                    onHighlightRemove = {},
+                    onHighlightColorChange = { _, _ -> },
+                    contentPadding = PaddingValues(start = 48.dp, top = 56.dp),
+                )
+            }
+        }
+
+        val surfaceBounds = onNodeWithTag("quiz_surface").fetchSemanticsNode().boundsInRoot
+        val questionBounds = onNodeWithText("Question stem vignette").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+
+        assertTrue(
+            surfaceBounds.left == 0f,
+            "Expected quiz surface to extend behind left landscape cutout inset, but left was ${surfaceBounds.left}",
+        )
+        assertTrue(
+            questionBounds.left > 48f,
+            "Expected question content to remain inset past 48dp left padding, but left was ${questionBounds.left}",
         )
     }
 }

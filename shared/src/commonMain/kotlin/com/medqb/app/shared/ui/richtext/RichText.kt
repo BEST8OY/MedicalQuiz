@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -99,15 +100,17 @@ private fun RichTextInternal(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             blocks.forEachIndexed { blockIndex, block ->
-                RichTextBlockRenderer(
-                    block = block,
-                    blockIndex = blockIndex,
-                    showSelectedHighlight = showSelectedHighlight,
-                    onLinkClick = resolvedLinkHandler,
-                    onMediaClick = resolvedMediaHandler,
-                    onTooltipClick = tooltipSupport.onTooltipClick,
-                    highlightConfig = highlightConfig,
-                )
+                key(blockIndex) {
+                    RichTextBlockRenderer(
+                        block = block,
+                        blockIndex = blockIndex,
+                        showSelectedHighlight = showSelectedHighlight,
+                        onLinkClick = resolvedLinkHandler,
+                        onMediaClick = resolvedMediaHandler,
+                        onTooltipClick = tooltipSupport.onTooltipClick,
+                        highlightConfig = highlightConfig,
+                    )
+                }
             }
         }
     }

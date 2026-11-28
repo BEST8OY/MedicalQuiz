@@ -40,9 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.isSpecified
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.style.TextAlign
@@ -52,7 +50,9 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.medqb.app.shared.platform.PlatformBackHandler
+import com.medqb.app.shared.ui.media.MediaAspectRatioCache
 import com.medqb.app.shared.ui.media.MediaType
+import com.medqb.app.shared.ui.media.mediaSharedElement
 import com.medqb.app.shared.utils.MediaTypeUtils
 import net.engawapg.lib.zoomable.rememberZoomState
 import net.engawapg.lib.zoomable.zoomable
@@ -180,23 +180,22 @@ private fun ImageContent(
 
     val motionScheme = MaterialTheme.motionScheme
     val defaultSpatialFloatSpec = motionScheme.defaultSpatialSpec<Float>()
-    val defaultSpatialSpec = motionScheme.defaultSpatialSpec<Rect>()
 
     // Uses sharedElement with Material 3 Expressive motionScheme for pure single-element
     // hero transition without duplicate image crossfade artifacts.
     // When the forward entrance transition finishes, sharedElementResetKey is incremented to
     // detach the completed forward BoundsAnimation and attach a pristine, un-mutated
     // sharedElement node so that predictive back exit initiates on frame 0 of the first gesture.
-    val sharedElementModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+    val sharedElementModifier = if (
+        sharedTransitionScope != null &&
+        animatedVisibilityScope != null
+    ) {
         key(sharedElementResetKey) {
-            with(sharedTransitionScope) {
-                Modifier.sharedElement(
-                    sharedContentState = rememberSharedContentState(key = "media_$fileName"),
-                    animatedVisibilityScope = animatedVisibilityScope,
-                    boundsTransform = { _, _ -> defaultSpatialSpec },
-                    clipInOverlayDuringTransition = OverlayClip(RectangleShape),
-                )
-            }
+            Modifier.mediaSharedElement(
+                sharedElementKey = "media_$fileName",
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
         }
     } else Modifier
 
@@ -270,7 +269,9 @@ private fun ImageContent(
         }
     }
 
-    var imageAspectRatio by remember(fileName) { mutableStateOf<Float?>(null) }
+    var imageAspectRatio by remember(fileName) {
+        mutableStateOf(MediaAspectRatioCache.get(fileName))
+    }
     val fittedImageModifier = imageAspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier.fillMaxSize()
 
     Box(
@@ -288,10 +289,12 @@ private fun ImageContent(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        // Scope sharedElement to the fitted image bounds rather than the full-screen viewport
-        // so returning transitions originate from the centered image instead of jumping to (0, 0).
+        // Scope sharedElement inside fittedImageModifier so settled bounds match the centered image
+        // proportions while SharedBoundsNode forwards fixed transition constraints unobstructed.
         Box(
-            modifier = fittedImageModifier.then(sharedElementModifier),
+            modifier = Modifier
+                .then(fittedImageModifier)
+                .then(sharedElementModifier),
             contentAlignment = Alignment.Center,
         ) {
             AsyncImage(
@@ -303,6 +306,7 @@ private fun ImageContent(
                     if (state is AsyncImagePainter.State.Success) {
                         val size = state.painter.intrinsicSize
                         zoomState.setContentSize(size)
+                        MediaAspectRatioCache.record(fileName, size)
                         if (size.isSpecified && size.width > 0f && size.height > 0f) {
                             imageAspectRatio = size.width / size.height
                         }

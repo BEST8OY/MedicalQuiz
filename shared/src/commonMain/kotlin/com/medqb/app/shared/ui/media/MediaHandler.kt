@@ -74,8 +74,10 @@ class MediaHandler(
     }
 
     private fun openMediaFromCache(fileName: String): Boolean {
-        if (currentMediaFiles.isEmpty()) {
+        if (activeSharedElementKey.value?.startsWith("$fileName#") != true) {
             activeSharedElementKey.value = fileName
+        }
+        if (currentMediaFiles.isEmpty()) {
             onOpenMedia(listOf(fileName), 0)
             return true
         }
@@ -83,11 +85,9 @@ class MediaHandler(
         val matchingIndex = currentMediaFiles.indexOfFirst { it.equals(fileName, ignoreCase = true) }
         if (matchingIndex < 0) {
             // If requested filename is not in current cached gallery, fallback to opening single requested media
-            activeSharedElementKey.value = fileName
             onOpenMedia(listOf(fileName), 0)
             return true
         }
-        activeSharedElementKey.value = fileName
         onOpenMedia(currentMediaFiles, matchingIndex)
         return true
     }
